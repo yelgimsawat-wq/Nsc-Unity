@@ -1,6 +1,10 @@
 using UnityEngine;
 
-// ระบบเล็งแขน (Aim System) - ลากกระดูกไหล่ และเป้าหมายมือมาใส่
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+// ระบบเล็งแขน (Aim System) แบบเสถียร 100% พร้อม Debug
 public class ArmAimSystem : MonoBehaviour
 {
     [Header("Arm Setup")]
@@ -11,10 +15,10 @@ public class ArmAimSystem : MonoBehaviour
     public Transform handTarget;
 
     [Header("Aim Settings")]
-    [Tooltip("เลเยอร์ของพื้น (Ground) เพื่อหาตำแหน่งใน 3D")]
-    public LayerMask groundLayer;
     [Tooltip("ความเร็วในการหมุนแขนให้ดูนุ่มนวล")]
-    public float rotateSpeed = 8f;
+    public float rotateSpeed = 15f;
+    [Tooltip("ใช้ความสูง Y ของพื้นฐาน ถ้าเมาส์กวาดไปในอวกาศแล้วหาไม่เจอ")]
+    public float floorHeight = 0f;
 
     [Header("Rotation Correction (แก้ทิศทางโมเดล)")]
     [Tooltip("ปรับแก้แกนหมุนของโมเดลที่มาจาก Blender เช่น x:0, y:180, z:0 ให้แขนหันหน้าถูกทิศ")]
@@ -27,50 +31,79 @@ public class ArmAimSystem : MonoBehaviour
 
     private void Start()
     {
+        // 1. ค้นหากล้องหลัก
         mainCam = Camera.main;
-        
+        if (mainCam == null)
+        {
+            Debug.LogError("[ArmAimSystem] หา Camera.main ไม่เจอ! กรุณาเช็คว่ากล้องในซีนมี Tag เป็น MainCamera แล้วหรือยัง");
+        }
+
+        if (shoulder == null)
+        {
+            Debug.LogError("[ArmAimSystem] ยังไม่ได้ลากกระดูกมาใส่ช่อง Shoulder!");
+        }
+
         if (handTarget == null)
         {
-            Debug.LogWarning("ยังไม่ได้ลาก handTarget มาใส่ใน ArmAimSystem ครับ!");
+            Debug.LogError("[ArmAimSystem] ยังไม่ได้ลากเป้ามือมาใส่ช่อง HandTarget!");
         }
     }
 
     private void Update()
     {
+        // 2. Debug ตามที่ขอ เพื่อให้รู้ว่าสคริปต์นี้ถูกรันจริงๆ ทุกเฟรม
+        Debug.Log("ArmAim running");
+
+        if (mainCam == null) return;
+        
         UpdateHandTargetPosition();
         RotateShoulderToHand();
+    }
+
+    // ฟังก์ชันช่วยหา Mouse Position รองรับทั้ง Input เก่าและ Input System ใหม่
+    private Vector2 GetMousePosition()
+    {
+#if ENABLE_INPUT_SYSTEM
+        // 3. ถ้าใช้ New Input System
+        if (UnityEngine.InputSystem.Mouse.current != null)
+        {
+            return UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+        }
+#endif
+        // 4. Fallback ไปใช้ Input แบบเก่าที่เสถียรกว่าในบาง Project
+        return Input.mousePosition;
     }
 
     // 1. หาตำแหน่งเมาส์ใน World Space แล้วย้าย handTarget ไปตรงนั้น
     private void UpdateHandTargetPosition()
     {
-        if (handTarget == null || mainCam == null) return;
+        if (handTarget == null) return;
 
-        // รองรับ New Input System
-        Vector2 mousePos = UnityEngine.InputSystem.Mouse.current != null 
-            ? UnityEngine.InputSystem.Mouse.current.position.ReadValue() 
-            : Vector2.zero;
-            
+        // ดึงตำแหน่งเมาส์บนหน้าจอที่ปลอดภัยที่สุดไม่ว่าจะใช้ระบบ Input ไหน
+        Vector2 mousePos = GetMousePosition();
+        
+        // สร้าง Ray ยิงจากกล้องทะลุเมาส์ลงในฉาก 3D
         Ray ray = mainCam.ScreenPointToRay(mousePos);
         
-        // --- วิธีแก้ปัญหาชี้เมาส์แล้วไม่ขยับ ---
-        // ใช้ "พื้นจำลองทางคณิตศาสตร์" (Plane) ที่ความสูง Y = 0 (ระดับเดียวกับพื้นโลก)
-        // วิธีนี้จะแม่นยำ 100% โดยไม่ต้องพึ่งหา Collider หรือตั้งค่า LayerMask เลย
-        Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
+        // จำลองพื้น 수학(Plane) ที่ระดับ Y = floorHeight อัตโนมัติ (ไม่ต้องพึ่ง Collider)
+        Plane groundPlane = new Plane(Vector3.up, new Vector3(0, floorHeight, 0));
         
-        // ถ้ายิง Ray ของเมาส์ไปชนพื้นจำลอง
+        // ถ้ายิงจุดของเมาส์ไปชนพื้นจำลองสำเร็จ
         if (groundPlane.Raycast(ray, out float enterDistance))
         {
-            // หาพิกัด 3D ที่จุดชนของมันมาเก็บไว้
+            // หาพิกัด 3D ที่จุดชนนั้น
             CurrentMouseWorldPoint = ray.GetPoint(enterDistance);
+            
+            // Debug วาดเส้นยาวยิงจากกล้องลงพื้น จะได้เห็นจุดตกของเมาส์ในหน้าต่าง Scene ด้วย
+            Debug.DrawLine(ray.origin, CurrentMouseWorldPoint, Color.green);
         }
         else
         {
-            // ถ้าไม่โดนพื้น (เช่นหันกล้องขึ้นฟ้า) ให้ตั้งระยะห่างออกไปแทน
-            CurrentMouseWorldPoint = ray.GetPoint(10f);
+            // ถ้าไม่โดนอะไรเลย เช่น กล้องหงายขึ้นฟ้า ก็ให้เมาส์ผลักไปข้างหน้า 15 เมตรชั่วคราว
+            CurrentMouseWorldPoint = ray.GetPoint(15f);
         }
 
-        // ย้ายจุดเป้าหมาย (มือ) ไปที่ตำแหน่งเมาส์ทันที
+        // 5. บังคับย้ายจุดเป้าหมาย (มือ) ไปที่ตำแหน่งเมาส์ทันที!
         handTarget.position = CurrentMouseWorldPoint;
     }
 
