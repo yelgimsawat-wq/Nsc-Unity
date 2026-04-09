@@ -13,8 +13,8 @@ GameObject:
   - component: {fileID: 2071674974202901337}
   - component: {fileID: 8641407283109555604}
   - component: {fileID: 5899968410532111260}
-  - component: {fileID: 1991687441287405697}
   - component: {fileID: -8097115999037829432}
+  - component: {fileID: 8416574117733881698}
   m_Layer: 0
   m_Name: player1
   m_TagString: Untagged
@@ -140,7 +140,7 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
---- !u!114 &1991687441287405697
+--- !u!114 &-8097115999037829432
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -149,9 +149,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 1169875775329852450}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Script: {fileID: 11500000, guid: 68a071ed6a9e5b84f8324e1e1ae6857c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
+  m_EditorClassIdentifier: Assembly-CSharp::EZMovement
+  ShowTopMostFoldoutHeaderGroup: 1
+  speed: 5
+--- !u!114 &8416574117733881698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1169875775329852450}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05f68a8281f278b4da65fffafad39d5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Unity.Multiplayer.Samples.Utilities.ClientAuthority.ClientNetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
   AutoOwnerAuthorityTickOffset: 1
@@ -186,17 +200,3 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
---- !u!114 &-8097115999037829432
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 68a071ed6a9e5b84f8324e1e1ae6857c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EZMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  speed: 5
