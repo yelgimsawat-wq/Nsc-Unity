@@ -4,6 +4,7 @@ using Unity.Netcode;
 // 1. Inherit from NetworkBehaviour instead of MonoBehaviour
 public class EZMovement : NetworkBehaviour
 {
+    public NetworkVariable<int> hp = new NetworkVariable<int>(100);
     void Start()
     {
         
@@ -24,5 +25,15 @@ public class EZMovement : NetworkBehaviour
 
         Vector3 move = new Vector3(moveX, 0, moveZ) * speed * Time.deltaTime;
         transform.Translate(move);
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            TakeDamageServerRpc(10); // Example: Take 10 damage when space is pressed
+        }
+    }
+    [ServerRpc]
+    void TakeDamageServerRpc(int damage)
+    {
+        hp.Value -= damage;
     }
 }
