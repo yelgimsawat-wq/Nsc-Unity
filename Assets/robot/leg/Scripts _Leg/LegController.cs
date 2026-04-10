@@ -25,7 +25,8 @@ namespace NscUnity.Movement
 
         [Header("Rotation Settings")]
         [SerializeField] private float rotationSpeed = 60f; // ความเร็วในการหมุนขา (องศา/วินาที)ม
-        [SerializeField] private float rotationLimit = 45f; // จำกัดองศาการหมุนสูงสุด/ต่ำสุด (เช่น 45 คือ -45 ถึง 45)ม
+        [SerializeField] private float rotationLimit = 180f; // Hardware safety limit (smart limits managed by RobotController)
+        [SerializeField] private float baseXRotation = 0f; // Base X rotation to keep leg model upright
         
         private float targetValue = 0f;
         private float currentYaw = 0f; // เก็บค่าองศาการหมุนรวมม
@@ -58,8 +59,7 @@ namespace NscUnity.Movement
             currentYaw += direction * rotationSpeed * Time.deltaTime;
             currentYaw = Mathf.Clamp(currentYaw, -rotationLimit, rotationLimit);
 
-            // ใช้ localRotation เพื่อหมุนเฉพาะในแกน Y ของตัวเองม
-            transform.localRotation = Quaternion.Euler(0, currentYaw, 0);
+            ApplyRotation();
         }
 
         public void AdjustRotation(float delta)
@@ -67,12 +67,43 @@ namespace NscUnity.Movement
             // ใช้สำหรับหักลบองศาออกเมื่อตัวหุ่นหมุนตามขาแล้ว (Draining Rotation)ม
             currentYaw += delta;
             currentYaw = Mathf.Clamp(currentYaw, -rotationLimit, rotationLimit);
-            transform.localRotation = Quaternion.Euler(0, currentYaw, 0);
+            ApplyRotation();
+        }
+
+        /// <summary>
+        /// Applies the combined base rotation + yaw using proper quaternion math.
+        /// </summary>
+        private void ApplyRotation()
+        {
+            transform.localRotation = Quaternion.Euler(0f, currentYaw, 0f);
+        }
+
+        /// <summary>
+        /// Returns the world-space horizontal direction this leg is facing,
+        /// based on the parent's forward rotated by the leg's yaw.
+        /// </summary>
+        public Vector3 GetWorldForward()
+        {
+            Transform parentTransform = transform.parent;
+            Vector3 baseForward = (parentTransform != null) ? parentTransform.forward : Vector3.forward;
+            baseForward.y = 0f;
+            if (baseForward.sqrMagnitude < 0.001f) baseForward = Vector3.forward;
+            baseForward.Normalize();
+            return Quaternion.AngleAxis(currentYaw, Vector3.up) * baseForward;
         }
 
         public float GetCurrentYaw()
         {
             return currentYaw;
+        }
+
+        /// <summary>
+        /// Force-sets the yaw value. Used by RobotController to enforce world-space rotation limits.
+        /// </summary>
+        public void SetYaw(float yaw)
+        {
+            currentYaw = Mathf.Clamp(yaw, -rotationLimit, rotationLimit);
+            ApplyRotation();
         }
 
         private void Update()
