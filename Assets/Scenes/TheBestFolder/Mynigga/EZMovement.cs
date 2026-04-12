@@ -5,12 +5,16 @@ using Unity.Netcode;
 public class EZMovement : NetworkBehaviour
 {
     public NetworkVariable<int> hp = new NetworkVariable<int>(100);
+    public Following target;
     void Start()
     {
-        
     }
 
     public float speed = 5f;
+    public override void OnNetworkSpawn()
+    {
+        target = GameObject.FindAnyObjectByType<Following>();
+    }
 
     void Update()
     {
@@ -22,8 +26,16 @@ public class EZMovement : NetworkBehaviour
         // 3. Normal movement logic
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
-
-        Vector3 move = new Vector3(moveX, 0, moveZ) * speed * Time.deltaTime;
+        float moveY = 0f;
+        if (Input.GetKey(KeyCode.Q))
+        {
+            moveY = 1f;
+        }
+        else if (Input.GetKey(KeyCode.E))
+        {
+            moveY = -1f;
+        }
+        Vector3 move = new Vector3(moveX, moveY, moveZ) * speed * Time.deltaTime;
         transform.Translate(move);
 
         if (Input.GetKeyDown(KeyCode.Space))

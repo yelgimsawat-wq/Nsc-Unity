@@ -112,7 +112,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -130,7 +130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1350702869
+  GlobalObjectIdHash: 4277015921
   InScenePlacedSourceGlobalObjectIdHash: 1350702869
   DeferredDespawnTick: 0
   Ownership: 1
@@ -161,6 +161,7 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 100
+  target: {fileID: 0}
   speed: 5
 --- !u!114 &8416574117733881698
 MonoBehaviour:
