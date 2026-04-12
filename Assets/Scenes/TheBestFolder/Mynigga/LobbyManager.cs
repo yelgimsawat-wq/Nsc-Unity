@@ -16,6 +16,7 @@ public class LobbyManager : NetworkBehaviour
     public Following leftLeg;
     public Following rightLeg;
 
+    [SerializeField] private Button[] limbButtons;
     // เก็บ ID ผู้เล่นที่จอง limb (0-3)
     private NetworkList<long> limbOwners;
 
@@ -23,10 +24,15 @@ public class LobbyManager : NetworkBehaviour
     {
         Instance = this;
         limbOwners = new NetworkList<long>(new long[] { -1, -1, -1, -1 });
+        limbButtons[0].onClick.AddListener(() => RequestLimbServerRpc(0));
+        limbButtons[1].onClick.AddListener(() => RequestLimbServerRpc(1));
+        limbButtons[2].onClick.AddListener(() => RequestLimbServerRpc(2));
+        limbButtons[3].onClick.AddListener(() => RequestLimbServerRpc(3));
+
     }
 
     // --- STEP 1: ผู้เล่นกดเลือกแขนขา ---
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void RequestLimbServerRpc(int index, ServerRpcParams rpcParams = default)
     {
         long clientId = (long)rpcParams.Receive.SenderClientId;

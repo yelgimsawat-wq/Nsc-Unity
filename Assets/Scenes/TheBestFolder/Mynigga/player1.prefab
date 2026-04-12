@@ -13,10 +13,11 @@ GameObject:
   - component: {fileID: 2071674974202901337}
   - component: {fileID: 8641407283109555604}
   - component: {fileID: 5899968410532111260}
-  - component: {fileID: -8097115999037829432}
   - component: {fileID: 8416574117733881698}
   - component: {fileID: -8509970150975333030}
   - component: {fileID: 7049482399023198016}
+  - component: {fileID: 1955159752968344627}
+  - component: {fileID: -9078461687732277851}
   m_Layer: 0
   m_Name: player1
   m_TagString: Untagged
@@ -130,7 +131,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4277015921
+  GlobalObjectIdHash: 1350702869
   InScenePlacedSourceGlobalObjectIdHash: 1350702869
   DeferredDespawnTick: 0
   Ownership: 1
@@ -143,26 +144,6 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
---- !u!114 &-8097115999037829432
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 68a071ed6a9e5b84f8324e1e1ae6857c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EZMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  hp:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 100
-  target: {fileID: 0}
-  speed: 5
 --- !u!114 &8416574117733881698
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -238,6 +219,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UiSpawner
   ShowTopMostFoldoutHeaderGroup: 1
   uiPrefab: {fileID: 8002423388772767610, guid: 833a60e0904d0f240ba69b5eed65c5fe, type: 3}
+--- !u!114 &1955159752968344627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1169875775329852450}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68a071ed6a9e5b84f8324e1e1ae6857c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EZMovement
+  ShowTopMostFoldoutHeaderGroup: 1
+  hp:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
+  speed: 5
+--- !u!114 &-9078461687732277851
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1169875775329852450}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97cd5a5c2742b1847a999711230ec15b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
+  ShowTopMostFoldoutHeaderGroup: 1
+  speed: 5
+  pushForce: 100
+  detectionRadius: 0.3
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 1
+  torso: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:
   m_ObjectHideFlags: 0

@@ -8,5 +8,6 @@ public class RobotManager : NetworkBehaviour
     public GameObject[] Player;
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
     }
 }

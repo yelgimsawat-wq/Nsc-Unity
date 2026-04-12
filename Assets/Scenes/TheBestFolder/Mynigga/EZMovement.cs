@@ -5,16 +5,8 @@ using Unity.Netcode;
 public class EZMovement : NetworkBehaviour
 {
     public NetworkVariable<int> hp = new NetworkVariable<int>(100);
-    public Following target;
-    void Start()
-    {
-    }
 
     public float speed = 5f;
-    public override void OnNetworkSpawn()
-    {
-        target = GameObject.FindAnyObjectByType<Following>();
-    }
 
     void Update()
     {
