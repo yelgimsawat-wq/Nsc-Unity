@@ -15,7 +15,6 @@ GameObject:
   - component: {fileID: 5899968410532111260}
   - component: {fileID: 8416574117733881698}
   - component: {fileID: -8509970150975333030}
-  - component: {fileID: 7049482399023198016}
   - component: {fileID: 1955159752968344627}
   - component: {fileID: -9078461687732277851}
   m_Layer: 0
@@ -157,7 +156,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unity.Multiplayer.Samples.Utilities.ClientAuthority.ClientNetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
-  NetworkTransformExpanded: 0
+  NetworkTransformExpanded: 1
   AutoOwnerAuthorityTickOffset: 1
   PositionInterpolationType: 0
   RotationInterpolationType: 0
@@ -205,20 +204,6 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   playercam: {fileID: 2120977250887550888}
   playeral: {fileID: 9079912275674746100}
---- !u!114 &7049482399023198016
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9bde4a571abf09e4bad97be876139bbd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UiSpawner
-  ShowTopMostFoldoutHeaderGroup: 1
-  uiPrefab: {fileID: 8002423388772767610, guid: 833a60e0904d0f240ba69b5eed65c5fe, type: 3}
 --- !u!114 &1955159752968344627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -252,8 +237,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
-  pushForce: 100
-  detectionRadius: 0.3
+  pushForce: 50
+  detectionRadius: 1
   groundLayer:
     serializedVersion: 2
     m_Bits: 1

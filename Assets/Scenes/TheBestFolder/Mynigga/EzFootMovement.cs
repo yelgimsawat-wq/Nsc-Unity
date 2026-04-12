@@ -5,7 +5,7 @@ public class EZFootMovement : NetworkBehaviour
 {
     [Header("Settings")]
     public float speed = 5f;
-    public float pushForce = 500f; // แรงที่ใช้ยันตัวเครื่อง
+    public float pushForce = 100f; // แรงที่ใช้ยันตัวเครื่อง
     public float detectionRadius = 1f; // รัศมีตรวจสอบการชนที่เท้า
     public LayerMask groundLayer; // ตั้งค่า Layer ของพื้นและผนัง
 
@@ -14,11 +14,10 @@ public class EZFootMovement : NetworkBehaviour
     private Transform physicalFootTransform; // ตัวแปรอ้างอิงไปยังเท้าจริงใน RobotContainer
     [SerializeField] GameObject torso;
 
-    // เปลี่ยนมาใช้ OnEnable เพื่อให้มันค้นหาค่าใหม่ทุกครั้งที่สคริปต์ถูกเปิดใช้งาน
-    private void OnEnable()
+    public void press()
     {
         // 1. ค้นหา Rigidbody ของตัวเครื่องจาก "ชื่อ" แทนการใช้ RobotBrain
-        GameObject torsoObject = GameObject.Find("Torso");
+        GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
 
         if (torsoObject != null)
         {
@@ -28,8 +27,6 @@ public class EZFootMovement : NetworkBehaviour
         {
             Debug.LogError("หาชิ้นส่วน 'Torso' ไม่เจอ! รบกวนตั้งชื่อตัวเครื่องหุ่นยนต์หลักใน Hierarchy ว่า 'Torso' ด้วยครับ");
         }
-
-        // 2. ค้นหาเท้าจริงที่เราควบคุมอยู่
         Following[] followers = GameObject.FindObjectsByType<Following>(FindObjectsSortMode.None);
         foreach (var f in followers)
         {
@@ -40,7 +37,6 @@ public class EZFootMovement : NetworkBehaviour
             }
         }
     }
-
     void Update()
     {
         if (!IsOwner) return;

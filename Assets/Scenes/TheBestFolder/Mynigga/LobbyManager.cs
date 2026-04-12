@@ -45,6 +45,7 @@ public class LobbyManager : NetworkBehaviour
     {
         AssignPlayersToLimbs(); // มอบหมาย Transform ให้ Following
         StartGameClientRpc();   // ปิด UI และเปิดหุ่นให้ทุกคน
+
     }
 
     // --- STEP 3: ฟังก์ชันหัวใจหลัก (มอบหมาย Player ไปที่ Target) ---
@@ -57,7 +58,15 @@ public class LobbyManager : NetworkBehaviour
             if (NetworkManager.Singleton.ConnectedClients.TryGetValue((ulong)limbOwners[i], out var client))
             {
                 // ดึง Transform ของ Player และส่งไปให้ Following ตามลำดับ i
-                Following targetLimb = GetLimbByIndex(i);
+                if (i >= 2)
+                {
+                    client.PlayerObject.GetComponent<EZFootMovement>().enabled = true;
+                }
+                else
+                {
+                    client.PlayerObject.GetComponent<EZMovement>().enabled = true;
+                }
+                    Following targetLimb = GetLimbByIndex(i);
                 if (targetLimb != null)
                 {
                     targetLimb.targetPoint = client.PlayerObject.transform;
@@ -76,5 +85,32 @@ public class LobbyManager : NetworkBehaviour
     {
         selectionPanel.SetActive(false);
         robotContainer.SetActive(true);
+
+        // FIX THE FREEZE: Force the Torso to wake up and use gravity
+        if (robotContainer != null)
+        {
+            foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
+            {
+                rigid.isKinematic = false;
+                rigid.WakeUp();
+            }
+        }
+
+        // ENABLE LOCAL CONTROLS: Loop through the owners and enable scripts for the local player
+        for (int i = 0; i < limbOwners.Count; i++)
+        {
+            if (limbOwners[i] == (long)NetworkManager.Singleton.LocalClientId)
+            {
+                GameObject myPlayer = NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
+                NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<EZFootMovement>().press();
+                // Enable the correct script based on the index
+                if (i >= 2) myPlayer.GetComponent<EZFootMovement>().enabled = true;
+                else myPlayer.GetComponent<EZMovement>().enabled = true;
+
+                // Set the local target point so the limb follows on YOUR screen
+                Following targetLimb = GetLimbByIndex(i);
+                if (targetLimb != null) targetLimb.targetPoint = myPlayer.transform;
+            }
+        }
     }
 }
