@@ -3,30 +3,24 @@ using Unity.Netcode;
 
 public class EZFootMovement : NetworkBehaviour
 {
-    [Header("Settings")]
-    public float speed = 5f;
-    public float pushForce = 100f; // แรงที่ใช้ยันตัวเครื่อง
-    public float detectionRadius = 1f; // รัศมีตรวจสอบการชนที่เท้า
-    public LayerMask groundLayer; // ตั้งค่า Layer ของพื้นและผนัง
+    [Header("Movement Settings")]
+    public float speed = 8f;
+    public float pushForce = 50f;
+    public float hitRadius = 0.2f; // รัศมีลูกบอลสำหรับเช็คการชน (เล็กๆ พอ)
+    public LayerMask groundLayer;
+
+    [Header("Leash Settings")]
+    public float maxLeashLength = 4f;
 
     [Header("References")]
     private Rigidbody torsoRb;
-    private Transform physicalFootTransform; // ตัวแปรอ้างอิงไปยังเท้าจริงใน RobotContainer
-    [SerializeField] GameObject torso;
+    public Transform physicalFootTransform;
 
     public void press()
     {
-        // 1. ค้นหา Rigidbody ของตัวเครื่องจาก "ชื่อ" แทนการใช้ RobotBrain
         GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
+        if (torsoObject != null) torsoRb = torsoObject.GetComponent<Rigidbody>();
 
-        if (torsoObject != null)
-        {
-            torsoRb = torsoObject.GetComponent<Rigidbody>();
-        }
-        else
-        {
-            Debug.LogError("หาชิ้นส่วน 'Torso' ไม่เจอ! รบกวนตั้งชื่อตัวเครื่องหุ่นยนต์หลักใน Hierarchy ว่า 'Torso' ด้วยครับ");
-        }
         Following[] followers = GameObject.FindObjectsByType<Following>(FindObjectsSortMode.None);
         foreach (var f in followers)
         {
@@ -37,40 +31,60 @@ public class EZFootMovement : NetworkBehaviour
             }
         }
     }
+
     void Update()
     {
-        if (!IsOwner) return;
+        if (!IsOwner || torsoRb == null) return;
 
-        // 1. การเคลื่อนที่ของตัว Player Object (ตัวล่องหน)
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
-        float moveY = 0f;
+        // 1. รับค่า Input
+        Vector3 inputDir = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
+        if (Input.GetKey(KeyCode.Q)) inputDir.y = 1f;
+        else if (Input.GetKey(KeyCode.E)) inputDir.y = -1f;
 
-        if (Input.GetKey(KeyCode.Q)) moveY = 1f;
-        else if (Input.GetKey(KeyCode.E)) moveY = -1f;
+        Vector3 moveDir = inputDir.normalized;
+        bool isPushingIntoSurface = false;
 
-        Vector3 moveDir = new Vector3(moveX, moveY, moveZ);
-        transform.Translate(moveDir * speed * Time.deltaTime);
-
-        // 2. ระบบการ "ยัน" (Pushing Logic)
-        if (physicalFootTransform != null && moveDir.magnitude > 0.1f)
+        // 2. ตรวจสอบการ "ดัน" เข้าหาพื้น (Solid Interaction)
+        if (moveDir.magnitude > 0.1f)
         {
-            HandlePushing(moveDir);
+            // ถอยหลังจุดยิงนิดนึง (- moveDir * 0.1f) เพื่อป้องกันบัคกรณีที่ตัวเราจมอยู่ในพื้นผิวไปแล้ว
+            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out RaycastHit hit, 0.3f, groundLayer))
+            {
+                // เช็ค Dot Product: ถ้าค่าน้อยกว่าศูนย์ (ติดลบ) แปลว่าแรงกดกำลัง "พุ่งเข้าหา" หรือ "กดเฉียงเข้าหา" ผิวหน้านั้น
+                if (Vector3.Dot(moveDir, hit.normal) < -0.05f)
+                {
+                    isPushingIntoSurface = true;
+
+                    // ส่งแรงถีบสวนทางกับทิศทางที่กด
+                    ApplyPushForceServerRpc(-moveDir * pushForce);
+                }
+            }
         }
+
+        // 3. จัดการการเคลื่อนที่
+        if (isPushingIntoSurface)
+        {
+            // [สถานะ: ยันพื้น]
+            // ไม่ต้องทำอะไรเลย ปล่อยให้ moveDir ไม่ถูกนำไปใช้ขยับตำแหน่ง (หยุดนิ่งกึก)
+        }
+        else if (moveDir.magnitude > 0.1f)
+        {
+            // [สถานะ: บินอิสระ]
+            // ถ้ากดขนานไปกับพื้น หรือกดดึงตัวออก (Dot ไม่ติดลบ) จะสามารถขยับได้ทันที
+            // ไม่มีระบบ Snap ดูดติดพื้นแล้ว ทำให้ลอยออกได้ง่ายมาก
+            transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+        }
+
+        // 4. ให้เชือกคอยลากตัวเราตาม Body เสมอ
+        ApplyLeash();
     }
 
-    private void HandlePushing(Vector3 moveInput)
+    private void ApplyLeash()
     {
-        // สร้างทรงกลมล่องหนเช็คการชนรอบๆ เท้าจริง
-        Collider[] colliders = Physics.OverlapSphere(physicalFootTransform.position, detectionRadius, groundLayer);
-
-        if (colliders.Length > 0)
+        Vector3 offset = transform.position - torsoRb.position;
+        if (offset.magnitude > maxLeashLength)
         {
-            // ส่งแรงผลักไปยังทิศทางตรงกันข้ามกับที่เรากด (Reaction Force)
-            Vector3 reactionDirection = -moveInput.normalized;
-
-            // ส่งคำสั่งไปรันที่ Server เพื่อผลักตัวเครื่อง
-            ApplyPushForceServerRpc(reactionDirection * pushForce);
+            transform.position = torsoRb.position + (offset.normalized * maxLeashLength);
         }
     }
 
@@ -79,17 +93,14 @@ public class EZFootMovement : NetworkBehaviour
     {
         if (torsoRb != null)
         {
-            // ผลักตัวเครื่อง (Torso) ในทิศตรงข้าม
-            torsoRb.AddForce(force, ForceMode.Force);
+            torsoRb.AddForce(force, ForceMode.Acceleration);
         }
     }
 
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
-        if (physicalFootTransform != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(physicalFootTransform.position, detectionRadius);
-        }
+        // วาดให้เห็นรัศมีการชน
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, hitRadius);
     }
 }

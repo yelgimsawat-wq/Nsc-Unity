@@ -16,9 +16,9 @@ public class Following : NetworkBehaviour
     }
     public override void OnNetworkSpawn()
     {
-        if (!IsServer) return;
-        targetPoint = GameObject.Find("TargetPoint").transform;
-        targetPoint.position = transform.position;
+        //if (!IsServer) return;
+        //targetPoint = GameObject.Find("TargetPoint").transform;
+        //targetPoint.position = transform.position;
     }
     void FixedUpdate()
     {

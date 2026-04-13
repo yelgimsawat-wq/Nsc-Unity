@@ -17,9 +17,9 @@ GameObject:
   - component: {fileID: -8509970150975333030}
   - component: {fileID: 1955159752968344627}
   - component: {fileID: -9078461687732277851}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: player1
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -237,12 +237,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
-  pushForce: 50
+  pushForce: 10
   detectionRadius: 1
+  footTargetProximity: 0.8
   groundLayer:
     serializedVersion: 2
-    m_Bits: 1
-  torso: {fileID: 0}
+    m_Bits: 64
+  maxLeashLength: 15
+  physicalFootTransform: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:
   m_ObjectHideFlags: 0
@@ -255,7 +257,7 @@ GameObject:
   - component: {fileID: 2120977250887550888}
   - component: {fileID: 9079912275674746100}
   - component: {fileID: 1371988366113683176}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Main Camera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
