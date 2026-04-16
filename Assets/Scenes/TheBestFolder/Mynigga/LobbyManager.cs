@@ -17,60 +17,99 @@ public class LobbyManager : NetworkBehaviour
     public Following rightLeg;
 
     [SerializeField] private Button[] limbButtons;
-    // เก็บ ID ผู้เล่นที่จอง limb (0-3)
+    [SerializeField] private Button startButton;
+
     private NetworkList<long> limbOwners;
 
     void Awake()
     {
         Instance = this;
         limbOwners = new NetworkList<long>(new long[] { -1, -1, -1, -1 });
+
         limbButtons[0].onClick.AddListener(() => RequestLimbServerRpc(0));
         limbButtons[1].onClick.AddListener(() => RequestLimbServerRpc(1));
         limbButtons[2].onClick.AddListener(() => RequestLimbServerRpc(2));
         limbButtons[3].onClick.AddListener(() => RequestLimbServerRpc(3));
 
+        if (startButton != null)
+        {
+            startButton.onClick.AddListener(() =>
+            {
+                if (IsServer) LaunchGameServerRpc();
+            });
+        }
     }
 
-    // --- STEP 1: ผู้เล่นกดเลือกแขนขา ---
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = false)]
     public void RequestLimbServerRpc(int index, ServerRpcParams rpcParams = default)
     {
         long clientId = (long)rpcParams.Receive.SenderClientId;
         if (limbOwners[index] == -1) limbOwners[index] = clientId;
     }
 
-    // --- STEP 2: Host กดปุ่มเริ่มเกม ---
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = false)]
     public void LaunchGameServerRpc()
     {
-        AssignPlayersToLimbs(); // มอบหมาย Transform ให้ Following
-        StartGameClientRpc();   // ปิด UI และเปิดหุ่นให้ทุกคน
-
+        StartGameClientRpc();
     }
 
-    // --- STEP 3: ฟังก์ชันหัวใจหลัก (มอบหมาย Player ไปที่ Target) ---
-    private void AssignPlayersToLimbs()
+    [ClientRpc]
+    void StartGameClientRpc()
     {
+        selectionPanel.SetActive(false);
+        robotContainer.SetActive(true);
+
+        if (IsServer && robotContainer != null)
+        {
+            foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
+            {
+                rigid.isKinematic = false;
+                rigid.WakeUp();
+            }
+        }
+
+        // วนลูปเช็คว่าใครเป็นเจ้าของชิ้นส่วนไหนบ้าง
         for (int i = 0; i < limbOwners.Count; i++)
         {
             if (limbOwners[i] == -1) continue;
 
-            if (NetworkManager.Singleton.ConnectedClients.TryGetValue((ulong)limbOwners[i], out var client))
+            ulong ownerId = (ulong)limbOwners[i];
+            GameObject playerObj = GetPlayerObject(ownerId); // ใช้ฟังก์ชันใหม่ในการหาตัวผู้เล่น
+
+            if (playerObj != null)
             {
-                // ดึง Transform ของ Player และส่งไปให้ Following ตามลำดับ i
-                if (i >= 2)
-                {
-                    client.PlayerObject.GetComponent<EZFootMovement>().enabled = true;
-                }
-                else
-                {
-                    client.PlayerObject.GetComponent<EZMovement>().enabled = true;
-                }
-                    Following targetLimb = GetLimbByIndex(i);
+                // 1. ให้ทุกเครื่องเซ็ตเป้าหมาย (ทุกคนจะเห็นชิ้นส่วนวิ่งไปหาคนควบคุมถูกต้อง)
+                Following targetLimb = GetLimbByIndex(i);
                 if (targetLimb != null)
                 {
-                    targetLimb.targetPoint = client.PlayerObject.transform;
+                    targetLimb.targetPoint = playerObj.transform;
                 }
+
+                // 2. ถ้าคนนี้คือ "เครื่องเราเอง" ค่อยเปิดสคริปต์ควบคุมให้ขยับได้
+                if (ownerId == NetworkManager.Singleton.LocalClientId)
+                {
+                    if (i >= 2) // ถ้าเป็น ขา
+                    {
+                        var footMovement = playerObj.GetComponent<EZFootMovement>();
+                        if (footMovement != null)
+                        {
+                            footMovement.press();
+                            footMovement.enabled = true;
+                        }
+                    }
+                    else // ถ้าเป็น แขน
+                    {
+                        var armMovement = playerObj.GetComponent<EZMovement>();
+                        if (armMovement != null)
+                        {
+                            armMovement.enabled = true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"ไม่พบ Player Object ของ Client ID {ownerId}");
             }
         }
     }
@@ -80,37 +119,25 @@ public class LobbyManager : NetworkBehaviour
         return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
     }
 
-    [ClientRpc]
-    void StartGameClientRpc()
+    // --- ฟังก์ชันใหม่: ใช้หา Player Object ที่ถูกต้อง ไม่หลง ID แน่นอน ---
+    private GameObject GetPlayerObject(ulong clientId)
     {
-        selectionPanel.SetActive(false);
-        robotContainer.SetActive(true);
-
-        // FIX THE FREEZE: Force the Torso to wake up and use gravity
-        if (robotContainer != null)
+        // 1. ถ้าเป็นตัวเราเอง (เร็วที่สุด)
+        if (clientId == NetworkManager.Singleton.LocalClientId)
         {
-            foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
+            if (NetworkManager.Singleton.LocalClient != null && NetworkManager.Singleton.LocalClient.PlayerObject != null)
+                return NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
+        }
+
+        // 2. ถ้าเป็นคนอื่น ให้ควานหาจากรายชื่อ Object ที่ถูก Spawn ทั้งหมด
+        foreach (var netObj in NetworkManager.Singleton.SpawnManager.SpawnedObjectsList)
+        {
+            if (netObj.IsPlayerObject && netObj.OwnerClientId == clientId)
             {
-                rigid.isKinematic = false;
-                rigid.WakeUp();
+                return netObj.gameObject;
             }
         }
 
-        // ENABLE LOCAL CONTROLS: Loop through the owners and enable scripts for the local player
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] == (long)NetworkManager.Singleton.LocalClientId)
-            {
-                GameObject myPlayer = NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
-                NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<EZFootMovement>().press();
-                // Enable the correct script based on the index
-                if (i >= 2) myPlayer.GetComponent<EZFootMovement>().enabled = true;
-                else myPlayer.GetComponent<EZMovement>().enabled = true;
-
-                // Set the local target point so the limb follows on YOUR screen
-                Following targetLimb = GetLimbByIndex(i);
-                if (targetLimb != null) targetLimb.targetPoint = myPlayer.transform;
-            }
-        }
+        return null;
     }
 }
