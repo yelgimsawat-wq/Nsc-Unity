@@ -26,7 +26,6 @@ namespace NscUnity.Movement
         [Header("Rotation Settings")]
         [SerializeField] private float rotationSpeed = 60f; // ความเร็วในการหมุนขา (องศา/วินาที)ม
         [SerializeField] private float rotationLimit = 180f; // Hardware safety limit (smart limits managed by RobotController)
-        [SerializeField] private float baseXRotation = 0f; // Base X rotation to keep leg model upright
         
         private float targetValue = 0f;
         private float currentYaw = 0f; // เก็บค่าองศาการหมุนรวมม
