@@ -1,4 +1,4 @@
-using Unity.Netcode;
+๏ปฟusing Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -19,12 +19,12 @@ public class LobbyManager : NetworkBehaviour
     [SerializeField] private Button[] limbButtons;
     [SerializeField] private Button startButton;
 
-    private NetworkList<long> limbOwners;
+    private NetworkList<ulong> limbOwners;
 
     void Awake()
     {
         Instance = this;
-        limbOwners = new NetworkList<long>(new long[] { -1, -1, -1, -1 });
+        limbOwners = new NetworkList<ulong>(new ulong[] { ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue });
 
         limbButtons[0].onClick.AddListener(() => RequestLimbServerRpc(0));
         limbButtons[1].onClick.AddListener(() => RequestLimbServerRpc(1));
@@ -43,14 +43,29 @@ public class LobbyManager : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestLimbServerRpc(int index, ServerRpcParams rpcParams = default)
     {
-        long clientId = (long)rpcParams.Receive.SenderClientId;
-        if (limbOwners[index] == -1) limbOwners[index] = clientId;
+        ulong clientId = rpcParams.Receive.SenderClientId;
+        if (limbOwners[index] == ulong.MaxValue) limbOwners[index] = clientId;
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void LaunchGameServerRpc()
+    public void LaunchGameServerRpc(ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != NetworkManager.ServerClientId) return;
+
+        WakeUpPhysicsServer();
         StartGameClientRpc();
+    }
+
+    private void WakeUpPhysicsServer()
+    {
+        if (robotContainer != null)
+        {
+            foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
+            {
+                rigid.isKinematic = false;
+                rigid.WakeUp();
+            }
+        }
     }
 
     [ClientRpc]
@@ -59,45 +74,36 @@ public class LobbyManager : NetworkBehaviour
         selectionPanel.SetActive(false);
         robotContainer.SetActive(true);
 
-        if (IsServer && robotContainer != null)
-        {
-            foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
-            {
-                rigid.isKinematic = false;
-                rigid.WakeUp();
-            }
-        }
-
-        // วนลูปเช็คว่าใครเป็นเจ้าของชิ้นส่วนไหนบ้าง
         for (int i = 0; i < limbOwners.Count; i++)
         {
-            if (limbOwners[i] == -1) continue;
+            if (limbOwners[i] == ulong.MaxValue) continue;
 
-            ulong ownerId = (ulong)limbOwners[i];
-            GameObject playerObj = GetPlayerObject(ownerId); // ใช้ฟังก์ชันใหม่ในการหาตัวผู้เล่น
+            ulong ownerId = limbOwners[i];
+            GameObject playerObj = GetPlayerObject(ownerId);
 
             if (playerObj != null)
             {
-                // 1. ให้ทุกเครื่องเซ็ตเป้าหมาย (ทุกคนจะเห็นชิ้นส่วนวิ่งไปหาคนควบคุมถูกต้อง)
                 Following targetLimb = GetLimbByIndex(i);
                 if (targetLimb != null)
                 {
                     targetLimb.targetPoint = playerObj.transform;
                 }
 
-                // 2. ถ้าคนนี้คือ "เครื่องเราเอง" ค่อยเปิดสคริปต์ควบคุมให้ขยับได้
                 if (ownerId == NetworkManager.Singleton.LocalClientId)
                 {
-                    if (i >= 2) // ถ้าเป็น ขา
+                    if (i >= 2) // Legs
                     {
                         var footMovement = playerObj.GetComponent<EZFootMovement>();
                         if (footMovement != null)
                         {
-                            footMovement.press();
+                            if (targetLimb != null && targetLimb.pivotPoint != null)
+                            {
+                                footMovement.attachPart = targetLimb.pivotPoint;
+                            }
                             footMovement.enabled = true;
                         }
                     }
-                    else // ถ้าเป็น แขน
+                    else // Arms
                     {
                         var armMovement = playerObj.GetComponent<EZMovement>();
                         if (armMovement != null)
@@ -109,7 +115,7 @@ public class LobbyManager : NetworkBehaviour
             }
             else
             {
-                Debug.LogWarning($"ไม่พบ Player Object ของ Client ID {ownerId}");
+                Debug.LogWarning($"Could not find Player Object for Client ID {ownerId}");
             }
         }
     }
@@ -119,17 +125,14 @@ public class LobbyManager : NetworkBehaviour
         return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
     }
 
-    // --- ฟังก์ชันใหม่: ใช้หา Player Object ที่ถูกต้อง ไม่หลง ID แน่นอน ---
     private GameObject GetPlayerObject(ulong clientId)
     {
-        // 1. ถ้าเป็นตัวเราเอง (เร็วที่สุด)
         if (clientId == NetworkManager.Singleton.LocalClientId)
         {
             if (NetworkManager.Singleton.LocalClient != null && NetworkManager.Singleton.LocalClient.PlayerObject != null)
                 return NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
         }
 
-        // 2. ถ้าเป็นคนอื่น ให้ควานหาจากรายชื่อ Object ที่ถูก Spawn ทั้งหมด
         foreach (var netObj in NetworkManager.Singleton.SpawnManager.SpawnedObjectsList)
         {
             if (netObj.IsPlayerObject && netObj.OwnerClientId == clientId)

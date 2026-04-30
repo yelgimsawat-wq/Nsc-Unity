@@ -1,10 +1,12 @@
-using Unity.Netcode;
+﻿using Unity.Netcode;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Following : NetworkBehaviour
 {
     public Transform targetPoint; // The invisible point the mouse controls
+    public Transform pivotPoint; // The physical hinge/pivot part of the limb
+
     public float springStrength = 75f;
     public float dampening = 5f; // Stops it from bouncing forever
 
