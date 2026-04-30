@@ -237,9 +237,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
-  pushForce: 10
-  detectionRadius: 1
-  footTargetProximity: 0.8
+  pushForce: 50
+  hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
