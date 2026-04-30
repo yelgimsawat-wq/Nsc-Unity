@@ -237,12 +237,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
-  pushForce: 50
+  pushForce: 500
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  maxLeashLength: 15
+  range: 9.5
+  attachPart: {fileID: 0}
   physicalFootTransform: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:

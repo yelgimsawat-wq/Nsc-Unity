@@ -17,7 +17,7 @@ public class EZFootMovement : NetworkBehaviour
     private Rigidbody torsoRb;
     public Transform physicalFootTransform;
 
-    private bool wasPushing = false;
+    private float pushTimer = 0f;
 
     public override void OnNetworkSpawn()
     {
@@ -83,10 +83,15 @@ public class EZFootMovement : NetworkBehaviour
                 {
                     isPushingIntoSurface = true;
 
-                    if (!wasPushing)
+                    if (pushTimer < 2f)
                     {
-                        ApplyPushForceServerRpc(-moveDir * pushForce);
+                        pushTimer += Time.deltaTime;
                     }
+
+                    // Force ramps up from 0 to pushForce over 2 seconds
+                    float currentForce = Mathf.Lerp(0f, pushForce, pushTimer / 2f);
+
+                    ApplyPushForceServerRpc(-moveDir * currentForce);
                 }
             }
         }
@@ -95,14 +100,19 @@ public class EZFootMovement : NetworkBehaviour
         {
             // Pushing state
         }
-        else if (moveDir.magnitude > 0.1f)
+        else 
         {
-            // Moving state
-            transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+            // Reset timer when not pushing against a surface
+            pushTimer = 0f;
+
+            if (moveDir.magnitude > 0.1f)
+            {
+                // Moving state
+                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+            }
         }
 
         ApplyLeash();
-        wasPushing = isPushingIntoSurface;
     }
 
     private void ApplyLeash()
