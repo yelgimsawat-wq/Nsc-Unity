@@ -6,12 +6,16 @@ public class EZMovement : NetworkBehaviour
     [Header("Movement Settings")]
     public float speed = 8f;
     public float hitRadius = 0.2f;
-    public LayerMask grabLayer;
+    public LayerMask groundLayer;
 
-    [Header("Grab Settings")]
+    [Header("Push Settings (surface contact)")]
+    public float pushForce = 50f;
+
+    [Header("Grab Settings (Hold F)")]
+    public LayerMask grabLayer;
     public float grabCheckRadius = 0.35f;
     public float grabHoldForce = 40f;   // force to drag non-kinematic objects
-    public float grabPushForce = 50f;   // force applied to body when pushing off kinematic surfaces
+    public float grabPushForce = 50f;   // force applied to body when grabbing
 
     [Header("Leash Settings")]
     [SerializeField] public float range = 4f;
@@ -21,11 +25,11 @@ public class EZMovement : NetworkBehaviour
     private Rigidbody torsoRb;
     public Transform physicalHandTransform;
 
-    // --- Grab state (synced so the server can act on it) ---
+    // --- Grab state (synced) ---
     private NetworkVariable<bool> isGrabbing = new NetworkVariable<bool>(
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
-    // Client-side grab tracking
+    // Client-side tracking
     private Rigidbody grabbedRb;
     private bool grabbedIsKinematic;
     private float pushTimer = 0f;
@@ -89,7 +93,7 @@ public class EZMovement : NetworkBehaviour
         Vector3 moveDir = inputDir.normalized;
 
         // =====================
-        //  GRAB LOGIC (Hold F)
+        //  GRAB MODE (Hold F)
         // =====================
         if (Input.GetKey(KeyCode.F))
         {
@@ -97,28 +101,78 @@ public class EZMovement : NetworkBehaviour
         }
         else
         {
-            // Released E — drop anything we were holding
+            // Released F — drop anything we were holding
             if (grabbedRb != null)
             {
                 ReleaseGrabServerRpc();
                 grabbedRb = null;
                 grabbedIsKinematic = false;
-                pushTimer = 0f;
             }
             isGrabbing.Value = false;
 
-            // Normal free movement
-            if (moveDir.magnitude > 0.1f)
-            {
-                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
-            }
+            // =====================
+            //  NORMAL MODE — push off surfaces like EzFootMovement
+            // =====================
+            HandleNormalMovement(moveDir);
         }
 
         ApplyLeash();
     }
 
     // ------------------------------------------------------------------
-    //  GRAB: detect surface, latch on, then move object OR push body
+    //  NORMAL MOVEMENT: SphereCast to detect surfaces.
+    //  If pushing into a wall/ground → hand stops, body moves opposite.
+    //  Otherwise → hand moves freely.
+    // ------------------------------------------------------------------
+    private void HandleNormalMovement(Vector3 moveDir)
+    {
+        bool isPushingIntoSurface = false;
+
+        if (moveDir.magnitude > 0.1f)
+        {
+            // SphereCast in the movement direction to see if we're about to hit a wall/ground
+            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out RaycastHit hit, 0.3f, groundLayer))
+            {
+                // Check if we're moving INTO the surface (not sliding along it)
+                if (Vector3.Dot(moveDir, hit.normal) < -0.05f)
+                {
+                    isPushingIntoSurface = true;
+
+                    if (pushTimer < 2f)
+                    {
+                        pushTimer += Time.deltaTime;
+                    }
+
+                    // Force ramps up from 0 to pushForce over 2 seconds
+                    float currentForce = Mathf.Lerp(0f, pushForce, pushTimer / 2f);
+
+                    // Action = Reaction: push body in OPPOSITE direction
+                    ApplyPushForceServerRpc(-moveDir * currentForce);
+                }
+            }
+        }
+
+        if (isPushingIntoSurface)
+        {
+            // Hand is blocked by surface — don't translate
+        }
+        else
+        {
+            // Reset timer when not pushing against a surface
+            pushTimer = 0f;
+
+            if (moveDir.magnitude > 0.1f)
+            {
+                // Free movement
+                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  GRAB: Hold F to latch onto a Rigidbody surface.
+    //  Hand is LOCKED — movement input pushes body in opposite direction.
+    //  Non-kinematic objects get dragged along with the hand.
     // ------------------------------------------------------------------
     private void HandleGrab(Vector3 moveDir)
     {
@@ -146,44 +200,34 @@ public class EZMovement : NetworkBehaviour
         }
 
         // If we still have nothing to grab, keep free-moving the hand
+        // (but still check for wall collision)
         if (grabbedRb == null)
         {
-            if (moveDir.magnitude > 0.1f)
-            {
-                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
-            }
+            HandleNormalMovement(moveDir);
             return;
         }
 
         // ------- We ARE grabbing something -------
-        if (!grabbedIsKinematic)
-        {
-            // NON-KINEMATIC: Move the hand freely, drag the grabbed object along
-            if (moveDir.magnitude > 0.1f)
-            {
-                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
-            }
+        // Hand is LOCKED — do NOT translate it.
+        // Movement input → Action = Reaction → push body in opposite direction.
 
-            // Pull the object toward the physical hand via server force
-            if (physicalHandTransform != null)
+        if (moveDir.magnitude > 0.1f)
+        {
+            if (pushTimer < 2f) pushTimer += Time.deltaTime;
+            float currentForce = Mathf.Lerp(0f, grabPushForce, pushTimer / 2f);
+
+            // Push body in opposite direction of input
+            ApplyPushForceServerRpc(-moveDir * currentForce);
+
+            // If grabbed object is non-kinematic, also drag it toward the hand
+            if (!grabbedIsKinematic && physicalHandTransform != null)
             {
                 DragObjectServerRpc(physicalHandTransform.position);
             }
         }
         else
         {
-            // KINEMATIC surface: hand is "stuck" — push the body instead
-            // Don't translate the hand; it stays locked on the surface
-            if (moveDir.magnitude > 0.1f)
-            {
-                if (pushTimer < 2f) pushTimer += Time.deltaTime;
-                float currentForce = Mathf.Lerp(0f, grabPushForce, pushTimer / 2f);
-                ApplyPushForceServerRpc(-moveDir * currentForce);
-            }
-            else
-            {
-                pushTimer = 0f;
-            }
+            pushTimer = 0f;
         }
     }
 
@@ -230,8 +274,6 @@ public class EZMovement : NetworkBehaviour
     [ServerRpc]
     void DragObjectServerRpc(Vector3 handWorldPos)
     {
-        // Re-find the grabbed rigidbody on the server side
-        // (the owner detected it via overlap, server validates with the same check)
         Collider[] hits = Physics.OverlapSphere(handWorldPos, grabCheckRadius * 2f, grabLayer);
         foreach (var col in hits)
         {
@@ -246,8 +288,8 @@ public class EZMovement : NetworkBehaviour
     }
 
     /// <summary>
-    /// Push the body (torso) in a direction — used when grabbing a kinematic surface.
-    /// Same pattern as EZFootMovement's push.
+    /// Push the body (torso) in a direction.
+    /// Used both for surface pushing (like EzFootMovement) and grab pushing.
     /// </summary>
     [ServerRpc]
     void ApplyPushForceServerRpc(Vector3 force)
@@ -278,5 +320,8 @@ public class EZMovement : NetworkBehaviour
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, grabCheckRadius);
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, hitRadius);
     }
 }

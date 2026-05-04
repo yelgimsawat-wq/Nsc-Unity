@@ -219,12 +219,16 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
   hitRadius: 0.2
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  pushForce: 50
   grabLayer:
     serializedVersion: 2
     m_Bits: 128
   grabCheckRadius: 0.35
   grabHoldForce: 40
-  grabPushForce: 50
+  grabPushForce: 32
   range: 9.3
   attachPart: {fileID: 0}
   physicalHandTransform: {fileID: 0}
