@@ -1,4 +1,4 @@
-﻿using Unity.Netcode;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -108,6 +108,10 @@ public class LobbyManager : NetworkBehaviour
                         var armMovement = playerObj.GetComponent<EZMovement>();
                         if (armMovement != null)
                         {
+                            if (targetLimb != null && targetLimb.pivotPoint != null)
+                            {
+                                armMovement.attachPart = targetLimb.pivotPoint;
+                            }
                             armMovement.enabled = true;
                         }
                     }
