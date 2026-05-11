@@ -222,13 +222,13 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  pushForce: 50
+  pushForce: 30
   grabLayer:
     serializedVersion: 2
     m_Bits: 128
-  grabCheckRadius: 0.35
-  grabHoldForce: 40
-  grabPushForce: 32
+  grabCheckRadius: 1.5
+  grabHoldForce: 50
+  grabPushForce: 4
   range: 9.3
   attachPart: {fileID: 0}
   physicalHandTransform: {fileID: 0}
@@ -245,8 +245,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
-  speed: 5
-  pushForce: 500
+  speed: 10
+  pushForce: 5
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2

@@ -34,6 +34,11 @@ public class EZMovement : NetworkBehaviour
     private bool grabbedIsKinematic;
     private float pushTimer = 0f;
 
+    // --- Kinematic grab anchor ---
+    // World-space position the hand locks to the moment it grabs a kinematic object.
+    private bool hasLockedPosition = false;
+    private Vector3 lockedHandPosition;
+
     // -------------------------------------------------------
     public override void OnNetworkSpawn()
     {
@@ -109,14 +114,16 @@ public class EZMovement : NetworkBehaviour
                 grabbedIsKinematic = false;
             }
             isGrabbing.Value = false;
+            hasLockedPosition = false;
 
             // =====================
             //  NORMAL MODE — push off surfaces like EzFootMovement
             // =====================
             HandleNormalMovement(moveDir);
-        }
 
-        ApplyLeash();
+            // Leash only applies in normal mode — not while kinematic-grabbing
+            ApplyLeash();
+        }
     }
 
     // ------------------------------------------------------------------
@@ -171,8 +178,12 @@ public class EZMovement : NetworkBehaviour
 
     // ------------------------------------------------------------------
     //  GRAB: Hold F to latch onto a Rigidbody surface.
-    //  Hand is LOCKED — movement input pushes body in opposite direction.
-    //  Non-kinematic objects get dragged along with the hand.
+    //
+    //  KINEMATIC grab  → hand is FULLY FROZEN at the anchor world position.
+    //                    Input pushes the body in the opposite direction.
+    //                    Leash is SKIPPED so the body moving away can't drag the hand.
+    //
+    //  NON-KINEMATIC grab → original behaviour: hand stays put, object gets dragged.
     // ------------------------------------------------------------------
     private void HandleGrab(Vector3 moveDir)
     {
@@ -194,45 +205,80 @@ public class EZMovement : NetworkBehaviour
                     grabbedIsKinematic = rb.isKinematic;
                     isGrabbing.Value = true;
                     GrabStartServerRpc(rb.gameObject.name, grabbedIsKinematic);
+
+                    // --- Lock the hand's world position at the moment of grab ---
+                    if (grabbedIsKinematic)
+                    {
+                        lockedHandPosition = transform.position;
+                        hasLockedPosition = true;
+                    }
                     break;
                 }
             }
         }
 
-        // If we still have nothing to grab, keep free-moving the hand
-        // (but still check for wall collision)
+        // Nothing grabbed — fall back to normal movement (with leash)
         if (grabbedRb == null)
         {
             HandleNormalMovement(moveDir);
+            ApplyLeash();
             return;
         }
 
         // ------- We ARE grabbing something -------
-        // Hand is LOCKED — do NOT translate it.
-        // Movement input → Action = Reaction → push body in opposite direction.
 
-        if (moveDir.magnitude > 0.1f)
+        if (grabbedIsKinematic)
         {
-            if (pushTimer < 2f) pushTimer += Time.deltaTime;
-            float currentForce = Mathf.Lerp(0f, grabPushForce, pushTimer / 2f);
-
-            // Push body in opposite direction of input
-            ApplyPushForceServerRpc(-moveDir * currentForce);
-
-            // If grabbed object is non-kinematic, also drag it toward the hand
-            if (!grabbedIsKinematic && physicalHandTransform != null)
+            // ---- KINEMATIC PATH ----
+            // Stamp the hand back to the anchor every frame.
+            // This overwrites any drift from physics, parenting, or other scripts.
+            if (hasLockedPosition)
             {
-                DragObjectServerRpc(physicalHandTransform.position);
+                transform.position = lockedHandPosition;
             }
+
+            // Movement input → push body in opposite direction (no hand movement at all)
+            if (moveDir.magnitude > 0.1f)
+            {
+                if (pushTimer < 2f) pushTimer += Time.deltaTime;
+                float currentForce = Mathf.Lerp(0f, grabPushForce, pushTimer / 2f);
+                ApplyPushForceServerRpc(-moveDir * currentForce);
+            }
+            else
+            {
+                pushTimer = 0f;
+            }
+
+            // Do NOT call ApplyLeash() here — the body is meant to move away from the hand.
         }
         else
         {
-            pushTimer = 0f;
+            // ---- NON-KINEMATIC PATH (original behaviour) ----
+            // Hand stays wherever it is; drag the object toward it.
+            if (moveDir.magnitude > 0.1f)
+            {
+                if (pushTimer < 2f) pushTimer += Time.deltaTime;
+                float currentForce = Mathf.Lerp(0f, grabPushForce, pushTimer / 2f);
+                ApplyPushForceServerRpc(-moveDir * currentForce);
+
+                if (physicalHandTransform != null)
+                {
+                    DragObjectServerRpc(physicalHandTransform.position);
+                }
+            }
+            else
+            {
+                pushTimer = 0f;
+            }
+
+            // Leash still applies for non-kinematic grabs
+            ApplyLeash();
         }
     }
 
     // ------------------------------------------------------------------
     //  LEASH — keep hand within range of its attach part
+    //  Only called during normal movement and non-kinematic grabs.
     // ------------------------------------------------------------------
     private void ApplyLeash()
     {
@@ -323,5 +369,12 @@ public class EZMovement : NetworkBehaviour
 
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position, hitRadius);
+
+        // Show the locked anchor in yellow when active
+        if (hasLockedPosition)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(lockedHandPosition, hitRadius * 1.5f);
+        }
     }
 }
