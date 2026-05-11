@@ -9,6 +9,9 @@ public class EZFootMovement : NetworkBehaviour
     public float hitRadius = 0.2f;
     public LayerMask groundLayer;
 
+    [Header("Jump Settings")]
+    public float jumpForce = 400f;
+
     [Header("Leash Settings")]
     [SerializeField] public float range = 4f;
     [SerializeField] public Transform attachPart;
@@ -74,6 +77,7 @@ public class EZFootMovement : NetworkBehaviour
 
         Vector3 moveDir = inputDir.normalized;
         bool isPushingIntoSurface = false;
+        bool isJumping = Input.GetKey(KeyCode.Space);
 
         if (moveDir.magnitude > 0.1f)
         {
@@ -83,24 +87,32 @@ public class EZFootMovement : NetworkBehaviour
                 {
                     isPushingIntoSurface = true;
 
-                    if (pushTimer < 2f)
+                    if (isJumping)
                     {
-                        pushTimer += Time.deltaTime;
+                        // Spacebar held: apply full jump force instantly, no ramp-up
+                        pushTimer = 0f;
+                        ApplyPushForceServerRpc(-moveDir * jumpForce);
                     }
+                    else
+                    {
+                        // Normal push: ramp up from 0 to pushForce over 2 seconds
+                        if (pushTimer < 2f)
+                        {
+                            pushTimer += Time.deltaTime;
+                        }
 
-                    // Force ramps up from 0 to pushForce over 2 seconds
-                    float currentForce = Mathf.Lerp(0f, pushForce, pushTimer / 2f);
-
-                    ApplyPushForceServerRpc(-moveDir * currentForce);
+                        float currentForce = Mathf.Lerp(0f, pushForce, pushTimer / 2f);
+                        ApplyPushForceServerRpc(-moveDir * currentForce);
+                    }
                 }
             }
         }
 
         if (isPushingIntoSurface)
         {
-            // Pushing state
+            // Pushing state — hand stays still
         }
-        else 
+        else
         {
             // Reset timer when not pushing against a surface
             pushTimer = 0f;
