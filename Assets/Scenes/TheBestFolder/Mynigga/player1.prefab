@@ -204,6 +204,16 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   playercam: {fileID: 2120977250887550888}
   playeral: {fileID: 9079912275674746100}
+  mouseSensitivity: 3
+  distance: 8
+  minDistance: 2
+  maxDistance: 20
+  zoomSpeed: 2
+  targetOffset: {x: 0, y: 1.5, z: 0}
+  smoothSpeed: 10
+  minVerticalAngle: -30
+  maxVerticalAngle: 80
+  yaw: 0
 --- !u!114 &1955159752968344627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -231,6 +241,7 @@ MonoBehaviour:
   grabPushForce: 4
   range: 9.3
   attachPart: {fileID: 0}
+  maxRange: 1.5
   physicalHandTransform: {fileID: 0}
 --- !u!114 &-9078461687732277851
 MonoBehaviour:
@@ -246,13 +257,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 10
-  pushForce: 5
+  pushForce: 10
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
+  jumpForce: 75
   range: 9.5
   attachPart: {fileID: 0}
+  maxRange: 1.5
   physicalFootTransform: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:

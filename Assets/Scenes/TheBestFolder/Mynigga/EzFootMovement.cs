@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Netcode;
 
 public class EZFootMovement : NetworkBehaviour
@@ -15,6 +15,10 @@ public class EZFootMovement : NetworkBehaviour
     [Header("Leash Settings")]
     [SerializeField] public float range = 4f;
     [SerializeField] public Transform attachPart;
+
+    [Header("Max Range (from follower)")]
+    [Tooltip("Maximum distance the player can be from its physical follower limb. 0 = no limit.")]
+    [SerializeField] public float maxRange = 15f;
 
     [Header("References")]
     private Rigidbody torsoRb;
@@ -43,16 +47,6 @@ public class EZFootMovement : NetworkBehaviour
         {
             torsoRb = attachPart.GetComponent<Rigidbody>();
         }
-
-        Following[] followers = GameObject.FindObjectsByType<Following>(FindObjectsSortMode.None);
-        foreach (var f in followers)
-        {
-            if (f.targetPoint == this.transform)
-            {
-                physicalFootTransform = f.transform;
-                break;
-            }
-        }
     }
 
     void Update()
@@ -71,11 +65,20 @@ public class EZFootMovement : NetworkBehaviour
 
         if (attachPart == null) return;
 
-        Vector3 inputDir = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        if (Input.GetKey(KeyCode.Q)) inputDir.y = 1f;
-        else if (Input.GetKey(KeyCode.E)) inputDir.y = -1f;
+        // Get horizontal input relative to camera yaw
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+        float yInput = 0f;
+        if (Input.GetKey(KeyCode.Q)) yInput = 1f;
+        else if (Input.GetKey(KeyCode.E)) yInput = -1f;
 
-        Vector3 moveDir = inputDir.normalized;
+        // Rotate horizontal input by camera yaw
+        PlayerCam cam = GetComponentInParent<PlayerCam>();
+        if (cam == null) cam = GetComponent<PlayerCam>();
+        float camYaw = cam != null ? cam.yaw : 0f;
+        Quaternion camRot = Quaternion.Euler(0f, camYaw, 0f);
+        Vector3 flatDir = camRot * new Vector3(h, 0f, v);
+        Vector3 moveDir = new Vector3(flatDir.x, yInput, flatDir.z).normalized;
         bool isPushingIntoSurface = false;
         bool isJumping = Input.GetKey(KeyCode.Space);
 
@@ -125,6 +128,7 @@ public class EZFootMovement : NetworkBehaviour
         }
 
         ApplyLeash();
+        ClampToFollower();
     }
 
     private void ApplyLeash()
@@ -135,6 +139,21 @@ public class EZFootMovement : NetworkBehaviour
         if (offset.magnitude > range)
         {
             transform.position = attachPart.position + (offset.normalized * range);
+        }
+    }
+
+    /// <summary>
+    /// Prevents the target point from going too far from its physical follower.
+    /// This keeps the player body within maxRange of the follower limb.
+    /// </summary>
+    private void ClampToFollower()
+    {
+        if (physicalFootTransform == null || maxRange <= 0f) return;
+
+        Vector3 offset = transform.position - physicalFootTransform.position;
+        if (offset.magnitude > maxRange)
+        {
+            transform.position = physicalFootTransform.position + (offset.normalized * maxRange);
         }
     }
 
@@ -164,5 +183,12 @@ public class EZFootMovement : NetworkBehaviour
     {
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position, hitRadius);
+
+        // Visualize max range from follower
+        if (physicalFootTransform != null && maxRange > 0f)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(physicalFootTransform.position, maxRange);
+        }
     }
 }

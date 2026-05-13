@@ -21,6 +21,10 @@ public class EZMovement : NetworkBehaviour
     [SerializeField] public float range = 4f;
     [SerializeField] public Transform attachPart;
 
+    [Header("Max Range (from follower)")]
+    [Tooltip("Maximum distance the player can be from its physical follower limb. 0 = no limit.")]
+    [SerializeField] public float maxRange = 15f;
+
     [Header("References")]
     private Rigidbody torsoRb;
     public Transform physicalHandTransform;
@@ -61,17 +65,6 @@ public class EZMovement : NetworkBehaviour
         {
             torsoRb = attachPart.GetComponent<Rigidbody>();
         }
-
-        // Find the physical hand that follows this target point
-        Following[] followers = GameObject.FindObjectsByType<Following>(FindObjectsSortMode.None);
-        foreach (var f in followers)
-        {
-            if (f.targetPoint == this.transform)
-            {
-                physicalHandTransform = f.transform;
-                break;
-            }
-        }
     }
 
     void Update()
@@ -90,12 +83,20 @@ public class EZMovement : NetworkBehaviour
         }
         if (attachPart == null) return;
 
-        // --- Input ---
-        Vector3 inputDir = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        if (Input.GetKey(KeyCode.Q)) inputDir.y = 1f;
-        else if (Input.GetKey(KeyCode.E)) inputDir.y = -1f;
+        // --- Input (camera-relative for horizontal, world-space for vertical) ---
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+        float yInput = 0f;
+        if (Input.GetKey(KeyCode.Q)) yInput = 1f;
+        else if (Input.GetKey(KeyCode.E)) yInput = -1f;
 
-        Vector3 moveDir = inputDir.normalized;
+        // Rotate horizontal input by camera yaw
+        PlayerCam cam = GetComponentInParent<PlayerCam>();
+        if (cam == null) cam = GetComponent<PlayerCam>();
+        float camYaw = cam != null ? cam.yaw : 0f;
+        Quaternion camRot = Quaternion.Euler(0f, camYaw, 0f);
+        Vector3 flatDir = camRot * new Vector3(h, 0f, v);
+        Vector3 moveDir = new Vector3(flatDir.x, yInput, flatDir.z).normalized;
 
         // =====================
         //  GRAB MODE (Hold F)
@@ -123,6 +124,7 @@ public class EZMovement : NetworkBehaviour
 
             // Leash only applies in normal mode — not while kinematic-grabbing
             ApplyLeash();
+            ClampToFollower();
         }
     }
 
@@ -222,6 +224,7 @@ public class EZMovement : NetworkBehaviour
         {
             HandleNormalMovement(moveDir);
             ApplyLeash();
+            ClampToFollower();
             return;
         }
 
@@ -273,6 +276,7 @@ public class EZMovement : NetworkBehaviour
 
             // Leash still applies for non-kinematic grabs
             ApplyLeash();
+            ClampToFollower();
         }
     }
 
@@ -288,6 +292,21 @@ public class EZMovement : NetworkBehaviour
         if (offset.magnitude > range)
         {
             transform.position = attachPart.position + (offset.normalized * range);
+        }
+    }
+
+    /// <summary>
+    /// Prevents the target point from going too far from its physical follower.
+    /// This keeps the player body within maxRange of the follower limb.
+    /// </summary>
+    private void ClampToFollower()
+    {
+        if (physicalHandTransform == null || maxRange <= 0f) return;
+
+        Vector3 offset = transform.position - physicalHandTransform.position;
+        if (offset.magnitude > maxRange)
+        {
+            transform.position = physicalHandTransform.position + (offset.normalized * maxRange);
         }
     }
 
@@ -375,6 +394,13 @@ public class EZMovement : NetworkBehaviour
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(lockedHandPosition, hitRadius * 1.5f);
+        }
+
+        // Visualize max range from follower
+        if (physicalHandTransform != null && maxRange > 0f)
+        {
+            Gizmos.color = new Color(1f, 0.5f, 0f, 0.5f); // orange
+            Gizmos.DrawWireSphere(physicalHandTransform.position, maxRange);
         }
     }
 }

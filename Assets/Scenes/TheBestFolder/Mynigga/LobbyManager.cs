@@ -100,6 +100,10 @@ public class LobbyManager : NetworkBehaviour
                             {
                                 footMovement.attachPart = targetLimb.pivotPoint;
                             }
+                            if (targetLimb != null)
+                            {
+                                footMovement.physicalFootTransform = targetLimb.transform;
+                            }
                             footMovement.enabled = true;
                         }
                     }
@@ -111,6 +115,10 @@ public class LobbyManager : NetworkBehaviour
                             if (targetLimb != null && targetLimb.pivotPoint != null)
                             {
                                 armMovement.attachPart = targetLimb.pivotPoint;
+                            }
+                            if (targetLimb != null)
+                            {
+                                armMovement.physicalHandTransform = targetLimb.transform;
                             }
                             armMovement.enabled = true;
                         }
