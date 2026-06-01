@@ -10,11 +10,13 @@ public class Following : NetworkBehaviour
     public float springStrength = 75f;
     public float dampening = 5f; // Stops it from bouncing forever
 
+    public Rigidbody HighterLimp;
     private Rigidbody rb;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        HighterLimp = gameObject.GetComponent<CharacterJoint>().connectedBody;
     }
     public override void OnNetworkSpawn()
     {

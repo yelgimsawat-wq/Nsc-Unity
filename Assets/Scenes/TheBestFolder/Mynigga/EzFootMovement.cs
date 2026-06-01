@@ -1,18 +1,22 @@
 using UnityEngine;
 using Unity.Netcode;
-using System.ComponentModel;
 
 public class EZFootMovement : NetworkBehaviour
 {
     [Header("Movement Settings")]
     public float speed = 8f;
-    public float pushForce = 50f;
     public float hitRadius = 0.2f;
     public LayerMask groundLayer;
     public LayerMask graplayer;
 
     [Header("Jump Settings")]
     public float jumpForce = 400f;
+
+    [Header("Spring Damper Settings (Stand Up Fast)")]
+    [Tooltip("แรงดีดตัวให้หุ่นลุกยืนขึ้นอย่างรวดเร็ว")]
+    public float springForce = 180f;
+    [Tooltip("แรงเบรก/ตัวหน่วง ยิ่งเยอะหุ่นยิ่งไม่ลอยพ้นพื้น (แนะนำค่า 10-20)")]
+    public float damperForce = 15f;
 
     [Header("Leash Settings")]
     [SerializeField] public float range = 4f;
@@ -23,31 +27,30 @@ public class EZFootMovement : NetworkBehaviour
     [SerializeField] public float maxRange = 15f;
 
     [Header("References")]
-    [SerializeField]private Rigidbody torsoRb;
+    [SerializeField] private Rigidbody torsoRb;
     public Transform physicalFootTransform;
-
-    private float pushTimer = 0f;
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        CacheReferences();
+        CheckAndCacheTorso();
     }
 
-    private void CacheReferences()
+    private void CheckAndCacheTorso()
     {
         if (attachPart == null)
         {
             GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
-            if (torsoObject != null)
-            {
-                attachPart = torsoObject.transform;
-            }
+            if (torsoObject != null) attachPart = torsoObject.transform;
         }
 
-        if (attachPart != null)
+        if (attachPart != null && torsoRb == null)
         {
             torsoRb = attachPart.GetComponent<Rigidbody>();
+        }
+        if (torsoRb == null)
+        {
+            torsoRb = GameObject.FindGameObjectWithTag("Body").GetComponent<Rigidbody>();
         }
     }
 
@@ -55,21 +58,7 @@ public class EZFootMovement : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (attachPart == null)
-        {
-            GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
-            if (torsoObject != null)
-            {
-                attachPart = torsoObject.transform;
-                torsoRb = attachPart.GetComponent<Rigidbody>();
-            }
-        }
-
-        if (torsoRb == null) 
-        {
-            torsoRb = GameObject.FindGameObjectWithTag("Body").GetComponent<Rigidbody>();
-        }
-
+        CheckAndCacheTorso();
         if (attachPart == null) return;
 
         // Get horizontal input relative to camera yaw
@@ -86,67 +75,78 @@ public class EZFootMovement : NetworkBehaviour
         Quaternion camRot = Quaternion.Euler(0f, camYaw, 0f);
         Vector3 flatDir = camRot * new Vector3(h, 0f, v);
         Vector3 moveDir = new Vector3(flatDir.x, yInput, flatDir.z).normalized;
+
         bool isPushingIntoSurface = false;
         bool isJumping = Input.GetKey(KeyCode.Space);
 
         if (moveDir.magnitude > 0.1f)
         {
             RaycastHit hit;
-            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, groundLayer) || Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, graplayer))
+            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, groundLayer) ||
+                Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, graplayer))
             {
-                Debug.Log("Hit ground 0");
                 if (Vector3.Dot(moveDir, hit.normal) < -0.05f)
                 {
-                    Debug.Log("Hit ground 1");
                     isPushingIntoSurface = true;
 
                     if (isJumping)
                     {
-                        Debug.Log("Hit ground 2");
-                        // Spacebar held: apply full jump force instantly, no ramp-up
-                        pushTimer = 0f;
-                        ApplyPushForceServerRpc(-moveDir * jumpForce);
+                        // 1. ถ้ากด Spacebar ยิงแรงกระโดดเคลียร์แบบไร้ตัวหน่วง
+                        ApplyJumpForceRpc(-moveDir * jumpForce);
                     }
                     else
                     {
-                        Debug.Log("Hit ground 3");
-                        // Normal push: ramp up from 0 to pushForce over 2 seconds
-                        if (pushTimer < 2f)
-                        {
-                            pushTimer += Time.deltaTime;
-                        }
-
-                        float currentForce = Mathf.Lerp(0f, pushForce, pushTimer / 2f);
-                        ApplyPushForceServerRpc(-moveDir * currentForce);
+                        // 2. ถ้ายืนเฉยๆ ส่งทิศทางแนวตั้ง (ดีดตัวขึ้น) ไปคำนวณสปริงตัวหน่วงบน Server
+                        ApplyStandingSpringDamperRpc(-moveDir.normalized);
                     }
                 }
             }
         }
 
-        if (isPushingIntoSurface)
+        if (!isPushingIntoSurface && moveDir.magnitude > 0.1f)
         {
-            // Pushing state — hand stays still
-        }
-        else
-        {
-            // Reset timer when not pushing against a surface
-            pushTimer = 0f;
-
-            if (moveDir.magnitude > 0.1f)
-            {
-                // Moving state
-                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
-            }
+            // Moving state (Normal walk)
+            transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
         }
 
         ApplyLeash();
         ClampToFollower();
     }
 
+    // --- RPC สำหรับการกระโดดปกติ (ใส่แรงเต็มพิกัด) ---
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    void ApplyJumpForceRpc(Vector3 force)
+    {
+        CheckAndCacheTorso();
+        if (torsoRb != null)
+        {
+            torsoRb.AddForce(force, ForceMode.Acceleration);
+        }
+    }
+
+    // --- RPC สำหรับการลุกยืน (ระบบ Spring-Damper) ---
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    void ApplyStandingSpringDamperRpc(Vector3 pushDirection)
+    {
+        CheckAndCacheTorso();
+        if (torsoRb != null)
+        {
+            // คำนวณความเร็วปัจจุบันของลำตัวในทิศทางที่พุ่งไป (ใช้ linearVelocity สำหรับ Unity รุ่นใหม่)
+            float currentVelocityInDir = Vector3.Dot(torsoRb.linearVelocity, pushDirection);
+
+            // สูตร Spring-Damper: แรงดันผลลัพธ์ = แรงสปริงดันขึ้น - (ความเร็วปัจจุบัน * ตัวหน่วงเบรก)
+            float totalForce = springForce - (currentVelocityInDir * damperForce);
+
+            // ป้องกันไม่ให้ตัวหน่วงดึงหุ่นจมลงดิน (แรงต้องไม่ติดลบ)
+            if (totalForce < 0f) totalForce = 0f;
+
+            torsoRb.AddForce(pushDirection * totalForce, ForceMode.Acceleration);
+        }
+    }
+
     private void ApplyLeash()
     {
         if (attachPart == null) return;
-
         Vector3 offset = transform.position - attachPart.position;
         if (offset.magnitude > range)
         {
@@ -154,45 +154,13 @@ public class EZFootMovement : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Prevents the target point from going too far from its physical follower.
-    /// This keeps the player body within maxRange of the follower limb.
-    /// </summary>
     private void ClampToFollower()
     {
         if (physicalFootTransform == null || maxRange <= 0f) return;
-
         Vector3 offset = transform.position - physicalFootTransform.position;
         if (offset.magnitude > maxRange)
         {
             transform.position = physicalFootTransform.position + (offset.normalized * maxRange);
-        }
-    }
-
-    [ServerRpc]
-    void ApplyPushForceServerRpc(Vector3 force)
-    {
-        Debug.Log($"Pushing with {force} 0");
-        if (torsoRb == null)
-        {
-            Debug.Log($"Pushing with {force} 1");
-            if (attachPart != null)
-            {
-                Debug.Log($"Pushing with {force} 2");
-                torsoRb = attachPart.GetComponent<Rigidbody>();
-            }
-            else
-            {
-                Debug.Log($"Pushing with {force} 3");
-                GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
-                if (torsoObject != null) torsoRb = torsoObject.GetComponent<Rigidbody>();
-            }
-        }
-
-        if (torsoRb != null)
-        {
-            Debug.Log($"Pushing with {force} 4");
-            torsoRb.AddForce(force, ForceMode.Acceleration);
         }
     }
 
@@ -201,7 +169,6 @@ public class EZFootMovement : NetworkBehaviour
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position, hitRadius);
 
-        // Visualize max range from follower
         if (physicalFootTransform != null && maxRange > 0f)
         {
             Gizmos.color = Color.yellow;

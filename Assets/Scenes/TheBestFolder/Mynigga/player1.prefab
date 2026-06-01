@@ -227,7 +227,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EZMovement
   ShowTopMostFoldoutHeaderGroup: 1
-  speed: 5
+  speed: 7.5
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
@@ -239,9 +239,9 @@ MonoBehaviour:
   grabCheckRadius: 1.5
   grabHoldForce: 50
   grabPushForce: 4
-  range: 9.3
+  range: 9.5
   attachPart: {fileID: 0}
-  maxRange: 1.5
+  maxRange: 2
   physicalHandTransform: {fileID: 0}
 --- !u!114 &-9078461687732277851
 MonoBehaviour:
@@ -257,13 +257,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 10
-  pushForce: 7
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  jumpForce: 20
-  range: 9.5
+  graplayer:
+    serializedVersion: 2
+    m_Bits: 128
+  jumpForce: 15
+  springForce: 10
+  damperForce: 15
+  range: 9.3
   attachPart: {fileID: 0}
   maxRange: 1.5
   torsoRb: {fileID: 0}

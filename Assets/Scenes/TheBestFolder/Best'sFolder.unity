@@ -10007,6 +10007,10 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 1906514751
       objectReference: {fileID: 0}
+    - target: {fileID: 1140334163020876508, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Limits.min
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 1714855692883252954, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1914839872
@@ -10015,6 +10019,18 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3222625452
       objectReference: {fileID: 0}
+    - target: {fileID: 2093314310166055495, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Mass
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2421227850150559772, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Mass
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2494668092754161514, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: springStrength
+      value: 100
+      objectReference: {fileID: 0}
     - target: {fileID: 2689258655608881489, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3399973546
@@ -10022,6 +10038,10 @@ PrefabInstance:
     - target: {fileID: 2747527251461806794, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1340906442
+      objectReference: {fileID: 0}
+    - target: {fileID: 3337875306905611221, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: springStrength
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 4230791343917218286, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: GlobalObjectIdHash
@@ -10051,19 +10071,112 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 714358732
       objectReference: {fileID: 0}
+    - target: {fileID: 6973256544049185441, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Mass
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 8489685803392264110, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Mass
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 8555284813280885812, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3565056298
+      objectReference: {fileID: 0}
+    - target: {fileID: 8675681783113470755, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Limits.min
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8675681783113470755, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Limits.bounciness
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8675681783113470755, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Limits.contactDistance
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8812732268101212456, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_Name
       value: RobotContainer
       objectReference: {fileID: 0}
+    - target: {fileID: 9040951676549352990, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_Mass
+      value: 0.5
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6335873565541751420, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      insertIndex: 6
+      addedObject: {fileID: 2575685140956976040}
+    - targetCorrespondingSourceObject: {fileID: 9020808145272027102, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      insertIndex: 6
+      addedObject: {fileID: 2575685140956976038}
   m_SourcePrefab: {fileID: 100100000, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+--- !u!54 &2575685140956976036 stripped
+Rigidbody:
+  m_CorrespondingSourceObject: {fileID: 6973256544049185441, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+  m_PrefabInstance: {fileID: 2575685140956976035}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &2575685140956976037 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 9020808145272027102, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+  m_PrefabInstance: {fileID: 2575685140956976035}
+  m_PrefabAsset: {fileID: 0}
+--- !u!145 &2575685140956976038
+SpringJoint:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976037}
+  serializedVersion: 4
+  m_ConnectedBody: {fileID: 2575685140956976036}
+  m_ConnectedArticulationBody: {fileID: 0}
+  m_Anchor: {x: 0, y: 0, z: 0.5}
+  m_AutoConfigureConnectedAnchor: 1
+  m_ConnectedAnchor: {x: 0, y: 0, z: 0}
+  m_Spring: 3
+  m_Damper: 0.2
+  m_MinDistance: 0
+  m_MaxDistance: 0
+  m_Tolerance: 0.025
+  m_BreakForce: Infinity
+  m_BreakTorque: 80
+  m_EnableCollision: 0
+  m_EnablePreprocessing: 1
+  m_MassScale: 1
+  m_ConnectedMassScale: 1
+--- !u!1 &2575685140956976039 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6335873565541751420, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+  m_PrefabInstance: {fileID: 2575685140956976035}
+  m_PrefabAsset: {fileID: 0}
+--- !u!145 &2575685140956976040
+SpringJoint:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976039}
+  serializedVersion: 4
+  m_ConnectedBody: {fileID: 2575685140956976036}
+  m_ConnectedArticulationBody: {fileID: 0}
+  m_Anchor: {x: 0, y: 0, z: 0.5}
+  m_AutoConfigureConnectedAnchor: 1
+  m_ConnectedAnchor: {x: 0, y: 0, z: 0}
+  m_Spring: 3
+  m_Damper: 0.2
+  m_MinDistance: 0
+  m_MaxDistance: 0
+  m_Tolerance: 0.025
+  m_BreakForce: Infinity
+  m_BreakTorque: 80
+  m_EnableCollision: 0
+  m_EnablePreprocessing: 1
+  m_MassScale: 1
+  m_ConnectedMassScale: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
