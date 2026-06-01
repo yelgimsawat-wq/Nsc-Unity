@@ -142,7 +142,7 @@ MonoBehaviour:
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
-  AllowOwnerToParent: 0
+  AllowOwnerToParent: 1
 --- !u!114 &8416574117733881698
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -257,15 +257,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 10
-  pushForce: 10
+  pushForce: 7
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  jumpForce: 75
+  jumpForce: 20
   range: 9.5
   attachPart: {fileID: 0}
   maxRange: 1.5
+  torsoRb: {fileID: 0}
   physicalFootTransform: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:

@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.ComponentModel;
 
 public class EZFootMovement : NetworkBehaviour
 {
@@ -8,6 +9,7 @@ public class EZFootMovement : NetworkBehaviour
     public float pushForce = 50f;
     public float hitRadius = 0.2f;
     public LayerMask groundLayer;
+    public LayerMask graplayer;
 
     [Header("Jump Settings")]
     public float jumpForce = 400f;
@@ -21,7 +23,7 @@ public class EZFootMovement : NetworkBehaviour
     [SerializeField] public float maxRange = 15f;
 
     [Header("References")]
-    private Rigidbody torsoRb;
+    [SerializeField]private Rigidbody torsoRb;
     public Transform physicalFootTransform;
 
     private float pushTimer = 0f;
@@ -63,6 +65,11 @@ public class EZFootMovement : NetworkBehaviour
             }
         }
 
+        if (torsoRb == null) 
+        {
+            torsoRb = GameObject.FindGameObjectWithTag("Body").GetComponent<Rigidbody>();
+        }
+
         if (attachPart == null) return;
 
         // Get horizontal input relative to camera yaw
@@ -84,20 +91,25 @@ public class EZFootMovement : NetworkBehaviour
 
         if (moveDir.magnitude > 0.1f)
         {
-            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out RaycastHit hit, 0.3f, groundLayer))
+            RaycastHit hit;
+            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, groundLayer) || Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, graplayer))
             {
+                Debug.Log("Hit ground 0");
                 if (Vector3.Dot(moveDir, hit.normal) < -0.05f)
                 {
+                    Debug.Log("Hit ground 1");
                     isPushingIntoSurface = true;
 
                     if (isJumping)
                     {
+                        Debug.Log("Hit ground 2");
                         // Spacebar held: apply full jump force instantly, no ramp-up
                         pushTimer = 0f;
                         ApplyPushForceServerRpc(-moveDir * jumpForce);
                     }
                     else
                     {
+                        Debug.Log("Hit ground 3");
                         // Normal push: ramp up from 0 to pushForce over 2 seconds
                         if (pushTimer < 2f)
                         {
@@ -160,14 +172,18 @@ public class EZFootMovement : NetworkBehaviour
     [ServerRpc]
     void ApplyPushForceServerRpc(Vector3 force)
     {
+        Debug.Log($"Pushing with {force} 0");
         if (torsoRb == null)
         {
+            Debug.Log($"Pushing with {force} 1");
             if (attachPart != null)
             {
+                Debug.Log($"Pushing with {force} 2");
                 torsoRb = attachPart.GetComponent<Rigidbody>();
             }
             else
             {
+                Debug.Log($"Pushing with {force} 3");
                 GameObject torsoObject = GameObject.FindGameObjectWithTag("Body");
                 if (torsoObject != null) torsoRb = torsoObject.GetComponent<Rigidbody>();
             }
@@ -175,6 +191,7 @@ public class EZFootMovement : NetworkBehaviour
 
         if (torsoRb != null)
         {
+            Debug.Log($"Pushing with {force} 4");
             torsoRb.AddForce(force, ForceMode.Acceleration);
         }
     }
