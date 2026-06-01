@@ -257,12 +257,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 10
-  pushForce: 6
+  pushForce: 7
   hitRadius: 0.2
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  jumpForce: 50
+  jumpForce: 20
   range: 9.5
   attachPart: {fileID: 0}
   maxRange: 1.5

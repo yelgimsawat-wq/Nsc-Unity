@@ -9,6 +9,7 @@ public class EZFootMovement : NetworkBehaviour
     public float pushForce = 50f;
     public float hitRadius = 0.2f;
     public LayerMask groundLayer;
+    public LayerMask graplayer;
 
     [Header("Jump Settings")]
     public float jumpForce = 400f;
@@ -90,7 +91,8 @@ public class EZFootMovement : NetworkBehaviour
 
         if (moveDir.magnitude > 0.1f)
         {
-            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out RaycastHit hit, 0.3f, groundLayer))
+            RaycastHit hit;
+            if (Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, groundLayer) || Physics.SphereCast(transform.position - moveDir * 0.1f, hitRadius, moveDir, out hit, 0.3f, graplayer))
             {
                 Debug.Log("Hit ground 0");
                 if (Vector3.Dot(moveDir, hit.normal) < -0.05f)
