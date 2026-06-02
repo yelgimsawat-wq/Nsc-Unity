@@ -22,8 +22,18 @@ public class OnlineNetworkUI : NetworkBehaviour
 {
     [Header("--- Connect Panel (Step 1) ---")]
     [SerializeField] private GameObject connectPanel;
-    [SerializeField] private Button hostButton;
-    [SerializeField] private Button joinButton;
+    [SerializeField] private GameObject mainMenuGroup;
+    [SerializeField] private GameObject modeSelectGroup;
+    [SerializeField] private GameObject onlineSelectGroup;
+    [SerializeField] private GameObject joinCodeGroup;
+    [SerializeField] private Button playButton;
+    [SerializeField] private Button onlineButton;
+    [SerializeField] private Button offlineButton;
+    [SerializeField] private Button exitButton;
+    [SerializeField] private Button backButton;
+    [SerializeField] private Button hostButton;        // Reused as Online -> Host
+    [SerializeField] private Button joinButton;        // Reused as Online -> Join (open code input)
+    [SerializeField] private Button joinConfirmButton; // Confirms Join by code
     [SerializeField] private TMP_InputField codeInputField;
     [SerializeField] private TextMeshProUGUI statusLabel;
 
@@ -33,6 +43,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI playerCountLabel;  // "Players: 2/4"
     [SerializeField] private Button startButton;                // Host only
     [SerializeField] private TextMeshProUGUI waitingLabel;      // "Waiting for Host..." (Visible to Client)
+    [SerializeField] private Button copyCodeButton;
+    [SerializeField] private Button leaveRoomButton;
 
     [Header("--- References ---")]
     [SerializeField] private Camera lobbyCam;
@@ -46,6 +58,18 @@ public class OnlineNetworkUI : NetworkBehaviour
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     private ISession session;
+    private bool servicesReady;
+    private string currentRoomCode = string.Empty;
+
+    private enum ConnectState
+    {
+        MainMenu,
+        ModeSelect,
+        OnlineSelect,
+        JoinCodeInput
+    }
+
+    private ConnectState currentConnectState = ConnectState.MainMenu;
 
     // ================================================================
     //  UNITY LIFECYCLE
@@ -56,6 +80,9 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (waitingPanel != null) waitingPanel.SetActive(false);
         if (connectPanel != null) connectPanel.SetActive(true);
 
+        BindConnectPanelButtons();
+        BindWaitingPanelButtons();
+        SetConnectState(ConnectState.MainMenu);
         SetStatus("Connecting...");
         SetButtons(false);
 
@@ -66,17 +93,21 @@ public class OnlineNetworkUI : NetworkBehaviour
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
-            SetStatus("Ready");
+            servicesReady = true;
+            SetStatus("Ready - Press Play");
             SetButtons(true);
-
-            hostButton.onClick.AddListener(() => _ = Host());
-            joinButton.onClick.AddListener(() => _ = Join());
         }
         catch (Exception e)
         {
             SetStatus("Failed to connect to Services: " + e.Message);
             Debug.LogError(e);
         }
+    }
+
+    private void OnDestroy()
+    {
+        UnbindConnectPanelButtons();
+        UnbindWaitingPanelButtons();
     }
 
     // ================================================================
@@ -102,6 +133,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         // Update UI immediately with current value
         UpdatePlayerCountUI(playerCount.Value);
+        RefreshStartButtonState();
 
         // Setup UI based on Role (Host/Client)
         SetupWaitingPanelRoles();
@@ -128,6 +160,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (!IsServer) return;
         playerCount.Value = NetworkManager.Singleton.ConnectedClientsIds.Count;
+        RefreshStartButtonState();
         Debug.Log($"[Server] Client {clientId} joined. Players: {playerCount.Value}/{maxPlayers}");
     }
 
@@ -138,6 +171,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         // ConnectedClientsIds still counts the disconnecting client, so we subtract 1
         int count = NetworkManager.Singleton.ConnectedClientsIds.Count - 1;
         playerCount.Value = Mathf.Max(0, count);
+        RefreshStartButtonState();
         Debug.Log($"[Server] Client {clientId} disconnected. Players: {playerCount.Value}/{maxPlayers}");
     }
 
@@ -148,6 +182,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     private void OnPlayerCountChanged(int oldValue, int newValue)
     {
         UpdatePlayerCountUI(newValue);
+        RefreshStartButtonState();
     }
 
     private void UpdatePlayerCountUI(int count)
@@ -171,6 +206,7 @@ public class OnlineNetworkUI : NetworkBehaviour
             session = await MultiplayerService.Instance.CreateSessionAsync(options);
 
             string code = session.Code;
+            currentRoomCode = code;
 
             NetworkManager.Singleton.StartHost();
 
@@ -205,6 +241,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         try
         {
             session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+            currentRoomCode = code;
 
             NetworkManager.Singleton.StartClient();
 
@@ -227,12 +264,15 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (connectPanel != null) connectPanel.SetActive(false);
         if (waitingPanel != null) waitingPanel.SetActive(true);
+        currentRoomCode = roomCode;
 
         if (codeDisplay != null)
         {
             codeDisplay.text = "Room Code: " + roomCode;
             codeDisplay.gameObject.SetActive(true);
         }
+
+        RefreshStartButtonState();
     }
 
     /// <summary>
@@ -254,6 +294,14 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         if (waitingLabel != null)
             waitingLabel.gameObject.SetActive(!IsServer); // Client sees / Host does not see
+
+        if (copyCodeButton != null)
+            copyCodeButton.gameObject.SetActive(true);
+
+        if (leaveRoomButton != null)
+            leaveRoomButton.gameObject.SetActive(true);
+
+        RefreshStartButtonState();
     }
 
     // ================================================================
@@ -263,6 +311,11 @@ public class OnlineNetworkUI : NetworkBehaviour
     private void OnStartButtonClicked()
     {
         if (!IsServer) return;
+        if (!CanStartGame())
+        {
+            SetStatus("Cannot start yet. Need exactly 4 players.");
+            return;
+        }
 
         if (startButton != null) startButton.interactable = false; // Prevent double-clicking
 
@@ -286,7 +339,231 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     void SetButtons(bool on)
     {
+        if (playButton != null) playButton.interactable = on;
+        if (onlineButton != null) onlineButton.interactable = on;
+        if (offlineButton != null) offlineButton.interactable = on;
+        if (exitButton != null) exitButton.interactable = on;
+        if (backButton != null) backButton.interactable = on;
         if (hostButton != null) hostButton.interactable = on;
         if (joinButton != null) joinButton.interactable = on;
+        if (joinConfirmButton != null) joinConfirmButton.interactable = on;
+        if (codeInputField != null) codeInputField.interactable = on;
+        if (copyCodeButton != null) copyCodeButton.interactable = on;
+        if (leaveRoomButton != null) leaveRoomButton.interactable = on;
+    }
+
+    private void BindConnectPanelButtons()
+    {
+        if (playButton != null)
+        {
+            playButton.onClick.RemoveListener(OnPlayClicked);
+            playButton.onClick.AddListener(OnPlayClicked);
+        }
+
+        if (onlineButton != null)
+        {
+            onlineButton.onClick.RemoveListener(OnOnlineModeClicked);
+            onlineButton.onClick.AddListener(OnOnlineModeClicked);
+        }
+
+        if (offlineButton != null)
+        {
+            offlineButton.onClick.RemoveListener(OnOfflineModeClicked);
+            offlineButton.onClick.AddListener(OnOfflineModeClicked);
+        }
+
+        if (exitButton != null)
+        {
+            exitButton.onClick.RemoveListener(OnExitOrBackClicked);
+            exitButton.onClick.AddListener(OnExitOrBackClicked);
+        }
+
+        if (backButton != null)
+        {
+            backButton.onClick.RemoveListener(OnExitOrBackClicked);
+            backButton.onClick.AddListener(OnExitOrBackClicked);
+        }
+
+        if (hostButton != null)
+        {
+            hostButton.onClick.RemoveAllListeners();
+            hostButton.onClick.AddListener(() => _ = Host());
+        }
+
+        if (joinButton != null)
+        {
+            joinButton.onClick.RemoveAllListeners();
+            joinButton.onClick.AddListener(OnJoinFlowClicked);
+        }
+
+        if (joinConfirmButton != null)
+        {
+            joinConfirmButton.onClick.RemoveAllListeners();
+            joinConfirmButton.onClick.AddListener(() => _ = Join());
+        }
+    }
+
+    private void BindWaitingPanelButtons()
+    {
+        if (copyCodeButton != null)
+        {
+            copyCodeButton.onClick.RemoveListener(OnCopyCodeClicked);
+            copyCodeButton.onClick.AddListener(OnCopyCodeClicked);
+        }
+
+        if (leaveRoomButton != null)
+        {
+            leaveRoomButton.onClick.RemoveListener(OnLeaveRoomClicked);
+            leaveRoomButton.onClick.AddListener(OnLeaveRoomClicked);
+        }
+
+    }
+
+    private void UnbindConnectPanelButtons()
+    {
+        if (playButton != null) playButton.onClick.RemoveListener(OnPlayClicked);
+        if (onlineButton != null) onlineButton.onClick.RemoveListener(OnOnlineModeClicked);
+        if (offlineButton != null) offlineButton.onClick.RemoveListener(OnOfflineModeClicked);
+        if (exitButton != null) exitButton.onClick.RemoveListener(OnExitOrBackClicked);
+        if (backButton != null) backButton.onClick.RemoveListener(OnExitOrBackClicked);
+        if (hostButton != null) hostButton.onClick.RemoveAllListeners();
+        if (joinButton != null) joinButton.onClick.RemoveAllListeners();
+        if (joinConfirmButton != null) joinConfirmButton.onClick.RemoveAllListeners();
+    }
+
+    private void UnbindWaitingPanelButtons()
+    {
+        if (copyCodeButton != null) copyCodeButton.onClick.RemoveListener(OnCopyCodeClicked);
+        if (leaveRoomButton != null) leaveRoomButton.onClick.RemoveListener(OnLeaveRoomClicked);
+    }
+
+    private void OnPlayClicked()
+    {
+        if (!servicesReady)
+        {
+            SetStatus("Still connecting to Services...");
+            return;
+        }
+
+        SetConnectState(ConnectState.ModeSelect);
+    }
+
+    private void OnOnlineModeClicked()
+    {
+        if (!servicesReady)
+        {
+            SetStatus("Services are not ready yet.");
+            return;
+        }
+
+        SetConnectState(ConnectState.OnlineSelect);
+    }
+
+    private void OnOfflineModeClicked()
+    {
+        SetStatus("Offline mode is not available yet.");
+    }
+
+    private void OnJoinFlowClicked()
+    {
+        SetConnectState(ConnectState.JoinCodeInput);
+    }
+
+    private void OnExitOrBackClicked()
+    {
+        switch (currentConnectState)
+        {
+            case ConnectState.JoinCodeInput:
+                SetConnectState(ConnectState.OnlineSelect);
+                break;
+            case ConnectState.OnlineSelect:
+                SetConnectState(ConnectState.ModeSelect);
+                break;
+            case ConnectState.ModeSelect:
+                SetConnectState(ConnectState.MainMenu);
+                break;
+            default:
+                SetStatus("Exiting game...");
+                Application.Quit();
+                break;
+        }
+    }
+
+    private void SetConnectState(ConnectState state)
+    {
+        currentConnectState = state;
+
+        bool showMain = state == ConnectState.MainMenu;
+        bool showMode = state == ConnectState.ModeSelect;
+        bool showOnline = state == ConnectState.OnlineSelect;
+        bool showJoinCode = state == ConnectState.JoinCodeInput;
+
+        if (mainMenuGroup != null) mainMenuGroup.SetActive(showMain);
+        if (modeSelectGroup != null) modeSelectGroup.SetActive(showMode);
+        if (onlineSelectGroup != null) onlineSelectGroup.SetActive(showOnline);
+        if (joinCodeGroup != null) joinCodeGroup.SetActive(showJoinCode);
+
+        if (joinConfirmButton != null)
+            joinConfirmButton.gameObject.SetActive(showJoinCode);
+
+        if (codeInputField != null)
+            codeInputField.gameObject.SetActive(showJoinCode);
+
+        // Fallback for old one-screen layout: keep host/join buttons synced with online step
+        if (hostButton != null) hostButton.gameObject.SetActive(showOnline);
+        if (joinButton != null) joinButton.gameObject.SetActive(showOnline);
+
+        string statusMessage = state switch
+        {
+            ConnectState.MainMenu => servicesReady ? "Ready - Press Play" : "Connecting...",
+            ConnectState.ModeSelect => "Select Mode",
+            ConnectState.OnlineSelect => "Online: choose Host or Join",
+            ConnectState.JoinCodeInput => "Enter Room Code to Join",
+            _ => "Ready"
+        };
+
+        SetStatus(statusMessage);
+    }
+
+    private void OnCopyCodeClicked()
+    {
+        if (string.IsNullOrWhiteSpace(currentRoomCode))
+        {
+            SetStatus("No room code available.");
+            return;
+        }
+
+        GUIUtility.systemCopyBuffer = currentRoomCode;
+        SetStatus("Copied room code: " + currentRoomCode);
+    }
+
+    private void OnLeaveRoomClicked()
+    {
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            NetworkManager.Singleton.Shutdown();
+
+        session = null;
+        currentRoomCode = string.Empty;
+
+        if (codeInputField != null)
+            codeInputField.text = string.Empty;
+
+        if (waitingPanel != null) waitingPanel.SetActive(false);
+        if (connectPanel != null) connectPanel.SetActive(true);
+
+        SetConnectState(ConnectState.MainMenu);
+        SetButtons(servicesReady);
+        SetStatus("Returned to Connect Panel.");
+    }
+
+    private bool CanStartGame()
+    {
+        return IsServer && NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+    }
+
+    private void RefreshStartButtonState()
+    {
+        if (startButton == null) return;
+        startButton.interactable = CanStartGame();
     }
 }
