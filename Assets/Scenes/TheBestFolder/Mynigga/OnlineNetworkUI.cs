@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Netcode;
 using Unity.Services.Authentication;
@@ -8,6 +9,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
+using DG.Tweening;
 
 /// <summary>
 /// OnlineNetworkUI.cs
@@ -53,6 +55,16 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private int maxPlayers = 4;
     [SerializeField] private string nextSceneName = "SelectPart"; // Scene name in Build Settings
 
+    [Header("--- UI Animation ---")]
+    [SerializeField] private float uiFadeDuration = 0.22f;
+    [SerializeField] private float uiScaleFrom = 0.96f;
+    [SerializeField] private Ease uiEase = Ease.OutCubic;
+
+    [Header("--- Button Hover ---")]
+    [SerializeField] private Color buttonHoverColor = new Color(0.2f, 0.85f, 0.3f, 1f);
+    [SerializeField] private Color buttonPressedColor = new Color(0.1f, 0.65f, 0.2f, 1f);
+    [SerializeField] private float buttonHoverFadeDuration = 0.12f;
+
     // NetworkVariable: Server writes, everyone reads — Fixes count not updating on Client side
     private NetworkVariable<int> playerCount = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -60,6 +72,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     private ISession session;
     private bool servicesReady;
     private string currentRoomCode = string.Empty;
+    private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
+    private readonly Dictionary<Transform, Vector3> originalUiScales = new Dictionary<Transform, Vector3>();
 
     private enum ConnectState
     {
@@ -77,11 +91,12 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     async void Start()
     {
-        if (waitingPanel != null) waitingPanel.SetActive(false);
-        if (connectPanel != null) connectPanel.SetActive(true);
+        SetVisibleInstant(waitingPanel, false);
+        SetVisibleInstant(connectPanel, true);
 
         BindConnectPanelButtons();
         BindWaitingPanelButtons();
+        ApplyButtonHoverColors();
         SetConnectState(ConnectState.MainMenu);
         SetStatus("Connecting...");
         SetButtons(false);
@@ -108,6 +123,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         UnbindConnectPanelButtons();
         UnbindWaitingPanelButtons();
+        KillAllUiTweens();
+        originalUiScales.Clear();
     }
 
     // ================================================================
@@ -262,8 +279,8 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     private void ShowWaitingPanel(string roomCode)
     {
-        if (connectPanel != null) connectPanel.SetActive(false);
-        if (waitingPanel != null) waitingPanel.SetActive(true);
+        SetVisibleAnimated(connectPanel, false);
+        SetVisibleAnimated(waitingPanel, true);
         currentRoomCode = roomCode;
 
         if (codeDisplay != null)
@@ -271,6 +288,10 @@ public class OnlineNetworkUI : NetworkBehaviour
             codeDisplay.text = "Room Code: " + roomCode;
             codeDisplay.gameObject.SetActive(true);
         }
+
+        if (copyCodeButton != null) copyCodeButton.interactable = true;
+        if (leaveRoomButton != null) leaveRoomButton.interactable = true;
+        if (backButton != null) backButton.gameObject.SetActive(false);
 
         RefreshStartButtonState();
     }
@@ -350,6 +371,147 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (codeInputField != null) codeInputField.interactable = on;
         if (copyCodeButton != null) copyCodeButton.interactable = on;
         if (leaveRoomButton != null) leaveRoomButton.interactable = on;
+    }
+
+    private void ApplyButtonHoverColors()
+    {
+        ApplyButtonHoverColor(playButton);
+        ApplyButtonHoverColor(onlineButton);
+        ApplyButtonHoverColor(offlineButton);
+        ApplyButtonHoverColor(exitButton);
+        ApplyButtonHoverColor(backButton);
+        ApplyButtonHoverColor(hostButton);
+        ApplyButtonHoverColor(joinButton);
+        ApplyButtonHoverColor(joinConfirmButton);
+        ApplyButtonHoverColor(startButton);
+        ApplyButtonHoverColor(copyCodeButton);
+        ApplyButtonHoverColor(leaveRoomButton);
+    }
+
+    private void ApplyButtonHoverColor(Button button)
+    {
+        if (button == null) return;
+
+        button.transition = Selectable.Transition.ColorTint;
+
+        ColorBlock colors = button.colors;
+        colors.highlightedColor = buttonHoverColor;
+        colors.selectedColor = buttonHoverColor;
+        colors.pressedColor = buttonPressedColor;
+        colors.fadeDuration = Mathf.Max(0f, buttonHoverFadeDuration);
+        button.colors = colors;
+    }
+
+    private void SetVisibleInstant(GameObject target, bool visible)
+    {
+        if (target == null) return;
+
+        KillUiTween(target);
+
+        CanvasGroup canvasGroup = GetOrAddCanvasGroup(target);
+        Transform targetTransform = target.transform;
+        Vector3 baseScale = GetOriginalScale(targetTransform);
+
+        target.SetActive(visible);
+        canvasGroup.alpha = visible ? 1f : 0f;
+        canvasGroup.interactable = visible;
+        canvasGroup.blocksRaycasts = visible;
+        targetTransform.localScale = baseScale;
+    }
+
+    private void SetVisibleAnimated(GameObject target, bool visible)
+    {
+        if (target == null) return;
+
+        KillUiTween(target);
+
+        if (!isActiveAndEnabled || uiFadeDuration <= 0f || (!visible && !target.activeSelf))
+        {
+            SetVisibleInstant(target, visible);
+            return;
+        }
+
+        CanvasGroup canvasGroup = GetOrAddCanvasGroup(target);
+        Transform targetTransform = target.transform;
+        Vector3 baseScale = GetOriginalScale(targetTransform);
+        float scaleFrom = Mathf.Max(0.01f, uiScaleFrom);
+        Vector3 hiddenScale = baseScale * scaleFrom;
+
+        if (visible && !target.activeSelf)
+        {
+            target.SetActive(true);
+            canvasGroup.alpha = 0f;
+            targetTransform.localScale = hiddenScale;
+        }
+
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
+
+        float endAlpha = visible ? 1f : 0f;
+        Vector3 endScale = visible ? baseScale : hiddenScale;
+        float duration = Mathf.Max(0.01f, uiFadeDuration);
+
+        Sequence sequence = DOTween.Sequence().SetUpdate(true);
+        sequence.Join(canvasGroup.DOFade(endAlpha, duration).SetEase(uiEase));
+        sequence.Join(targetTransform.DOScale(endScale, duration).SetEase(uiEase));
+        sequence.OnComplete(() =>
+        {
+            if (target == null)
+            {
+                runningUiTweens.Remove(target);
+                return;
+            }
+
+            canvasGroup.alpha = endAlpha;
+            targetTransform.localScale = baseScale;
+            canvasGroup.interactable = visible;
+            canvasGroup.blocksRaycasts = visible;
+
+            if (!visible)
+                target.SetActive(false);
+
+            runningUiTweens.Remove(target);
+        });
+
+        runningUiTweens[target] = sequence;
+    }
+
+    private CanvasGroup GetOrAddCanvasGroup(GameObject target)
+    {
+        if (!target.TryGetComponent(out CanvasGroup canvasGroup))
+            canvasGroup = target.AddComponent<CanvasGroup>();
+
+        return canvasGroup;
+    }
+
+    private Vector3 GetOriginalScale(Transform targetTransform)
+    {
+        if (!originalUiScales.TryGetValue(targetTransform, out Vector3 baseScale))
+        {
+            baseScale = targetTransform.localScale;
+            originalUiScales[targetTransform] = baseScale;
+        }
+
+        return baseScale;
+    }
+
+    private void KillUiTween(GameObject target)
+    {
+        if (runningUiTweens.TryGetValue(target, out Tween runningTween) && runningTween != null && runningTween.IsActive())
+            runningTween.Kill(false);
+
+        runningUiTweens.Remove(target);
+    }
+
+    private void KillAllUiTweens()
+    {
+        foreach (Tween runningTween in runningUiTweens.Values)
+        {
+            if (runningTween != null && runningTween.IsActive())
+                runningTween.Kill(false);
+        }
+
+        runningUiTweens.Clear();
     }
 
     private void BindConnectPanelButtons()
@@ -498,10 +660,10 @@ public class OnlineNetworkUI : NetworkBehaviour
         bool showOnline = state == ConnectState.OnlineSelect;
         bool showJoinCode = state == ConnectState.JoinCodeInput;
 
-        if (mainMenuGroup != null) mainMenuGroup.SetActive(showMain);
-        if (modeSelectGroup != null) modeSelectGroup.SetActive(showMode);
-        if (onlineSelectGroup != null) onlineSelectGroup.SetActive(showOnline);
-        if (joinCodeGroup != null) joinCodeGroup.SetActive(showJoinCode);
+        SetVisibleAnimated(mainMenuGroup, showMain);
+        SetVisibleAnimated(modeSelectGroup, showMode);
+        SetVisibleAnimated(onlineSelectGroup, showOnline);
+        SetVisibleAnimated(joinCodeGroup, showJoinCode);
 
         if (joinConfirmButton != null)
             joinConfirmButton.gameObject.SetActive(showJoinCode);
@@ -512,6 +674,8 @@ public class OnlineNetworkUI : NetworkBehaviour
         // Fallback for old one-screen layout: keep host/join buttons synced with online step
         if (hostButton != null) hostButton.gameObject.SetActive(showOnline);
         if (joinButton != null) joinButton.gameObject.SetActive(showOnline);
+
+        if (backButton != null) backButton.gameObject.SetActive(!showMain);
 
         string statusMessage = state switch
         {
@@ -548,8 +712,8 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (codeInputField != null)
             codeInputField.text = string.Empty;
 
-        if (waitingPanel != null) waitingPanel.SetActive(false);
-        if (connectPanel != null) connectPanel.SetActive(true);
+        SetVisibleAnimated(waitingPanel, false);
+        SetVisibleAnimated(connectPanel, true);
 
         SetConnectState(ConnectState.MainMenu);
         SetButtons(servicesReady);
