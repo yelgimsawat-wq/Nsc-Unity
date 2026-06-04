@@ -7,6 +7,7 @@ using Unity.Services.Core;
 using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -65,6 +66,18 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private Color buttonPressedColor = new Color(0.1f, 0.65f, 0.2f, 1f);
     [SerializeField] private float buttonHoverFadeDuration = 0.12f;
 
+    [Header("--- Menu Feel ---")]
+    [SerializeField] private Transform menuLookTarget;
+    [SerializeField] private bool menuFeelEnabled = true;
+    [SerializeField] private float menuTiltMaxYaw = 7f;
+    [SerializeField] private float menuTiltMaxPitch = 3f;
+    [SerializeField] private float menuTiltMaxRoll = 1.5f;
+    [SerializeField] private float menuTiltFollowSpeed = 7f;
+    [SerializeField] private float menuIdleScaleAmount = 0.012f;
+    [SerializeField] private float menuIdleSpeed = 1.6f;
+    [SerializeField] private float buttonClickScale = 1.06f;
+    [SerializeField] private float buttonClickDuration = 0.12f;
+
     // NetworkVariable: Server writes, everyone reads — Fixes count not updating on Client side
     private NetworkVariable<int> playerCount = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -74,6 +87,11 @@ public class OnlineNetworkUI : NetworkBehaviour
     private string currentRoomCode = string.Empty;
     private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
     private readonly Dictionary<Transform, Vector3> originalUiScales = new Dictionary<Transform, Vector3>();
+    private readonly Dictionary<Transform, Tween> buttonClickTweens = new Dictionary<Transform, Tween>();
+    private readonly Dictionary<Button, UnityAction> buttonClickFeedbackListeners = new Dictionary<Button, UnityAction>();
+    private Quaternion menuTargetBaseRotation;
+    private Vector3 menuTargetBaseScale;
+    private bool menuTargetPoseCaptured;
 
     private enum ConnectState
     {
@@ -91,8 +109,12 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     async void Start()
     {
+        // Keep lobbyCam always on top — depth 100 beats any Player camera (default depth = -1)
+        if (lobbyCam != null) lobbyCam.depth = 100;
+
         SetVisibleInstant(waitingPanel, false);
         SetVisibleInstant(connectPanel, true);
+        CaptureMenuFeelBasePose();
 
         BindConnectPanelButtons();
         BindWaitingPanelButtons();
@@ -119,10 +141,17 @@ public class OnlineNetworkUI : NetworkBehaviour
         }
     }
 
+    private void Update()
+    {
+        UpdateMenuFeel();
+    }
+
     private void OnDestroy()
     {
         UnbindConnectPanelButtons();
         UnbindWaitingPanelButtons();
+        ClearButtonClickFeedback();
+        KillAllButtonClickTweens();
         KillAllUiTweens();
         originalUiScales.Clear();
     }
@@ -279,7 +308,8 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     private void ShowWaitingPanel(string roomCode)
     {
-        SetVisibleAnimated(connectPanel, false);
+        ShowConnectPanelAsBackdrop();
+        HideConnectFlowControlsForWaiting();
         SetVisibleAnimated(waitingPanel, true);
         currentRoomCode = roomCode;
 
@@ -310,6 +340,7 @@ public class OnlineNetworkUI : NetworkBehaviour
             {
                 startButton.onClick.RemoveAllListeners();
                 startButton.onClick.AddListener(OnStartButtonClicked);
+                ApplyButtonHoverColor(startButton);
             }
         }
 
@@ -400,6 +431,166 @@ public class OnlineNetworkUI : NetworkBehaviour
         colors.pressedColor = buttonPressedColor;
         colors.fadeDuration = Mathf.Max(0f, buttonHoverFadeDuration);
         button.colors = colors;
+
+        RegisterButtonClickFeedback(button);
+    }
+
+    private void RegisterButtonClickFeedback(Button button)
+    {
+        if (button == null) return;
+
+        if (buttonClickFeedbackListeners.TryGetValue(button, out UnityAction existingAction))
+            button.onClick.RemoveListener(existingAction);
+
+        UnityAction clickFeedback = () => PlayButtonClickFeedback(button);
+        buttonClickFeedbackListeners[button] = clickFeedback;
+        button.onClick.AddListener(clickFeedback);
+    }
+
+    private void ClearButtonClickFeedback()
+    {
+        foreach (KeyValuePair<Button, UnityAction> listener in buttonClickFeedbackListeners)
+        {
+            if (listener.Key != null && listener.Value != null)
+                listener.Key.onClick.RemoveListener(listener.Value);
+        }
+
+        buttonClickFeedbackListeners.Clear();
+    }
+
+    private void PlayButtonClickFeedback(Button button)
+    {
+        if (button == null || button.transform == null || !button.gameObject.activeInHierarchy) return;
+
+        float punchAmount = Mathf.Max(1f, buttonClickScale) - 1f;
+        float duration = Mathf.Max(0f, buttonClickDuration);
+        if (punchAmount <= 0f || duration <= 0f) return;
+
+        Transform buttonTransform = button.transform;
+
+        if (buttonClickTweens.TryGetValue(buttonTransform, out Tween runningTween) && runningTween != null && runningTween.IsActive())
+            runningTween.Kill(false);
+
+        Vector3 baseScale = GetOriginalScale(buttonTransform);
+        buttonTransform.localScale = baseScale;
+
+        Tween clickTween = buttonTransform
+            .DOPunchScale(baseScale * punchAmount, duration, 1, 0.5f)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (buttonTransform != null)
+                    buttonTransform.localScale = baseScale;
+
+                buttonClickTweens.Remove(buttonTransform);
+            });
+
+        buttonClickTweens[buttonTransform] = clickTween;
+    }
+
+    private void KillAllButtonClickTweens()
+    {
+        foreach (KeyValuePair<Transform, Tween> clickTween in buttonClickTweens)
+        {
+            if (clickTween.Value != null && clickTween.Value.IsActive())
+                clickTween.Value.Kill(false);
+
+            if (clickTween.Key != null)
+                clickTween.Key.localScale = GetOriginalScale(clickTween.Key);
+        }
+
+        buttonClickTweens.Clear();
+    }
+
+    private void CaptureMenuFeelBasePose()
+    {
+        if (menuLookTarget == null || menuTargetPoseCaptured) return;
+
+        menuTargetBaseRotation = menuLookTarget.localRotation;
+        menuTargetBaseScale = menuLookTarget.localScale;
+        menuTargetPoseCaptured = true;
+    }
+
+    private void UpdateMenuFeel()
+    {
+        if (menuLookTarget == null) return;
+
+        CaptureMenuFeelBasePose();
+        if (!menuTargetPoseCaptured) return;
+
+        float followSpeed = Mathf.Max(0.01f, menuTiltFollowSpeed);
+        float followT = 1f - Mathf.Exp(-followSpeed * Time.unscaledDeltaTime);
+        Quaternion targetRotation = menuTargetBaseRotation;
+        Vector3 targetScale = menuTargetBaseScale;
+
+        if (ShouldReactToMenuMouse())
+        {
+            Vector3 mousePosition = Input.mousePosition;
+            float screenWidth = Mathf.Max(1f, Screen.width);
+            float screenHeight = Mathf.Max(1f, Screen.height);
+            float normalizedX = Mathf.Clamp(((mousePosition.x / screenWidth) - 0.5f) * 2f, -1f, 1f);
+            float normalizedY = Mathf.Clamp(((mousePosition.y / screenHeight) - 0.5f) * 2f, -1f, 1f);
+
+            Quaternion mouseTilt = Quaternion.Euler(
+                -normalizedY * menuTiltMaxPitch,
+                normalizedX * menuTiltMaxYaw,
+                -normalizedX * menuTiltMaxRoll);
+
+            float idleScale = 1f + Mathf.Sin(Time.unscaledTime * menuIdleSpeed) * menuIdleScaleAmount;
+            targetRotation = menuTargetBaseRotation * mouseTilt;
+            targetScale = menuTargetBaseScale * idleScale;
+        }
+
+        menuLookTarget.localRotation = Quaternion.Slerp(menuLookTarget.localRotation, targetRotation, followT);
+        menuLookTarget.localScale = Vector3.Lerp(menuLookTarget.localScale, targetScale, followT);
+    }
+
+    private bool ShouldReactToMenuMouse()
+    {
+        if (!menuFeelEnabled || connectPanel == null || !connectPanel.activeInHierarchy)
+            return false;
+
+        return waitingPanel == null || !waitingPanel.activeInHierarchy;
+    }
+
+    private void ShowConnectPanelAsBackdrop()
+    {
+        if (connectPanel == null) return;
+
+        KillUiTween(connectPanel);
+
+        CanvasGroup canvasGroup = GetOrAddCanvasGroup(connectPanel);
+        Transform targetTransform = connectPanel.transform;
+        Vector3 baseScale = GetOriginalScale(targetTransform);
+
+        connectPanel.SetActive(true);
+        canvasGroup.alpha = 1f;
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
+        targetTransform.localScale = baseScale;
+    }
+
+    private void HideConnectFlowControlsForWaiting()
+    {
+        SetVisibleAnimated(mainMenuGroup, false);
+        SetVisibleAnimated(modeSelectGroup, false);
+        SetVisibleAnimated(onlineSelectGroup, false);
+        SetVisibleAnimated(joinCodeGroup, false);
+
+        if (joinConfirmButton != null)
+            joinConfirmButton.gameObject.SetActive(false);
+
+        if (codeInputField != null)
+            codeInputField.gameObject.SetActive(false);
+
+        if (hostButton != null)
+            hostButton.gameObject.SetActive(false);
+
+        if (joinButton != null)
+            joinButton.gameObject.SetActive(false);
+
+        if (backButton != null)
+            backButton.gameObject.SetActive(false);
     }
 
     private void SetVisibleInstant(GameObject target, bool visible)
