@@ -30,6 +30,11 @@ public class EZFootMovement : NetworkBehaviour
     [SerializeField] private Rigidbody torsoRb;
     public Transform physicalFootTransform;
 
+    [Header("Auto Stand Assist (Safe)")]
+    public float targetBodyHeight = 1.6f;
+    public float standSpringForce = 60f;
+    public float standDamperForce = 10f;
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -54,12 +59,56 @@ public class EZFootMovement : NetworkBehaviour
         }
     }
 
+    void FixedUpdate()
+    {
+        if (!IsServer || torsoRb == null) return;
+
+        Vector3 footPos = physicalFootTransform != null ? physicalFootTransform.position : transform.position;
+
+        // หาระยะความสูงปัจจุบัน
+        float currentHeight = torsoRb.worldCenterOfMass.y - footPos.y;
+        float heightError = targetBodyHeight - currentHeight;
+
+        // คำนวณแรงสปริงในแนวตั้ง (ดันขึ้น)
+        float verticalVelocity = torsoRb.linearVelocity.y;
+        float upwardForce = (heightError * standSpringForce) - (verticalVelocity * standDamperForce);
+
+        // ชดเชยแรงโน้มถ่วงเสมอ เพื่อให้ตัวไม่หนักและทรุดลงไป
+        upwardForce += Mathf.Abs(Physics.gravity.y);
+
+        // จำกัดแรงไว้ที่ 200f สูงสุด เพื่อป้องกันอาการ "หุ่นระเบิด" หรือเด้งรุนแรงเกินไป
+        upwardForce = Mathf.Clamp(upwardForce, 0f, 200f);
+
+        // ใช้ ForceMode.Acceleration (นุ่มนวลกว่า VelocityChange ปลอดภัยกับข้อต่อ)
+        torsoRb.AddForce(Vector3.up * upwardForce, ForceMode.Acceleration);
+    }
+
+    // -------------------------------------------------------
+    //  UPRIGHT CORRECTION — ดันให้ Torso ตั้งตรงแบบเสถียรที่สุด (ยืนหล่อๆ)
+    // -------------------------------------------------------
+    void ApplyUprightCorrection()
+    {
+        if (torsoRb == null) return;
+
+        // ล็อคแกนหมุน X และ Z ของ Rigidbody เพื่อไม่ให้ล้ม 100% 
+        // วิธีนี้จะทำให้มันยืนตรงเป๊ะๆ เหมือนตัวละครเกมทั่วไป
+        torsoRb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        // รีเซ็ตความเร็วการหมุนที่อาจจะค้างอยู่
+        torsoRb.angularVelocity = new Vector3(0f, torsoRb.angularVelocity.y, 0f);
+
+        // จัดให้โมเดลตั้งตรง
+        torsoRb.MoveRotation(Quaternion.Euler(0f, torsoRb.rotation.eulerAngles.y, 0f));
+    }
+
     void Update()
     {
         if (!IsOwner) return;
 
         CheckAndCacheTorso();
         if (attachPart == null) return;
+
+        ApplyUprightCorrection();
 
         // Get horizontal input relative to camera yaw
         float h = Input.GetAxis("Horizontal");
@@ -101,16 +150,44 @@ public class EZFootMovement : NetworkBehaviour
                     }
                 }
             }
-        }
 
-        if (!isPushingIntoSurface && moveDir.magnitude > 0.1f)
+            if (!isPushingIntoSurface)
+            {
+                // Moving state (Normal walk)
+                transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+            }
+        }
+        else
         {
-            // Moving state (Normal walk)
-            transform.Translate(moveDir * speed * Time.deltaTime, Space.World);
+            // ถ้าไม่ได้กดปุ่มเดินใดๆ เลย ให้ส่งคำสั่งเบรกไปที่ Server เพื่อป้องกันตัวละครไหล
+            ApplyBrakeRpc();
         }
 
         ApplyLeash();
         ClampToFollower();
+    }
+
+    // --- RPC สำหรับการเบรก (หยุดไหล) ---
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    void ApplyBrakeRpc()
+    {
+        CheckAndCacheTorso();
+        if (torsoRb != null)
+        {
+            Vector3 vel = torsoRb.linearVelocity;
+            Vector3 horizontalVel = new Vector3(vel.x, 0f, vel.z);
+
+            // ออกแรงต้านสวนทางกับความเร็วแนวนอน
+            if (horizontalVel.magnitude > 0.1f)
+            {
+                torsoRb.AddForce(-horizontalVel * 15f, ForceMode.Acceleration);
+            }
+            else
+            {
+                // ถ้าความเร็วน้อยมากๆ ให้หยุดสนิทเลย จะได้ไม่ไหล
+                torsoRb.linearVelocity = new Vector3(0f, vel.y, 0f);
+            }
+        }
     }
 
     // --- RPC สำหรับการกระโดดปกติ (ใส่แรงเต็มพิกัด) ---

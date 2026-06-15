@@ -1,4 +1,4 @@
-﻿using Unity.Netcode;
+using Unity.Netcode;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -34,10 +34,15 @@ public class Following : NetworkBehaviour
         // 2. Calculate the distance to the target
         Vector3 distanceToTarget = targetPoint.position - transform.position;
 
+        // --- ป้องกัน Physics Explosion ---
+        // จำกัดระยะห่างสูงสุดที่นำมาคิดแรงดึง (ถ้าเมาส์หรือเป้าหมายอยู่ไกลเกิน มันจะไม่ดึงแรงจนข้อต่อระเบิด)
+        distanceToTarget = Vector3.ClampMagnitude(distanceToTarget, 2f);
+
         // 3. The "Spring" Math
-        // We pull the arm toward the target, but subtract the current velocity 
-        // (dampening) so it doesn't fly out of control.
         Vector3 springForce = (distanceToTarget * springStrength) - (rb.velocity * dampening);
+
+        // จำกัดแรงสูงสุดที่กระทำต่อชิ้นส่วนเพื่อป้องกันการทะลุหรือระเบิดกระจาย
+        springForce = Vector3.ClampMagnitude(springForce, 300f);
 
         // 4. Apply the physical force
         rb.AddForce(springForce, ForceMode.Acceleration);
