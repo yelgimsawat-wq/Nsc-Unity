@@ -28,6 +28,8 @@ public class PlayerCam : NetworkBehaviour
 
     [HideInInspector] public float yaw = 0f;
     private float pitch = 25f;
+    
+    public Transform followTarget; // Assigned by LobbyManager
 
     public override void OnNetworkSpawn()
     {
@@ -73,7 +75,8 @@ public class PlayerCam : NetworkBehaviour
         }
 
         // Calculate desired camera position
-        Vector3 pivot = transform.position + targetOffset;
+        Vector3 pivotPos = followTarget != null ? followTarget.position : transform.position;
+        Vector3 pivot = pivotPos + targetOffset;
         Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 desiredPosition = pivot - (rotation * Vector3.forward * distance);
 

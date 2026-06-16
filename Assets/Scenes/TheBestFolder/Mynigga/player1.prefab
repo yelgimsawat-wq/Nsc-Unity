@@ -13,10 +13,8 @@ GameObject:
   - component: {fileID: 2071674974202901337}
   - component: {fileID: 8641407283109555604}
   - component: {fileID: 5899968410532111260}
-  - component: {fileID: 8416574117733881698}
   - component: {fileID: -8509970150975333030}
-  - component: {fileID: 1955159752968344627}
-  - component: {fileID: -9078461687732277851}
+  - component: {fileID: -2130800289920369693}
   m_Layer: 2
   m_Name: player1
   m_TagString: Player
@@ -55,7 +53,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -143,7 +141,7 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 1
---- !u!114 &8416574117733881698
+--- !u!114 &-8509970150975333030
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -152,11 +150,37 @@ MonoBehaviour:
   m_GameObject: {fileID: 1169875775329852450}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05f68a8281f278b4da65fffafad39d5b, type: 3}
+  m_Script: {fileID: 11500000, guid: 98c6f21d8f45b804293febd97ee00855, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Unity.Multiplayer.Samples.Utilities.ClientAuthority.ClientNetworkTransform
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCam
   ShowTopMostFoldoutHeaderGroup: 1
-  NetworkTransformExpanded: 1
+  playercam: {fileID: 2120977250887550888}
+  playeral: {fileID: 9079912275674746100}
+  mouseSensitivity: 3
+  distance: 8
+  minDistance: 2
+  maxDistance: 20
+  zoomSpeed: 2
+  targetOffset: {x: 0, y: 1.5, z: 0}
+  smoothSpeed: 10
+  minVerticalAngle: -30
+  maxVerticalAngle: 80
+  yaw: 0
+  followTarget: {fileID: 6064784363067640836}
+--- !u!114 &-2130800289920369693
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1169875775329852450}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkTransformExpanded: 0
   AutoOwnerAuthorityTickOffset: 1
   PositionInterpolationType: 0
   RotationInterpolationType: 0
@@ -189,89 +213,6 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
---- !u!114 &-8509970150975333030
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98c6f21d8f45b804293febd97ee00855, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCam
-  ShowTopMostFoldoutHeaderGroup: 1
-  playercam: {fileID: 2120977250887550888}
-  playeral: {fileID: 9079912275674746100}
-  mouseSensitivity: 3
-  distance: 8
-  minDistance: 2
-  maxDistance: 20
-  zoomSpeed: 2
-  targetOffset: {x: 0, y: 1.5, z: 0}
-  smoothSpeed: 10
-  minVerticalAngle: -30
-  maxVerticalAngle: 80
-  yaw: 0
---- !u!114 &1955159752968344627
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 68a071ed6a9e5b84f8324e1e1ae6857c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EZMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  speed: 7.5
-  hitRadius: 0.2
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  pushForce: 30
-  grabLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  grabCheckRadius: 1.5
-  grabHoldForce: 50
-  grabPushForce: 4
-  range: 9.5
-  attachPart: {fileID: 0}
-  maxRange: 2
-  physicalHandTransform: {fileID: 0}
---- !u!114 &-9078461687732277851
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169875775329852450}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 97cd5a5c2742b1847a999711230ec15b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EZFootMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  speed: 10
-  hitRadius: 0.2
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  graplayer:
-    serializedVersion: 2
-    m_Bits: 128
-  jumpForce: 15
-  springForce: 10
-  damperForce: 15
-  range: 9.3
-  attachPart: {fileID: 0}
-  maxRange: 1.5
-  torsoRb: {fileID: 0}
-  physicalFootTransform: {fileID: 0}
 --- !u!1 &7575651790917353121
 GameObject:
   m_ObjectHideFlags: 0

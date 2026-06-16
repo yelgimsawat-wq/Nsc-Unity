@@ -43,10 +43,10 @@ public class LobbyManager : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI bottomStatusText;
 
     [Header("Robot Targets")]
-    public Following leftArm;
-    public Following rightArm;
-    public Following leftLeg;
-    public Following rightLeg;
+    public GameObject leftArm;
+    public GameObject rightArm;
+    public GameObject leftLeg;
+    public GameObject rightLeg;
 
     [Header("Buttons")]
     [SerializeField] private Button[] limbButtons; // ✅ นำกลับมาเพื่อให้ปุ่มเดิมทำงานได้
@@ -680,13 +680,27 @@ public class LobbyManager : NetworkBehaviour
         if (!IsServer) return;
         if (startButton != null) startButton.interactable = false;
 
+        // --- NEW: Transfer ownership to the players who selected the limbs ---
+        for (int i = 0; i < limbOwners.Count; i++)
+        {
+            if (limbOwners[i] != ulong.MaxValue)
+            {
+                GameObject targetLimb = GetLimbByIndex(i);
+                if (targetLimb != null)
+                {
+                    NetworkObject no = targetLimb.GetComponent<NetworkObject>();
+                    if (no != null) no.ChangeOwnership(limbOwners[i]);
+                }
+            }
+        }
+
         // ยิง ClientRpc ไปทุกคนพร้อมกัน:
         // 1. Assign limb → player
         // 2. ปิด selectionPanel (animated)
         // 3. Unfreeze physics → เกมเริ่ม
         StartGameClientRpc();
 
-        Debug.Log("[Server] Game started — panel closed, physics unfrozen.");
+        Debug.Log("[Server] Game started — panel closed, physics unfrozen, ownership transferred.");
     }
 
     // ================================================================
@@ -740,34 +754,36 @@ public class LobbyManager : NetworkBehaviour
                 continue;
             }
 
-            Following targetLimb = GetLimbByIndex(i);
-            if (targetLimb != null)
-                targetLimb.targetPoint = playerObj.transform;
+            GameObject targetLimb = GetLimbByIndex(i);
+            if (targetLimb == null) continue;
 
-            if (ownerId != NetworkManager.Singleton.LocalClientId) continue;
-
-            if (i >= 2) // Legs
+            // Only the specific client who owns this limb sets up their local camera
+            if (ownerId == NetworkManager.Singleton.LocalClientId)
             {
-                var footMovement = playerObj.GetComponent<EZFootMovement>();
-                if (footMovement != null)
+                Camera playerCam = playerObj.GetComponentInChildren<Camera>();
+                if (playerCam == null) playerCam = Camera.main; // fallback
+                
+                // Tell the PlayerCam to orbit the assigned limb
+                var camScript = playerObj.GetComponent<PlayerCam>();
+                if (camScript != null) camScript.followTarget = targetLimb.transform;
+                
+                if (i >= 2) // Legs
                 {
-                    if (targetLimb?.pivotPoint != null)
-                        footMovement.attachPart = targetLimb.pivotPoint;
-                    if (targetLimb != null)
-                        footMovement.physicalFootTransform = targetLimb.transform;
-                    footMovement.enabled = true;
+                    var footMovement = targetLimb.GetComponent<PlayerFootForRobot>();
+                    if (footMovement != null)
+                    {
+                        footMovement.playerCamera = playerCam;
+                        footMovement.enabled = true;
+                    }
                 }
-            }
-            else // Arms
-            {
-                var armMovement = playerObj.GetComponent<EZMovement>();
-                if (armMovement != null)
+                else // Arms
                 {
-                    if (targetLimb?.pivotPoint != null)
-                        armMovement.attachPart = targetLimb.pivotPoint;
-                    if (targetLimb != null)
-                        armMovement.physicalHandTransform = targetLimb.transform;
-                    armMovement.enabled = true;
+                    var handMovement = targetLimb.GetComponent<PlayerHandMovement>();
+                    if (handMovement != null)
+                    {
+                        handMovement.playerCamera = playerCam;
+                        handMovement.enabled = true;
+                    }
                 }
             }
         }
@@ -1065,7 +1081,7 @@ public class LobbyManager : NetworkBehaviour
     //  Helpers
     // ================================================================
 
-    private Following GetLimbByIndex(int index)
+    private GameObject GetLimbByIndex(int index)
     {
         return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
     }
