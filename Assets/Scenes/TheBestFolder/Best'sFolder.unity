@@ -2840,24 +2840,26 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
+  isStepping: 0
+  isPushingRecovery: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976043}
   pivotPoint: {fileID: 2575685140956976044}
   playerCamera: {fileID: 0}
-  maxLegLength: 10
-  footMoveSpeed: 7
+  maxLegLength: 9
+  footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
   heightAdjustSpeed: 3
-  legDamper: 30
+  legDamper: 25
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
-  recoveryProximityThreshold: 10
+  recoveryProximityThreshold: 6
   minRecoveryMultiplier: 0.5
-  maxRecoveryMultiplier: 1.5
-  mouseReachX: 8
-  mouseReachY: 8
+  mouseReachX: 16
+  mouseReachY: 16
+  plantedPosition: {x: 0, y: 0, z: 0}
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -7129,14 +7131,15 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
-  targetTorsoHeight: 15
+  targetTorsoHeight: 11
   heightSpringForce: 500
   heightDamper: 40
-  uprightSpring: 800
+  uprightSpring: 5
   uprightDamper: 60
+  autoCenterGravityForce: 250
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
-  continuousRecoveryForce: 800
+  continuousRecoveryForce: 750
   recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
   groundRaycastOrigin: {fileID: 2575685140956976038}
@@ -12991,7 +12994,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1140334163020876508, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_UseLimits
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1140334163020876508, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_Limits.min
@@ -13299,7 +13302,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8675681783113470755, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_UseLimits
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8675681783113470755, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_Limits.min
@@ -13543,24 +13546,26 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
+  isStepping: 0
+  isPushingRecovery: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976047}
   pivotPoint: {fileID: 2575685140956976041}
   playerCamera: {fileID: 0}
-  maxLegLength: 10
-  footMoveSpeed: 7
+  maxLegLength: 9
+  footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
   heightAdjustSpeed: 3
-  legDamper: 30
+  legDamper: 25
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
-  recoveryProximityThreshold: 10
+  recoveryProximityThreshold: 6
   minRecoveryMultiplier: 0.5
-  maxRecoveryMultiplier: 1.5
-  mouseReachX: 8
-  mouseReachY: 8
+  mouseReachX: 16
+  mouseReachY: 16
+  plantedPosition: {x: 0, y: 0, z: 0}
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2740861856955824685, guid: 694f2695c09d50949b50e5fed59cdace, type: 3}

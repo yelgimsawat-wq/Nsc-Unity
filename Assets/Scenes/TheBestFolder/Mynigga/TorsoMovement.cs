@@ -10,23 +10,22 @@ public class TorsoMovement : NetworkBehaviour
     public NetworkVariable<TorsoState> currentState = new NetworkVariable<TorsoState>(TorsoState.Standing);
     
     [Header("Fake Hover & Posture (Standing)")]
-    [Tooltip("ความสูงเป้าหมายของลำตัวจากพื้น")]
     public float targetTorsoHeight = 1.6f;
-    [Tooltip("แรงสปริงในการพยุงตัว (ตัวเลขน้อยลงได้เพราะเราต้านแรงโน้มถ่วงแล้ว)")]
     public float heightSpringForce = 300f;
     public float heightDamper = 30f;
-    [Tooltip("แรงบิดให้ตัวตั้งตรง")]
     public float uprightSpring = 800f;
     public float uprightDamper = 60f;
+    
+    [Tooltip("แรงดึงลำตัวกลับมาอยู่ตรงกลางเหนือเท้าอัตโนมัติ (ยิ่งเยอะยิ่งล้มยาก)")]
+    public float autoCenterGravityForce = 250f;
 
-    [Header("Balance Constraints")]
+    [Header("Balance Constraints (Grace Period)")]
     public float maxBalanceAngle = 55f;
-    public float fallGracePeriod = 0.5f;
+    [Tooltip("เวลาที่จะยอมให้ตัวลอยนิ่งๆ ก่อนจะล้มจริงๆ (วินาที)")]
+    public float fallGracePeriod = 1.0f;
 
     [Header("Continuous Recovery")]
-    [Tooltip("แรงที่เท้าส่งมาดันลำตัวให้ลุกขึ้น (ยิ่งเยอะยิ่งลุกไว)")]
     public float continuousRecoveryForce = 800f;
-    [Tooltip("ถ้าความสูงถึงกี่เปอร์เซ็นต์ของ targetHeight ถึงจะถือว่าลุกสำเร็จ")]
     public float recoveryHeightThreshold = 0.7f;
 
     [Header("References")]
@@ -35,7 +34,9 @@ public class TorsoMovement : NetworkBehaviour
     public LayerMask groundLayer;
     
     private List<PlayerFootForRobot> attachedFeet = new List<PlayerFootForRobot>();
-    private float timeNotGrounded = 0f;
+    
+    // ใช้นาฬิกาจับเวลาตัวเดียว ควบคุมทั้งการล้มจากเท้าลอยและตัวเอียง
+    private float balanceLossTimer = 0f;
 
     public void RegisterFoot(PlayerFootForRobot foot)
     {
@@ -60,7 +61,6 @@ public class TorsoMovement : NetworkBehaviour
                 currentState.Value = TorsoState.Ragdoll;
                 break;
             case TorsoState.Ragdoll:
-                // ปล่อยให้ Joint ทำงานตามอิสระ
                 break;
         }
     }
@@ -79,37 +79,50 @@ public class TorsoMovement : NetworkBehaviour
             }
         }
 
-        // เช็คการล้ม
+        bool isLosingBalance = false;
+
+        // 1. ตรวจสอบเงื่อนไขการสูญเสียสมดุล
         if (attachedFeet.Count > 0 && groundedCount == 0)
         {
-            timeNotGrounded += Time.fixedDeltaTime;
-            if (timeNotGrounded > fallGracePeriod)
+            // เงื่อนไขที่ 1: เท้าลอยจากพื้นหมดเลย
+            isLosingBalance = true;
+        }
+        else if (groundedCount > 0)
+        {
+            averageFootPos /= groundedCount;
+                // 🌟 [AUTO BALANCE] ถ้ายังไม่ล้ม ให้ลำตัวพยายามดึงตัวเองมาอยู่จุดศูนย์กลาง (เหนือเท้า) เสมอ
+                Vector3 targetTorsoPos = averageFootPos + (Vector3.up * targetTorsoHeight);
+                // ดึงเฉพาะแกน X และ Z (ไม่ยุ่งกับความสูง Y)
+                Vector3 flatError = new Vector3(targetTorsoPos.x - torsoRb.position.x, 0, targetTorsoPos.z - torsoRb.position.z);
+                
+                torsoRb.AddForce(flatError * autoCenterGravityForce, ForceMode.Acceleration);
+        }
+
+        // 2. ระบบเวลานับถอยหลังการล้ม (Grace Period / Float Time)
+        if (isLosingBalance)
+        {
+            balanceLossTimer += Time.fixedDeltaTime;
+            if (balanceLossTimer >= fallGracePeriod)
             {
+                // หมดเวลาโกงความตาย ร่วงของจริง
                 currentState.Value = TorsoState.Falling;
                 return;
             }
         }
         else
         {
-            timeNotGrounded = 0f;
-            
-            // เช็คมุมเอียงเพื่อล้ม
-            averageFootPos /= groundedCount;
-            Vector3 directionToTorso = (torsoRb.position - averageFootPos).normalized;
-            float leanAngle = Vector3.Angle(Vector3.up, directionToTorso);
-
-            if (leanAngle > maxBalanceAngle)
-            {
-                currentState.Value = TorsoState.Falling;
-                return;
-            }
+            // ถ้ากลับมาทรงตัวได้ ให้ค่อยๆ ลดเวลาสะสมลง (เผื่อกรณีเดินสะดุดแป๊บเดียว)
+            balanceLossTimer = Mathf.Max(0, balanceLossTimer - (Time.fixedDeltaTime * 2f));
         }
 
-        // 🎯 1. FAKE HOVER (ต้านแรงโน้มถ่วงโลก 100%)
-        // ทำให้ตัวลอยนิ่งสนิท ไม่ร่วงหล่น
+        // ==============================================================
+        // 🎯 FAKE HOVER + POSTURE (ทำงานตลอดเวลาแม้กำลังนับถอยหลังล้ม)
+        // ==============================================================
+        
+        // 1. ต้านแรงโน้มถ่วง 100% ทำให้ตัวลอยค้างกลางอากาศเหมือนถูกจับไว้
         torsoRb.AddForce(-Physics.gravity, ForceMode.Acceleration);
 
-        // 🎯 2. รักษาระยะความสูง
+        // 2. รักษาระยะความสูง
         if (Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, targetTorsoHeight * 2f, groundLayer))
         {
             float currentHeight = groundRaycastOrigin.position.y - hit.point.y;
@@ -119,7 +132,7 @@ public class TorsoMovement : NetworkBehaviour
             torsoRb.AddForce(Vector3.up * upwardForce, ForceMode.Acceleration);
         }
 
-        // 🎯 3. บังคับตัวตั้งตรง (Torque)
+        // 3. บังคับกระดูกสันหลังให้ตั้งตรง
         Quaternion targetRotation = Quaternion.Euler(0, torsoRb.rotation.eulerAngles.y, 0);
         Quaternion deltaRot = targetRotation * Quaternion.Inverse(torsoRb.rotation);
         deltaRot.ToAngleAxis(out float angle, out Vector3 axis);
@@ -132,24 +145,30 @@ public class TorsoMovement : NetworkBehaviour
         }
     }
 
-    // ฟังก์ชันนี้ถูกเรียกจากเท้า (ในฝั่ง Server) ทุกๆ เฟรมที่ผู้เล่นกด Q ค้างไว้
     public void ApplyContinuousRecoveryForce(Vector3 forcePosition, float strengthMultiplier = 1f)
     {
         if (currentState.Value == TorsoState.Ragdoll || currentState.Value == TorsoState.Falling)
         {
-            // 🎯 เอาแรงดันปกติ มาคูณกับระยะความห่าง (ยิ่งไกล แรงยิ่งน้อยลง)
             float finalForce = continuousRecoveryForce * strengthMultiplier;
             torsoRb.AddForceAtPosition(Vector3.up * finalForce, forcePosition, ForceMode.Acceleration);
 
-            // เช็คว่าความสูงถึงจุดที่ยืนไหวหรือยัง
-            if (Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, 20f, groundLayer))
+            if (Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, targetTorsoHeight * 2f, groundLayer))
             {
                 float currentHeight = groundRaycastOrigin.position.y - hit.point.y;
                 if (currentHeight >= (targetTorsoHeight * recoveryHeightThreshold))
                 {
+                    // ลุกสำเร็จ! รีเซ็ตเวลาล้ม แล้วกลับมายืน
+                    balanceLossTimer = 0f;
                     currentState.Value = TorsoState.Standing;
                 }
             }
         }
+    }
+
+    // 🛠️ สะพานเชื่อมสำหรับสคริปต์มือ (กัน Error CS1061)
+    [Rpc(SendTo.Server)]
+    public void ApplyRecoveryForceRpc(Vector3 forcePosition)
+    {
+        ApplyContinuousRecoveryForce(forcePosition);
     }
 }

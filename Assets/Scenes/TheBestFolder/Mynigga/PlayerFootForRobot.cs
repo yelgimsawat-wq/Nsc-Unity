@@ -7,8 +7,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     
     [Header("Network State")]
     public NetworkVariable<FootState> currentState = new NetworkVariable<FootState>(FootState.Attached);
-    private bool isStepping = false;
-    private bool isPushingRecovery = false;
+    public bool isStepping = false;
+    public bool isPushingRecovery = false;
 
     [Header("References")]
     public TorsoMovement torso;
@@ -26,11 +26,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     public LayerMask groundLayer;
 
     [Header("Recovery Mechanics")]
-    [Tooltip("ระยะห่างแนวนอน (X,Z) จากเท้าถึงสะโพกที่ยอมให้กด Q ดันตัวลุกได้")]
-    public float recoveryProximityThreshold = 1.2f;
-    [Tooltip("ตัวคูณความแรงเมื่อเท้าอยู่ไกลที่สุด (1.0 = แรงเต็ม, 0.2 = แรงลดลงเหลือ 20% ทำให้ลุกช้ามาก)")]
+    public float recoveryProximityThreshold = 5f;
     public float minRecoveryMultiplier = 0.2f;
-    public float maxRecoveryMultiplier = 1f;
+
     [Header("Mouse Range (World Space)")]
     public float mouseReachX = 2f;
     public float mouseReachY = 2f;
@@ -45,6 +43,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     private Vector3 lastSentBalance;
     private Vector3 lastSentDetached;
     private const float RPC_SEND_THRESHOLD = 0.05f;
+
+    private bool isPlantedSet = false;
+    public Vector3 plantedPosition;
 
     public override void OnNetworkSpawn()
     {
@@ -62,6 +63,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         HandleInput();
     }
     
+    // ==========================================
+    // 👑 SERVER PHYSICS UPDATE
+    // ==========================================
     void FixedUpdate()
     {
         if (!IsServer) return;
@@ -72,34 +76,45 @@ public class PlayerFootForRobot : NetworkBehaviour
 
             if (isRagdoll)
             {
-                PerformRagdollFootPhysics();
-
                 if (isPushingRecovery)
                 {
-                    // 🌟 1. คำนวณระยะห่างบน Server สดๆ
+                    // 🧊 1. แช่แข็งเท้าติดกับพื้นทันทีที่กด Q ยันตัวลุก!
+                    ApplyFootFreeze();
+
+                    // 2. ส่งแรงดันไปให้ลำตัวลุกขึ้น
                     Vector2 footPosXZ = new Vector2(footRb.position.x, footRb.position.z);
                     Vector2 pivotPosXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
                     float distToPivotXZ = Vector2.Distance(footPosXZ, pivotPosXZ);
 
-                    // 🌟 2. แปลงระยะห่างเป็นเปอร์เซ็นต์ (0 คืออยู่ตรงกลางพอดี, 1 คืออยู่ขอบระยะสุด)
                     float distanceRatio = Mathf.Clamp01(distToPivotXZ / recoveryProximityThreshold);
+                    float pushStrength = Mathf.Lerp(1.0f, minRecoveryMultiplier, distanceRatio);
 
-                    // 🌟 3. เกลี่ยความแรง (Lerp) จากแรงเต็ม 100% ไปหาแรงต่ำสุดที่ตั้งไว้
-                    // ตัวอย่าง: ถ้าอยู่ใกล้สุดจะได้ 1.0 (แรงเต็ม), ถ้าอยู่ขอบสุดจะได้ 0.2 (แรงหายไป 80%)
-                    float pushStrength = Mathf.Lerp(maxRecoveryMultiplier, minRecoveryMultiplier, distanceRatio);
-
-                    // 🌟 4. ส่งความแรงที่ลดทอนแล้วไปให้ลำตัว
                     torso.ApplyContinuousRecoveryForce(pivotPoint.position, pushStrength);
+                }
+                else
+                {
+                    // ถ้าล้มอยู่แต่ไม่ได้กด Q ให้ปล่อยเท้าลากไปกับพื้นอิสระ
+                    isPlantedSet = false;
+                    PerformRagdollFootPhysics();
                 }
             }
             else
             {
-                if (isStepping) PerformSteppingPhysics();
-                else PerformStandingPhysics();
+                // สถานะยืนปกติ
+                if (isStepping)
+                {
+                    isPlantedSet = false;
+                    PerformSteppingPhysics(); // ก้าวขา
+                }
+                else
+                {
+                    PerformStandingPhysics(); // ยืนนิ่งๆ (แช่แข็งเท้า)
+                }
             }
         }
         else
         {
+            isPlantedSet = false;
             PerformDetachedPhysics();
         }
     }
@@ -111,6 +126,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         return new Vector2((mouseX / Screen.width) * 2f - 1f, (mouseY / Screen.height) * 2f - 1f);
     }
 
+    // ==========================================
+    // 🖱️ CLIENT INPUT HANDLING
+    // ==========================================
     private void HandleInput()
     {
         if (currentState.Value == FootState.Attached)
@@ -121,6 +139,13 @@ public class PlayerFootForRobot : NetworkBehaviour
             Vector3 camForward = playerCamera.transform.forward; camForward.y = 0; camForward.Normalize();
             Vector3 camRight = playerCamera.transform.right; camRight.y = 0; camRight.Normalize();
             Vector3 mouseWorldOffset = camRight * (mouseNorm.x * mouseReachX) + camForward * (mouseNorm.y * mouseReachY);
+
+            Vector3 newBalance = pivotPoint.position + mouseWorldOffset;
+            if (Vector3.Distance(lastSentBalance, newBalance) > RPC_SEND_THRESHOLD)
+            {
+                lastSentBalance = newBalance;
+                UpdateBalanceShiftRpc(newBalance);
+            }
 
             if (!isRagdoll)
             {
@@ -140,27 +165,14 @@ public class PlayerFootForRobot : NetworkBehaviour
                     Vector3 rayOrigin = pivotPoint.position + mouseWorldOffset + Vector3.up * 5f;
                     Vector3 newTarget;
                     if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 10f, groundLayer))
-                    {
                         newTarget = hit.point + Vector3.up * currentYOffset;
-                    }
                     else
-                    {
                         newTarget = pivotPoint.position + mouseWorldOffset + Vector3.down * maxLegLength;
-                    }
 
                     if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
                     {
                         lastSentTarget = newTarget;
                         UpdateFootTargetRpc(newTarget);
-                    }
-                }
-                else
-                {
-                    Vector3 newBalance = pivotPoint.position + mouseWorldOffset;
-                    if (Vector3.Distance(lastSentBalance, newBalance) > RPC_SEND_THRESHOLD)
-                    {
-                        lastSentBalance = newBalance;
-                        UpdateBalanceShiftRpc(newBalance);
                     }
                 }
 
@@ -172,7 +184,7 @@ public class PlayerFootForRobot : NetworkBehaviour
             }
             else
             {
-                Vector3 rayOrigin = pivotPoint.position + mouseWorldOffset + Vector3.up * 5f;
+                Vector3 rayOrigin = pivotPoint.position + mouseWorldOffset + (Vector3.up * 2f);
                 Vector3 newTarget;
                 if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 10f, groundLayer))
                     newTarget = hit.point;
@@ -185,20 +197,14 @@ public class PlayerFootForRobot : NetworkBehaviour
                     UpdateFootTargetRpc(newTarget);
                 }
 
-                // ==========================================
-                // 🛠️ [FIXED] คัดกรองระยะห่างแค่แกน X และ Z
-                // ==========================================
                 bool pressingQ = Input.GetKey(KeyCode.Q);
-                
-                // สร้าง Vector2 ที่เก็บแค่พิกัด X และ Z
                 Vector2 footPosXZ = new Vector2(footRb.position.x, footRb.position.z);
                 Vector2 pivotPosXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
-                
-                // วัดระยะห่างบนระนาบ 2D
                 float distToPivotXZ = Vector2.Distance(footPosXZ, pivotPosXZ);
                 
                 bool validRecoveryPush = pressingQ && (distToPivotXZ <= recoveryProximityThreshold) && IsGrounded();
 
+                // 🚨 [FIXED] อัปเดตเฉพาะสถานะให้ Server ทราบ ห้ามใส่โค้ดจัดการ Physics ในนี้เด็ดขาด!
                 if (validRecoveryPush != isPushingRecovery)
                 {
                     isPushingRecovery = validRecoveryPush;
@@ -231,7 +237,34 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Rpc(SendTo.Server)] private void UpdateDetachedTargetRpc(Vector3 target) { detachedTargetPos = target; }
     [Rpc(SendTo.Server)] private void SetRecoveryInputRpc(bool isPushing) { isPushingRecovery = isPushing; }
 
-    // --- Physics Logic ---
+    // ==========================================
+    // 🧱 PHYSICS LOGIC (SERVER ONLY)
+    // ==========================================
+
+    /// <summary>
+    /// 🧊 ระบบแช่แข็งเท้า: ค้นหาพื้นและใช้ MovePosition ตรึงเท้าไว้อย่างเด็ดขาด
+    /// </summary>
+    private void ApplyFootFreeze()
+    {
+        if (!isPlantedSet)
+        {
+            if (Physics.Raycast(footRb.position + (Vector3.up * 1.5f), Vector3.down, out RaycastHit hit, 20f, groundLayer))
+                plantedPosition = hit.point;
+            else if (Physics.Raycast(pivotPoint.position, Vector3.down, out RaycastHit pivotHit, 20f, groundLayer))
+                plantedPosition = new Vector3(footRb.position.x, pivotHit.point.y, footRb.position.z);
+            else
+                plantedPosition = footRb.position;
+
+            isPlantedSet = true;
+        }
+
+        // 1. ล้างความเร็วทิ้งทั้งหมด เพื่อไม่ให้เท้าลื่นไถล
+        footRb.linearVelocity = Vector3.zero;
+
+        // 2. ใช้ MovePosition บังคับตำแหน่ง! (ทรงพลังกว่า AddForce มาก มันจะสู้กับแรงดึงของลำตัวได้ 100%)
+        footRb.MovePosition(plantedPosition);
+    }
+
     private void PerformSteppingPhysics()
     {
         Vector3 dirFromPivot = targetFootPosition - pivotPoint.position;
@@ -247,10 +280,13 @@ public class PlayerFootForRobot : NetworkBehaviour
     
     private void PerformStandingPhysics()
     {
+        // 🧊 แช่แข็งเท้าไว้กับพื้น!
+        ApplyFootFreeze();
+
+        // คำนวณและส่งแรงไปดึงลำตัวตามปกติ
         Vector3 offset = (balanceShiftMousePos - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
-        
-        torso.torsoRb.AddForceAtPosition(pullDir * 100f, pivotPoint.position, ForceMode.Acceleration);
+        torso.torsoRb.AddForceAtPosition(pullDir * 25f, pivotPoint.position, ForceMode.Acceleration);
     }
 
     private void PerformRagdollFootPhysics()
@@ -272,5 +308,5 @@ public class PlayerFootForRobot : NetworkBehaviour
         footRb.linearVelocity = dir * detachedMoveSpeed;
     }
 
-    public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 1f, groundLayer);
+    public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 3f, groundLayer);
 }
