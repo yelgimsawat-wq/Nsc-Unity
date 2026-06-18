@@ -2862,6 +2862,8 @@ MonoBehaviour:
   minRecoveryMultiplier: 0.5
   mouseReachX: 16
   mouseReachY: 16
+  autoHeightDelay: 0.5
+  groundSeekForce: 500
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -7589,6 +7591,7 @@ MonoBehaviour:
   autoCenterGravityForce: 250
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
+  ragdollRecoveryDelay: 1.5
   continuousRecoveryForce: 750
   recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
@@ -9246,6 +9249,18 @@ PrefabInstance:
       propertyPath: m_Mesh
       value: 
       objectReference: {fileID: 2073334795}
+    - target: {fileID: 8297804734451184479, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8297804734451184479, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 222.56795
+      objectReference: {fileID: 0}
+    - target: {fileID: 8297804734451184479, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 135.05927
+      objectReference: {fileID: 0}
     - target: {fileID: 8506171437174578248, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -14228,6 +14243,8 @@ MonoBehaviour:
   minRecoveryMultiplier: 0.5
   mouseReachX: 16
   mouseReachY: 16
+  autoHeightDelay: 0.5
+  groundSeekForce: 500
 --- !u!153 &2575685140956976054
 ConfigurableJoint:
   m_ObjectHideFlags: 0
