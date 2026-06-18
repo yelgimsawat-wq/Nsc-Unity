@@ -43,6 +43,16 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float mouseReachY = 2f;
     private float currentYOffset = 0f;
 
+    [Header("Auto Height Settings")]
+    [Tooltip("เวลาที่ต้องกดค้าง M1 ก่อนที่จะเริ่มปรับความสูงอัตโนมัติ")]
+    public float autoHeightDelay = 0.5f;
+    private float holdTimer = 0f;
+    private bool autoHeightEnabled = false;
+
+    [Header("Ragdoll Ground Check")]
+    [Tooltip("แรงที่ดึงเท้าลงเมื่อไม่มีพื้น")]
+    public float groundSeekForce = 50f;
+
     // ตำแหน่งดิบจาก RPC
     private Vector3 targetFootPosition;
     private Vector3 balanceShiftMousePos;
@@ -102,6 +112,12 @@ public class PlayerFootForRobot : NetworkBehaviour
                 else
                 {
                     PerformFootSpringPhysics(smoothedFootTarget);
+
+                    // Ragdoll: ถ้าไม่มีพื้นให้เคลื่อนลงอย่างต่อเนื่อง
+                    if (!IsGrounded())
+                    {
+                        footRb.AddForce(Vector3.down * groundSeekForce, ForceMode.Acceleration);
+                    }
                 }
             }
             else
@@ -151,13 +167,18 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (!isPlantedSet)
         {
-            if (Physics.Raycast(footRb.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 20f, groundLayer))
+            // ตรวจสอบว่ามีพื้นจริงๆ ก่อนล็อก
+            if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 3f, groundLayer))
+            {
                 plantedPosition = hit.point;
-            else if (Physics.Raycast(pivotPoint.position, Vector3.down, out RaycastHit ph, 20f, groundLayer))
-                plantedPosition = new Vector3(footRb.position.x, ph.point.y, footRb.position.z);
+                isPlantedSet = true;
+            }
             else
-                plantedPosition = footRb.position;
-            isPlantedSet = true;
+            {
+                // ถ้าไม่มีพื้นให้ค่อยๆ เคลื่อนลง
+                footRb.AddForce(Vector3.down * groundSeekForce, ForceMode.Acceleration);
+                return; // ไม่ล็อกถ้าไม่มีพื้น
+            }
         }
 
         if (!footRb.isKinematic)
@@ -249,17 +270,59 @@ public class PlayerFootForRobot : NetworkBehaviour
             if (!isRagdoll)
             {
                 bool holdingClick = Input.GetMouseButton(0);
-                if (holdingClick != isStepping) { isStepping = holdingClick; SetSteppingStateRpc(isStepping); }
-                
+
+                // จัดการ hold timer และ auto height
+                if (holdingClick)
+                {
+                    if (!isStepping)
+                    {
+                        isStepping = true;
+                        SetSteppingStateRpc(true);
+                        holdTimer = 0f;
+                        autoHeightEnabled = false;
+                    }
+
+                    holdTimer += Time.deltaTime;
+                    if (holdTimer >= autoHeightDelay)
+                    {
+                        autoHeightEnabled = true;
+                    }
+                }
+                else
+                {
+                    if (isStepping)
+                    {
+                        isStepping = false;
+                        SetSteppingStateRpc(false);
+                        holdTimer = 0f;
+                        autoHeightEnabled = false;
+                    }
+                }
+
                 if (isStepping)
                 {
+                    // Manual height adjustment with Q/E
                     if (Input.GetKey(KeyCode.E)) currentYOffset += heightAdjustSpeed * Time.deltaTime;
                     if (Input.GetKey(KeyCode.Q)) currentYOffset -= heightAdjustSpeed * Time.deltaTime;
                     currentYOffset = Mathf.Clamp(currentYOffset, -maxLegLength, 0f);
 
                     Vector3 newTarget;
                     if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
-                        newTarget = hit.point + Vector3.up * currentYOffset;
+                    {
+                        // ใช้ auto height เฉพาะเมื่อกดค้างเกิน 0.5 วินาที
+                        if (autoHeightEnabled)
+                        {
+                            // คำนวณความสูงที่เหมาะสม
+                            float pivotHeight = pivotPoint.position.y;
+                            float groundHeight = hit.point.y;
+                            float optimalHeight = Mathf.Clamp(pivotHeight - groundHeight, minLegLength, maxLegLength);
+                            newTarget = hit.point + Vector3.up * (optimalHeight * 0.5f); // ยกขึ้นครึ่งหนึ่งของความยาวขาที่เหมาะสม
+                        }
+                        else
+                        {
+                            newTarget = hit.point + Vector3.up * currentYOffset;
+                        }
+                    }
                     else
                         newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
 

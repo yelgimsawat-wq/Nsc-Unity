@@ -23,6 +23,11 @@ public class TorsoMovement : NetworkBehaviour
     [Tooltip("วินาทีที่ยอมให้เสียสมดุลก่อนล้มจริง")]
     public float fallGracePeriod = 1.0f;
 
+    [Header("Ragdoll Recovery Delay")]
+    [Tooltip("เวลาที่ต้องรอหลังจาก ragdoll ก่อนจะลุกขึ้นได้")]
+    public float ragdollRecoveryDelay = 1.5f;
+    private float ragdollTimer = 0f;
+
     [Header("Continuous Recovery")]
     public float continuousRecoveryForce = 800f;
     public float recoveryHeightThreshold = 0.7f;
@@ -65,6 +70,10 @@ public class TorsoMovement : NetworkBehaviour
                 break;
             case TorsoState.Falling:
                 currentState.Value = TorsoState.Ragdoll;
+                ragdollTimer = 0f; // เริ่มนับเวลา ragdoll
+                break;
+            case TorsoState.Ragdoll:
+                ragdollTimer += Time.fixedDeltaTime;
                 break;
         }
     }
@@ -72,13 +81,22 @@ public class TorsoMovement : NetworkBehaviour
     private void HandleFakeHoverAndPosture()
     {
         int groundedCount = 0;
+        int steppingCount = 0;
         Vector3 averageFootPos = Vector3.zero;
 
         foreach (var foot in attachedFeet)
         {
+            if (foot.isStepping) steppingCount++;
             if (!foot.IsGrounded()) continue;
             groundedCount++;
             averageFootPos += foot.footRb.position;
+        }
+
+        // ตรวจสอบว่ามีเท้าทั้งสองข้างกำลัง stepping พร้อมกัน
+        if (attachedFeet.Count >= 2 && steppingCount >= 2)
+        {
+            currentState.Value = TorsoState.Falling;
+            return;
         }
 
         if (attachedFeet.Count > 0 && groundedCount == 0)
@@ -147,6 +165,9 @@ public class TorsoMovement : NetworkBehaviour
     {
         if (currentState.Value != TorsoState.Ragdoll && currentState.Value != TorsoState.Falling) return;
 
+        // ต้องรอ ragdoll delay ก่อนจึงจะฟื้นได้
+        if (ragdollTimer < ragdollRecoveryDelay) return;
+
         torsoRb.AddForceAtPosition(
             Vector3.up * (continuousRecoveryForce * strengthMultiplier),
             forcePosition,
@@ -160,6 +181,7 @@ public class TorsoMovement : NetworkBehaviour
             if (currentHeight >= targetTorsoHeight * recoveryHeightThreshold)
             {
                 balanceLossTimer   = 0f;
+                ragdollTimer       = 0f;
                 currentState.Value = TorsoState.Standing;
             }
         }
