@@ -153,6 +153,11 @@ public class PlayerHandMovement : NetworkBehaviour
     private void PerformArmMovement()
     {
         Vector3 dirFromPivot = smoothedHandTarget - pivotPoint.position;
+        float currentDistance = dirFromPivot.magnitude;
+
+        // 🔥 FIX 1: สร้างตัวแปรใหม่ (physicsTarget) มาใช้คำนวณฟิสิกส์ 
+        // ห้ามนำไปเขียนทับ smoothedHandTarget เด็ดขาด เพื่อไม่ให้ระบบ Lerp รวน!
+        Vector3 physicsTarget = smoothedHandTarget;
 
         if (isGrabbing && grabbedObject != null && grabbedObject.isKinematic)
         {
@@ -160,22 +165,31 @@ public class PlayerHandMovement : NetworkBehaviour
             Vector3 pushDir = pivotPoint.position - smoothedHandTarget;
             torso.torsoRb.AddForceAtPosition(pushDir * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
 
-            // แจ้ง Torso ว่าแขนกำลังดึง (ลด Auto-Center ไม่ให้สู้กัน)
-            torso.armPullIntensity = Mathf.Clamp01(dirFromPivot.magnitude / maxArmLength);
+            // แจ้ง Torso ว่าแขนกำลังดึง
+            torso.armPullIntensity = Mathf.Clamp01(currentDistance / maxArmLength);
         }
         else
         {
             torso.armPullIntensity = 0f;
 
-            if (dirFromPivot.magnitude > maxArmLength)
+            // 🔥 FIX 2: ป้องกันคณิตศาสตร์พัง (NaN) ตอนมืออยู่ใกล้ตัวมากๆ
+            if (currentDistance < 0.05f)
             {
-                // แขนยืดเกิน: ดึงลำตัวตาม
-                smoothedHandTarget = pivotPoint.position + dirFromPivot.normalized * maxArmLength;
-                torso.torsoRb.AddForceAtPosition(dirFromPivot.normalized * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
+                // ถ้าใกล้เกิน 5 เซนติเมตร ให้ดันเป้าหมายออกมานิดนึงเพื่อรักษาทิศทาง
+                physicsTarget = pivotPoint.position + (dirFromPivot.normalized * 0.05f);
+            }
+            else if (currentDistance > maxArmLength)
+            {
+                // แขนยืดเกิน: แคลมป์เฉพาะเป้าหมายจำลอง (physicsTarget)
+                // ใช้การหารระยะ (dirFromPivot / currentDistance) ปลอดภัยกว่าการใช้ .normalized
+                physicsTarget = pivotPoint.position + (dirFromPivot / currentDistance) * maxArmLength;
+
+                // ดึงลำตัวตาม
+                torso.torsoRb.AddForceAtPosition((dirFromPivot / currentDistance) * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
             }
 
-            // Spring-Damper เคลื่อนมือไปหาเป้าหมาย
-            Vector3 velocityTarget = (smoothedHandTarget - handRb.position) * handMoveSpeed;
+            // Spring-Damper เคลื่อนมือไปหาเป้าหมายฟิสิกส์ที่ปลอดภัยแล้ว
+            Vector3 velocityTarget = (physicsTarget - handRb.position) * handMoveSpeed;
             handRb.AddForce((velocityTarget - handRb.linearVelocity) * handDamper, ForceMode.Acceleration);
         }
     }
