@@ -25423,8 +25423,8 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.01
-  far clip plane: 81.6
-  field of view: 60.000004
+  far clip plane: 119.6
+  field of view: 72.3
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -25450,8 +25450,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1057954163}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.09909285, y: 0.59730256, z: -0.20509486, w: 0.7689905}
-  m_LocalPosition: {x: -427.53513, y: 109.5, z: -560.6906}
+  m_LocalRotation: {x: 0.1428834, y: -0.853415, z: 0.24886379, w: 0.4351253}
+  m_LocalPosition: {x: -388.88513, y: 102.4, z: -537.8706}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -46444,11 +46444,11 @@ PrefabInstance:
       objectReference: {fileID: 698877893}
     - target: {fileID: 4492043967017906806, guid: 124df73228d8eb547b6aa1b4a33eecd1, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -16.88
+      value: -17.37
       objectReference: {fileID: 0}
     - target: {fileID: 4492043967017906806, guid: 124df73228d8eb547b6aa1b4a33eecd1, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -13.84
+      value: -14.55
       objectReference: {fileID: 0}
     - target: {fileID: 4492043967017906806, guid: 124df73228d8eb547b6aa1b4a33eecd1, type: 3}
       propertyPath: m_LocalPosition.z
@@ -46931,6 +46931,14 @@ PrefabInstance:
     - target: {fileID: 2578421717789082725, guid: 11177067407abf34c8762e65f3ca575d, type: 3}
       propertyPath: m_LocalPosition.z
       value: -116.57
+      objectReference: {fileID: 0}
+    - target: {fileID: 2720528350069553340, guid: 11177067407abf34c8762e65f3ca575d, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 106.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2720528350069553340, guid: 11177067407abf34c8762e65f3ca575d, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -87.57
       objectReference: {fileID: 0}
     - target: {fileID: 3392244202585775436, guid: 11177067407abf34c8762e65f3ca575d, type: 3}
       propertyPath: m_Mesh
