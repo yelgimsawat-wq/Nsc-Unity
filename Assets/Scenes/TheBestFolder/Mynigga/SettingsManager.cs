@@ -7,14 +7,15 @@ using DG.Tweening;
 
 /// <summary>
 /// SettingsManager.cs
-/// Unity 6 Settings UI with Tabbed Layout, DOTween animations, and real-time stats
+/// Unity 6 Settings UI matching Design.png mockup
 ///
-/// Features:
-/// - Tabbed UI: Graphics, Audio, Gameplay
-/// - DOTween Pop-up overlay with fade/scale animations
-/// - PlayerPrefs Save/Load with instant apply
-/// - FPS Counter and Network Stats (Ping) display
-/// - Singleton pattern for global access
+/// Design Features:
+/// - Black panel with white border and rounded corners
+/// - Gold/Yellow accent color (#D4AF37) for active elements
+/// - 3 Tab buttons: GRAPHICS | AUDIO | GAMEPLAY
+/// - Bottom buttons: SAVE & CLOSE (gold) and CLOSE X (white)
+/// - Sliders with gold handles
+/// - Clean, minimal dark theme
 /// </summary>
 public class SettingsManager : MonoBehaviour
 {
@@ -31,12 +32,21 @@ public class SettingsManager : MonoBehaviour
     [Header("--- Main Popup Panel ---")]
     [SerializeField] private GameObject settingsPopupPanel;
     [SerializeField] private CanvasGroup popupCanvasGroup;
+    [SerializeField] private Button saveAndCloseButton;
     [SerializeField] private Button closeButton;
 
     [Header("--- Tab Buttons ---")]
     [SerializeField] private Button graphicsTabButton;
     [SerializeField] private Button audioTabButton;
     [SerializeField] private Button gameplayTabButton;
+
+    [Header("--- Tab Button Visuals ---")]
+    [SerializeField] private Image graphicsTabImage;
+    [SerializeField] private Image audioTabImage;
+    [SerializeField] private Image gameplayTabImage;
+    [SerializeField] private TextMeshProUGUI graphicsTabText;
+    [SerializeField] private TextMeshProUGUI audioTabText;
+    [SerializeField] private TextMeshProUGUI gameplayTabText;
 
     [Header("--- Sub-Panels (Tab Content) ---")]
     [SerializeField] private GameObject graphicsSubPanel;
@@ -49,11 +59,11 @@ public class SettingsManager : MonoBehaviour
 
     [Header("--- Graphics Settings ---")]
     [SerializeField] private TMP_Dropdown displayModeDropdown;
-    [SerializeField] private TMP_Dropdown resolutionDropdown;
-    [SerializeField] private TMP_Dropdown frameRateLimitDropdown;
+    [SerializeField] private Slider resolutionSlider;
+    [SerializeField] private TextMeshProUGUI resolutionValueLabel;
     [SerializeField] private Toggle vSyncToggle;
-    [SerializeField] private TMP_Dropdown graphicsQualityDropdown;
-    [SerializeField] private TMP_Dropdown antiAliasingDropdown;
+    [SerializeField] private Slider qualityPresetSlider;
+    [SerializeField] private TextMeshProUGUI qualityPresetValueLabel;
 
     // ================================================================
     //  AUDIO TAB UI
@@ -61,16 +71,7 @@ public class SettingsManager : MonoBehaviour
 
     [Header("--- Audio Settings ---")]
     [SerializeField] private Slider masterVolumeSlider;
-    [SerializeField] private Slider musicVolumeSlider;
-    [SerializeField] private Slider sfxVolumeSlider;
-    [SerializeField] private Slider uiVolumeSlider;
-    [SerializeField] private Toggle muteOnFocusLossToggle;
-
-    [Header("--- Audio Volume Labels ---")]
     [SerializeField] private TextMeshProUGUI masterVolumeLabel;
-    [SerializeField] private TextMeshProUGUI musicVolumeLabel;
-    [SerializeField] private TextMeshProUGUI sfxVolumeLabel;
-    [SerializeField] private TextMeshProUGUI uiVolumeLabel;
 
     // ================================================================
     //  GAMEPLAY TAB UI
@@ -84,6 +85,16 @@ public class SettingsManager : MonoBehaviour
     [SerializeField] private GameObject networkStatsPanel;
     [SerializeField] private TextMeshProUGUI fpsLabel;
     [SerializeField] private TextMeshProUGUI pingLabel;
+
+    // ================================================================
+    //  THEME COLORS (matching Design.png)
+    // ================================================================
+
+    [Header("--- Theme Colors ---")]
+    [SerializeField] private Color activeTabColor = new Color(0.831f, 0.686f, 0.216f, 1f); // Gold #D4AF37
+    [SerializeField] private Color inactiveTabColor = new Color(0.3f, 0.3f, 0.3f, 1f);     // Dark gray
+    [SerializeField] private Color textActiveColor = Color.white;
+    [SerializeField] private Color textInactiveColor = new Color(0.7f, 0.7f, 0.7f, 1f);
 
     // ================================================================
     //  ANIMATION SETTINGS
@@ -139,6 +150,9 @@ public class SettingsManager : MonoBehaviour
         // Hide network stats panel initially
         if (networkStatsPanel != null)
             networkStatsPanel.SetActive(false);
+
+        // Setup Display Mode Dropdown Options
+        SetupDisplayModeDropdown();
 
         // Setup resolutions
         SetupResolutions();
@@ -242,8 +256,15 @@ public class SettingsManager : MonoBehaviour
         popupTween = sequence;
     }
 
+    /// <summary>Save and close - called by SAVE & CLOSE button</summary>
+    public void SaveAndClose()
+    {
+        SaveSettings();
+        CloseSettings();
+    }
+
     // ================================================================
-    //  TAB SWITCHING
+    //  TAB SWITCHING WITH VISUAL FEEDBACK
     // ================================================================
 
     private void SwitchTab(SettingsTab tab)
@@ -260,16 +281,36 @@ public class SettingsManager : MonoBehaviour
         {
             case SettingsTab.Graphics:
                 if (graphicsSubPanel != null) graphicsSubPanel.SetActive(true);
+                UpdateTabVisuals(graphicsTabButton, graphicsTabImage, graphicsTabText, true);
+                UpdateTabVisuals(audioTabButton, audioTabImage, audioTabText, false);
+                UpdateTabVisuals(gameplayTabButton, gameplayTabImage, gameplayTabText, false);
                 break;
             case SettingsTab.Audio:
                 if (audioSubPanel != null) audioSubPanel.SetActive(true);
+                UpdateTabVisuals(graphicsTabButton, graphicsTabImage, graphicsTabText, false);
+                UpdateTabVisuals(audioTabButton, audioTabImage, audioTabText, true);
+                UpdateTabVisuals(gameplayTabButton, gameplayTabImage, gameplayTabText, false);
                 break;
             case SettingsTab.Gameplay:
                 if (gameplaySubPanel != null) gameplaySubPanel.SetActive(true);
+                UpdateTabVisuals(graphicsTabButton, graphicsTabImage, graphicsTabText, false);
+                UpdateTabVisuals(audioTabButton, audioTabImage, audioTabText, false);
+                UpdateTabVisuals(gameplayTabButton, gameplayTabImage, gameplayTabText, true);
                 break;
         }
 
         Debug.Log($"[SettingsManager] Switched to {tab} tab");
+    }
+
+    private void UpdateTabVisuals(Button button, Image image, TextMeshProUGUI text, bool isActive)
+    {
+        if (button == null) return;
+
+        Color bgColor = isActive ? activeTabColor : inactiveTabColor;
+        Color txtColor = isActive ? textActiveColor : textInactiveColor;
+
+        if (image != null) image.color = bgColor;
+        if (text != null) text.color = txtColor;
     }
 
     private void OnGraphicsTabClicked() => SwitchTab(SettingsTab.Graphics);
@@ -301,7 +342,13 @@ public class SettingsManager : MonoBehaviour
             gameplayTabButton.onClick.AddListener(OnGameplayTabClicked);
         }
 
-        // Close button
+        // Bottom buttons
+        if (saveAndCloseButton != null)
+        {
+            saveAndCloseButton.onClick.RemoveListener(SaveAndClose);
+            saveAndCloseButton.onClick.AddListener(SaveAndClose);
+        }
+
         if (closeButton != null)
         {
             closeButton.onClick.RemoveListener(CloseSettings);
@@ -312,40 +359,22 @@ public class SettingsManager : MonoBehaviour
         if (displayModeDropdown != null)
             displayModeDropdown.onValueChanged.AddListener(OnDisplayModeChanged);
 
-        if (resolutionDropdown != null)
-            resolutionDropdown.onValueChanged.AddListener(OnResolutionChanged);
-
-        if (frameRateLimitDropdown != null)
-            frameRateLimitDropdown.onValueChanged.AddListener(OnFrameRateLimitChanged);
+        if (resolutionSlider != null)
+            resolutionSlider.onValueChanged.AddListener(OnResolutionSliderChanged);
 
         if (vSyncToggle != null)
             vSyncToggle.onValueChanged.AddListener(OnVSyncChanged);
 
-        if (graphicsQualityDropdown != null)
-            graphicsQualityDropdown.onValueChanged.AddListener(OnGraphicsQualityChanged);
-
-        if (antiAliasingDropdown != null)
-            antiAliasingDropdown.onValueChanged.AddListener(OnAntiAliasingChanged);
+        if (qualityPresetSlider != null)
+            qualityPresetSlider.onValueChanged.AddListener(OnQualityPresetSliderChanged);
 
         // Audio settings
         if (masterVolumeSlider != null)
             masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
 
-        if (musicVolumeSlider != null)
-            musicVolumeSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
-
-        if (sfxVolumeSlider != null)
-            sfxVolumeSlider.onValueChanged.AddListener(OnSfxVolumeChanged);
-
-        if (uiVolumeSlider != null)
-            uiVolumeSlider.onValueChanged.AddListener(OnUiVolumeChanged);
-
-        if (muteOnFocusLossToggle != null)
-            muteOnFocusLossToggle.onValueChanged.AddListener(OnMuteOnFocusLossChanged);
-
         // Gameplay settings
         if (playerNameInputField != null)
-            playerNameInputField.onEndEdit.AddListener(OnPlayerNameChanged);
+            playerNameInputField.onValueChanged.AddListener(OnPlayerNameChanged);
 
         if (showNetworkStatsToggle != null)
             showNetworkStatsToggle.onValueChanged.AddListener(OnShowNetworkStatsChanged);
@@ -363,7 +392,10 @@ public class SettingsManager : MonoBehaviour
         if (gameplayTabButton != null)
             gameplayTabButton.onClick.RemoveListener(OnGameplayTabClicked);
 
-        // Close button
+        // Bottom buttons
+        if (saveAndCloseButton != null)
+            saveAndCloseButton.onClick.RemoveListener(SaveAndClose);
+
         if (closeButton != null)
             closeButton.onClick.RemoveListener(CloseSettings);
 
@@ -371,40 +403,22 @@ public class SettingsManager : MonoBehaviour
         if (displayModeDropdown != null)
             displayModeDropdown.onValueChanged.RemoveListener(OnDisplayModeChanged);
 
-        if (resolutionDropdown != null)
-            resolutionDropdown.onValueChanged.RemoveListener(OnResolutionChanged);
-
-        if (frameRateLimitDropdown != null)
-            frameRateLimitDropdown.onValueChanged.RemoveListener(OnFrameRateLimitChanged);
+        if (resolutionSlider != null)
+            resolutionSlider.onValueChanged.RemoveListener(OnResolutionSliderChanged);
 
         if (vSyncToggle != null)
             vSyncToggle.onValueChanged.RemoveListener(OnVSyncChanged);
 
-        if (graphicsQualityDropdown != null)
-            graphicsQualityDropdown.onValueChanged.RemoveListener(OnGraphicsQualityChanged);
-
-        if (antiAliasingDropdown != null)
-            antiAliasingDropdown.onValueChanged.RemoveListener(OnAntiAliasingChanged);
+        if (qualityPresetSlider != null)
+            qualityPresetSlider.onValueChanged.RemoveListener(OnQualityPresetSliderChanged);
 
         // Audio settings
         if (masterVolumeSlider != null)
             masterVolumeSlider.onValueChanged.RemoveListener(OnMasterVolumeChanged);
 
-        if (musicVolumeSlider != null)
-            musicVolumeSlider.onValueChanged.RemoveListener(OnMusicVolumeChanged);
-
-        if (sfxVolumeSlider != null)
-            sfxVolumeSlider.onValueChanged.RemoveListener(OnSfxVolumeChanged);
-
-        if (uiVolumeSlider != null)
-            uiVolumeSlider.onValueChanged.RemoveListener(OnUiVolumeChanged);
-
-        if (muteOnFocusLossToggle != null)
-            muteOnFocusLossToggle.onValueChanged.RemoveListener(OnMuteOnFocusLossChanged);
-
         // Gameplay settings
         if (playerNameInputField != null)
-            playerNameInputField.onEndEdit.RemoveListener(OnPlayerNameChanged);
+            playerNameInputField.onValueChanged.RemoveListener(OnPlayerNameChanged);
 
         if (showNetworkStatsToggle != null)
             showNetworkStatsToggle.onValueChanged.RemoveListener(OnShowNetworkStatsChanged);
@@ -430,64 +444,50 @@ public class SettingsManager : MonoBehaviour
         }
 
         PlayerPrefs.SetInt("DisplayMode", index);
-        PlayerPrefs.Save();
         Debug.Log($"[Settings] Display Mode changed to {index}");
     }
 
-    private void OnResolutionChanged(int index)
+    private void OnResolutionSliderChanged(float value)
     {
-        if (availableResolutions == null || index < 0 || index >= availableResolutions.Length)
-            return;
+        if (availableResolutions == null || availableResolutions.Length == 0) return;
+
+        int index = Mathf.RoundToInt(value);
+        index = Mathf.Clamp(index, 0, availableResolutions.Length - 1);
 
         Resolution res = availableResolutions[index];
         Screen.SetResolution(res.width, res.height, Screen.fullScreenMode);
 
+        // ✅ แสดงความละเอียดจริง
+        if (resolutionValueLabel != null)
+            resolutionValueLabel.text = $"{res.width}x{res.height}";
+
         PlayerPrefs.SetInt("ResolutionIndex", index);
-        PlayerPrefs.Save();
         Debug.Log($"[Settings] Resolution changed to {res.width}x{res.height}");
-    }
-
-    private void OnFrameRateLimitChanged(int index)
-    {
-        int targetFrameRate = index switch
-        {
-            0 => -1,   // Uncapped
-            1 => 60,
-            2 => 120,
-            3 => 144,
-            4 => 240,
-            _ => -1
-        };
-
-        Application.targetFrameRate = targetFrameRate;
-        PlayerPrefs.SetInt("FrameRateLimit", index);
-        PlayerPrefs.Save();
-        Debug.Log($"[Settings] Frame Rate Limit changed to {(targetFrameRate == -1 ? "Uncapped" : targetFrameRate.ToString())}");
     }
 
     private void OnVSyncChanged(bool enabled)
     {
         QualitySettings.vSyncCount = enabled ? 1 : 0;
         PlayerPrefs.SetInt("VSync", enabled ? 1 : 0);
-        PlayerPrefs.Save();
         Debug.Log($"[Settings] VSync {(enabled ? "enabled" : "disabled")}");
     }
 
-    private void OnGraphicsQualityChanged(int index)
+    private void OnQualityPresetSliderChanged(float value)
     {
-        QualitySettings.SetQualityLevel(index, true);
-        PlayerPrefs.SetInt("GraphicsQuality", index);
-        PlayerPrefs.Save();
-        Debug.Log($"[Settings] Graphics Quality changed to {index}");
-    }
+        int qualityLevel = Mathf.RoundToInt(value / 25f); // 0-100 mapped to 0-4
+        qualityLevel = Mathf.Clamp(qualityLevel, 0, QualitySettings.names.Length - 1);
 
-    private void OnAntiAliasingChanged(int index)
-    {
-        // Note: Unity's built-in post-processing AA needs URP/HDRP
-        // This is a placeholder for custom AA implementation
-        PlayerPrefs.SetInt("AntiAliasing", index);
-        PlayerPrefs.Save();
-        Debug.Log($"[Settings] Anti-Aliasing changed to {index}");
+        // ✅ ตั้งค่า Quality Level พร้อมบังคับ Apply ทันที
+        QualitySettings.SetQualityLevel(qualityLevel, true);
+
+        // ✅ แสดงชื่อระดับ Quality จริง (Low, Medium, High, Ultra)
+        if (qualityPresetValueLabel != null)
+            qualityPresetValueLabel.text = QualitySettings.names[qualityLevel];
+
+        PlayerPrefs.SetInt("GraphicsQuality", qualityLevel);
+        PlayerPrefs.SetFloat("QualitySliderValue", value);
+        Debug.Log($"[Settings] Quality Preset changed to {QualitySettings.names[qualityLevel]} (Level {qualityLevel})");
+        Debug.Log($"[Settings]   → Shadows: {QualitySettings.shadows}, Distance: {QualitySettings.shadowDistance}");
     }
 
     // ================================================================
@@ -498,53 +498,9 @@ public class SettingsManager : MonoBehaviour
     {
         AudioListener.volume = value;
         PlayerPrefs.SetFloat("MasterVolume", value);
-        PlayerPrefs.Save();
 
         if (masterVolumeLabel != null)
             masterVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
-    }
-
-    private void OnMusicVolumeChanged(float value)
-    {
-        // Apply to AudioMixer or individual AudioSources here
-        PlayerPrefs.SetFloat("MusicVolume", value);
-        PlayerPrefs.Save();
-
-        if (musicVolumeLabel != null)
-            musicVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
-    }
-
-    private void OnSfxVolumeChanged(float value)
-    {
-        PlayerPrefs.SetFloat("SfxVolume", value);
-        PlayerPrefs.Save();
-
-        if (sfxVolumeLabel != null)
-            sfxVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
-    }
-
-    private void OnUiVolumeChanged(float value)
-    {
-        PlayerPrefs.SetFloat("UiVolume", value);
-        PlayerPrefs.Save();
-
-        if (uiVolumeLabel != null)
-            uiVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
-    }
-
-    private void OnMuteOnFocusLossChanged(bool enabled)
-    {
-        PlayerPrefs.SetInt("MuteOnFocusLoss", enabled ? 1 : 0);
-        PlayerPrefs.Save();
-        Debug.Log($"[Settings] Mute on Focus Loss {(enabled ? "enabled" : "disabled")}");
-    }
-
-    private void OnApplicationFocus(bool hasFocus)
-    {
-        if (muteOnFocusLossToggle != null && muteOnFocusLossToggle.isOn)
-        {
-            AudioListener.pause = !hasFocus;
-        }
     }
 
     // ================================================================
@@ -554,7 +510,6 @@ public class SettingsManager : MonoBehaviour
     private void OnPlayerNameChanged(string playerName)
     {
         PlayerPrefs.SetString("PlayerName", playerName);
-        PlayerPrefs.Save();
         Debug.Log($"[Settings] Player Name changed to '{playerName}'");
     }
 
@@ -564,7 +519,6 @@ public class SettingsManager : MonoBehaviour
             networkStatsPanel.SetActive(enabled);
 
         PlayerPrefs.SetInt("ShowNetworkStats", enabled ? 1 : 0);
-        PlayerPrefs.Save();
         Debug.Log($"[Settings] Network Stats {(enabled ? "enabled" : "disabled")}");
     }
 
@@ -604,15 +558,8 @@ public class SettingsManager : MonoBehaviour
         // Check if Netcode is active
         if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsConnectedClient)
         {
-            // Get RTT (Round Trip Time) in milliseconds
-            ulong localClientId = Unity.Netcode.NetworkManager.Singleton.LocalClientId;
-
-            if (Unity.Netcode.NetworkManager.Singleton.NetworkConfig != null)
-            {
-                // Approximate ping - actual implementation depends on your network setup
-                pingLabel.text = "Ping: <20ms";
-                pingLabel.color = Color.green;
-            }
+            pingLabel.text = "Ping: <20ms";
+            pingLabel.color = Color.green;
         }
         else
         {
@@ -627,7 +574,7 @@ public class SettingsManager : MonoBehaviour
 
     private void SaveSettings()
     {
-        // All settings are saved instantly via OnValueChanged callbacks
+        PlayerPrefs.Save();
         Debug.Log("[Settings] All settings saved to PlayerPrefs");
     }
 
@@ -641,17 +588,10 @@ public class SettingsManager : MonoBehaviour
             OnDisplayModeChanged(displayMode);
         }
 
-        if (resolutionDropdown != null)
+        if (resolutionSlider != null)
         {
             int resIndex = PlayerPrefs.GetInt("ResolutionIndex", availableResolutions.Length - 1);
-            resolutionDropdown.value = Mathf.Clamp(resIndex, 0, availableResolutions.Length - 1);
-        }
-
-        if (frameRateLimitDropdown != null)
-        {
-            int frameRateLimit = PlayerPrefs.GetInt("FrameRateLimit", 0);
-            frameRateLimitDropdown.value = frameRateLimit;
-            OnFrameRateLimitChanged(frameRateLimit);
+            resolutionSlider.value = Mathf.Clamp(resIndex, 0, availableResolutions.Length - 1);
         }
 
         if (vSyncToggle != null)
@@ -660,16 +600,11 @@ public class SettingsManager : MonoBehaviour
             vSyncToggle.isOn = vSync;
         }
 
-        if (graphicsQualityDropdown != null)
+        if (qualityPresetSlider != null)
         {
-            int quality = PlayerPrefs.GetInt("GraphicsQuality", QualitySettings.GetQualityLevel());
-            graphicsQualityDropdown.value = quality;
-        }
-
-        if (antiAliasingDropdown != null)
-        {
-            int aa = PlayerPrefs.GetInt("AntiAliasing", 0);
-            antiAliasingDropdown.value = aa;
+            float qualityValue = PlayerPrefs.GetFloat("QualitySliderValue", 70f);
+            qualityPresetSlider.value = qualityValue;
+            OnQualityPresetSliderChanged(qualityValue);
         }
 
         // Audio
@@ -678,33 +613,6 @@ public class SettingsManager : MonoBehaviour
             float masterVol = PlayerPrefs.GetFloat("MasterVolume", 1f);
             masterVolumeSlider.value = masterVol;
             OnMasterVolumeChanged(masterVol);
-        }
-
-        if (musicVolumeSlider != null)
-        {
-            float musicVol = PlayerPrefs.GetFloat("MusicVolume", 0.8f);
-            musicVolumeSlider.value = musicVol;
-            OnMusicVolumeChanged(musicVol);
-        }
-
-        if (sfxVolumeSlider != null)
-        {
-            float sfxVol = PlayerPrefs.GetFloat("SfxVolume", 1f);
-            sfxVolumeSlider.value = sfxVol;
-            OnSfxVolumeChanged(sfxVol);
-        }
-
-        if (uiVolumeSlider != null)
-        {
-            float uiVol = PlayerPrefs.GetFloat("UiVolume", 0.7f);
-            uiVolumeSlider.value = uiVol;
-            OnUiVolumeChanged(uiVol);
-        }
-
-        if (muteOnFocusLossToggle != null)
-        {
-            bool muteOnFocus = PlayerPrefs.GetInt("MuteOnFocusLoss", 0) == 1;
-            muteOnFocusLossToggle.isOn = muteOnFocus;
         }
 
         // Gameplay
@@ -732,19 +640,11 @@ public class SettingsManager : MonoBehaviour
     {
         availableResolutions = Screen.resolutions;
 
-        if (resolutionDropdown == null) return;
+        if (resolutionSlider == null) return;
 
-        resolutionDropdown.ClearOptions();
-
-        System.Collections.Generic.List<string> resolutionOptions = new System.Collections.Generic.List<string>();
-
-        foreach (Resolution res in availableResolutions)
-        {
-            string option = $"{res.width} x {res.height} @ {res.refreshRateRatio.value:F0}Hz";
-            resolutionOptions.Add(option);
-        }
-
-        resolutionDropdown.AddOptions(resolutionOptions);
+        resolutionSlider.minValue = 0;
+        resolutionSlider.maxValue = availableResolutions.Length - 1;
+        resolutionSlider.wholeNumbers = true;
 
         // Set to current resolution
         int currentResolutionIndex = 0;
@@ -758,8 +658,38 @@ public class SettingsManager : MonoBehaviour
             }
         }
 
-        resolutionDropdown.value = currentResolutionIndex;
-        resolutionDropdown.RefreshShownValue();
+        resolutionSlider.value = currentResolutionIndex;
+
+        // ✅ แสดงความละเอียดจริงตั้งแต่เริ่มต้น
+        if (resolutionValueLabel != null && currentResolutionIndex < availableResolutions.Length)
+        {
+            Resolution res = availableResolutions[currentResolutionIndex];
+            resolutionValueLabel.text = $"{res.width}x{res.height}";
+        }
+    }
+
+    // ================================================================
+    //  DISPLAY MODE SETUP
+    // ================================================================
+
+    private void SetupDisplayModeDropdown()
+    {
+        if (displayModeDropdown == null) return;
+
+        displayModeDropdown.ClearOptions();
+
+        System.Collections.Generic.List<string> options = new System.Collections.Generic.List<string>
+        {
+            "Windowed",
+            "Fullscreen",
+            "Borderless Fullscreen"
+        };
+
+        displayModeDropdown.AddOptions(options);
+        displayModeDropdown.value = 0;
+        displayModeDropdown.RefreshShownValue();
+
+        Debug.Log("[Settings] Display Mode dropdown setup complete");
     }
 
     // ================================================================

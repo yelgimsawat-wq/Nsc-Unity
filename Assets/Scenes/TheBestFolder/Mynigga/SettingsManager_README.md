@@ -1,266 +1,308 @@
-# SettingsManager - Unity Hierarchy Setup Guide
+# SettingsManager - Unity Hierarchy Setup Guide (Design.png)
+
+## 🎨 Design Overview
+
+Based on **Design.png** mockup:
+- **Color Scheme:** Black background (#000000) + White borders (#FFFFFF) + Gold accent (#D4AF37)
+- **Style:** Minimal dark theme with rounded corners
+- **Tab System:** GRAPHICS | AUDIO | GAMEPLAY (gold when active)
+- **Bottom Buttons:** "SAVE & CLOSE" (gold) and "CLOSE X" (white)
+
+---
 
 ## 📋 โครงสร้าง Hierarchy ที่แนะนำ
 
 ```
-Canvas (หรือ Canvas ใดๆ ที่มี Canvas Scaler)
-└── SettingsPopup_Panel (GameObject + CanvasGroup)
-    ├── Background_Overlay (Image - สีดำโปร่งแสง alpha 0.7)
-    ├── Settings_Container (Panel)
-    │   ├── Header
-    │   │   ├── Title_Text (TextMeshPro - "Settings")
-    │   │   └── CloseButton (Button + Image)
-    │   │
-    │   ├── TabButtons_Group (Horizontal Layout Group)
-    │   │   ├── GraphicsTab_Button (Button + TextMeshPro)
-    │   │   ├── AudioTab_Button (Button + TextMeshPro)
-    │   │   └── GameplayTab_Button (Button + TextMeshPro)
-    │   │
-    │   └── TabContent_Container
-    │       ├── Graphics_SubPanel (GameObject)
-    │       │   ├── DisplayMode_Dropdown (TMP_Dropdown)
-    │       │   ├── Resolution_Dropdown (TMP_Dropdown)
-    │       │   ├── FrameRateLimit_Dropdown (TMP_Dropdown)
-    │       │   ├── VSync_Toggle (Toggle + TextMeshPro)
-    │       │   ├── GraphicsQuality_Dropdown (TMP_Dropdown)
-    │       │   └── AntiAliasing_Dropdown (TMP_Dropdown)
-    │       │
-    │       ├── Audio_SubPanel (GameObject)
-    │       │   ├── MasterVolume_Slider (Slider + Label)
-    │       │   ├── MusicVolume_Slider (Slider + Label)
-    │       │   ├── SfxVolume_Slider (Slider + Label)
-    │       │   ├── UiVolume_Slider (Slider + Label)
-    │       │   └── MuteOnFocusLoss_Toggle (Toggle + TextMeshPro)
-    │       │
-    │       └── Gameplay_SubPanel (GameObject)
-    │           ├── PlayerName_InputField (TMP_InputField)
-    │           └── ShowNetworkStats_Toggle (Toggle + TextMeshPro)
+Canvas
+└── SettingsPopup_Panel (Image - Black with white border, rounded)
+    ├── Background_Overlay (Image - Dim overlay, optional)
     │
-    └── NetworkStats_Panel (GameObject - ลอยมุมบนซ้าย)
-        ├── FPS_Label (TextMeshPro)
-        └── Ping_Label (TextMeshPro)
+    ├── Header_Section
+    │   ├── Title_Text (TextMeshPro - "SETTINGS", white, bold)
+    │   └── Separator_Line (Image - horizontal white line)
+    │
+    ├── TabButtons_Group (Horizontal Layout Group)
+    │   ├── GraphicsTab_Button (Button + Image + TextMeshPro)
+    │   │   ├── Background (Image - changes color: gold=active, gray=inactive)
+    │   │   └── Text (TextMeshPro - "GRAPHICS")
+    │   │
+    │   ├── AudioTab_Button (Button + Image + TextMeshPro)
+    │   │   ├── Background (Image)
+    │   │   └── Text (TextMeshPro - "AUDIO")
+    │   │
+    │   └── GameplayTab_Button (Button + Image + TextMeshPro)
+    │       ├── Background (Image)
+    │       └── Text (TextMeshPro - "GAMEPLAY")
+    │
+    ├── TabContent_Container
+    │   ├── Graphics_SubPanel (GameObject)
+    │   │   ├── DisplayMode_Row
+    │   │   │   ├── Label (TextMeshPro - "DISPLAY MODE")
+    │   │   │   └── Dropdown (TMP_Dropdown)
+    │   │   │
+    │   │   ├── Resolution_Row
+    │   │   │   ├── Label (TextMeshPro - "RESOLUTION")
+    │   │   │   ├── Slider (Slider - gold handle)
+    │   │   │   └── ValueLabel (TextMeshPro - "70")
+    │   │   │
+    │   │   ├── VSync_Row
+    │   │   │   ├── Label (TextMeshPro - "V-SYNC")
+    │   │   │   └── Toggle (Toggle - gold checkmark)
+    │   │   │
+    │   │   └── QualityPreset_Row
+    │   │       ├── Label (TextMeshPro - "QUALITY PRESET")
+    │   │       ├── Slider (Slider - gold handle)
+    │   │       └── ValueLabel (TextMeshPro - "70")
+    │   │
+    │   ├── Audio_SubPanel (GameObject)
+    │   │   ├── MasterVolume_Row
+    │   │   │   ├── Label (TextMeshPro - "MASTER VOLUME")
+    │   │   │   ├── Slider (Slider - gold handle)
+    │   │   │   └── ValueLabel (TextMeshPro - "100%")
+    │   │   │
+    │   │   ├── MusicVolume_Row
+    │   │   ├── SfxVolume_Row
+    │   │   └── ...
+    │   │
+    │   └── Gameplay_SubPanel (GameObject)
+    │       ├── PlayerName_InputField (TMP_InputField)
+    │       └── ShowNetworkStats_Toggle (Toggle)
+    │
+    └── BottomButtons_Group (Horizontal Layout Group)
+        ├── SaveAndClose_Button (Button - Gold background)
+        │   ├── Background (Image - Gold #D4AF37)
+        │   └── Text (TextMeshPro - "SAVE & CLOSE", black)
+        │
+        └── Close_Button (Button - White/Gray background)
+            ├── Background (Image - White/Gray)
+            └── Text (TextMeshPro - "CLOSE ✕", white)
 ```
 
 ---
 
 ## 🎨 ขั้นตอนการสร้างใน Unity Editor
 
-### 1. สร้าง Main Popup Panel
-1. Right-click ใน Hierarchy → UI → Panel
+### 1. สร้าง Main Panel (ตาม SettingPanel.png)
+1. Right-click ใน Hierarchy → UI → Image
 2. เปลี่ยนชื่อเป็น `SettingsPopup_Panel`
 3. Add Component → Canvas Group
-4. ปรับ Anchor เป็น **Stretch-Stretch** (เต็มจอ)
+4. ตั้งค่า Image:
+   - Color: Black (R:0, G:0, B:0, A:255)
+   - Sprite: ใช้ ScollAndButton.png (ปุ่มแบบยาว) หรือสร้าง sprite rounded rectangle
+   - Image Type: Sliced (สำหรับ rounded corners)
 
-### 2. สร้าง Tab Buttons
-1. สร้าง Empty GameObject ชื่อ `TabButtons_Group`
-2. Add Component → Horizontal Layout Group
-3. เพิ่ม 3 Buttons:
-   - GraphicsTab_Button
-   - AudioTab_Button  
-   - GameplayTab_Button
+### 2. สร้าง Header
+1. เพิ่ม TextMeshPro - Text ชื่อ "Title_Text"
+2. ตั้งค่า:
+   - Text: "SETTINGS"
+   - Font: Bold
+   - Color: White
+   - Alignment: Center
+   - Font Size: 24-32
 
-### 3. สร้าง Sub-Panels (แท็บละอัน)
-สร้าง 3 Panel GameObject:
-- `Graphics_SubPanel`
-- `Audio_SubPanel`
-- `Gameplay_SubPanel`
+### 3. สร้าง Tab Buttons (3 ปุ่ม)
 
-**Graphics_SubPanel** ประกอบด้วย:
-- 6 Dropdowns: DisplayMode, Resolution, FrameRate, Quality, AntiAliasing
-- 1 Toggle: VSync
+**สำหรับแต่ละปุ่ม:**
+1. Right-click → UI → Button - TextMeshPro
+2. เปลี่ยนชื่อเป็น `GraphicsTab_Button`, `AudioTab_Button`, `GameplayTab_Button`
+3. ตั้งค่า Button Image:
+   - Source Image: ScollAndButton.png (ตัวบน - สั้นกว่า)
+   - Color: **Dark Gray (inactive)** หรือ **Gold (active)**
+4. ตั้งค่า Text:
+   - Text: "GRAPHICS" / "AUDIO" / "GAMEPLAY"
+   - Font: Bold
+   - Color: White (active) / Light Gray (inactive)
 
-**Audio_SubPanel** ประกอบด้วย:
-- 4 Sliders พร้อม Labels: Master, Music, SFX, UI
-- 1 Toggle: Mute on Focus Loss
+### 4. สร้าง Content Sub-Panels
 
-**Gameplay_SubPanel** ประกอบด้วย:
-- 1 InputField: Player Name
-- 1 Toggle: Show Network Stats
+**Graphics SubPanel:**
+- DISPLAY MODE: TMP_Dropdown
+  - Options: Windowed, Fullscreen, Borderless Fullscreen
+- RESOLUTION: Slider (horizontal) + Value Label
+  - Slider Handle: ใช้สี Gold (#D4AF37)
+  - Fill Area: Gold
+- V-SYNC: Toggle
+  - Checkmark: Gold
+- QUALITY PRESET: Slider + Value Label
+  - ตั้งค่าเหมือน Resolution slider
 
-### 4. สร้าง Network Stats Panel
-1. สร้าง Panel ชื่อ `NetworkStats_Panel`
-2. ตั้งค่า Anchor: **Top-Left**
-3. เพิ่ม 2 TextMeshPro:
-   - FPS_Label
-   - Ping_Label
+**สไตล์ Slider:**
+- Background: Dark gray rounded bar
+- Fill: Gold (#D4AF37)
+- Handle: Gold circle
+
+**สไตล์ Toggle:**
+- Background: Black with white border
+- Checkmark: Gold when ON
+
+### 5. สร้าง Bottom Buttons
+
+**SAVE & CLOSE Button:**
+1. Button → Background Image Color: **Gold (#D4AF37)**
+2. Text: "SAVE & CLOSE" (สีดำ)
+3. Font: Bold
+
+**CLOSE X Button:**
+1. Button → Background Image Color: White/Gray
+2. Text: "CLOSE ✕" (สีขาว)
 
 ---
 
 ## 🔌 การผูก Inspector Fields
 
-สร้าง GameObject ว่าง ชื่อ `SettingsManager` และ Add Component → `SettingsManager.cs`
-
 ### Main Popup
 - `Settings Popup Panel`: ลาก SettingsPopup_Panel
 - `Popup Canvas Group`: ลาก CanvasGroup component
-- `Close Button`: ลาก CloseButton
+- `Save And Close Button`: ลาก SAVE & CLOSE button
+- `Close Button`: ลาก CLOSE X button
 
-### Tab Buttons
+### Tab Buttons + Visuals
 - `Graphics Tab Button`: ลาก GraphicsTab_Button
 - `Audio Tab Button`: ลาก AudioTab_Button
 - `Gameplay Tab Button`: ลาก GameplayTab_Button
+- `Graphics Tab Image`: ลาก Background Image ของ GraphicsTab
+- `Audio Tab Image`: ลาก Background Image ของ AudioTab
+- `Gameplay Tab Image`: ลาก Background Image ของ GameplayTab
+- `Graphics Tab Text`: ลาก TextMeshPro ของ GraphicsTab
+- `Audio Tab Text`: ลาก TextMeshPro ของ AudioTab
+- `Gameplay Tab Text`: ลาก TextMeshPro ของ GameplayTab
 
-### Sub-Panels
-- `Graphics Sub Panel`: ลาก Graphics_SubPanel
-- `Audio Sub Panel`: ลาก Audio_SubPanel
-- `Gameplay Sub Panel`: ลาก Gameplay_SubPanel
+### Graphics Settings
+- `Display Mode Dropdown`: TMP_Dropdown
+- `Resolution Slider`: Slider component
+- `Resolution Value Label`: TextMeshPro (แสดงค่า)
+- `V Sync Toggle`: Toggle
+- `Quality Preset Slider`: Slider
+- `Quality Preset Value Label`: TextMeshPro
 
-### Graphics Settings (จาก Graphics_SubPanel)
-- `Display Mode Dropdown`
-- `Resolution Dropdown`
-- `Frame Rate Limit Dropdown`
-- `V Sync Toggle`
-- `Graphics Quality Dropdown`
-- `Anti Aliasing Dropdown`
+### Audio Settings
+- `Master Volume Slider`: Slider
+- `Music Volume Slider`: Slider
+- `Sfx Volume Slider`: Slider
+- `Master Volume Label`: TextMeshPro (แสดง %)
+- `Music Volume Label`: TextMeshPro
+- `Sfx Volume Label`: TextMeshPro
 
-### Audio Settings (จาก Audio_SubPanel)
-- `Master Volume Slider`
-- `Music Volume Slider`
-- `Sfx Volume Slider`
-- `Ui Volume Slider`
-- `Mute On Focus Loss Toggle`
-- ผูก Labels ทั้ง 4 ตัว
-
-### Gameplay Settings (จาก Gameplay_SubPanel)
-- `Player Name Input Field`
-- `Show Network Stats Toggle`
+### Gameplay Settings
+- `Player Name Input Field`: TMP_InputField
+- `Show Network Stats Toggle`: Toggle
 
 ### Network Stats Display
-- `Network Stats Panel`: ลาก NetworkStats_Panel
-- `Fps Label`
-- `Ping Label`
+- `Network Stats Panel`: GameObject (ลอยมุมจอ)
+- `Fps Label`: TextMeshPro
+- `Ping Label`: TextMeshPro
+
+### Theme Colors (ปรับตามต้องการ)
+- `Active Tab Color`: Gold (#D4AF37) - RGB(212, 175, 55)
+- `Inactive Tab Color`: Dark Gray - RGB(77, 77, 77)
+- `Text Active Color`: White
+- `Text Inactive Color`: Light Gray - RGB(179, 179, 179)
 
 ---
 
-## 💻 การเรียกใช้งานจาก Script อื่น
+## 💻 การเรียกใช้งาน
 
-### วิธีที่ 1: เปิด Settings จาก Script ใดๆ
+### เปิด Settings
 ```csharp
-using UnityEngine;
-
-public class PauseMenu : MonoBehaviour
-{
-    public void OnSettingsButtonClicked()
-    {
-        // เรียก Singleton
-        if (SettingsManager.Instance != null)
-        {
-            SettingsManager.Instance.OpenSettings();
-        }
-    }
-}
+SettingsManager.Instance.OpenSettings();
 ```
 
-### วิธีที่ 2: เปิด Settings จาก OnlineNetworkUI
-เพิ่มปุ่ม Settings ใน OnlineNetworkUI:
-
+### ปิด Settings
 ```csharp
-[Header("--- Settings Button ---")]
-[SerializeField] private Button settingsButton;
-
-private void Start()
-{
-    // ... โค้ดเดิม ...
-    
-    if (settingsButton != null)
-    {
-        settingsButton.onClick.AddListener(OpenSettingsPanel);
-    }
-}
-
-private void OpenSettingsPanel()
-{
-    if (SettingsManager.Instance != null)
-    {
-        SettingsManager.Instance.OpenSettings();
-    }
-}
+SettingsManager.Instance.CloseSettings();
 ```
 
-### วิธีที่ 3: เปิดด้วย Keyboard Shortcut
+### บันทึกและปิด
 ```csharp
-private void Update()
-{
-    // กด ESC เพื่อเปิด Settings
-    if (Input.GetKeyDown(KeyCode.Escape))
-    {
-        if (SettingsManager.Instance != null)
-        {
-            SettingsManager.Instance.OpenSettings();
-        }
-    }
-}
+SettingsManager.Instance.SaveAndClose();
 ```
 
 ---
 
-## ⚙️ Dropdown Options ที่ต้องตั้งค่า
+## 🎨 Sprites ที่ต้องใช้
 
-### Display Mode Dropdown
+จากโฟลเดอร์ `Assets/MenuUI/Setting/`:
+1. **SettingPanel.png** - ใช้เป็น Panel background (ขอบโค้ง)
+2. **ScollAndButton.png** - มี 2 shapes:
+   - **ปุ่มสั้น** (บน) - ใช้สำหรับ Tab Buttons
+   - **แถบยาว** (ล่าง) - ใช้สำหรับ Slider background
+3. **Design.png** - Reference สำหรับ layout ทั้งหมด
+
+### Import Settings สำหรับ Sprites:
+1. เลือก sprite ใน Project
+2. Inspector → Texture Type: **Sprite (2D and UI)**
+3. Sprite Mode: **Single** หรือ **Multiple** (ถ้าต้องการแยก)
+4. Pixels Per Unit: 100
+5. Mesh Type: **Tight** (สำหรับ rounded corners)
+6. Click **Apply**
+
+---
+
+## ⚙️ Slider Configuration
+
+### Resolution Slider & Quality Preset Slider:
 ```
-Options:
-0. Windowed
-1. Fullscreen
-2. Borderless Fullscreen
+Min Value: 0
+Max Value: 100 (หรือ availableResolutions.Length - 1 สำหรับ Resolution)
+Whole Numbers: Yes
+Direction: Left to Right
 ```
 
-### Frame Rate Limit Dropdown
-```
-Options:
-0. Uncapped
-1. 60 FPS
-2. 120 FPS
-3. 144 FPS
-4. 240 FPS
-```
-
-### Graphics Quality Dropdown
-```
-Options:
-0. Low
-1. Medium
-2. High
-3. Ultra
-```
-
-### Anti-Aliasing Dropdown
-```
-Options:
-0. Off
-1. FXAA
-2. SMAA
-3. TAA
-```
+**Handle Sprite:** วงกลมสี Gold  
+**Fill Area:** สี Gold (#D4AF37)  
+**Background:** Dark gray bar
 
 ---
 
 ## 🎯 Features ที่ใช้งานได้
 
-✅ **Tabbed UI System** - สลับแท็บได้ราบรื่น  
-✅ **DOTween Animation** - Fade + Scale pop-up เหมือน OnlineNetworkUI  
-✅ **Auto-Save** - บันทึกอัตโนมัติทุกครั้งที่เปลี่ยนค่า  
-✅ **FPS Counter** - แสดง FPS แบบ Real-time พร้อมเปลี่ยนสี  
-✅ **Ping Display** - แสดงค่า Ping เมื่อเชื่อม Netcode  
-✅ **Singleton Pattern** - เรียกใช้ได้จากทุกที่ด้วย `.Instance`  
-✅ **Event Cleanup** - ลบ Listeners ใน OnDestroy อย่างรัดกุม  
+✅ **Tab System** - เปลี่ยน tab ด้วยสี Gold (active) และ Gray (inactive)  
+✅ **Visual Feedback** - Tab ที่เลือกจะเปลี่ยนสีทันที  
+✅ **DOTween Animation** - Fade + Scale pop-up  
+✅ **Auto-Save** - ทุกค่าบันทึกอัตโนมัติเมื่อเปลี่ยน  
+✅ **SAVE & CLOSE** - บันทึกทุกอย่างแล้วปิด  
+✅ **Sliders with Values** - แสดงค่าแบบ realtime (70, 100%, etc.)  
+✅ **Gold Accent Theme** - ตรงตาม Design.png  
 
 ---
 
 ## 🐛 Troubleshooting
 
-**ปัญหา: Dropdown ไม่แสดงตัวเลือก**
-- ตรวจสอบว่า Dropdown มี TextMeshPro component
-- เปิด Dropdown Inspector → Template ต้องมี Item object
+**ปัญหา: Tab ไม่เปลี่ยนสี**
+- ตรวจสอบว่าผูก `Tab Image` และ `Tab Text` ครบ
+- ตรวจสอบค่า `Active Tab Color` และ `Inactive Tab Color`
 
-**ปัญหา: Network Stats ไม่แสดงค่า**
-- ตรวจสอบว่า NetworkManager.Singleton มีค่า (ต้องเชื่อม Network ก่อน)
-- Toggle "Show Network Stats" ต้องเปิดอยู่
+**ปัญหา: Slider ไม่แสดงค่า**
+- ตรวจสอบว่าผูก `Value Label` แล้ว
+- ตรวจสอบว่า Slider มี `onValueChanged` listener
 
-**ปัญหา: Animation ไม่เล่น**
-- ตรวจสอบว่าติดตั้ง DOTween แล้ว (Package Manager)
-- CanvasGroup ต้องผูกกับ SettingsPopup_Panel
+**ปัญหา: Sprites ไม่โค้งมุม**
+- ตั้ง Image Type เป็น **Sliced**
+- ตรวจสอบว่า sprite มี 9-slice borders
+
+**ปัญหา: ปุ่มไม่ทำงาน**
+- ตรวจสอบว่า Button มี `onClick` event
+- ตรวจสอบว่า SettingsManager อยู่ใน Scene
+
+---
+
+## 📸 Design Reference
+
+**จาก Design.png:**
+- Header: "SETTINGS" กลางบน
+- Tab: GRAPHICS (Gold) | AUDIO | GAMEPLAY
+- Content: DISPLAY MODE, RESOLUTION: 70, V-SYNC (ON), QUALITY PRESET: 70
+- Bottom: SAVE & CLOSE (Gold) | CLOSE X (White)
+
+**Color Palette:**
+- Background: #000000 (Black)
+- Border: #FFFFFF (White)
+- Active/Accent: #D4AF37 (Gold)
+- Text: #FFFFFF (White)
+- Inactive: #4D4D4D (Dark Gray)
 
 ---
 
 สร้างโดย: Claude Code (Opus 4.8)  
+ออกแบบตาม: Design.png mockup  
 สไตล์อ้างอิง: OnlineNetworkUI.cs

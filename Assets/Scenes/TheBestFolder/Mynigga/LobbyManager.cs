@@ -122,6 +122,9 @@ public class LobbyManager : NetworkBehaviour
     {
         Instance = this;
 
+        // ✅ ตรวจสอบว่า SettingsManager ยังอยู่ไหม ถ้าหายให้สร้างใหม่
+        EnsureSettingsManagerExists();
+
         // ✅ บังคับเปิด selectionPanel ทันทีตอนเริ่ม (ไม่ต้องรอ Network Spawn)
         if (selectionPanel != null)
         {
@@ -487,14 +490,24 @@ public class LobbyManager : NetworkBehaviour
             {
                 if (hasPlayer)
                 {
-                    if (clientId == NetworkManager.ServerClientId)
-                        playerNameTexts[i].text = $"P{i + 1} [HOST]";
+                    // ✅ ถ้าเป็นตัวเอง ให้แสดงชื่อจาก Settings + เลข Slot
+                    if (clientId == NetworkManager.Singleton.LocalClientId)
+                    {
+                        string myName = PlayerPrefs.GetString("PlayerName", "Player");
+                        playerNameTexts[i].text = $"{myName} (P{i + 1})";
+                    }
+                    else if (clientId == NetworkManager.ServerClientId)
+                    {
+                        playerNameTexts[i].text = $"Host (P{i + 1})";
+                    }
                     else
-                        playerNameTexts[i].text = $"P{i + 1}";
+                    {
+                        playerNameTexts[i].text = $"Player (P{i + 1})";
+                    }
                 }
                 else
                 {
-                    playerNameTexts[i].text = $"P{i + 1}:";
+                    playerNameTexts[i].text = $"P{i + 1}: Empty";
                 }
             }
 
@@ -1016,6 +1029,27 @@ public class LobbyManager : NetworkBehaviour
     // ================================================================
     //  DOTween Utility Helpers
     // ================================================================
+
+    /// <summary>
+    /// ตรวจสอบและสร้าง SettingsManager ถ้ายังไม่มี (DontDestroyOnLoad หายไปตอนเปลี่ยน Scene)
+    /// </summary>
+    private void EnsureSettingsManagerExists()
+    {
+        if (SettingsManager.Instance == null)
+        {
+            Debug.LogWarning("[LobbyManager] SettingsManager.Instance is null! Creating new instance...");
+
+            // สร้าง GameObject ใหม่พร้อม SettingsManager component
+            GameObject settingsObj = new GameObject("SettingsManager");
+            settingsObj.AddComponent<SettingsManager>();
+
+            Debug.Log("[LobbyManager] ✅ SettingsManager created successfully!");
+        }
+        else
+        {
+            Debug.Log("[LobbyManager] ✅ SettingsManager already exists.");
+        }
+    }
 
     private CanvasGroup GetOrAddCanvasGroup(GameObject target)
     {

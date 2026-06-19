@@ -33,6 +33,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private Button onlineButton;
     [SerializeField] private Button offlineButton;
     [SerializeField] private Button exitButton;
+    [SerializeField] private Button settingsButton;    // Opens Settings panel
     [SerializeField] private Button backButton;
     [SerializeField] private Button hostButton;        // Reused as Online -> Host
     [SerializeField] private Button joinButton;        // Reused as Online -> Join (open code input)
@@ -109,6 +110,9 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     async void Start()
     {
+        // ✅ ตรวจสอบว่า SettingsManager ยังอยู่ไหม ถ้าหายให้สร้างใหม่
+        EnsureSettingsManagerExists();
+
         // Keep lobbyCam always on top — depth 100 beats any Player camera (default depth = -1)
         if (lobbyCam != null) lobbyCam.depth = 100;
 
@@ -395,6 +399,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (onlineButton != null) onlineButton.interactable = on;
         if (offlineButton != null) offlineButton.interactable = on;
         if (exitButton != null) exitButton.interactable = on;
+        if (settingsButton != null) settingsButton.interactable = on;
         if (backButton != null) backButton.interactable = on;
         if (hostButton != null) hostButton.interactable = on;
         if (joinButton != null) joinButton.interactable = on;
@@ -410,6 +415,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         ApplyButtonHoverColor(onlineButton);
         ApplyButtonHoverColor(offlineButton);
         ApplyButtonHoverColor(exitButton);
+        ApplyButtonHoverColor(settingsButton);
         ApplyButtonHoverColor(backButton);
         ApplyButtonHoverColor(hostButton);
         ApplyButtonHoverColor(joinButton);
@@ -731,6 +737,12 @@ public class OnlineNetworkUI : NetworkBehaviour
             exitButton.onClick.AddListener(OnExitOrBackClicked);
         }
 
+        if (settingsButton != null)
+        {
+            settingsButton.onClick.RemoveListener(OnSettingsClicked);
+            settingsButton.onClick.AddListener(OnSettingsClicked);
+        }
+
         if (backButton != null)
         {
             backButton.onClick.RemoveListener(OnExitOrBackClicked);
@@ -778,6 +790,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (onlineButton != null) onlineButton.onClick.RemoveListener(OnOnlineModeClicked);
         if (offlineButton != null) offlineButton.onClick.RemoveListener(OnOfflineModeClicked);
         if (exitButton != null) exitButton.onClick.RemoveListener(OnExitOrBackClicked);
+        if (settingsButton != null) settingsButton.onClick.RemoveListener(OnSettingsClicked);
         if (backButton != null) backButton.onClick.RemoveListener(OnExitOrBackClicked);
         if (hostButton != null) hostButton.onClick.RemoveAllListeners();
         if (joinButton != null) joinButton.onClick.RemoveAllListeners();
@@ -815,6 +828,19 @@ public class OnlineNetworkUI : NetworkBehaviour
     private void OnOfflineModeClicked()
     {
         SetStatus("Offline mode is not available yet.");
+    }
+
+    private void OnSettingsClicked()
+    {
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.OpenSettings();
+        }
+        else
+        {
+            SetStatus("Settings Manager not found!");
+            Debug.LogWarning("[OnlineNetworkUI] SettingsManager.Instance is null. Make sure SettingsManager is in the scene.");
+        }
     }
 
     private void OnJoinFlowClicked()
@@ -920,5 +946,30 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (startButton == null) return;
         startButton.interactable = CanStartGame();
+    }
+
+    // ================================================================
+    //  SETTINGS MANAGER AUTO-CREATE
+    // ================================================================
+
+    /// <summary>
+    /// ตรวจสอบและสร้าง SettingsManager ถ้ายังไม่มี (DontDestroyOnLoad หายไปตอนเปลี่ยน Scene)
+    /// </summary>
+    private void EnsureSettingsManagerExists()
+    {
+        if (SettingsManager.Instance == null)
+        {
+            Debug.LogWarning("[OnlineNetworkUI] SettingsManager.Instance is null! Creating new instance...");
+
+            // สร้าง GameObject ใหม่พร้อม SettingsManager component
+            GameObject settingsObj = new GameObject("SettingsManager");
+            settingsObj.AddComponent<SettingsManager>();
+
+            Debug.Log("[OnlineNetworkUI] ✅ SettingsManager created successfully!");
+        }
+        else
+        {
+            Debug.Log("[OnlineNetworkUI] ✅ SettingsManager already exists.");
+        }
     }
 }
