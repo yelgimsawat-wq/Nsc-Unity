@@ -52,6 +52,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Header("Ragdoll Ground Check")]
     [Tooltip("แรงที่ดึงเท้าลงเมื่อไม่มีพื้น")]
     public float groundSeekForce = 50f;
+    [Tooltip("ระยะห้ามเท้าเข้าใกล้ตัวเมื่อ Ragdoll (1.0 แนะนำ)")]
+    public float ragdollMinDistance = 1.0f;
 
     // ตำแหน่งดิบจาก RPC
     private Vector3 targetFootPosition;
@@ -216,9 +218,25 @@ public class PlayerFootForRobot : NetworkBehaviour
         Vector3 dir  = rawTarget - pivotPoint.position;
         float   dist = dir.magnitude;
 
-        // จำกัดระยะขั้นต่ำ (ป้องกัน Self-Collision)
-        if (dist < minLegLength)
-            rawTarget = pivotPoint.position + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * minLegLength;
+        // ✅ ตรวจสอบ Ragdoll: ถ้าเท้าใกล้เกินไป ผลักออก
+        bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll
+                      || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+
+        float effectiveMinLegLength = isRagdoll ? ragdollMinDistance : minLegLength;
+
+        // จำกัดระยะขั้นต่ำ (ป้องกัน Self-Collision + Ragdoll push away)
+        if (dist < effectiveMinLegLength)
+        {
+            rawTarget = pivotPoint.position + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * effectiveMinLegLength;
+
+            // ✅ เมื่อ Ragdoll: ผลักเท้าออกแทนการดึงเข้า
+            if (isRagdoll && dist < effectiveMinLegLength * 0.9f)
+            {
+                Vector3 pushForce = dir.normalized * (effectiveMinLegLength - dist) * 100f;
+                footRb.AddForce(pushForce, ForceMode.Acceleration);
+                return; // ✅ ไม่ดึงเข้าเลย
+            }
+        }
         // จำกัดระยะสูงสุด
         else if (dist > maxLegLength)
             rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
@@ -229,9 +247,16 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     /// <summary>
     /// ยืนนิ่ง: เท้าถูกล็อก (Kinematic) แล้ว ดึงลำตัวขึ้นตาม Balance Shift
+    /// ✅ ไม่ทำงานเมื่อ Ragdoll
     /// </summary>
     private void PerformStandingPhysics()
     {
+        // ✅ ตรวจสอบ Ragdoll: ถ้าเป็น Ragdoll ไม่ดึงเลย
+        bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll
+                      || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+
+        if (isRagdoll) return; // ✅ ไม่ดึงตัวเมื่อล้ม
+
         Vector3 offset  = (smoothedBalanceTarget - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
         torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, pivotPoint.position, ForceMode.Acceleration);

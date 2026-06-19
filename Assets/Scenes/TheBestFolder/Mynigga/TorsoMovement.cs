@@ -118,7 +118,8 @@ public class TorsoMovement : NetworkBehaviour
             {
                 averageFootPos /= groundedCount;
 
-                // Auto-Center: ดึงลำตัวให้อยู่เหนือจุดกึ่งกลางเท้า (แกน XZ เท่านั้น)
+                // ✅ Auto-Center: ดึงลำตัวให้อยู่เหนือจุดกึ่งกลางเท้า (แกน XZ เท่านั้น)
+                // ✨ ปิดการทำงานเมื่ออยู่ใน Ragdoll state
                 Vector3 flatError = new Vector3(
                     averageFootPos.x - torsoRb.position.x,
                     0f,

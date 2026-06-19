@@ -21,6 +21,8 @@ public class PlayerHandMovement : NetworkBehaviour
     public float planeYOffsetSpeed = 3f;
     public float grabRadius = 0.5f;
     public float torsoPullForce = 60f;
+    [Tooltip("แรงที่ดึงตัวเมื่อจับ Kinematic Object (สามารถปรับได้)")]
+    public float kinematicPullForce = 100f;
     public float detachedMoveSpeed = 20f;
     public LayerMask grabLayer;
     public LayerMask groundLayer;
@@ -89,14 +91,20 @@ public class PlayerHandMovement : NetworkBehaviour
     {
         if (currentState.Value != HandState.Attached) return;
 
-        if (Input.GetKey(KeyCode.E)) currentPlaneYOffset += planeYOffsetSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.Q)) currentPlaneYOffset -= planeYOffsetSpeed * Time.deltaTime;
+        // ✅ W/S สำหรับขึ้น-ลง แทน E/Q
+        if (Input.GetKey(KeyCode.W)) currentPlaneYOffset += planeYOffsetSpeed * Time.deltaTime;
+        if (Input.GetKey(KeyCode.S)) currentPlaneYOffset -= planeYOffsetSpeed * Time.deltaTime;
         currentPlaneYOffset = Mathf.Clamp(currentPlaneYOffset, -mouseReachDepth, mouseReachDepth);
 
-        Vector2 mouseNorm  = GetNormalizedMousePosition();
-        Vector3 newTarget  = pivotPoint.position+ playerCamera.transform.forward * currentPlaneYOffset
-                           + playerCamera.transform.right   * (mouseNorm.x * mouseReachX)
-                           + playerCamera.transform.up      * (mouseNorm.y * mouseReachY);
+        Vector2 mouseNorm = GetNormalizedMousePosition();
+
+        // ✅ เมาส์ซ้าย-ขวา (X) = มือไปข้างๆ (Back and Forth)
+        // ✅ เมาส์บน-ล่าง (Y) = ปิดการทำงาน (ไม่ใช้)
+        // ✅ Plane หมุนรอบตาม Camera ยังคงเหมือนเดิม
+        Vector3 newTarget = pivotPoint.position
+                          + playerCamera.transform.forward * currentPlaneYOffset       // ระยะห่างจากตัว (E/Q เดิม -> ตอนนี้ W/S)
+                          + playerCamera.transform.right * (mouseNorm.x * mouseReachX) // ✅ ซ้าย-ขวา (Back and Forth)
+                          + playerCamera.transform.up * 0f;                            // ✅ ปิดแกน Y ของเมาส์
 
         // ป้องกันมือจมพื้น
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
@@ -109,7 +117,8 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Input.GetMouseButtonUp(0))   ReleaseGrabRpc();
 
         // Recovery ผ่านมือ (กด Q ขณะล้ม)
-        if (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))ApplyHandRecoveryRpc();
+        if (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))
+            ApplyHandRecoveryRpc();
     }
 
     [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { targetHandPosition = target; }
@@ -149,24 +158,28 @@ public class PlayerHandMovement : NetworkBehaviour
     /// <summary>
     /// Spring-Damper ควบคุมมือ + ดึงลำตัวเมื่อแขนยืดเกิน maxArmLength
     /// ใช้ smoothedHandTarget แทน targetHandPosition ดิบ
+    /// ✅ ถ้าจับ Kinematic Object → ดึงตัวด้วย kinematicPullForce
     /// </summary>
     private void PerformArmMovement()
     {
         Vector3 dirFromPivot = smoothedHandTarget - pivotPoint.position;
         float currentDistance = dirFromPivot.magnitude;
 
-        // 🔥 FIX 1: สร้างตัวแปรใหม่ (physicsTarget) มาใช้คำนวณฟิสิกส์ 
+        // 🔥 FIX 1: สร้างตัวแปรใหม่ (physicsTarget) มาใช้คำนวณฟิสิกส์
         // ห้ามนำไปเขียนทับ smoothedHandTarget เด็ดขาด เพื่อไม่ให้ระบบ Lerp รวน!
         Vector3 physicsTarget = smoothedHandTarget;
 
         if (isGrabbing && grabbedObject != null && grabbedObject.isKinematic)
         {
-            // จับวัตถุคงที่: ดึงลำตัวเข้าหาวัตถุ
-            Vector3 pushDir = pivotPoint.position - smoothedHandTarget;
-            torso.torsoRb.AddForceAtPosition(pushDir * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
+            // ✅ จับวัตถุ Kinematic: ดึงลำตัวเข้าหาวัตถุด้วย kinematicPullForce
+            Vector3 pullDir = (grabbedObject.position - pivotPoint.position).normalized;
+            torso.torsoRb.AddForceAtPosition(pullDir * kinematicPullForce, pivotPoint.position, ForceMode.Acceleration);
 
-            // แจ้ง Torso ว่าแขนกำลังดึง
+            // แจ้ง Torso ว่าแขนกำลังดึง (ลด auto-center force)
             torso.armPullIntensity = Mathf.Clamp01(currentDistance / maxArmLength);
+
+            // มือไม่เคลื่อนที่ ให้อยู่กับที่ (ไม่ใช้ Spring-Damper)
+            return;
         }
         else
         {
