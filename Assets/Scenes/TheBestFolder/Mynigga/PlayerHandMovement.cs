@@ -63,7 +63,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
         if (currentState.Value == HandState.Attached)
         {
-            if (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll) return;
+            // ✅ มือใช้งานได้ทั้ง Standing และ Ragdoll
             PerformArmMovement();
         }
     }
@@ -159,6 +159,7 @@ public class PlayerHandMovement : NetworkBehaviour
     /// Spring-Damper ควบคุมมือ + ดึงลำตัวเมื่อแขนยืดเกิน maxArmLength
     /// ใช้ smoothedHandTarget แทน targetHandPosition ดิบ
     /// ✅ ถ้าจับ Kinematic Object → ดึงตัวด้วย kinematicPullForce
+    /// ✅ เพิ่ม Stress เมื่อดึงแรง → ถ้าเกินจะ Ragdoll
     /// </summary>
     private void PerformArmMovement()
     {
@@ -173,12 +174,18 @@ public class PlayerHandMovement : NetworkBehaviour
         {
             // ✅ จับวัตถุ Kinematic: ดึงลำตัวเข้าหาวัตถุด้วย kinematicPullForce
             Vector3 pullDir = (grabbedObject.position - pivotPoint.position).normalized;
-            torso.torsoRb.AddForceAtPosition(pullDir * kinematicPullForce, pivotPoint.position, ForceMode.Acceleration);
+            float pullForce = kinematicPullForce;
+
+            torso.torsoRb.AddForceAtPosition(pullDir * pullForce, pivotPoint.position, ForceMode.Acceleration);
+
+            // ✅ เพิ่ม Stress ตามระยะห่าง (ยิ่งยืดแขนไกล = Stress มากขึ้น)
+            float stressThisFrame = pullForce * Time.fixedDeltaTime * Mathf.Clamp01(currentDistance / maxArmLength);
+            torso.AddStress(stressThisFrame);
 
             // แจ้ง Torso ว่าแขนกำลังดึง (ลด auto-center force)
             torso.armPullIntensity = Mathf.Clamp01(currentDistance / maxArmLength);
 
-            // มือไม่เคลื่อนที่ ให้อยู่กับที่ (ไม่ใช้ Spring-Damper)
+            // ✅ มือไม่เคลื่อนที่ ให้อยู่กับที่ (Freeze เพื่อปีน)
             return;
         }
         else
@@ -198,7 +205,12 @@ public class PlayerHandMovement : NetworkBehaviour
                 physicsTarget = pivotPoint.position + (dirFromPivot / currentDistance) * maxArmLength;
 
                 // ดึงลำตัวตาม
-                torso.torsoRb.AddForceAtPosition((dirFromPivot / currentDistance) * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
+                Vector3 pullDir = dirFromPivot / currentDistance;
+                torso.torsoRb.AddForceAtPosition(pullDir * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
+
+                // ✅ เพิ่ม Stress เมื่อแขนยืดเกิน
+                float stressThisFrame = torsoPullForce * Time.fixedDeltaTime * 0.5f; // น้อยกว่า Kinematic
+                torso.AddStress(stressThisFrame);
             }
 
             // Spring-Damper เคลื่อนมือไปหาเป้าหมายฟิสิกส์ที่ปลอดภัยแล้ว

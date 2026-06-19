@@ -28,6 +28,14 @@ public class TorsoMovement : NetworkBehaviour
     public float ragdollRecoveryDelay = 1.5f;
     private float ragdollTimer = 0f;
 
+    [Header("Break Force System (Torso HP)")]
+    [Tooltip("แรงดึงสูงสุดที่ลำตัวทนได้ก่อนล้ม (HP)")]
+    public float maxTorsoStress = 500f;
+    [Tooltip("แรงดึงปัจจุบัน (อ่านอย่างเดียว)")]
+    [HideInInspector] public float currentStress = 0f;
+    [Tooltip("อัตราลดความเครียดต่อวินาที")]
+    public float stressDecayRate = 100f;
+
     [Header("Continuous Recovery")]
     public float continuousRecoveryForce = 800f;
     public float recoveryHeightThreshold = 0.7f;
@@ -62,6 +70,16 @@ public class TorsoMovement : NetworkBehaviour
     void FixedUpdate()
     {
         if (!IsServer) return;
+
+        // ✅ ลดความเครียดทุกเฟรม
+        currentStress = Mathf.Max(0f, currentStress - stressDecayRate * Time.fixedDeltaTime);
+
+        // ✅ ตรวจสอบ Break Force: ถ้าเครียดเกินไป → Ragdoll
+        if (currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
+        {
+            currentState.Value = TorsoState.Falling;
+            Debug.Log("[TorsoMovement] Break Force exceeded! Entering Ragdoll.");
+        }
 
         switch (currentState.Value)
         {
@@ -190,4 +208,13 @@ public class TorsoMovement : NetworkBehaviour
 
     [Rpc(SendTo.Server)]
     public void ApplyRecoveryForceRpc(Vector3 forcePosition) => ApplyContinuousRecoveryForce(forcePosition);
+
+    /// <summary>
+    /// เพิ่มความเครียดให้ Torso จากแรงดึง (เรียกจาก PlayerHandMovement)
+    /// </summary>
+    public void AddStress(float stressAmount)
+    {
+        currentStress += stressAmount;
+        currentStress = Mathf.Min(currentStress, maxTorsoStress * 1.5f); // Cap ไว้ไม่ให้เกินมาก
+    }
 }
