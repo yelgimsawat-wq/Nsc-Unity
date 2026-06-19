@@ -1002,7 +1002,7 @@ Transform:
   m_GameObject: {fileID: 159013798}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -15.56687, y: 0, z: 8.90723}
+  m_LocalPosition: {x: -9.87, y: 0, z: 2.55}
   m_LocalScale: {x: 5.004, y: 406.08963, z: 5.004}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2317,6 +2317,146 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!1 &288838101
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 288838105}
+  - component: {fileID: 288838104}
+  - component: {fileID: 288838103}
+  - component: {fileID: 288838102}
+  - component: {fileID: 288838106}
+  m_Layer: 7
+  m_Name: Cube (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!65 &288838102
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288838101}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &288838103
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288838101}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &288838104
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288838101}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &288838105
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288838101}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4.63, y: 4.89, z: 2.85}
+  m_LocalScale: {x: 3.6517, y: 3.6517, z: 3.6517}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &288838106
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288838101}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &295337734 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 604042131515197305, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
@@ -2982,6 +3122,7 @@ MonoBehaviour:
     m_InternalValue: 0
   isStepping: 0
   isPushingRecovery: 0
+  isJumping: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976043}
   pivotPoint: {fileID: 2575685140956976044}
@@ -2996,6 +3137,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  footJumpForce: 15
+  torsoJumpForce: 400
   targetSmoothSpeed: 12
   standingUpwardPull: 25
   recoveryProximityThreshold: 6
@@ -3004,7 +3147,6 @@ MonoBehaviour:
   mouseReachY: 16
   autoHeightDelay: 0.5
   groundSeekForce: 500
-  ragdollMinDistance: 1
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -7733,6 +7875,9 @@ MonoBehaviour:
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
   ragdollRecoveryDelay: 1.5
+  maxTorsoStress: 500
+  currentStress: 0
+  stressDecayRate: 50
   continuousRecoveryForce: 750
   recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
@@ -14292,9 +14437,9 @@ MonoBehaviour:
   handMoveSpeed: 15
   handDamper: 10
   planeYOffsetSpeed: 3
-  grabRadius: 0.4
-  torsoPullForce: 50
-  kinematicPullForce: 100
+  grabRadius: 1
+  torsoPullForce: 10
+  kinematicPullForce: 20
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -14332,9 +14477,9 @@ MonoBehaviour:
   handMoveSpeed: 15
   handDamper: 10
   planeYOffsetSpeed: 3
-  grabRadius: 0.4
-  torsoPullForce: 50
-  kinematicPullForce: 100
+  grabRadius: 1
+  torsoPullForce: 10
+  kinematicPullForce: 20
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -14366,6 +14511,7 @@ MonoBehaviour:
     m_InternalValue: 0
   isStepping: 0
   isPushingRecovery: 0
+  isJumping: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976047}
   pivotPoint: {fileID: 2575685140956976041}
@@ -14380,6 +14526,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  footJumpForce: 15
+  torsoJumpForce: 400
   targetSmoothSpeed: 12
   standingUpwardPull: 25
   recoveryProximityThreshold: 6
@@ -14388,7 +14536,6 @@ MonoBehaviour:
   mouseReachY: 16
   autoHeightDelay: 0.5
   groundSeekForce: 500
-  ragdollMinDistance: 1
 --- !u!153 &2575685140956976054
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -14718,3 +14865,4 @@ SceneRoots:
   - {fileID: 1422294731}
   - {fileID: 185236976}
   - {fileID: 159013802}
+  - {fileID: 288838105}

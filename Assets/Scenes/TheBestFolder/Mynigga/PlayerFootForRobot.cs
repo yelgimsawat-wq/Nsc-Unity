@@ -8,16 +8,20 @@ public class PlayerFootForRobot : NetworkBehaviour
     public NetworkVariable<FootState> currentState = new NetworkVariable<FootState>(FootState.Attached);
     public bool isStepping = false;
     public bool isPushingRecovery = false;
+    public bool isJumping = false;
+
+    // เท้าจะ "สมดุล" ก็ต่อเมื่อ: ไม่ก้าว + ไม่กระโดด + ไม่พยายามดันตัวลุก + ติดพื้น
+    public bool IsBalanced => !isStepping && !isJumping && !isPushingRecovery && IsGrounded();
 
     [Header("References")]
     public TorsoMovement torso;
     public Rigidbody footRb;
     public Transform pivotPoint;
     public Camera playerCamera;
-    
+
     [Header("Movement & IK Settings")]
     public float maxLegLength = 1.5f;
-    [Tooltip("ระยะขาหดสั้นสุด ป้องกันขามุดเข้าลำตัว")]
+    [Tooltip("ระยะขาหดสั้นสุด (ใช้เฉพาะตอนยืน/เดิน)")]
     public float minLegLength = 0.4f;
     public float footMoveSpeed = 15f;
     public float balanceShiftMultiplier = 0.3f;
@@ -26,12 +30,14 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float legDamper = 30f;
     public LayerMask groundLayer;
 
+    [Header("Jump Settings")]
+    public float footJumpForce = 15f;
+    public float torsoJumpForce = 400f;
+
     [Header("Smoothing (Anti-Jitter)")]
-    [Tooltip("ความเร็วในการเกลี่ยตำแหน่งเป้าหมาย (8-20 แนะนำ)")]
     public float targetSmoothSpeed = 12f;
 
     [Header("Standing Stability")]
-    [Tooltip("แรงดึงลำตัวขึ้นจากเท้าเมื่อยืนนิ่ง")]
     public float standingUpwardPull = 25f;
 
     [Header("Recovery Mechanics")]
@@ -44,33 +50,25 @@ public class PlayerFootForRobot : NetworkBehaviour
     private float currentYOffset = 0f;
 
     [Header("Auto Height Settings")]
-    [Tooltip("เวลาที่ต้องกดค้าง M1 ก่อนที่จะเริ่มปรับความสูงอัตโนมัติ")]
     public float autoHeightDelay = 0.5f;
     private float holdTimer = 0f;
     private bool autoHeightEnabled = false;
 
     [Header("Ragdoll Ground Check")]
-    [Tooltip("แรงที่ดึงเท้าลงเมื่อไม่มีพื้น")]
     public float groundSeekForce = 50f;
-    [Tooltip("ระยะห้ามเท้าเข้าใกล้ตัวเมื่อ Ragdoll (1.0 แนะนำ)")]
-    public float ragdollMinDistance = 1.0f;
 
-    // ตำแหน่งดิบจาก RPC
     private Vector3 targetFootPosition;
     private Vector3 balanceShiftMousePos;
     private Vector3 detachedTargetPos;
-    
-    // ตำแหน่งที่ผ่าน Exponential Lerp แล้ว ใช้คำนวณแรงจริง
+
     private Vector3 smoothedFootTarget;
     private Vector3 smoothedBalanceTarget;
     private Vector3 smoothedDetachedTarget;
     private bool smoothedTargetInitialized, smoothedBalanceInitialized, smoothedDetachedInitialized;
 
-    // ป้องกัน RPC Spam
     private Vector3 lastSentTarget, lastSentBalance, lastSentDetached;
     private const float RPC_SEND_THRESHOLD = 0.05f;
 
-    // Kinematic Lock state
     private Vector3 plantedPosition;
     private bool isPlantedSet = false;
     private bool wasKinematic = false;
@@ -79,7 +77,7 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (IsServer && torso != null) torso.RegisterFoot(this);
     }
-    
+
     public override void OnNetworkDespawn()
     {
         if (IsServer && torso != null) torso.UnregisterFoot(this);
@@ -90,41 +88,43 @@ public class PlayerFootForRobot : NetworkBehaviour
         if (!IsOwner || playerCamera == null) return;
         HandleInput();
     }
-    
+
     void FixedUpdate()
     {
         if (!IsServer) return;
         SmoothTargets();
 
+        if (isJumping && footRb.linearVelocity.y <= 0.1f && IsGrounded())
+        {
+            isJumping = false;
+        }
+
         if (currentState.Value == FootState.Attached)
         {
-            bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll|| torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+            bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
 
             if (isRagdoll)
             {
                 ReleaseKinematicLock();
                 if (isPushingRecovery)
                 {
+                    // ✅ ถ้ากด Q: ล็อกเท้ากับพื้นเพื่อส่งแรงลุก
                     ApplyKinematicLock();
-                    Vector2 footXZ  = new Vector2(footRb.position.x, footRb.position.z);
+                    Vector2 footXZ = new Vector2(footRb.position.x, footRb.position.z);
                     Vector2 pivotXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
-                    float ratio    = Mathf.Clamp01(Vector2.Distance(footXZ, pivotXZ) / recoveryProximityThreshold);
+                    float ratio = Mathf.Clamp01(Vector2.Distance(footXZ, pivotXZ) / recoveryProximityThreshold);
                     torso.ApplyContinuousRecoveryForce(pivotPoint.position, Mathf.Lerp(1f, minRecoveryMultiplier, ratio));
                 }
                 else
                 {
-                    PerformFootSpringPhysics(smoothedFootTarget);
-
-                    // Ragdoll: ถ้าไม่มีพื้นให้เคลื่อนลงอย่างต่อเนื่อง
-                    if (!IsGrounded())
-                    {
-                        footRb.AddForce(Vector3.down * groundSeekForce, ForceMode.Acceleration);
-                    }
+                    // ✅ ถ้าไม่ได้กด Q: เท้าตามเมาส์อย่างอิสระ ไม่ผลักออกจากลำตัว และดึงหาพื้นเสมอ
+                    PerformRagdollFreePhysics(smoothedFootTarget);
+                    if (!IsGrounded()) footRb.AddForce(Vector3.down * groundSeekForce, ForceMode.Acceleration);
                 }
             }
             else
             {
-                if (isStepping)
+                if (isStepping || isJumping)
                 {
                     ReleaseKinematicLock();
                     PerformFootSpringPhysics(smoothedFootTarget);
@@ -143,33 +143,23 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Framerate-Independent Exponential Lerp
-    /// t = 1 - exp(-speed * dt)  ทำให้ smooth rate คงที่ไม่ว่า physics timestep จะเป็นเท่าไหร่
-    /// </summary>
     private void SmoothTargets()
     {
         float t = 1f - Mathf.Exp(-targetSmoothSpeed * Time.fixedDeltaTime);
+        if (!smoothedTargetInitialized) { smoothedFootTarget = targetFootPosition; smoothedTargetInitialized = true; }
+        else smoothedFootTarget = Vector3.Lerp(smoothedFootTarget, targetFootPosition, t);
 
-        if (!smoothedTargetInitialized)  { smoothedFootTarget     = targetFootPosition; smoothedTargetInitialized  = true; }
-        else smoothedFootTarget     = Vector3.Lerp(smoothedFootTarget,     targetFootPosition,  t);
+        if (!smoothedBalanceInitialized) { smoothedBalanceTarget = balanceShiftMousePos; smoothedBalanceInitialized = true; }
+        else smoothedBalanceTarget = Vector3.Lerp(smoothedBalanceTarget, balanceShiftMousePos, t);
 
-        if (!smoothedBalanceInitialized) { smoothedBalanceTarget  = balanceShiftMousePos; smoothedBalanceInitialized = true; }
-        else smoothedBalanceTarget  = Vector3.Lerp(smoothedBalanceTarget,  balanceShiftMousePos, t);
-
-        if (!smoothedDetachedInitialized){ smoothedDetachedTarget = detachedTargetPos; smoothedDetachedInitialized = true; }
-        else smoothedDetachedTarget = Vector3.Lerp(smoothedDetachedTarget, detachedTargetPos,   t);
+        if (!smoothedDetachedInitialized) { smoothedDetachedTarget = detachedTargetPos; smoothedDetachedInitialized = true; }
+        else smoothedDetachedTarget = Vector3.Lerp(smoothedDetachedTarget, detachedTargetPos, t);
     }
 
-    /// <summary>
-    /// ล็อกเท้าด้วย Kinematic (ไม่ใช้ MovePosition บน Dynamic Rigidbody อีกต่อไป)
-    /// ป้องกัน Physics Solver ตีกับ Hover Spring ของ Torso
-    /// </summary>
     private void ApplyKinematicLock()
     {
         if (!isPlantedSet)
         {
-            // ตรวจสอบว่ามีพื้นจริงๆ ก่อนล็อก
             if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 3f, groundLayer))
             {
                 plantedPosition = hit.point;
@@ -177,101 +167,88 @@ public class PlayerFootForRobot : NetworkBehaviour
             }
             else
             {
-                // ถ้าไม่มีพื้นให้ค่อยๆ เคลื่อนลง
                 footRb.AddForce(Vector3.down * groundSeekForce, ForceMode.Acceleration);
-                return; // ไม่ล็อกถ้าไม่มีพื้น
+                return;
             }
         }
 
         if (!footRb.isKinematic)
         {
-            footRb.linearVelocity  = Vector3.zero;
+            footRb.linearVelocity = Vector3.zero;
             footRb.angularVelocity = Vector3.zero;
-            footRb.isKinematic     = true;
-            wasKinematic           = true;
+            footRb.isKinematic = true;
+            wasKinematic = true;
         }
         footRb.MovePosition(plantedPosition);
     }
 
-    /// <summary>
-    /// ปลดล็อก Kinematic กลับเป็น Dynamic พร้อม reset velocity
-    /// </summary>
     private void ReleaseKinematicLock()
     {
         isPlantedSet = false;
         if (wasKinematic && footRb.isKinematic)
         {
-            footRb.isKinematic     = false;
-            footRb.linearVelocity  = Vector3.zero;
+            footRb.isKinematic = false;
+            footRb.linearVelocity = Vector3.zero;
             footRb.angularVelocity = Vector3.zero;
-            wasKinematic           = false;
+            wasKinematic = false;
         }
     }
 
     /// <summary>
-    /// Spring-Damper สำหรับเดิน + Ragdoll foot
-    /// F = (v_desired - v_current) * damper
-    /// โดย v_desired = (target - pos) * speed
+    /// สำหรับตอน Ragdoll โดยเฉพาะ: อิสระ 100% ตามเมาส์ ไม่ผลักหนีลำตัว
     /// </summary>
-    private void PerformFootSpringPhysics(Vector3 rawTarget)
+    private void PerformRagdollFreePhysics(Vector3 rawTarget)
     {
-        Vector3 dir  = rawTarget - pivotPoint.position;
-        float   dist = dir.magnitude;
-
-        // ✅ ตรวจสอบ Ragdoll: ถ้าเท้าใกล้เกินไป ผลักออก
-        bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll
-                      || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
-
-        float effectiveMinLegLength = isRagdoll ? ragdollMinDistance : minLegLength;
-
-        // จำกัดระยะขั้นต่ำ (ป้องกัน Self-Collision + Ragdoll push away)
-        if (dist < effectiveMinLegLength)
+        Vector3 dir = rawTarget - pivotPoint.position;
+        if (dir.magnitude > maxLegLength)
         {
-            rawTarget = pivotPoint.position + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * effectiveMinLegLength;
-
-            // ✅ เมื่อ Ragdoll: ผลักเท้าออกแทนการดึงเข้า
-            if (isRagdoll && dist < effectiveMinLegLength * 0.9f)
-            {
-                Vector3 pushForce = dir.normalized * (effectiveMinLegLength - dist) * 100f;
-                footRb.AddForce(pushForce, ForceMode.Acceleration);
-                return; // ✅ ไม่ดึงเข้าเลย
-            }
-        }
-        // จำกัดระยะสูงสุด
-        else if (dist > maxLegLength)
             rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
+        }
 
         Vector3 velocityTarget = (rawTarget - footRb.position) * footMoveSpeed;
         footRb.AddForce((velocityTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
     }
 
     /// <summary>
-    /// ยืนนิ่ง: เท้าถูกล็อก (Kinematic) แล้ว ดึงลำตัวขึ้นตาม Balance Shift
-    /// ✅ ไม่ทำงานเมื่อ Ragdoll
+    /// สำหรับตอนก้าวเดิน/กระโดด: มีการเช็ค minLegLength ไม่ให้ขาพับทะลุลำตัว
     /// </summary>
+    private void PerformFootSpringPhysics(Vector3 rawTarget)
+    {
+        Vector3 dir = rawTarget - pivotPoint.position;
+        float dist = dir.magnitude;
+
+        if (dist < minLegLength)
+        {
+            rawTarget = pivotPoint.position + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * minLegLength;
+        }
+        else if (dist > maxLegLength)
+        {
+            rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
+        }
+
+        Vector3 velocityTarget = (rawTarget - footRb.position) * footMoveSpeed;
+        footRb.AddForce((velocityTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
+    }
+
     private void PerformStandingPhysics()
     {
-        // ✅ ตรวจสอบ Ragdoll: ถ้าเป็น Ragdoll ไม่ดึงเลย
-        bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll
-                      || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+        bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+        if (isRagdoll) return;
 
-        if (isRagdoll) return; // ✅ ไม่ดึงตัวเมื่อล้ม
-
-        Vector3 offset  = (smoothedBalanceTarget - pivotPoint.position) * balanceShiftMultiplier;
+        Vector3 offset = (smoothedBalanceTarget - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
         torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, pivotPoint.position, ForceMode.Acceleration);
     }
 
     private void PerformDetachedPhysics()
     {
-        // ตั้ง velocity โดยตรง (เท้าหลุดจากตัว ไม่มี Joint)
         footRb.linearVelocity = (smoothedDetachedTarget - footRb.position) * detachedMoveSpeed;
     }
 
     private Vector2 GetNormalizedMousePosition()
     {
         return new Vector2(
-            (Mathf.Clamp(Input.mousePosition.x, 0, Screen.width)  / Screen.width)  * 2f - 1f,
+            (Mathf.Clamp(Input.mousePosition.x, 0, Screen.width) / Screen.width) * 2f - 1f,
             (Mathf.Clamp(Input.mousePosition.y, 0, Screen.height) / Screen.height) * 2f - 1f
         );
     }
@@ -280,12 +257,11 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (currentState.Value == FootState.Attached)
         {
-            bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll 
-                          || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+            bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
 
             Vector2 mouseNorm = GetNormalizedMousePosition();
-            Vector3 camFwd    = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
-            Vector3 camRight  = playerCamera.transform.right;   camRight.y = 0; camRight.Normalize();
+            Vector3 camFwd = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
+            Vector3 camRight = playerCamera.transform.right; camRight.y = 0; camRight.Normalize();
             Vector3 mouseOffset = camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
 
             Vector3 newBalance = pivotPoint.position + mouseOffset;
@@ -294,39 +270,29 @@ public class PlayerFootForRobot : NetworkBehaviour
 
             if (!isRagdoll)
             {
-                bool holdingClick = Input.GetMouseButton(0);
+                if (Input.GetKeyDown(KeyCode.Space) && IsGrounded() && !isJumping)
+                {
+                    ApplyJumpRpc();
+                }
 
-                // จัดการ hold timer และ auto height
+                bool holdingClick = Input.GetMouseButton(0);
                 if (holdingClick)
                 {
                     if (!isStepping)
                     {
-                        isStepping = true;
-                        SetSteppingStateRpc(true);
-                        holdTimer = 0f;
-                        autoHeightEnabled = false;
+                        isStepping = true; SetSteppingStateRpc(true);
+                        holdTimer = 0f; autoHeightEnabled = false;
                     }
-
                     holdTimer += Time.deltaTime;
-                    if (holdTimer >= autoHeightDelay)
-                    {
-                        autoHeightEnabled = true;
-                    }
+                    if (holdTimer >= autoHeightDelay) autoHeightEnabled = true;
                 }
                 else
                 {
-                    if (isStepping)
-                    {
-                        isStepping = false;
-                        SetSteppingStateRpc(false);
-                        holdTimer = 0f;
-                        autoHeightEnabled = false;
-                    }
+                    if (isStepping) { isStepping = false; SetSteppingStateRpc(false); holdTimer = 0f; autoHeightEnabled = false; }
                 }
 
                 if (isStepping)
                 {
-                    // Manual height adjustment with Q/E
                     if (Input.GetKey(KeyCode.E)) currentYOffset += heightAdjustSpeed * Time.deltaTime;
                     if (Input.GetKey(KeyCode.Q)) currentYOffset -= heightAdjustSpeed * Time.deltaTime;
                     currentYOffset = Mathf.Clamp(currentYOffset, -maxLegLength, 0f);
@@ -334,22 +300,16 @@ public class PlayerFootForRobot : NetworkBehaviour
                     Vector3 newTarget;
                     if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
                     {
-                        // ใช้ auto height เฉพาะเมื่อกดค้างเกิน 0.5 วินาที
                         if (autoHeightEnabled)
                         {
-                            // คำนวณความสูงที่เหมาะสม
                             float pivotHeight = pivotPoint.position.y;
                             float groundHeight = hit.point.y;
                             float optimalHeight = Mathf.Clamp(pivotHeight - groundHeight, minLegLength, maxLegLength);
-                            newTarget = hit.point + Vector3.up * (optimalHeight * 0.5f); // ยกขึ้นครึ่งหนึ่งของความยาวขาที่เหมาะสม
+                            newTarget = hit.point + Vector3.up * (optimalHeight * 0.5f);
                         }
-                        else
-                        {
-                            newTarget = hit.point + Vector3.up * currentYOffset;
-                        }
+                        else newTarget = hit.point + Vector3.up * currentYOffset;
                     }
-                    else
-                        newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
+                    else newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
 
                     if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
                     { lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
@@ -368,11 +328,9 @@ public class PlayerFootForRobot : NetworkBehaviour
                 if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
                 { lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
 
-                Vector2 footXZ  = new Vector2(footRb.position.x, footRb.position.z);
+                Vector2 footXZ = new Vector2(footRb.position.x, footRb.position.z);
                 Vector2 pivotXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
-                bool validPush  = Input.GetKey(KeyCode.Q) 
-                               && Vector2.Distance(footXZ, pivotXZ) <= recoveryProximityThreshold 
-                               && IsGrounded();
+                bool validPush = Input.GetKey(KeyCode.Q) && Vector2.Distance(footXZ, pivotXZ) <= recoveryProximityThreshold && IsGrounded();
 
                 if (validPush != isPushingRecovery) { isPushingRecovery = validPush; SetRecoveryInputRpc(validPush); }
             }
@@ -380,22 +338,31 @@ public class PlayerFootForRobot : NetworkBehaviour
         else
         {
             Vector2 mouseNorm = GetNormalizedMousePosition();
-            Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
-            Vector3 camRight = playerCamera.transform.right;   camRight.y = 0; camRight.Normalize();
+            Vector3 camFwd = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
+            Vector3 camRight = playerCamera.transform.right; camRight.y = 0; camRight.Normalize();
 
             if (Physics.Raycast(footRb.position + (camRight * mouseNorm.x + camFwd * mouseNorm.y) * 5f + Vector3.up * 5f,
                                 Vector3.down, out RaycastHit hit, 10f, groundLayer))
             {
                 if (Vector3.Distance(lastSentDetached, hit.point) > RPC_SEND_THRESHOLD)
                 { lastSentDetached = hit.point; UpdateDetachedTargetRpc(hit.point); }
-            }}
+            }
+        }
     }
 
-    [Rpc(SendTo.Server)] private void SetSteppingStateRpc(bool v)    { isStepping = v; }
+    [Rpc(SendTo.Server)]
+    private void ApplyJumpRpc()
+    {
+        isJumping = true;
+        footRb.AddForce(Vector3.up * footJumpForce, ForceMode.VelocityChange);
+        torso.torsoRb.AddForce(Vector3.up * torsoJumpForce, ForceMode.Acceleration);
+    }
+
+    [Rpc(SendTo.Server)] private void SetSteppingStateRpc(bool v) { isStepping = v; }
     [Rpc(SendTo.Server)] private void UpdateFootTargetRpc(Vector3 v) { targetFootPosition = v; }
-    [Rpc(SendTo.Server)] private void UpdateBalanceShiftRpc(Vector3 v){ balanceShiftMousePos = v; }
-    [Rpc(SendTo.Server)] private void UpdateDetachedTargetRpc(Vector3 v){ detachedTargetPos = v; }
-    [Rpc(SendTo.Server)] private void SetRecoveryInputRpc(bool v)     { isPushingRecovery = v; }
+    [Rpc(SendTo.Server)] private void UpdateBalanceShiftRpc(Vector3 v) { balanceShiftMousePos = v; }
+    [Rpc(SendTo.Server)] private void UpdateDetachedTargetRpc(Vector3 v) { detachedTargetPos = v; }
+    [Rpc(SendTo.Server)] private void SetRecoveryInputRpc(bool v) { isPushingRecovery = v; }
 
     public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 3f, groundLayer);
 }
