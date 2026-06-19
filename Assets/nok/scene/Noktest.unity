@@ -2847,6 +2847,7 @@ MonoBehaviour:
   pivotPoint: {fileID: 2575685140956976044}
   playerCamera: {fileID: 0}
   maxLegLength: 9
+  minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
@@ -2855,11 +2856,14 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  targetSmoothSpeed: 12
+  standingUpwardPull: 25
   recoveryProximityThreshold: 6
   minRecoveryMultiplier: 0.5
   mouseReachX: 16
   mouseReachY: 16
-  plantedPosition: {x: 0, y: 0, z: 0}
+  autoHeightDelay: 0.5
+  groundSeekForce: 50
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -6422,7 +6426,7 @@ Transform:
   m_GameObject: {fileID: 1072517622}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -126.5, y: 3.6, z: -2.9}
+  m_LocalPosition: {x: -126.5, y: 4.63, z: -2.9}
   m_LocalScale: {x: 4.9316, y: 4.9316, z: 4.9316}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7399,6 +7403,7 @@ MonoBehaviour:
   autoCenterGravityForce: 250
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
+  ragdollRecoveryDelay: 1.5
   continuousRecoveryForce: 750
   recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
@@ -7406,6 +7411,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  armPullIntensity: 0
+  minCenterForceMultiplier: 0.15
 --- !u!43 &1182790763
 Mesh:
   m_ObjectHideFlags: 0
@@ -10071,6 +10078,34 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!1 &1664174066 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4314792279962929447, guid: e22f611d446712947839989521ddcfff, type: 3}
+  m_PrefabInstance: {fileID: 5649184483902371636}
+  m_PrefabAsset: {fileID: 0}
+--- !u!136 &1664174067
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664174066}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 2.5427275
+  m_Direction: 1
+  m_Center: {x: 0, y: -0.39758804, z: 0}
 --- !u!43 &1679503536
 Mesh:
   m_ObjectHideFlags: 0
@@ -13747,6 +13782,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
+  targetSmoothSpeed: 12
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
@@ -13785,6 +13821,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
+  targetSmoothSpeed: 12
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
@@ -13813,6 +13850,7 @@ MonoBehaviour:
   pivotPoint: {fileID: 2575685140956976041}
   playerCamera: {fileID: 0}
   maxLegLength: 9
+  minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
@@ -13821,11 +13859,14 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  targetSmoothSpeed: 12
+  standingUpwardPull: 25
   recoveryProximityThreshold: 6
   minRecoveryMultiplier: 0.5
   mouseReachX: 16
   mouseReachY: 16
-  plantedPosition: {x: 0, y: 0, z: 0}
+  autoHeightDelay: 0.5
+  groundSeekForce: 50
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2740861856955824685, guid: 694f2695c09d50949b50e5fed59cdace, type: 3}
@@ -13840,12 +13881,24 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 7.1445
+      objectReference: {fileID: 0}
+    - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 7.1445
+      objectReference: {fileID: 0}
+    - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 7.1445
+      objectReference: {fileID: 0}
+    - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: m_LocalPosition.x
       value: -65.9141
       objectReference: {fileID: 0}
     - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.68
+      value: 11.95
       objectReference: {fileID: 0}
     - target: {fileID: 3506870464074584989, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: m_LocalPosition.z
@@ -13908,12 +13961,20 @@ PrefabInstance:
       value: 0.00021477725
       objectReference: {fileID: 0}
     - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
+      propertyPath: rollSpeed
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: rollChance
       value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
+      propertyPath: attackRange
+      value: 13.14
+      objectReference: {fileID: 0}
+    - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: stopDistance
-      value: 6.45
+      value: 33.3
       objectReference: {fileID: 0}
     - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: walkThreshold
@@ -13921,12 +13982,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8295596972513580823, guid: e22f611d446712947839989521ddcfff, type: 3}
       propertyPath: rollTriggerDistance
-      value: 37.78
+      value: 56.7
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4314792279962929447, guid: e22f611d446712947839989521ddcfff, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1664174067}
   m_SourcePrefab: {fileID: 100100000, guid: e22f611d446712947839989521ddcfff, type: 3}
 --- !u!224 &8019579076263524329 stripped
 RectTransform:

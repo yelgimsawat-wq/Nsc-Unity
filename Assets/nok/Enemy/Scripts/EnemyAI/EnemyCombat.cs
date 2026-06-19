@@ -2,6 +2,7 @@
 //  EnemyCombat.cs  (Simplified)
 //  ตัดออก: การรับ Damage (IHittable), Knockback, Hitstun
 //  เหลือ: ตรวจ Hitbox ฝั่ง Server + ClientRpc สำหรับ VFX/SFX/Animator
+//  อัปเดต: แต่ละท่ามีจุดกำเนิด VFX/Hitbox แยกกัน (lightPunchOrigin, barragePunchOrigin, kickOrigin)
 // =============================================================================
 
 using System.Collections;
@@ -19,9 +20,19 @@ namespace NscGame.Enemy
         //  Inspector — Hitbox
         // ─────────────────────────────────────────
 
-        [Header("Hitbox")]
-        [Tooltip("ตำแหน่งที่เช็ค Hitbox (มักเป็น Bone กำปั้นหรือเท้า)")]
+        [Header("Hitbox - Default Origin (fallback)")]
+        [Tooltip("ตำแหน่ง fallback ถ้าไม่ได้ตั้งค่า origin เฉพาะของท่านั้นๆ")]
         [SerializeField] private Transform hitboxOrigin;
+
+        [Header("Hitbox - Per Attack Origin")]
+        [Tooltip("จุดกำเนิด Hitbox/VFX ของ Light Punch (เช่น Bone มือ)")]
+        [SerializeField] private Transform lightPunchOrigin;
+
+        [Tooltip("จุดกำเนิด Hitbox/VFX ของ Barrage Punch (เช่น Bone มือ)")]
+        [SerializeField] private Transform barragePunchOrigin;
+
+        [Tooltip("จุดกำเนิด Hitbox/VFX ของ Kick (เช่น Bone เท้า)")]
+        [SerializeField] private Transform kickOrigin;
 
         [SerializeField] private float lightPunchRadius   = 1.0f;
         [SerializeField] private float barragePunchRadius = 1.0f;
@@ -71,6 +82,25 @@ namespace NscGame.Enemy
         }
 
         // ─────────────────────────────────────────
+        //  Helper: หา Origin ของแต่ละท่า (fallback ไปที่ hitboxOrigin ถ้าไม่ได้ตั้งค่า)
+        // ─────────────────────────────────────────
+
+        private Transform GetOriginFor(AttackType type)
+        {
+            switch (type)
+            {
+                case AttackType.LightPunch:
+                    return lightPunchOrigin != null ? lightPunchOrigin : hitboxOrigin;
+                case AttackType.BarragePunch:
+                    return barragePunchOrigin != null ? barragePunchOrigin : hitboxOrigin;
+                case AttackType.Kick:
+                    return kickOrigin != null ? kickOrigin : hitboxOrigin;
+                default:
+                    return hitboxOrigin;
+            }
+        }
+
+        // ─────────────────────────────────────────
         //  SERVER: Entry Point
         //  EnemyController เรียก method นี้
         //  คืนค่าระยะเวลาของ animation (วินาที)
@@ -106,12 +136,14 @@ namespace NscGame.Enemy
         // ── Light Punch ────────────────────────────────────────────────────
         private IEnumerator ServerLightPunchRoutine()
         {
+            Transform origin = GetOriginFor(AttackType.LightPunch);
+
             // บอกทุก Client ให้เล่น Animation + VFX ทันที
-            PlayAttackEffectsClientRpc(AttackType.LightPunch, hitboxOrigin.position);
+            PlayAttackEffectsClientRpc(AttackType.LightPunch, origin.position);
 
             yield return new WaitForSeconds(0.2f);  // wind-up ก่อน hitbox ทำงาน
 
-            Collider[] hits = Physics.OverlapSphere(hitboxOrigin.position, lightPunchRadius, playerLayer);
+            Collider[] hits = Physics.OverlapSphere(origin.position, lightPunchRadius, playerLayer);
             foreach (Collider col in hits)
             {
                 IHittable target = col.GetComponent<IHittable>();
@@ -119,7 +151,7 @@ namespace NscGame.Enemy
                 {
                     target.ServerTakeDamage(lightPunchDamage, AttackType.LightPunch);
                     SpawnHitConfirmClientRpc(AttackType.LightPunch,
-                                            col.ClosestPoint(hitboxOrigin.position));
+                                            col.ClosestPoint(origin.position));
                 }
             }
         }
@@ -127,13 +159,15 @@ namespace NscGame.Enemy
         // ── Barrage Punch ──────────────────────────────────────────────────
         private IEnumerator ServerBarrageRoutine()
         {
-            PlayAttackEffectsClientRpc(AttackType.BarragePunch, hitboxOrigin.position);
+            Transform origin = GetOriginFor(AttackType.BarragePunch);
+
+            PlayAttackEffectsClientRpc(AttackType.BarragePunch, origin.position);
 
             for (int i = 0; i < barrageHitCount; i++)
             {
                 yield return new WaitForSeconds(barrageHitInterval);
 
-                Collider[] hits = Physics.OverlapSphere(hitboxOrigin.position, barragePunchRadius, playerLayer);
+                Collider[] hits = Physics.OverlapSphere(origin.position, barragePunchRadius, playerLayer);
                 foreach (Collider col in hits)
                 {
                     IHittable target = col.GetComponent<IHittable>();
@@ -141,7 +175,7 @@ namespace NscGame.Enemy
                     {
                         target.ServerTakeDamage(barragePunchDamage, AttackType.BarragePunch);
                         SpawnHitConfirmClientRpc(AttackType.BarragePunch,
-                                                col.ClosestPoint(hitboxOrigin.position));
+                                                col.ClosestPoint(origin.position));
                     }
                 }
             }
@@ -150,11 +184,13 @@ namespace NscGame.Enemy
         // ── Kick ──────────────────────────────────────────────────────────
         private IEnumerator ServerKickRoutine()
         {
-            PlayAttackEffectsClientRpc(AttackType.Kick, hitboxOrigin.position);
+            Transform origin = GetOriginFor(AttackType.Kick);
+
+            PlayAttackEffectsClientRpc(AttackType.Kick, origin.position);
 
             yield return new WaitForSeconds(0.35f);
 
-            Collider[] hits = Physics.OverlapSphere(hitboxOrigin.position, kickRadius, playerLayer);
+            Collider[] hits = Physics.OverlapSphere(origin.position, kickRadius, playerLayer);
             foreach (Collider col in hits)
             {
                 IHittable target = col.GetComponent<IHittable>();
@@ -162,7 +198,7 @@ namespace NscGame.Enemy
                 {
                     target.ServerTakeDamage(kickDamage, AttackType.Kick);
                     SpawnHitConfirmClientRpc(AttackType.Kick,
-                                            col.ClosestPoint(hitboxOrigin.position));
+                                            col.ClosestPoint(origin.position));
                 }
             }
         }
@@ -235,13 +271,26 @@ namespace NscGame.Enemy
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
-            if (hitboxOrigin == null) return;
-            Gizmos.color = Color.magenta;
-            Gizmos.DrawWireSphere(hitboxOrigin.position, lightPunchRadius);
-            Gizmos.color = new Color(1f, 0.5f, 0f);
-            Gizmos.DrawWireSphere(hitboxOrigin.position, barragePunchRadius);
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(hitboxOrigin.position, kickRadius);
+            Transform lpOrigin = GetOriginFor(AttackType.LightPunch);
+            if (lpOrigin != null)
+            {
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawWireSphere(lpOrigin.position, lightPunchRadius);
+            }
+
+            Transform bpOrigin = GetOriginFor(AttackType.BarragePunch);
+            if (bpOrigin != null)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f);
+                Gizmos.DrawWireSphere(bpOrigin.position, barragePunchRadius);
+            }
+
+            Transform kOrigin = GetOriginFor(AttackType.Kick);
+            if (kOrigin != null)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(kOrigin.position, kickRadius);
+            }
         }
 #endif
     }
