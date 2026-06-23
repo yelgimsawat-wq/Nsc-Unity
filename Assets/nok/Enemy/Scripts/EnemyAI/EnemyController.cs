@@ -1,35 +1,31 @@
 // =============================================================================
-//  !! ขึ้นอยู่กับ EnemyHealth.cs และ EnemyRagdoll.cs !!
-//  เพิ่ม RequireComponent ด้านล่างถ้า EnemyHealth ถูก add ด้วย
 //  EnemyController.cs
-//  States: Idle → Walk → Roll (dash เข้าหา) → Attack → Dead
-//  ตัดออก: Run, Stagger (รับหมัด)
+//  Server-authoritative AI state machine: Idle → Walk → Roll → Attack → Dead
 //
-//  BLEND TREE SETUP (Unity Animator)
+//  Animator Blend Tree Setup:
 //  ─────────────────────────────────────────────────────────────────────────
 //  Layer 0 – Base Layer
 //    └─ BlendTree (1D, Parameter: "Speed")
-//         ├─ Armature_idle  @ threshold 0.0
-//         └─ Armature_walk  @ threshold 0.5
+//         ├─ Idle @ 0.0
+//         └─ Walk @ 0.5
 //
-//  Layer 1 – Roll Layer (Override, controlled by bool "IsRolling")
-//    └─ BlendTree (2D Freeform Directional, Parameters: "RollX", "RollY")
-//         ├─ Armature_roll (forward)  @ (0,  1)
-//         ├─ Armature_roll (backward) @ (0, -1)
-//         ├─ Armature_roll (left)     @ (-1, 0)
-//         └─ Armature_roll (right)    @ ( 1, 0)
+//  Layer 1 – Roll Layer (Override, bool "IsRolling")
+//    └─ BlendTree (2D Freeform Directional, "RollX", "RollY")
+//         ├─ Roll Forward  @ (0,  1)
+//         ├─ Roll Backward @ (0, -1)
+//         ├─ Roll Left     @ (-1, 0)
+//         └─ Roll Right    @ ( 1, 0)
 //
 //  Layer 2 – Attack Layer (Override)
-//    ├─ Trigger "LightPunch"   → Armature_Punch
-//    ├─ Trigger "BarragePunch" → Armature_PunchCombo
-//    └─ Trigger "Kick"         → Armature_kick
+//    ├─ Trigger "LightPunch"   → Punch animation
+//    ├─ Trigger "BarragePunch" → Combo animation
+//    └─ Trigger "Kick"         → Kick animation
 // =============================================================================
 
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
-using NscGame.Enemy;
 
 namespace NscGame.Enemy
 {
@@ -39,57 +35,51 @@ namespace NscGame.Enemy
     [RequireComponent(typeof(EnemyCombat))]
     public class EnemyController : NetworkBehaviour
     {
-        // ─────────────────────────────────────────
-        //  Inspector
-        // ─────────────────────────────────────────
+        #region Inspector Fields
 
-        [Header("Movement Thresholds")]
-        [Tooltip("ระยะที่ enemy จะหยุดกลิ้ง แล้วเปลี่ยนเป็นเดินต่อ (ไม่ใช่หยุดเดินทั้งหมด)")]
-        [SerializeField] private float stopDistance  = 2.5f;
+        [Header("Detection Ranges")]
+        [Tooltip("Attack range - enemy stops completely and attacks")]
+        [SerializeField] private float attackRange = 1.5f;
 
-        [Tooltip("ระยะที่เริ่มต่อยจริง — หยุดเคลื่อนที่สนิทตรงนี้ แยกอิสระจาก Stop Distance")]
-        [SerializeField] private float attackRange   = 1.5f;
+        [Tooltip("Stop distance - enemy switches from roll to walk")]
+        [SerializeField] private float stopDistance = 2.5f;
 
-        [Tooltip("ระยะที่เริ่มเดินเข้าหาผู้เล่น")]
+        [Tooltip("Roll trigger distance - enemy starts continuous rolling")]
+        [SerializeField] private float rollTriggerDistance = 8.0f;
+
+        [Tooltip("Walk threshold - maximum detection range")]
         [SerializeField] private float walkThreshold = 12.0f;
 
         [Header("Movement Speed")]
         [SerializeField] private float walkSpeed = 2.5f;
-
-        [Header("Roll / Continuous")]
-        [Tooltip("ถ้าระยะห่างน้อยกว่านี้ ศัตรูจะเปลี่ยนจากเดินเป็นกลิ้งต่อเนื่อง")]
-        [SerializeField] private float rollTriggerDistance = 8.0f;
-
-        [Tooltip("ความเร็วของการกลิ้ง")]
-        [SerializeField] private float rollSpeed     = 6.0f;
+        [SerializeField] private float rollSpeed = 6.0f;
 
         [Header("Animator Smoothing")]
         [SerializeField] private float speedDampTime = 0.15f;
 
-        [Header("Attack Settings")]
-        [Tooltip("เวลาตัดสินใจใหม่ระหว่างยืนรอ (ไม่ใช่ cooldown หลังตี)")]
+        [Header("Attack Timing")]
+        [Tooltip("Decision interval while idle in attack range")]
         [SerializeField] private float attackDecisionInterval = 0.5f;
 
-        [Tooltip("ช่วงพักหลังจบคอมโบ ก่อนจะเริ่มตัดสินใจโจมตีรอบใหม่ (วินาที)")]
+        [Tooltip("Cooldown after combo finishes")]
         [SerializeField] private float postAttackCooldown = 1.0f;
 
-        [Tooltip("ช่วงพักสั้นๆ ระหว่างแต่ละครั้งของท่าเดียวกันตอนตีซ้ำในคอมโบ")]
+        [Tooltip("Short delay between repeated attacks in combo")]
         [SerializeField] private float comboRepeatGap = 0.15f;
 
-        [Header("Attack Weights (สัดส่วนการสุ่มเลือกท่า — ไม่ต้องรวมเป็น 100)")]
-        [SerializeField] private float lightPunchWeight   = 40f;
+        [Header("Attack Selection Weights")]
+        [SerializeField] private float lightPunchWeight = 40f;
         [SerializeField] private float barragePunchWeight = 30f;
-        [SerializeField] private float kickWeight         = 30f;
+        [SerializeField] private float kickWeight = 30f;
 
-        [Header("Attack Repeat Range (ตีซ้ำกี่ครั้งติดกันต่อ 1 คอมโบ — สุ่มในช่วงนี้)")]
-        [Tooltip("X = ขั้นต่ำ, Y = ขั้นสูงสุด ของจำนวนครั้งที่ตีซ้ำติดกัน")]
-        [SerializeField] private Vector2Int lightPunchRepeatRange   = new Vector2Int(1, 1);
+        [Header("Attack Repeat Count (Min, Max)")]
+        [SerializeField] private Vector2Int lightPunchRepeatRange = new Vector2Int(1, 1);
         [SerializeField] private Vector2Int barragePunchRepeatRange = new Vector2Int(1, 3);
-        [SerializeField] private Vector2Int kickRepeatRange         = new Vector2Int(1, 1);
+        [SerializeField] private Vector2Int kickRepeatRange = new Vector2Int(1, 1);
 
-        // ─────────────────────────────────────────
-        //  NetworkVariables (Server writes → All read)
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Network Variables
 
         private NetworkVariable<EnemyState> netState = new NetworkVariable<EnemyState>(
             EnemyState.Idle,
@@ -106,42 +96,41 @@ namespace NscGame.Enemy
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
-        // ─────────────────────────────────────────
-        //  Private
-        // ─────────────────────────────────────────
+        #endregion
 
-        private NavMeshAgent  agent;
-        private Animator      animator;
-        private EnemyCombat   combat;
-        private EnemyRagdoll  ragdoll;
-        private Transform     playerTarget;
+        #region Private Fields
+
+        private NavMeshAgent agent;
+        private Animator animator;
+        private EnemyCombat combat;
+        private EnemyRagdoll ragdoll;
+        private Transform playerTarget;
 
         private float attackDecTimer = 0f;
-        private bool  isActing       = false;
+        private bool isActing = false;
 
-        // ─────────────────────────────────────────
-        //  Unity Lifecycle
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Unity Lifecycle
 
         private void Awake()
         {
-            agent    = GetComponent<NavMeshAgent>();
+            agent = GetComponent<NavMeshAgent>();
             animator = GetComponent<Animator>();
-            combat   = GetComponent<EnemyCombat>();
-            ragdoll  = GetComponent<EnemyRagdoll>();
+            combat = GetComponent<EnemyCombat>();
+            ragdoll = GetComponent<EnemyRagdoll>();
 
             agent.updateRotation = true;
-            agent.angularSpeed   = 300f;
-
-            agent.stoppingDistance = attackRange;
-            agent.autoBraking      = true;
+            agent.angularSpeed = 300f;
+            agent.stoppingDistance = 0f; // Manual control via isStopped
+            agent.autoBraking = true;
         }
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
 
-            netState.OnValueChanged  += OnStateChanged;
+            netState.OnValueChanged += OnStateChanged;
             netRollDir.OnValueChanged += OnRollDirChanged;
 
             if (IsServer)
@@ -156,7 +145,7 @@ namespace NscGame.Enemy
 
         public override void OnNetworkDespawn()
         {
-            netState.OnValueChanged   -= OnStateChanged;
+            netState.OnValueChanged -= OnStateChanged;
             netRollDir.OnValueChanged -= OnRollDirChanged;
             base.OnNetworkDespawn();
         }
@@ -165,18 +154,13 @@ namespace NscGame.Enemy
         {
             if (animator != null)
             {
-                animator.SetFloat("Speed", netSpeed.Value);
-
-                if (netSpeed.Value > 0f)
-                {
-                    Debug.Log($"[EnemyController] ส่งค่าเดิน {netSpeed.Value} ไปที่ Animator");
-                }
+                animator.SetFloat(EnemyAnimParam.Speed, netSpeed.Value);
             }
         }
 
-        // ─────────────────────────────────────────
-        //  SERVER: Decision Loop
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Server - Decision Loop
 
         private IEnumerator ServerDecisionLoop()
         {
@@ -197,11 +181,11 @@ namespace NscGame.Enemy
 
                 float dist = Vector3.Distance(transform.position, playerTarget.position);
 
-                // ── Priority 1: ใกล้พอจะโจมตี → หยุดจริง + ตี ──────────────
+                // Priority 1: Attack range - stop and attack
                 if (dist <= attackRange)
                 {
                     agent.isStopped = true;
-                    netSpeed.Value  = 0f;
+                    netSpeed.Value = 0f;
 
                     if (attackDecTimer <= 0f)
                     {
@@ -213,22 +197,20 @@ namespace NscGame.Enemy
                         SetState(EnemyState.Idle);
                     }
                 }
-
-                // ── Priority 2: เลยจุดหยุดกลิ้งแล้ว แต่ยังไม่ถึงระยะตี → เดินต่อ ──
-                else if (dist <= stopDistance)
+                // Priority 2: Stop distance - walk closer (between roll end and attack range)
+                else if (dist <= stopDistance && dist > attackRange)
                 {
                     agent.isStopped = false;
-                    agent.speed     = walkSpeed;
+                    agent.speed = walkSpeed;
                     agent.SetDestination(playerTarget.position);
-                    netSpeed.Value  = 0.5f;
+                    netSpeed.Value = 0.5f;
                     SetState(EnemyState.Walk);
                 }
-
-                // ── Priority 3: อยู่ในระยะกลิ้ง → กลิ้งต่อเนื่องเข้าหา ───────
-                else if (dist <= rollTriggerDistance)
+                // Priority 3: Roll distance - continuous rolling toward player
+                else if (dist <= rollTriggerDistance && dist > stopDistance)
                 {
                     agent.isStopped = false;
-                    agent.speed     = rollSpeed;
+                    agent.speed = rollSpeed;
                     agent.SetDestination(playerTarget.position);
 
                     Vector3 localVel = transform.InverseTransformDirection(agent.velocity.normalized);
@@ -236,47 +218,44 @@ namespace NscGame.Enemy
 
                     SetState(EnemyState.Roll);
                 }
-
-                // ── Priority 4: ในระยะตรวจจับ → เดิน ────────────────────
-                else if (dist <= walkThreshold)
+                // Priority 4: Walk threshold - normal walk approach
+                else if (dist <= walkThreshold && dist > rollTriggerDistance)
                 {
                     agent.isStopped = false;
-                    agent.speed     = walkSpeed;
+                    agent.speed = walkSpeed;
                     agent.SetDestination(playerTarget.position);
-                    netSpeed.Value  = 0.5f;
+                    netSpeed.Value = 0.5f;
                     SetState(EnemyState.Walk);
                 }
-
-                // ── Priority 5: นอกระยะ → Idle ───────────────────────────
+                // Priority 5: Out of range - idle
                 else
                 {
                     agent.isStopped = true;
-                    netSpeed.Value  = 0f;
+                    netSpeed.Value = 0f;
                     SetState(EnemyState.Idle);
                 }
             }
         }
 
-        // ─────────────────────────────────────────
-        //  SERVER: Attack Selection (สุ่ม + คอมโบ)
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Server - Attack System
 
         private void ChooseAndExecuteAttack()
         {
             if (isActing) return;
 
             AttackType chosen = PickWeightedAttack();
-            int repeatCount   = GetRepeatCountFor(chosen);
+            int repeatCount = GetRepeatCountFor(chosen);
 
             SetState(EnemyState.Attack);
             StartCoroutine(ExecuteAttackComboCoroutine(chosen, repeatCount));
         }
 
-        /// <summary>สุ่มเลือกท่าตามสัดส่วน Weight ที่ตั้งไว้</summary>
         private AttackType PickWeightedAttack()
         {
             float totalWeight = lightPunchWeight + barragePunchWeight + kickWeight;
-            if (totalWeight <= 0f) totalWeight = 1f; // กันหารด้วย 0
+            if (totalWeight <= 0f) totalWeight = 1f;
 
             float roll = Random.value * totalWeight;
 
@@ -288,32 +267,31 @@ namespace NscGame.Enemy
                 return AttackType.Kick;
         }
 
-        /// <summary>สุ่มจำนวนครั้งที่จะตีซ้ำติดกัน ตามช่วงที่ตั้งไว้ของท่านั้นๆ</summary>
         private int GetRepeatCountFor(AttackType type)
         {
             Vector2Int range = type switch
             {
-                AttackType.LightPunch   => lightPunchRepeatRange,
+                AttackType.LightPunch => lightPunchRepeatRange,
                 AttackType.BarragePunch => barragePunchRepeatRange,
-                AttackType.Kick         => kickRepeatRange,
-                _                       => new Vector2Int(1, 1)
+                AttackType.Kick => kickRepeatRange,
+                _ => new Vector2Int(1, 1)
             };
 
             int min = Mathf.Max(1, range.x);
             int max = Mathf.Max(min, range.y);
 
-            return Random.Range(min, max + 1); // Random.Range(int,int) max เป็น exclusive จึง +1
+            return Random.Range(min, max + 1);
         }
 
-        /// <summary>ตีท่าเดียวกันซ้ำตาม repeatCount โดยเช็คระยะใหม่ก่อนตีแต่ละครั้ง</summary>
         private IEnumerator ExecuteAttackComboCoroutine(AttackType type, int repeatCount)
         {
             isActing = true;
 
             for (int i = 0; i < repeatCount; i++)
             {
-                // ถ้าผู้เล่นหนีออกนอกระยะระหว่างคอมโบ ให้หยุดคอมโบทันที
+                // Stop combo if player moves out of range
                 if (playerTarget == null) break;
+
                 float dist = Vector3.Distance(transform.position, playerTarget.position);
                 if (dist > attackRange) break;
 
@@ -327,7 +305,6 @@ namespace NscGame.Enemy
 
             SetState(EnemyState.Idle);
 
-            // ── ช่วงพักหลังจบคอมโบ ก่อนจะกลับไปตัดสินใจใหม่ ──
             if (postAttackCooldown > 0f)
                 yield return new WaitForSeconds(postAttackCooldown);
 
@@ -340,9 +317,9 @@ namespace NscGame.Enemy
                 netState.Value = newState;
         }
 
-        // ─────────────────────────────────────────
-        //  CLIENT: NetworkVariable Callbacks → Animator
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Client - Network Callbacks
 
         private void OnStateChanged(EnemyState previous, EnemyState current)
         {
@@ -369,17 +346,18 @@ namespace NscGame.Enemy
             animator.SetFloat(EnemyAnimParam.RollY, current.y);
         }
 
-        // ─────────────────────────────────────────
-        //  Public API
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Public API
 
         public void ServerDie()
         {
             if (!IsServer) return;
+
             StopAllCoroutines();
             agent.isStopped = true;
-            agent.enabled   = false;
-            isActing        = true;
+            agent.enabled = false;
+            isActing = true;
             SetState(EnemyState.Dead);
 
             TriggerRagdollClientRpc(Vector3.zero);
@@ -391,10 +369,6 @@ namespace NscGame.Enemy
             if (ragdoll != null)
                 ragdoll.EnableRagdoll(impactForce);
         }
-
-        // ─────────────────────────────────────────
-        //  PUBLIC: Knockback Pause API
-        // ─────────────────────────────────────────
 
         public void ServerBeginKnockback()
         {
@@ -408,6 +382,10 @@ namespace NscGame.Enemy
             isActing = false;
             SetState(EnemyState.Idle);
         }
+
+        #endregion
+
+        #region Debug Gizmos
 
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
@@ -425,5 +403,7 @@ namespace NscGame.Enemy
             Gizmos.DrawWireSphere(transform.position, walkThreshold);
         }
 #endif
+
+        #endregion
     }
 }

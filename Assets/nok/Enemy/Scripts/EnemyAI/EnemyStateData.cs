@@ -1,16 +1,20 @@
 // =============================================================================
 //  EnemyStateData.cs
-//  States: Idle, Walk, Roll, Attack, Dead
-//  ตัดออก: Run, Stagger
+//  Shared data types for Enemy AI system
+//
+//  Contains:
+//  - EnemyState: State machine states (Idle, Walk, Roll, Attack, Dead)
+//  - AttackType: Enemy attack variations
+//  - EnemyAnimParam: Cached Animator parameter hashes for performance
 // =============================================================================
 
 using UnityEngine;
 
 namespace NscGame.Enemy
 {
-    // ─────────────────────────────────────────────
-    //  State Machine Enum
-    // ─────────────────────────────────────────────
+    /// <summary>
+    /// Enemy AI state machine states
+    /// </summary>
     public enum EnemyState : byte
     {
         Idle   = 0,
@@ -20,9 +24,9 @@ namespace NscGame.Enemy
         Dead   = 4
     }
 
-    // ─────────────────────────────────────────────
-    //  Attack Type Enum
-    // ─────────────────────────────────────────────
+    /// <summary>
+    /// Enemy attack types for combat system
+    /// </summary>
     public enum AttackType : byte
     {
         None         = 0,
@@ -31,27 +35,26 @@ namespace NscGame.Enemy
         Kick         = 3
     }
 
-    // ─────────────────────────────────────────────
-    //  Animator Parameter Hashes
-    //  ชื่อต้องตรงกับ Parameter ใน Unity Animator
-    // ─────────────────────────────────────────────
+    /// <summary>
+    /// Cached Animator parameter hashes for performance
+    /// Parameter names must match exactly with Unity Animator Controller
+    /// </summary>
     public static class EnemyAnimParam
     {
-        // 1D Blend Tree — Idle / Walk (parameter: "Speed")
-        // 0.0 = Idle,  0.5 = Walk
+        // Movement: 1D Blend Tree "Speed" (0.0 = Idle, 0.5 = Walk)
         public static readonly int Speed        = Animator.StringToHash("Speed");
 
-        // 2D Blend Tree — Roll Direction (parameters: "RollX", "RollY")
+        // Roll: 2D Blend Tree directional parameters
         public static readonly int RollX        = Animator.StringToHash("RollX");
         public static readonly int RollY        = Animator.StringToHash("RollY");
         public static readonly int IsRolling    = Animator.StringToHash("IsRolling");
 
-        // Attack Triggers
+        // Combat: Attack triggers
         public static readonly int LightPunch   = Animator.StringToHash("LightPunch");
         public static readonly int BarragePunch = Animator.StringToHash("BarragePunch");
         public static readonly int Kick         = Animator.StringToHash("Kick");
 
-        // Death
+        // Death state
         public static readonly int IsDead       = Animator.StringToHash("IsDead");
     }
 }

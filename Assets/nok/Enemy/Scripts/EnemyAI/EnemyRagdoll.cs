@@ -1,117 +1,103 @@
 // =============================================================================
 //  EnemyRagdoll.cs
-//  จัดการการสลับระหว่าง Animator (ปกติ) ↔ Ragdoll Physics (ตาย)
+//  Manages Animator ↔ Ragdoll Physics transition on death
 //
-//  วิธีใช้:
-//  1. Add script นี้ไปที่ Enemy Prefab (root)
-//  2. ตั้งค่า Ragdoll ใน Inspector ก่อน (ดู Setup ด้านล่าง)
-//  3. EnemyController.ServerDie() จะเรียก ClientRpc → EnableRagdoll()
-//
-//  SETUP (ทำครั้งเดียวใน Unity):
+//  Setup in Unity (one-time):
 //  ─────────────────────────────────────────────────────────────────────────
-//  1. เลือก Enemy Prefab
-//  2. เมนู: GameObject → 3D Object → Ragdoll...
-//  3. ลาก Bone ใส่ช่อง Root, Hips, Spine, Head, LeftArm, RightArm, LeftLeg, RightLeg
-//  4. กด Create → Unity สร้าง Rigidbody + Collider + CharacterJoint อัตโนมัติ
-//  5. Script นี้จะ disable Rigidbody ทั้งหมดตอน Awake และเปิดเมื่อตาย
+//  1. Select Enemy Prefab
+//  2. GameObject → 3D Object → Ragdoll...
+//  3. Assign bones (Root, Hips, Spine, Head, Arms, Legs)
+//  4. Click Create → Unity auto-generates Rigidbody + Collider + CharacterJoint
+//  5. This script disables all Rigidbodies on Awake, enables on death
 // =============================================================================
 
+using System.Collections;
 using UnityEngine;
 using Unity.Netcode;
 
 namespace NscGame.Enemy
 {
     /// <summary>
-    /// ทำงานบนทุก Client (ไม่ต้อง IsServer)
-    /// เพราะ Ragdoll เป็นแค่ Visual Effect ฝั่ง Client
+    /// Client-side visual effect for death ragdoll
+    /// Works on all clients, no server authority needed
     /// </summary>
     public class EnemyRagdoll : NetworkBehaviour
     {
-        // ─────────────────────────────────────────
-        //  Inspector
-        // ─────────────────────────────────────────
+        #region Inspector Fields
 
         [Header("Ragdoll Settings")]
-        [Tooltip("แรงที่ใช้ผลักร่างเมื่อตาย (ถ้าไม่ต้องการให้ล้มตรงๆ)")]
+        [Tooltip("Impulse force applied on death")]
         [SerializeField] private float deathImpulseForce = 3f;
 
-        [Tooltip("ทิศทาง Force เมื่อตาย (world space) — ถ้าปล่อยว่างจะล้มตรงลง")]
+        [Tooltip("Force direction on death (world space). Zero = no force")]
         [SerializeField] private Vector3 deathForceDirection = Vector3.zero;
 
-        [Tooltip("Fade out ร่างหลังจาก (วินาที) — 0 = ไม่ Fade")]
+        [Tooltip("Delay before fading out body (0 = no fade)")]
         [SerializeField] private float disappearDelay = 5f;
 
-        // ─────────────────────────────────────────
-        //  Private
-        // ─────────────────────────────────────────
+        #endregion
 
-        private Animator       animator;
-        private Rigidbody[]    ragdollBodies;   // Rigidbody ทุกชิ้นของกระดูก
-        private Collider[]     ragdollColliders;
-        private Collider       mainCollider;     // Capsule Collider หลักของ Enemy root
+        #region Private Fields
 
-        private bool           isRagdollActive = false;
+        private Animator animator;
+        private Rigidbody[] ragdollBodies;
+        private Collider[] ragdollColliders;
+        private Collider mainCollider;
+        private bool isRagdollActive = false;
 
-        // ─────────────────────────────────────────
-        //  Unity Lifecycle
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Unity Lifecycle
 
         private void Awake()
         {
-            animator         = GetComponent<Animator>();
-            mainCollider     = GetComponent<Collider>(); // CapsuleCollider บน root
+            animator = GetComponent<Animator>();
+            mainCollider = GetComponent<Collider>();
 
-            // เก็บ Rigidbody และ Collider ทุกชิ้นของกระดูก
-            // (ไม่รวม root ของตัว Enemy เอง)
-            ragdollBodies    = GetComponentsInChildren<Rigidbody>();
+            ragdollBodies = GetComponentsInChildren<Rigidbody>();
             ragdollColliders = GetComponentsInChildren<Collider>();
 
-            // ปิด Ragdoll ทั้งหมดตอนเริ่ม
             SetRagdollActive(false);
         }
 
-        // ─────────────────────────────────────────
-        //  Public API — เรียกจาก EnemyController
-        // ─────────────────────────────────────────
+        #endregion
+
+        #region Public API
 
         /// <summary>
-        ///  เปิด Ragdoll พร้อม optional Force (เช่น ถูกเตะกระเด็น)
-        ///  เรียกได้จาก ClientRpc ใน EnemyController
+        /// Enable ragdoll physics with optional impact force
+        /// Called from EnemyController via ClientRpc
         /// </summary>
+        /// <param name="impactForce">Directional force to apply. Zero = use default death force</param>
         public void EnableRagdoll(Vector3 impactForce = default)
         {
             if (isRagdollActive) return;
             isRagdollActive = true;
 
-            // ปิด Animator — หยุด Animation ทันที
             animator.enabled = false;
 
-            // ปิด Main Collider ของ root (ไม่งั้นจะชนกัน)
             if (mainCollider != null)
                 mainCollider.enabled = false;
 
-            // เปิด Ragdoll Physics
             SetRagdollActive(true);
 
-            // ใส่แรงผลัก (ถ้ามี)
+            // Apply death force to ragdoll
             Vector3 force = impactForce != default
                 ? impactForce
                 : deathForceDirection.normalized * deathImpulseForce;
 
             if (force != Vector3.zero)
             {
-                // ใส่ force ที่ Rigidbody ของ Hips (กลางร่าง) เพื่อผลักทั้งตัว
-                Rigidbody hipsRb = ragdollBodies.Length > 0 ? ragdollBodies[0] : null;
+                Rigidbody hipsRb = FindHipsRigidbody();
                 if (hipsRb != null)
                     hipsRb.AddForce(force, ForceMode.Impulse);
             }
 
-            // เริ่ม Fade / Disappear
             if (disappearDelay > 0f)
                 Invoke(nameof(StartDisappear), disappearDelay);
         }
 
-        /// <summary>ปิด Ragdoll และคืนการควบคุมให้ Animator (ถ้าต้องการ Get Up)</summary>
+        /// <summary>Disable ragdoll and return control to Animator (for get-up animations)</summary>
         public void DisableRagdoll()
         {
             if (!isRagdollActive) return;
@@ -124,25 +110,37 @@ namespace NscGame.Enemy
                 mainCollider.enabled = true;
         }
 
-        // ─────────────────────────────────────────
-        //  Private Helpers
-        // ─────────────────────────────────────────
+        #endregion
 
-        /// <summary>Toggle Rigidbody.isKinematic และ Collider.enabled บนทุก Bone</summary>
+        #region Private Helpers
+
+        /// <summary>Toggle physics on all ragdoll bones</summary>
         private void SetRagdollActive(bool active)
         {
             foreach (Rigidbody rb in ragdollBodies)
             {
-                rb.isKinematic = !active;   // active=true → ปิด kinematic → ฟิสิกส์ทำงาน
-                rb.useGravity  = active;
+                rb.isKinematic = !active;
+                rb.useGravity = active;
             }
 
             foreach (Collider col in ragdollColliders)
             {
-                // ไม่แตะ main collider ของ root
                 if (col == mainCollider) continue;
                 col.enabled = active;
             }
+        }
+
+        /// <summary>Find Hips rigidbody by name (common ragdoll bone)</summary>
+        private Rigidbody FindHipsRigidbody()
+        {
+            foreach (Rigidbody rb in ragdollBodies)
+            {
+                if (rb.name.ToLower().Contains("hips") || rb.name.ToLower().Contains("pelvis"))
+                    return rb;
+            }
+
+            // Fallback to first rigidbody if Hips not found
+            return ragdollBodies.Length > 0 ? ragdollBodies[0] : null;
         }
 
         private void StartDisappear()
@@ -150,18 +148,16 @@ namespace NscGame.Enemy
             StartCoroutine(FadeAndDestroy());
         }
 
-        private System.Collections.IEnumerator FadeAndDestroy()
+        private IEnumerator FadeAndDestroy()
         {
-            // รวบรวม Renderer ทั้งหมด
             Renderer[] renderers = GetComponentsInChildren<Renderer>();
+            Material[][] materials = new Material[renderers.Length][];
 
-            // Cache materials
-            Material[][] mats = new Material[renderers.Length][];
             for (int i = 0; i < renderers.Length; i++)
-                mats[i] = renderers[i].materials;
+                materials[i] = renderers[i].materials;
 
+            const float fadeDuration = 2f;
             float elapsed = 0f;
-            float fadeDuration = 2f;
 
             while (elapsed < fadeDuration)
             {
@@ -170,9 +166,9 @@ namespace NscGame.Enemy
 
                 for (int i = 0; i < renderers.Length; i++)
                 {
-                    foreach (Material mat in mats[i])
+                    foreach (Material mat in materials[i])
                     {
-                        // ต้องใช้ Shader ที่รองรับ Transparency (URP: Lit + Alpha Clipping)
+                        // Note: Requires URP shader with Transparent surface type
                         if (mat.HasProperty("_BaseColor"))
                         {
                             Color c = mat.GetColor("_BaseColor");
@@ -185,11 +181,13 @@ namespace NscGame.Enemy
                 yield return null;
             }
 
-            // Despawn บน Server — destroy ทุก Client อัตโนมัติ
+            // Network despawn if on server, otherwise local destroy
             if (IsServer && TryGetComponent<NetworkObject>(out var netObj))
                 netObj.Despawn();
             else if (!IsServer)
                 Destroy(gameObject);
         }
+
+        #endregion
     }
 }
