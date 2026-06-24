@@ -14325,16 +14325,22 @@ PrefabInstance:
       addedObject: {fileID: 877449105}
     - targetCorrespondingSourceObject: {fileID: 6992320712446299069, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2575685140956976052}
+      addedObject: {fileID: 2575685140956976055}
     - targetCorrespondingSourceObject: {fileID: 6992320712446299069, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2575685140956976055}
-    - targetCorrespondingSourceObject: {fileID: 4198916813697605327, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      addedObject: {fileID: 2575685140956976060}
+    - targetCorrespondingSourceObject: {fileID: 6992320712446299069, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2575685140956976051}
+      addedObject: {fileID: 2575685140956976059}
     - targetCorrespondingSourceObject: {fileID: 4198916813697605327, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2575685140956976054}
+    - targetCorrespondingSourceObject: {fileID: 4198916813697605327, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2575685140956976058}
+    - targetCorrespondingSourceObject: {fileID: 4198916813697605327, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2575685140956976057}
   m_SourcePrefab: {fileID: 100100000, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
 --- !u!54 &2575685140956976036 stripped
 Rigidbody:
@@ -14411,86 +14417,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 6992320712446299069, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
   m_PrefabInstance: {fileID: 2575685140956976035}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &2575685140956976051
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2575685140956976049}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0c9111d23b602644d9ec8c971ef84d34, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  torso: {fileID: 1162042576}
-  handRb: {fileID: 2575685140956976045}
-  pivotPoint: {fileID: 2575685140956976039}
-  playerCamera: {fileID: 0}
-  maxArmLength: 9.5
-  handMoveSpeed: 15
-  handDamper: 10
-  planeYOffsetSpeed: 3
-  grabRadius: 1
-  torsoPullForce: 10
-  kinematicPullForce: 20
-  detachedMoveSpeed: 20
-  grabLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  targetSmoothSpeed: 12
-  mouseReachX: 8
-  mouseReachY: 8
-  mouseReachDepth: 2
---- !u!114 &2575685140956976052
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2575685140956976050}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0c9111d23b602644d9ec8c971ef84d34, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandMovement
-  ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  torso: {fileID: 1162042576}
-  handRb: {fileID: 2575685140956976046}
-  pivotPoint: {fileID: 2575685140956976040}
-  playerCamera: {fileID: 0}
-  maxArmLength: 9.5
-  handMoveSpeed: 15
-  handDamper: 10
-  planeYOffsetSpeed: 3
-  grabRadius: 1
-  torsoPullForce: 10
-  kinematicPullForce: 20
-  detachedMoveSpeed: 20
-  grabLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  targetSmoothSpeed: 12
-  mouseReachX: 8
-  mouseReachY: 8
-  mouseReachDepth: 2
 --- !u!114 &2575685140956976053
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14842,6 +14768,132 @@ ConfigurableJoint:
   m_EnablePreprocessing: 1
   m_MassScale: 1
   m_ConnectedMassScale: 1
+--- !u!114 &2575685140956976057
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976049}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  minVelocityThreshold: 8
+  damageMultiplier: 1
+--- !u!114 &2575685140956976058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976049}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 285d4bf8c99a639428d574663971fc0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandCombat
+  ShowTopMostFoldoutHeaderGroup: 1
+  currentState:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  torso: {fileID: 1162042576}
+  handRb: {fileID: 2575685140956976045}
+  pivotPoint: {fileID: 2575685140956976039}
+  playerCamera: {fileID: 0}
+  maxArmLength: 9.5
+  handMoveSpeed: 15
+  handDamper: 15
+  planeYOffsetSpeed: 10
+  grabRadius: 1
+  torsoPullForce: 10
+  kinematicPullForce: 20
+  detachedMoveSpeed: 20
+  grabLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  targetSmoothSpeed: 12
+  mouseReachX: 8
+  mouseReachY: 8
+  mouseReachDepth: 2
+  currentCombatState:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  punchSpeedMultiplier: 4
+  punchDamper: 2
+  punchDuration: 0.2
+  punchExtraReach: 5
+--- !u!114 &2575685140956976059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  minVelocityThreshold: 8
+  damageMultiplier: 1
+--- !u!114 &2575685140956976060
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2575685140956976050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 285d4bf8c99a639428d574663971fc0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandCombat
+  ShowTopMostFoldoutHeaderGroup: 1
+  currentState:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  torso: {fileID: 1162042576}
+  handRb: {fileID: 2575685140956976046}
+  pivotPoint: {fileID: 2575685140956976040}
+  playerCamera: {fileID: 0}
+  maxArmLength: 9.5
+  handMoveSpeed: 15
+  handDamper: 15
+  planeYOffsetSpeed: 10
+  grabRadius: 1
+  torsoPullForce: 10
+  kinematicPullForce: 20
+  detachedMoveSpeed: 20
+  grabLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  targetSmoothSpeed: 12
+  mouseReachX: 8
+  mouseReachY: 8
+  mouseReachDepth: 5
+  currentCombatState:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  punchSpeedMultiplier: 4
+  punchDamper: 2
+  punchDuration: 0.5
+  punchExtraReach: 5
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2740861856955824685, guid: 694f2695c09d50949b50e5fed59cdace, type: 3}

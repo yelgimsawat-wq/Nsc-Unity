@@ -35,25 +35,25 @@ public class PlayerHandMovement : NetworkBehaviour
     public float mouseReachY = 3f;
     public float mouseReachDepth = 3f;
 
-    private float currentPlaneYOffset = 0f;
-    private bool isGrabbing = false;
-    private Rigidbody grabbedObject;
-    private FixedJoint grabJoint;
+    protected float currentPlaneYOffset = 0f;
+    protected bool isGrabbing = false;
+    protected Rigidbody grabbedObject;
+    protected FixedJoint grabJoint;
 
-    private Vector3 targetHandPosition;
-    private Vector3 smoothedHandTarget;
-    private bool smoothedHandInitialized = false;
+    protected Vector3 targetHandPosition;
+    protected Vector3 smoothedHandTarget;
+    protected bool smoothedHandInitialized = false;
 
-    private Vector3 lastSentTarget;
-    private const float RPC_SEND_THRESHOLD = 0.05f;
+    protected Vector3 lastSentTarget;
+    protected const float RPC_SEND_THRESHOLD = 0.05f;
 
-    void Update()
+    protected virtual void Update()
     {
         if (!IsOwner || playerCamera == null) return;
         HandleInput();
     }
 
-    void FixedUpdate()
+    protected virtual void FixedUpdate()
     {
         if (!IsServer) return;
         SmoothHandTarget();
@@ -80,7 +80,7 @@ public class PlayerHandMovement : NetworkBehaviour
         );
     }
 
-    private void HandleInput()
+    protected virtual void HandleInput()
     {
         if (currentState.Value != HandState.Attached) return;
 
@@ -141,7 +141,7 @@ public class PlayerHandMovement : NetworkBehaviour
         grabbedObject = null;
     }
 
-    private void PerformArmMovement()
+    protected virtual void PerformArmMovement()
     {
         Vector3 dirFromPivot = smoothedHandTarget - pivotPoint.position;
         float currentDistance = dirFromPivot.magnitude;
