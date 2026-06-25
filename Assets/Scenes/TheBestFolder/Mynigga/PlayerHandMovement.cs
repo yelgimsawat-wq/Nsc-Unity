@@ -44,6 +44,13 @@ public class PlayerHandMovement : NetworkBehaviour
     protected Vector3 smoothedHandTarget;
     protected bool smoothedHandInitialized = false;
 
+    // ตัวแปรใหม่สำหรับล็อกสถานะและมุมกล้อง
+    protected bool localGrabToggle = false;
+    protected Vector2 activeMouseNorm = Vector2.zero;
+    protected Vector3 lockedCamForward = Vector3.forward;
+    protected Vector3 lockedCamRight = Vector3.right;
+    protected Vector3 lockedCamUp = Vector3.up;
+
     protected Vector3 lastSentTarget;
     protected const float RPC_SEND_THRESHOLD = 0.05f;
 
@@ -60,7 +67,6 @@ public class PlayerHandMovement : NetworkBehaviour
 
         if (currentState.Value == HandState.Attached)
         {
-            // ✅ นำเงื่อนไขเช็ค Ragdoll ออกแล้ว! มือสามารถขยับและช่วยลากตัวได้ตลอดเวลา
             PerformArmMovement();
         }
     }
@@ -89,13 +95,22 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Input.GetKey(KeyCode.S)) currentPlaneYOffset -= planeYOffsetSpeed * Time.deltaTime;
         currentPlaneYOffset = Mathf.Clamp(currentPlaneYOffset, -mouseReachDepth, mouseReachDepth);
 
-        Vector2 mouseNorm = GetNormalizedMousePosition();
+        // ✅ อัปเดตตำแหน่งเมาส์ "และทิศทางกล้อง" เฉพาะตอนที่ "ไม่ได้" กดคลิกขวาหมุนกล้อง
+        if (!Input.GetMouseButton(1))
+        {
+            activeMouseNorm = GetNormalizedMousePosition();
+            
+            // ล็อกแกนกล้องเก็บไว้ เพื่อใช้ตอนที่ผู้เล่นหันหน้ากล้องหนี
+            lockedCamForward = playerCamera.transform.forward;
+            lockedCamRight = playerCamera.transform.right;
+            lockedCamUp = playerCamera.transform.up;
+        }
 
-        // ✅ เมาส์ X = ซ้าย/ขวา, เมาส์ Y = บน/ล่าง
+        // ✅ คำนวณเป้าหมายโดยใช้ตัวแปรที่ล็อกไว้
         Vector3 newTarget = pivotPoint.position
-                          + playerCamera.transform.forward * currentPlaneYOffset
-                          + playerCamera.transform.right * (mouseNorm.x * mouseReachX)
-                          + playerCamera.transform.up * (mouseNorm.y * mouseReachY);   // ใช้งานแกน Y แล้ว!
+                          + lockedCamForward * currentPlaneYOffset
+                          + lockedCamRight * (activeMouseNorm.x * mouseReachX)
+                          + lockedCamUp * (activeMouseNorm.y * mouseReachY);
 
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
             if (newTarget.y < hit.point.y) newTarget.y = hit.point.y;
@@ -103,14 +118,21 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
         { lastSentTarget = newTarget; UpdateHandTargetRpc(newTarget); }
 
-        // ✅ กดค้างเพื่อจับ / ปล่อยเพื่อคลาย
-        if (Input.GetMouseButtonDown(0)) TryGrabRpc();
-        if (Input.GetMouseButtonUp(0)) ReleaseGrabRpc();
+        // ✅ กด F ครั้งเดียวเพื่อจับ / กดอีกครั้งเพื่อปล่อย (Toggle)
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            localGrabToggle = !localGrabToggle;
+
+            if (localGrabToggle) 
+                TryGrabRpc();
+            else 
+                ReleaseGrabRpc();
+        }
 
         if (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))
             ApplyHandRecoveryRpc();
     }
-
+    
     [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { targetHandPosition = target; }
     [Rpc(SendTo.Server)] private void ApplyHandRecoveryRpc() { torso.ApplyContinuousRecoveryForce(pivotPoint.position); }
 
@@ -149,27 +171,17 @@ public class PlayerHandMovement : NetworkBehaviour
 
         if (isGrabbing && grabbedObject != null && grabbedObject.isKinematic)
         {
-            // ==========================================
-            // 🧗 CLIMBING MODE (จับ Kinematic = ปีน)
-            // ==========================================
-            // เมื่อจับอยู่ มือจะไม่ขยับไปหาเมาส์ (FixedJoint ล็อกไว้แล้ว)
-            // แต่ระยะห่างจากเมาส์ (physicsTarget) ถึง มือ จะกลายเป็นแรงดึงให้ลำตัวเคลื่อนที่แทน!
-
+            // ปีนป่าย
             Vector3 climbPullDir = physicsTarget - handRb.position;
-
-            // ดึงลำตัวไปตามทิศทางที่ผู้เล่นบังคับเมาส์
             torso.torsoRb.AddForce(climbPullDir * kinematicPullForce, ForceMode.Acceleration);
 
-            // เพิ่ม Stress
             float stressThisFrame = kinematicPullForce * Time.fixedDeltaTime * Mathf.Clamp01(currentDistance / maxArmLength);
             torso.AddStress(stressThisFrame);
             torso.armPullIntensity = Mathf.Clamp01(currentDistance / maxArmLength);
         }
         else
         {
-            // ==========================================
-            // 👋 NORMAL/GRABBING DYNAMIC MODE (ขยับมือปกติ)
-            // ==========================================
+            // เคลื่อนมือปกติ
             torso.armPullIntensity = 0f;
 
             if (currentDistance < 0.05f)
@@ -186,7 +198,6 @@ public class PlayerHandMovement : NetworkBehaviour
                 torso.AddStress(stressThisFrame);
             }
 
-            // เคลื่อนมือไปตามปกติ
             Vector3 velocityTarget = (physicsTarget - handRb.position) * handMoveSpeed;
             handRb.AddForce((velocityTarget - handRb.linearVelocity) * handDamper, ForceMode.Acceleration);
         }

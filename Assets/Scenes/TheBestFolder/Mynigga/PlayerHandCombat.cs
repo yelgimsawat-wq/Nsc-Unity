@@ -1,7 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
 
-// สืบทอดมาจาก PlayerHandMovement
 public class PlayerHandCombat : PlayerHandMovement
 {
     public enum CombatState { Idle, Charging, Punching }
@@ -32,7 +31,7 @@ public class PlayerHandCombat : PlayerHandMovement
 
     protected override void Update()
     {
-        base.Update(); // ให้คลาสแม่ทำงานปกติ (ขยับตามเมาส์, หยิบของ ฯลฯ)
+        base.Update(); // ให้คลาสแม่ทำงานปกติ
 
         if (!IsOwner || currentState.Value != HandState.Attached) return;
 
@@ -41,13 +40,13 @@ public class PlayerHandCombat : PlayerHandMovement
 
     private void HandleCombatInput()
     {
-        // 🖱️ กดคลิกขวาค้าง = เข้าสู่โหมดชาร์จ
-        if (Input.GetMouseButtonDown(1))
+        // 🖱️ กดคลิกซ้ายค้าง = เข้าสู่โหมดชาร์จ
+        if (Input.GetMouseButtonDown(0))
         {
             ChangeCombatStateRpc(CombatState.Charging);
         }
-        // 🖱️ ปล่อยคลิกขวา = ปล่อยหมัด!
-        else if (Input.GetMouseButtonUp(1) && currentCombatState.Value == CombatState.Charging)
+        // 🖱️ ปล่อยคลิกซ้าย = ปล่อยหมัด!
+        else if (Input.GetMouseButtonUp(0) && currentCombatState.Value == CombatState.Charging)
         {
             ChangeCombatStateRpc(CombatState.Punching);
         }
@@ -59,7 +58,7 @@ public class PlayerHandCombat : PlayerHandMovement
         currentCombatState.Value = newState;
         if (newState == CombatState.Punching)
         {
-            punchTimer = punchDuration; // ตั้งเวลาการพุ่งของหมัด
+            punchTimer = punchDuration; 
         }
     }
 
@@ -80,7 +79,7 @@ public class PlayerHandCombat : PlayerHandMovement
         }
     }
 
-    // ⭐ หัวใจหลัก: เขียนทับการขยับแขนเพื่อใส่แรงต่อย
+    // ⭐ เขียนทับการขยับแขนเพื่อใส่แรงต่อย และหลอกระยะเป้าหมาย
     protected override void PerformArmMovement()
     {
         if (currentCombatState.Value == CombatState.Punching)
@@ -88,11 +87,9 @@ public class PlayerHandCombat : PlayerHandMovement
             // 1. บันทึกเป้าหมายเดิมไว้ก่อน
             Vector3 originalTarget = smoothedHandTarget;
 
-            // 2. คำนวณทิศทางที่มือควรมุ่งไป (ชี้ไปทางเมาส์)
+            // 2. คำนวณทิศทางที่มือควรมุ่งไป
             Vector3 punchDirection = (smoothedHandTarget - pivotPoint.position).normalized;
-            
-            // ถ้าเป้าหมายอยู่ใกล้ตัวมาก (เช่นเมาส์อยู่ตรงกลางจอพอดี) ให้พุ่งไปข้างหน้าตามกล้องแทน
-            if (punchDirection == Vector3.zero) 
+            if (punchDirection == Vector3.zero)
                 punchDirection = playerCamera.transform.forward;
 
             // 3. หลอกเป้าหมายฟิสิกส์ให้พุ่งทะลวงออกไปไกลขึ้น!
@@ -100,18 +97,19 @@ public class PlayerHandCombat : PlayerHandMovement
 
             // 4. เร่งสปีดและลดความหนืด
             handMoveSpeed = originalHandSpeed * punchSpeedMultiplier;
-            handDamper = punchDamper; 
+            handDamper = punchDamper;
 
-            // 5. รันฟิสิกส์คลาสแม่ด้วยเป้าหมายใหม่ที่ไกลกว่าเดิม
-            base.PerformArmMovement(); 
+            // 5. รันฟิสิกส์คลาสแม่ด้วยเป้าหมายใหม่
+            base.PerformArmMovement();
 
-            // 6. คืนค่ากลับเมื่อคำนวณเฟรมนี้เสร็จ (เพื่อไม่ให้คลาสแม่รวน)
+            // 6. คืนค่ากลับเพื่อไม่ให้คลาสแม่รวน
             smoothedHandTarget = originalTarget;
             handMoveSpeed = originalHandSpeed;
             handDamper = originalHandDamper;
         }
         else if (currentCombatState.Value == CombatState.Charging)
         {
+            // หนืดๆ ตอนชาร์จ
             handMoveSpeed = originalHandSpeed * 0.3f;
             base.PerformArmMovement();
             handMoveSpeed = originalHandSpeed;
