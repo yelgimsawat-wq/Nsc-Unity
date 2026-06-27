@@ -95,22 +95,27 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Input.GetKey(KeyCode.S)) currentPlaneYOffset -= planeYOffsetSpeed * Time.deltaTime;
         currentPlaneYOffset = Mathf.Clamp(currentPlaneYOffset, -mouseReachDepth, mouseReachDepth);
 
-        // ✅ อัปเดตตำแหน่งเมาส์ "และทิศทางกล้อง" เฉพาะตอนที่ "ไม่ได้" กดคลิกขวาหมุนกล้อง
-        if (!Input.GetMouseButton(1))
-        {
-            activeMouseNorm = GetNormalizedMousePosition();
-            
-            // ล็อกแกนกล้องเก็บไว้ เพื่อใช้ตอนที่ผู้เล่นหันหน้ากล้องหนี
-            lockedCamForward = playerCamera.transform.forward;
-            lockedCamRight = playerCamera.transform.right;
-            lockedCamUp = playerCamera.transform.up;
-        }
+        // ✅ คำนวณตำแหน่งเป้าหมายด้วยการยิง Ray จากเมาส์บนหน้าจอ ไปชนระนาบจำลอง (Plane)
+        Vector3 newTarget = pivotPoint.position;
+        Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+        
+        // สร้างระนาบจำลอง (Plane) หันหน้าเข้าหากล้อง วางไว้ที่ PivotPoint + ระยะความลึก (W/S)
+        Vector3 planeCenter = pivotPoint.position + playerCamera.transform.forward * currentPlaneYOffset;
+        Plane virtualPlane = new Plane(-playerCamera.transform.forward, planeCenter);
 
-        // ✅ คำนวณเป้าหมายโดยใช้ตัวแปรที่ล็อกไว้
-        Vector3 newTarget = pivotPoint.position
-                          + lockedCamForward * currentPlaneYOffset
-                          + lockedCamRight * (activeMouseNorm.x * mouseReachX)
-                          + lockedCamUp * (activeMouseNorm.y * mouseReachY);
+        if (virtualPlane.Raycast(ray, out float enter))
+        {
+            Vector3 hitPoint = ray.GetPoint(enter);
+            
+            // ✅ จำกัดระยะ (Clamp) ไม่ให้เอื้อมไกลหน้าจอเกินไป โดยอิงจากมุมมองกล้อง
+            Vector3 dir = hitPoint - pivotPoint.position;
+            Vector3 localDir = playerCamera.transform.InverseTransformDirection(dir);
+            
+            localDir.x = Mathf.Clamp(localDir.x, -mouseReachX, mouseReachX);
+            localDir.y = Mathf.Clamp(localDir.y, -mouseReachY, mouseReachY);
+            
+            newTarget = pivotPoint.position + playerCamera.transform.TransformDirection(localDir);
+        }
 
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
             if (newTarget.y < hit.point.y) newTarget.y = hit.point.y;
