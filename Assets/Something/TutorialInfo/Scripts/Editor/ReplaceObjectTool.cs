@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Unity Editor Tool: Replace Selected Objects
-/// แทนที่ GameObject ที่เลือกด้วย Prefab ที่กำหนด โดยคงตำแหน่งและองศาเดิมไว้
+/// แทนที่ GameObject ที่เลือกด้วย Prefab ที่กำหนด โดยคงตำแหน่ง องศา และค่าทุกอย่างใน Inspector (Component values) เดิมไว้
 /// </summary>
 public class ReplaceObjectTool : EditorWindow
 {
@@ -16,6 +16,7 @@ public class ReplaceObjectTool : EditorWindow
     private bool keepName        = false;
     private bool keepParent      = true;
     private bool selectNewObjects = true;
+    private bool keepComponents   = true;   // คงค่าทุก Component (Inspector values) จาก object เดิม
 
     // ── UI State ──────────────────────────────────────────────
     private Vector2 scrollPos;
@@ -146,6 +147,23 @@ public class ReplaceObjectTool : EditorWindow
         keepName      = EditorGUILayout.Toggle(new GUIContent("Keep Name",      "คงชื่อ Object เดิม"),           keepName);
         keepParent    = EditorGUILayout.Toggle(new GUIContent("Keep Parent",    "คงลำดับ Parent เดิม"),          keepParent);
         selectNewObjects = EditorGUILayout.Toggle(new GUIContent("Select New Objects", "เลือก Object ใหม่หลังแทนที่"), selectNewObjects);
+
+        GUILayout.Space(4);
+        keepComponents = EditorGUILayout.Toggle(
+            new GUIContent("Keep Component Values",
+                "คงค่าทุกอย่างที่ตั้งไว้ใน Inspector ของ Component ทุกตัว (เช่น Script, Collider, Rigidbody ฯลฯ) จาก object เดิม โดยเปลี่ยนแค่โมเดล/Prefab ภายนอก"),
+            keepComponents);
+
+        if (keepComponents)
+        {
+            EditorGUILayout.HelpBox(
+                "จะคัดลอกค่า Component ทุกตัว (รวม Script ที่เขียนเอง) จาก object เดิมไปยัง object ใหม่\n" +
+                "ถ้า Component ชนิดเดียวกันมีอยู่ใน Prefab ใหม่แล้ว จะ 'เขียนทับค่า' ด้วยค่าจาก object เดิม\n" +
+                "ถ้าไม่มี จะ 'เพิ่ม Component' นั้นเข้าไปพร้อมค่าเดิมทั้งหมด\n\n" +
+                "ยกเว้น: MeshFilter, MeshRenderer, SkinnedMeshRenderer, MeshCollider, SpriteRenderer, LODGroup\n" +
+                "(จะไม่ถูกคัดลอกทับ เพื่อให้โมเดลใหม่แสดง mesh/material ของตัวเอง ไม่ล่องหน)",
+                MessageType.Info);
+        }
     }
 
     // ── Selection Section ─────────────────────────────────────
@@ -238,6 +256,11 @@ public class ReplaceObjectTool : EditorWindow
             Transform  origParent = original.transform.parent;
             int        siblingIndex = original.transform.GetSiblingIndex();
 
+            // ── Snapshot all components (เก็บไว้ก่อนลบ original) ──
+            Component[] origComponents = keepComponents
+                ? original.GetComponents<Component>()
+                : null;
+
             // ── Instantiate replacement ────────────────────────
             GameObject newObj = (GameObject)PrefabUtility.InstantiatePrefab(replacementPrefab);
             Undo.RegisterCreatedObjectUndo(newObj, "Instantiate Replacement");
@@ -260,6 +283,10 @@ public class ReplaceObjectTool : EditorWindow
                 newObj.transform.SetAsLastSibling();
             }
 
+            // ── Copy ค่า component ทั้งหมดจาก object เดิม ──────
+            if (keepComponents && origComponents != null)
+                CopyAllComponents(origComponents, newObj);
+
             newObjects.Add(newObj);
 
             // ── Delete original ────────────────────────────────
@@ -272,7 +299,71 @@ public class ReplaceObjectTool : EditorWindow
 
         Undo.CollapseUndoOperations(undoGroup);
 
-        Debug.Log($"[Replace Object Tool] แทนที่ {newObjects.Count} object(s) ด้วย '{replacementPrefab.name}' สำเร็จ");
+        Debug.Log($"[Replace Object Tool] แทนที่ {newObjects.Count} object(s) ด้วย '{replacementPrefab.name}' สำเร็จ (คงค่า Component: {keepComponents})");
+    }
+
+    // ── Component Copy Helper ─────────────────────────────────
+    /// <summary>
+    /// คัดลอกค่าทุก field/property (Inspector values) ของแต่ละ Component จาก object เดิม
+    /// ไปยัง object ใหม่ — ถ้ามี Component ชนิดเดียวกันอยู่แล้วจะเขียนทับค่า
+    /// ถ้าไม่มีจะเพิ่ม Component นั้นเข้าไปก่อนแล้วค่อยเขียนค่า
+    /// (Transform ถูกข้ามเพราะถูกจัดการแยกแล้วในขั้นตอนก่อนหน้า)
+    /// </summary>
+    // Component ที่เกี่ยวกับ "รูปลักษณ์/โมเดล" โดยตรง — ไม่ควรคัดลอกค่าทับ
+    // เพราะจะทำให้ mesh/material ของ prefab ใหม่ถูกเขียนทับด้วยของโมเดลเก่า (โมเดลล่องหน/ผิดรูป)
+    private static readonly System.Type[] ExcludedFromCopy = new System.Type[]
+    {
+        typeof(MeshFilter),
+        typeof(MeshRenderer),
+        typeof(SkinnedMeshRenderer),
+        typeof(MeshCollider),      // shape ของ collider นี้ผูกกับ mesh ของโมเดลโดยตรง
+        typeof(SpriteRenderer),
+        typeof(LODGroup),
+    };
+
+    private static void CopyAllComponents(Component[] sourceComponents, GameObject target)
+    {
+        // ใช้ track ว่า component ชนิดไหนถูกใช้ไปแล้วบ้าง (กรณีมีหลายตัวชนิดเดียวกัน เช่น หลาย AudioSource)
+        var usedTargets = new HashSet<Component>();
+
+        foreach (var src in sourceComponents)
+        {
+            if (src == null) continue;
+
+            System.Type type = src.GetType();
+
+            // ข้าม Transform/RectTransform เพราะคุมตำแหน่ง/scale ไปแล้วก่อนหน้านี้
+            if (type == typeof(Transform) || type == typeof(RectTransform))
+                continue;
+
+            // ข้าม component ที่เกี่ยวกับโมเดล/รูปลักษณ์ ปล่อยให้ prefab ใหม่ใช้ของตัวเอง
+            if (System.Array.IndexOf(ExcludedFromCopy, type) >= 0)
+                continue;
+
+            // หา component ชนิดเดียวกันบน target ที่ยังไม่ถูกใช้
+            Component dst = null;
+            foreach (var candidate in target.GetComponents(type))
+            {
+                if (!usedTargets.Contains(candidate))
+                {
+                    dst = candidate;
+                    break;
+                }
+            }
+
+            // ถ้าไม่มี ให้เพิ่ม component ชนิดนี้เข้าไปใหม่
+            if (dst == null)
+            {
+                dst = Undo.AddComponent(target, type);
+            }
+
+            if (dst == null) continue; // เผื่อบาง component เพิ่มไม่ได้ (เช่น ต้องพึ่ง component อื่นที่ขาด)
+
+            // คัดลอกค่าทุก field ทับจาก source ไปยัง destination
+            EditorUtility.CopySerialized(src, dst);
+
+            usedTargets.Add(dst);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────
