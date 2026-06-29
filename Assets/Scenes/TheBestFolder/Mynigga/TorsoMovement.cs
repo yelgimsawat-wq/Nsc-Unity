@@ -38,6 +38,7 @@ public class TorsoMovement : NetworkBehaviour
     public Rigidbody torsoRb;
     public Transform groundRaycastOrigin;
     public LayerMask groundLayer;
+    public ConfigurableJoint[] hipJoints;
 
     [HideInInspector] public float armPullIntensity = 0f;
     public float minCenterForceMultiplier = 0.15f;
@@ -64,6 +65,21 @@ public class TorsoMovement : NetworkBehaviour
         if (currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
         {
             currentState.Value = TorsoState.Falling;
+        }
+
+        if (hipJoints != null)
+        {
+            bool isRagdoll = currentState.Value == TorsoState.Ragdoll || currentState.Value == TorsoState.Falling;
+            ConfigurableJointMotion motion = isRagdoll ? ConfigurableJointMotion.Free : ConfigurableJointMotion.Locked;
+            foreach (var hip in hipJoints)
+            {
+                if (hip != null)
+                {
+                    hip.angularXMotion = motion;
+                    hip.angularYMotion = motion;
+                    hip.angularZMotion = motion;
+                }
+            }
         }
 
         switch (currentState.Value)
