@@ -20,6 +20,7 @@ public class PlayerHandMovement : NetworkBehaviour
     public float handDamper = 15f;
     public float planeYOffsetSpeed = 3f;
     public float grabRadius = 0.5f;
+    public float grabBreakForce = 10000f; // แรงฉีกขาดเมื่อดึงของหนักเกิน
     public float torsoPullForce = 60f;
     [Tooltip("แรงที่ดึงตัวเมื่อจับ Kinematic Object (ใช้ปีนป่าย)")]
     public float kinematicPullForce = 150f;
@@ -155,6 +156,11 @@ public class PlayerHandMovement : NetworkBehaviour
             // ✅ จับได้ทั้ง Kinematic และ Dynamic
             grabJoint = handRb.gameObject.AddComponent<FixedJoint>();
             grabJoint.connectedBody = rb;
+            grabJoint.breakForce = grabBreakForce;
+            grabJoint.breakTorque = grabBreakForce;
+
+            // ปิดการชนระหว่างของที่ถูกจับกับลำตัวหุ่น เพื่อป้องกันบั๊กบินขึ้นฟ้า
+            IgnoreCollisionWithTorso(grabbedObject, true);
 
             break;
         }
@@ -165,7 +171,49 @@ public class PlayerHandMovement : NetworkBehaviour
     {
         isGrabbing = false;
         if (grabJoint != null) Destroy(grabJoint);
-        grabbedObject = null;
+        
+        if (grabbedObject != null)
+        {
+            IgnoreCollisionWithTorso(grabbedObject, false);
+            grabbedObject = null;
+        }
+    }
+
+    private void IgnoreCollisionWithTorso(Rigidbody targetRb, bool ignore)
+    {
+        if (targetRb == null || torso == null) return;
+        Collider[] targetCols = targetRb.GetComponentsInChildren<Collider>();
+        Collider[] torsoCols = torso.GetComponentsInChildren<Collider>();
+        foreach (var tc in torsoCols)
+        {
+            foreach (var gc in targetCols)
+            {
+                Physics.IgnoreCollision(tc, gc, ignore);
+            }
+        }
+    }
+
+    void OnJointBreak(float breakForce)
+    {
+        Debug.Log($"Hand joint broke due to massive force: {breakForce}");
+        isGrabbing = false;
+        
+        if (grabbedObject != null)
+        {
+            IgnoreCollisionWithTorso(grabbedObject, false);
+            grabbedObject = null;
+        }
+        
+        if (IsServer)
+        {
+            ForceReleaseGrabClientRpc();
+        }
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void ForceReleaseGrabClientRpc()
+    {
+        localGrabToggle = false;
     }
 
     protected virtual void PerformArmMovement()

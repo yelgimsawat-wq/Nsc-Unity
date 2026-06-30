@@ -54,6 +54,10 @@ public class PlayerFootForRobot : NetworkBehaviour
     private float holdTimer = 0f;
     private bool autoHeightEnabled = false;
 
+    [Header("Magnetic Boots Settings")]
+    public float breakForceLimit = 8000f;
+    private FixedJoint currentPlantedJoint;
+
     [Header("Ragdoll Ground Check")]
     public float groundSeekForce = 50f;
 
@@ -160,10 +164,22 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (!isPlantedSet)
         {
-            if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 3f, groundLayer))
+            if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
             {
                 plantedPosition = hit.point;
                 isPlantedSet = true;
+                
+                if (currentPlantedJoint == null)
+                {
+                    currentPlantedJoint = footRb.gameObject.AddComponent<FixedJoint>();
+                    currentPlantedJoint.breakForce = breakForceLimit;
+                    currentPlantedJoint.breakTorque = breakForceLimit;
+                    
+                    if (hit.collider.attachedRigidbody != null)
+                    {
+                        currentPlantedJoint.connectedBody = hit.collider.attachedRigidbody;
+                    }
+                }
             }
             else
             {
@@ -171,20 +187,18 @@ public class PlayerFootForRobot : NetworkBehaviour
                 return;
             }
         }
-
-        if (!footRb.isKinematic)
-        {
-            footRb.linearVelocity = Vector3.zero;
-            footRb.angularVelocity = Vector3.zero;
-            footRb.isKinematic = true;
-            wasKinematic = true;
-        }
-        footRb.MovePosition(plantedPosition);
     }
 
     private void ReleaseKinematicLock()
     {
         isPlantedSet = false;
+        
+        if (currentPlantedJoint != null)
+        {
+            Destroy(currentPlantedJoint);
+            currentPlantedJoint = null;
+        }
+
         if (wasKinematic && footRb.isKinematic)
         {
             footRb.isKinematic = false;
@@ -192,6 +206,13 @@ public class PlayerFootForRobot : NetworkBehaviour
             footRb.angularVelocity = Vector3.zero;
             wasKinematic = false;
         }
+    }
+
+    void OnJointBreak(float breakForce)
+    {
+        Debug.Log($"Foot joint broke due to massive force: {breakForce}");
+        isPlantedSet = false;
+        currentPlantedJoint = null;
     }
 
     /// <summary>
@@ -364,5 +385,5 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Rpc(SendTo.Server)] private void UpdateDetachedTargetRpc(Vector3 v) { detachedTargetPos = v; }
     [Rpc(SendTo.Server)] private void SetRecoveryInputRpc(bool v) { isPushingRecovery = v; }
 
-    public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 3f, groundLayer);
+    public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 5f, groundLayer);
 }

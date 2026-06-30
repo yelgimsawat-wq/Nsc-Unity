@@ -67,20 +67,20 @@ public class TorsoMovement : NetworkBehaviour
             currentState.Value = TorsoState.Falling;
         }
 
-        if (hipJoints != null)
-        {
-            bool isRagdoll = currentState.Value == TorsoState.Ragdoll || currentState.Value == TorsoState.Falling;
-            ConfigurableJointMotion motion = isRagdoll ? ConfigurableJointMotion.Free : ConfigurableJointMotion.Locked;
-            foreach (var hip in hipJoints)
-            {
-                if (hip != null)
-                {
-                    hip.angularXMotion = motion;
-                    hip.angularYMotion = motion;
-                    hip.angularZMotion = motion;
-                }
-            }
-        }
+        // if (hipJoints != null)
+        // {
+        //     bool isRagdoll = currentState.Value == TorsoState.Ragdoll || currentState.Value == TorsoState.Falling;
+        //     ConfigurableJointMotion motion = isRagdoll ? ConfigurableJointMotion.Free : ConfigurableJointMotion.Locked;
+        //     foreach (var hip in hipJoints)
+        //     {
+        //         if (hip != null)
+        //         {
+        //             hip.angularXMotion = motion;
+        //             hip.angularYMotion = motion;
+        //             hip.angularZMotion = motion;
+        //         }
+        //     }
+        // }
 
         switch (currentState.Value)
         {
