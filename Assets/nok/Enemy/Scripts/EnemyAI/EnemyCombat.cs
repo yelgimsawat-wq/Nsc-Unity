@@ -39,9 +39,9 @@ namespace NscGame.Enemy
         [SerializeField] private Transform kickOrigin;
 
         [Header("Hitbox Radius")]
-        [SerializeField] private float lightPunchRadius = 1.0f;
-        [SerializeField] private float barragePunchRadius = 1.0f;
-        [SerializeField] private float kickRadius = 1.5f;
+        [SerializeField] private float lightPunchRadius = 4.0f;
+        [SerializeField] private float barragePunchRadius = 3.0f;
+        [SerializeField] private float kickRadius = 4f;
 
         [SerializeField] private LayerMask playerLayer;
 
@@ -196,7 +196,7 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.LightPunch, origin.position, GetVfxRotation(AttackType.LightPunch));
 
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(3.5f);
 
             ProcessHitDetection(origin.position, lightPunchRadius, lightPunchDamage, AttackType.LightPunch);
         }
@@ -220,7 +220,7 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.Kick, origin.position, GetVfxRotation(AttackType.Kick));
 
-            yield return new WaitForSeconds(0.35f);
+            yield return new WaitForSeconds(4f);
 
             ProcessHitDetection(origin.position, kickRadius, kickDamage, AttackType.Kick);
         }
@@ -234,7 +234,7 @@ namespace NscGame.Enemy
                 IHittable target = col.GetComponent<IHittable>();
                 if (target != null)
                 {
-                    target.ServerTakeDamage(damage, attackType);
+                    target.ServerTakeDamage(damage, attackType, transform.forward);
 
                     Vector3 hitPoint = col.ClosestPoint(origin);
                     SpawnHitConfirmClientRpc(attackType, hitPoint, GetVfxRotation(attackType));
@@ -434,5 +434,6 @@ namespace NscGame.Enemy
     {
         /// <summary>Receive damage on server</summary>
         void ServerTakeDamage(float amount, AttackType source);
+        void ServerTakeDamage(float amount, AttackType source, Vector3 direction);
     }
 }

@@ -83,5 +83,7 @@ public class PlayerCam : NetworkBehaviour
         // Smooth follow
         playercam.transform.position = Vector3.Lerp(playercam.transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
         playercam.transform.LookAt(pivot);
+
+        transform.position = followTarget != null ? followTarget.position : transform.position;
     }
 }
