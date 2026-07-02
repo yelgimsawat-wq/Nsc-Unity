@@ -255,4 +255,19 @@ public class PlayerHandMovement : NetworkBehaviour
             handRb.AddForce((velocityTarget - handRb.linearVelocity) * handDamper, ForceMode.Acceleration);
         }
     }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (pivotPoint != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(pivotPoint.position, maxArmLength);
+        }
+
+        if (handRb != null)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(handRb.position, grabRadius);
+        }
+    }
 }

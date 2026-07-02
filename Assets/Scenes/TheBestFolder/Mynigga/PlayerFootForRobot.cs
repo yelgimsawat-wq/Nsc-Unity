@@ -18,6 +18,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     public Rigidbody footRb;
     public Transform pivotPoint;
     public Camera playerCamera;
+    public Vector3 pivotOffset = Vector3.zero;
+    public Vector3 PivotPosition => pivotPoint != null ? pivotPoint.TransformPoint(pivotOffset) : transform.position;
 
     [Header("Movement & IK Settings")]
     public float maxLegLength = 1.5f;
@@ -60,6 +62,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     [Header("Ragdoll Ground Check")]
     public float groundSeekForce = 50f;
+    public float groundCheckDistance = 5f;
 
     private Vector3 targetFootPosition;
     private Vector3 balanceShiftMousePos;
@@ -115,9 +118,9 @@ public class PlayerFootForRobot : NetworkBehaviour
                     // ✅ ถ้ากด Q: ล็อกเท้ากับพื้นเพื่อส่งแรงลุก
                     ApplyKinematicLock();
                     Vector2 footXZ = new Vector2(footRb.position.x, footRb.position.z);
-                    Vector2 pivotXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
+                    Vector2 pivotXZ = new Vector2(PivotPosition.x, PivotPosition.z);
                     float ratio = Mathf.Clamp01(Vector2.Distance(footXZ, pivotXZ) / recoveryProximityThreshold);
-                    torso.ApplyContinuousRecoveryForce(pivotPoint.position, Mathf.Lerp(1f, minRecoveryMultiplier, ratio));
+                    torso.ApplyContinuousRecoveryForce(PivotPosition, Mathf.Lerp(1f, minRecoveryMultiplier, ratio));
                 }
                 else
                 {
@@ -164,7 +167,7 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (!isPlantedSet)
         {
-            if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
+            if (Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, groundCheckDistance, groundLayer))
             {
                 plantedPosition = hit.point;
                 isPlantedSet = true;
@@ -220,14 +223,14 @@ public class PlayerFootForRobot : NetworkBehaviour
     /// </summary>
     private void PerformRagdollFreePhysics(Vector3 rawTarget)
     {
-        Vector3 dir = rawTarget - pivotPoint.position;
+        Vector3 dir = rawTarget - PivotPosition;
         if (dir.magnitude > maxLegLength)
         {
-            rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
+            rawTarget = PivotPosition + dir.normalized * maxLegLength;
         }
 
-        Vector3 velocityTarget = (rawTarget - footRb.position) * footMoveSpeed;
-        footRb.AddForce((velocityTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
+        Vector3 velocityTarget = (rawTarget - footRb.position) * (footMoveSpeed * 0.1f);
+        footRb.AddForce((velocityTarget - footRb.linearVelocity) * (legDamper * 0.1f), ForceMode.Acceleration);
     }
 
     /// <summary>
@@ -235,20 +238,20 @@ public class PlayerFootForRobot : NetworkBehaviour
     /// </summary>
     private void PerformFootSpringPhysics(Vector3 rawTarget)
     {
-        Vector3 dir = rawTarget - pivotPoint.position;
+        Vector3 dir = rawTarget - PivotPosition;
         float dist = dir.magnitude;
 
         if (dist < minLegLength)
         {
-            rawTarget = pivotPoint.position + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * minLegLength;
+            rawTarget = PivotPosition + (dist > 0.01f ? dir.normalized : pivotPoint.forward) * minLegLength;
         }
         else if (dist > maxLegLength)
         {
-            rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
+            rawTarget = PivotPosition + dir.normalized * maxLegLength;
         }
 
-        Vector3 velocityTarget = (rawTarget - footRb.position) * footMoveSpeed;
-        footRb.AddForce((velocityTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
+        Vector3 velocityTarget = (rawTarget - footRb.position) * (footMoveSpeed * 0.1f);
+        footRb.AddForce((velocityTarget - footRb.linearVelocity) * (legDamper * 0.1f), ForceMode.Acceleration);
     }
 
     private void PerformStandingPhysics()
@@ -256,9 +259,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         bool isRagdoll = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
         if (isRagdoll) return;
 
-        Vector3 offset = (smoothedBalanceTarget - pivotPoint.position) * balanceShiftMultiplier;
-        Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
-        torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, pivotPoint.position, ForceMode.Acceleration);
+        Vector3 offset = (smoothedBalanceTarget - PivotPosition) * balanceShiftMultiplier;
+        Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - PivotPosition;
+        torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, PivotPosition, ForceMode.Acceleration);
     }
 
     private void PerformDetachedPhysics()
@@ -285,7 +288,7 @@ public class PlayerFootForRobot : NetworkBehaviour
             Vector3 camRight = playerCamera.transform.right; camRight.y = 0; camRight.Normalize();
             Vector3 mouseOffset = camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
 
-            Vector3 newBalance = pivotPoint.position + mouseOffset;
+            Vector3 newBalance = PivotPosition + mouseOffset;
             if (Vector3.Distance(lastSentBalance, newBalance) > RPC_SEND_THRESHOLD)
             { lastSentBalance = newBalance; UpdateBalanceShiftRpc(newBalance); }
 
@@ -319,18 +322,18 @@ public class PlayerFootForRobot : NetworkBehaviour
                     currentYOffset = Mathf.Clamp(currentYOffset, -maxLegLength, 0f);
 
                     Vector3 newTarget;
-                    if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
+                    if (Physics.Raycast(PivotPosition + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
                     {
                         if (autoHeightEnabled)
                         {
-                            float pivotHeight = pivotPoint.position.y;
+                            float pivotHeight = PivotPosition.y;
                             float groundHeight = hit.point.y;
                             float optimalHeight = Mathf.Clamp(pivotHeight - groundHeight, minLegLength, maxLegLength);
                             newTarget = hit.point + Vector3.up * (optimalHeight * 0.5f);
                         }
                         else newTarget = hit.point + Vector3.up * currentYOffset;
                     }
-                    else newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
+                    else newTarget = PivotPosition + mouseOffset + Vector3.down * maxLegLength;
 
                     if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
                     { lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
@@ -341,16 +344,16 @@ public class PlayerFootForRobot : NetworkBehaviour
             else
             {
                 Vector3 newTarget;
-                if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
+                if (Physics.Raycast(PivotPosition + mouseOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
                     newTarget = hit.point;
                 else
-                    newTarget = pivotPoint.position + mouseOffset;
+                    newTarget = PivotPosition + mouseOffset;
 
                 if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
                 { lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
 
                 Vector2 footXZ = new Vector2(footRb.position.x, footRb.position.z);
-                Vector2 pivotXZ = new Vector2(pivotPoint.position.x, pivotPoint.position.z);
+                Vector2 pivotXZ = new Vector2(PivotPosition.x, PivotPosition.z);
                 bool validPush = Input.GetKey(KeyCode.Q) && Vector2.Distance(footXZ, pivotXZ) <= recoveryProximityThreshold && IsGrounded();
 
                 if (validPush != isPushingRecovery) { isPushingRecovery = validPush; SetRecoveryInputRpc(validPush); }
@@ -385,5 +388,24 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Rpc(SendTo.Server)] private void UpdateDetachedTargetRpc(Vector3 v) { detachedTargetPos = v; }
     [Rpc(SendTo.Server)] private void SetRecoveryInputRpc(bool v) { isPushingRecovery = v; }
 
-    public bool IsGrounded() => Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, 5f, groundLayer);
+    public bool IsGrounded() => footRb != null && Physics.Raycast(footRb.position + Vector3.up * 0.2f, Vector3.down, groundCheckDistance, groundLayer);
+
+    private void OnDrawGizmosSelected()
+    {
+        if (pivotPoint != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(PivotPosition, maxLegLength);
+            
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(PivotPosition, minLegLength);
+        }
+
+        if (footRb != null)
+        {
+            Gizmos.color = Color.green;
+            Vector3 startPos = footRb.position + Vector3.up * 0.2f;
+            Gizmos.DrawLine(startPos, startPos + Vector3.down * groundCheckDistance);
+        }
+    }
 }

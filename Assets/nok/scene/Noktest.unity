@@ -1935,6 +1935,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 208953187}
   m_CullTransparentMesh: 1
+--- !u!1 &213319866
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 213319868}
+  - component: {fileID: 213319867}
+  m_Layer: 0
+  m_Name: AutoStartHost
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &213319867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 213319866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ed84d4a0b86f5d42a9bbdd542eff1ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AutoStartHost
+--- !u!4 &213319868
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 213319866}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -104.11739, y: 0.00001, z: -28.58702}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &248101326 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1254154721133593793, guid: f18192309fe382a4c8e0377baa30caa4, type: 3}
@@ -2842,6 +2886,7 @@ MonoBehaviour:
     m_InternalValue: 0
   isStepping: 0
   isPushingRecovery: 0
+  isJumping: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976043}
   pivotPoint: {fileID: 2575685140956976044}
@@ -2856,6 +2901,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  footJumpForce: 15
+  torsoJumpForce: 400
   targetSmoothSpeed: 12
   standingUpwardPull: 25
   recoveryProximityThreshold: 6
@@ -2863,6 +2910,7 @@ MonoBehaviour:
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
+  breakForceLimit: 8000
   groundSeekForce: 50
 --- !u!43 &353483443
 Mesh:
@@ -7404,6 +7452,9 @@ MonoBehaviour:
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
   ragdollRecoveryDelay: 1.5
+  maxTorsoStress: 500
+  currentStress: 0
+  stressDecayRate: 100
   continuousRecoveryForce: 750
   recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
@@ -7411,6 +7462,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  hipJoints: []
   armPullIntensity: 0
   minCenterForceMultiplier: 0.15
 --- !u!43 &1182790763
@@ -13652,6 +13704,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: RobotContainer
       objectReference: {fileID: 0}
+    - target: {fileID: 8812732268101212456, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8814153863935007078, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_LocalScale.y
       value: 4.3
@@ -13811,7 +13867,9 @@ MonoBehaviour:
   handDamper: 15
   planeYOffsetSpeed: 3
   grabRadius: 0.4
+  grabBreakForce: 10000
   torsoPullForce: 300
+  kinematicPullForce: 150
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -13850,7 +13908,9 @@ MonoBehaviour:
   handDamper: 15
   planeYOffsetSpeed: 3
   grabRadius: 0.4
+  grabBreakForce: 10000
   torsoPullForce: 300
+  kinematicPullForce: 150
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -13882,6 +13942,7 @@ MonoBehaviour:
     m_InternalValue: 0
   isStepping: 0
   isPushingRecovery: 0
+  isJumping: 0
   torso: {fileID: 1162042576}
   footRb: {fileID: 2575685140956976047}
   pivotPoint: {fileID: 2575685140956976041}
@@ -13896,6 +13957,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
+  footJumpForce: 15
+  torsoJumpForce: 400
   targetSmoothSpeed: 12
   standingUpwardPull: 25
   recoveryProximityThreshold: 6
@@ -13903,6 +13966,7 @@ MonoBehaviour:
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
+  breakForceLimit: 8000
   groundSeekForce: 50
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
@@ -13929,3 +13993,4 @@ SceneRoots:
   - {fileID: 703599275}
   - {fileID: 1072517626}
   - {fileID: 1471013488251224866}
+  - {fileID: 213319868}
