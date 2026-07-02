@@ -3,7 +3,7 @@ using Unity.Netcode;
 
 public class PlayerHandCombat : PlayerHandMovement
 {
-    public enum CombatState { Idle, Charging, Punching }
+    public enum CombatState { Idle, Charging, Punching, Recovering }
 
     [Header("Combat Settings")]
     public NetworkVariable<CombatState> currentCombatState = new NetworkVariable<CombatState>(CombatState.Idle);
@@ -12,12 +12,22 @@ public class PlayerHandCombat : PlayerHandMovement
     public float punchSpeedMultiplier = 4f;
     [Tooltip("แรงต้านตอนต่อย (ยิ่งน้อยหมัดยิ่งพุ่งทะลวง)")]
     public float punchDamper = 2f; 
-    [Tooltip("ระยะเวลาที่หมัดพุ่งก่อนกลับสู่โหมดปกติ")]
+    [Tooltip("ระยะเวลาที่หมัดพุ่งก่อนเข้าสู่โหมด Recovery")]
     public float punchDuration = 0.2f;
 
+    [Header("Recovery Blend (Anti-Jitter)")]
+    [Tooltip("ระยะเวลา (วินาที) ที่ค่า speed/damper จะค่อย ๆ lerp กลับสู่ค่าปกติหลังต่อยเสร็จ")]
+    public float recoveryBlendDuration = 0.25f;
+
     private float punchTimer = 0f;
+    private float recoveryTimer = 0f;
+
     private float originalHandSpeed;
     private float originalHandDamper;
+
+    // ค่า speed/damper ที่ใช้จริงในเฟรมนี้ (lerp ระหว่างค่าต่อย → ค่าปกติ)
+    private float activeHandSpeed;
+    private float activeHandDamper;
 
     [Tooltip("ระยะยืดพิเศษตอนปล่อยหมัด ยิ่งเยอะยิ่งพุ่งไกล")]
     public float punchExtraReach = 5f;
@@ -27,6 +37,9 @@ public class PlayerHandCombat : PlayerHandMovement
         // เก็บค่าดั้งเดิมจากคลาสแม่เอาไว้
         originalHandSpeed = handMoveSpeed;
         originalHandDamper = handDamper;
+
+        activeHandSpeed = originalHandSpeed;
+        activeHandDamper = originalHandDamper;
     }
 
     protected override void Update()
@@ -40,7 +53,7 @@ public class PlayerHandCombat : PlayerHandMovement
 
     private void HandleCombatInput()
     {
-        // 🖱️ กดคลิกซ้ายค้าง = เข้าสู่โหมดชาร์จ
+        // 🖱️ กดคลิกซ้าย = เข้าสู่โหมดชาร์จ
         if (Input.GetMouseButtonDown(0))
         {
             ChangeCombatStateRpc(CombatState.Charging);
@@ -58,7 +71,11 @@ public class PlayerHandCombat : PlayerHandMovement
         currentCombatState.Value = newState;
         if (newState == CombatState.Punching)
         {
-            punchTimer = punchDuration; 
+            punchTimer = punchDuration;
+        }
+        else if (newState == CombatState.Recovering)
+        {
+            recoveryTimer = 0f;
         }
     }
 
@@ -68,55 +85,94 @@ public class PlayerHandCombat : PlayerHandMovement
 
         if (!IsServer) return;
 
-        // นับเวลาถอยหลังตอนต่อย เพื่อกลับสู่สภาวะปกติ
         if (currentCombatState.Value == CombatState.Punching)
         {
             punchTimer -= Time.fixedDeltaTime;
             if (punchTimer <= 0f)
             {
-                ChangeCombatStateRpc(CombatState.Idle);
+                // ✅ เข้าสู่ Recovery mode แทนที่จะ snap กลับทันที
+                currentCombatState.Value = CombatState.Recovering;
+                recoveryTimer = 0f;
+            }
+        }
+        else if (currentCombatState.Value == CombatState.Recovering)
+        {
+            recoveryTimer += Time.fixedDeltaTime;
+            if (recoveryTimer >= recoveryBlendDuration)
+            {
+                currentCombatState.Value = CombatState.Idle;
             }
         }
     }
 
-    // ⭐ เขียนทับการขยับแขนเพื่อใส่แรงต่อย และหลอกระยะเป้าหมาย
+    // ⭐ เขียนทับการขยับแขนเพื่อใส่แรงต่อย และ lerp ค่ากลับอย่าง smooth
     protected override void PerformArmMovement()
     {
-        if (currentCombatState.Value == CombatState.Punching)
+        switch (currentCombatState.Value)
         {
-            // 1. บันทึกเป้าหมายเดิมไว้ก่อน
-            Vector3 originalTarget = smoothedHandTarget;
+            case CombatState.Punching:
+            {
+                // 1. บันทึกเป้าหมายเดิมไว้ก่อน
+                Vector3 originalTarget = smoothedHandTarget;
 
-            // 2. คำนวณทิศทางที่มือควรมุ่งไป
-            Vector3 punchDirection = (smoothedHandTarget - pivotPoint.position).normalized;
-            if (punchDirection == Vector3.zero)
-                punchDirection = playerCamera.transform.forward;
+                // 2. คำนวณทิศทางที่มือควรมุ่งไป
+                Vector3 punchDirection = (smoothedHandTarget - pivotPoint.position).normalized;
+                if (punchDirection == Vector3.zero)
+                    punchDirection = playerCamera.transform.forward;
 
-            // 3. หลอกเป้าหมายฟิสิกส์ให้พุ่งทะลวงออกไปไกลขึ้น!
-            smoothedHandTarget = originalTarget + (punchDirection * punchExtraReach);
+                // 3. หลอกเป้าหมายฟิสิกส์ให้พุ่งทะลวงออกไปไกลขึ้น!
+                smoothedHandTarget = originalTarget + (punchDirection * punchExtraReach);
 
-            // 4. เร่งสปีดและลดความหนืด
-            handMoveSpeed = originalHandSpeed * punchSpeedMultiplier;
-            handDamper = punchDamper;
+                // 4. เร่งสปีดและลดความหนืด (snap ทันทีตอนต่อย)
+                handMoveSpeed = originalHandSpeed * punchSpeedMultiplier;
+                handDamper = punchDamper;
+                activeHandSpeed = handMoveSpeed;
+                activeHandDamper = handDamper;
 
-            // 5. รันฟิสิกส์คลาสแม่ด้วยเป้าหมายใหม่
-            base.PerformArmMovement();
+                // 5. รันฟิสิกส์คลาสแม่ด้วยเป้าหมายใหม่
+                base.PerformArmMovement();
 
-            // 6. คืนค่ากลับเพื่อไม่ให้คลาสแม่รวน
-            smoothedHandTarget = originalTarget;
-            handMoveSpeed = originalHandSpeed;
-            handDamper = originalHandDamper;
-        }
-        else if (currentCombatState.Value == CombatState.Charging)
-        {
-            // หนืดๆ ตอนชาร์จ
-            handMoveSpeed = originalHandSpeed * 0.3f;
-            base.PerformArmMovement();
-            handMoveSpeed = originalHandSpeed;
-        }
-        else
-        {
-            base.PerformArmMovement();
+                // 6. คืนค่ากลับเพื่อไม่ให้คลาสแม่รวน
+                smoothedHandTarget = originalTarget;
+                handMoveSpeed = originalHandSpeed;
+                handDamper = originalHandDamper;
+                break;
+            }
+
+            case CombatState.Recovering:
+            {
+                // ✅ Blend Tree แบบ Physics: ค่อย ๆ lerp speed/damper กลับเป็นค่าปกติ
+                float t = recoveryTimer / Mathf.Max(recoveryBlendDuration, 0.001f);
+                float smooth = Mathf.SmoothStep(0f, 1f, t); // curve ให้ natural มากขึ้น
+
+                activeHandSpeed  = Mathf.Lerp(originalHandSpeed * punchSpeedMultiplier, originalHandSpeed, smooth);
+                activeHandDamper = Mathf.Lerp(punchDamper, originalHandDamper, smooth);
+
+                handMoveSpeed = activeHandSpeed;
+                handDamper    = activeHandDamper;
+
+                base.PerformArmMovement();
+
+                // คืนค่าปกติหลังจากรันฟิสิกส์
+                handMoveSpeed = originalHandSpeed;
+                handDamper    = originalHandDamper;
+                break;
+            }
+
+            case CombatState.Charging:
+            {
+                // หนืดๆ ตอนชาร์จ
+                handMoveSpeed = originalHandSpeed * 0.3f;
+                base.PerformArmMovement();
+                handMoveSpeed = originalHandSpeed;
+                break;
+            }
+
+            default: // Idle
+            {
+                base.PerformArmMovement();
+                break;
+            }
         }
     }
 }

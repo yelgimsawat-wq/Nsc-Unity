@@ -168,6 +168,42 @@ namespace NscGame.Enemy
             };
         }
 
+        /// <summary>
+        /// [SERVER ONLY] Stop all active combat VFX/SFX on all clients.
+        /// Called by EnemyController when a combo finishes or is aborted.
+        /// </summary>
+        public void ServerStopAllCombatEffects()
+        {
+            if (!IsServer) return;
+            StopAllActiveVfxClientRpc();
+        }
+
+        /// <summary>
+        /// [CLIENT] Stop all active combat VFX/SFX locally on this machine.
+        /// Called by EnemyController's OnStateChanged callback on clients.
+        /// </summary>
+        public void StopAllCombatEffectsLocal()
+        {
+            foreach (var kvp in activeVfxByType.ToArray())
+            {
+                if (kvp.Value != null)
+                {
+                    ParticleSystem ps = kvp.Value.GetComponentInChildren<ParticleSystem>();
+                    if (ps != null)
+                        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+                    if (activeVfxCoroutines.TryGetValue(kvp.Key, out Coroutine coroutine) && coroutine != null)
+                    {
+                        StopCoroutine(coroutine);
+                        activeVfxCoroutines.Remove(kvp.Key);
+                    }
+
+                    Destroy(kvp.Value);
+                    activeVfxByType.Remove(kvp.Key);
+                }
+            }
+        }
+
         private float ExecuteLightPunch()
         {
             StartCoroutine(ServerLightPunchRoutine());

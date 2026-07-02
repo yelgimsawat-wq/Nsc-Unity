@@ -58,24 +58,45 @@ namespace NscGame.Enemy
         [SerializeField] private float speedDampTime = 0.15f;
 
         [Header("Attack Timing")]
-        [Tooltip("Decision interval while idle in attack range")]
-        [SerializeField] private float attackDecisionInterval = 0.5f;
+        [Tooltip("ช่วงเวลารอต่ำสุดก่อนโจมตีครั้งต่อไป (วินาที)")]
+        [SerializeField] private float minAttackInterval = 1.5f;
+
+        [Tooltip("ช่วงเวลารอสูงสุดก่อนโจมตีครั้งต่อไป (วินาที)")]
+        [SerializeField] private float maxAttackInterval = 3.0f;
 
         [Tooltip("Cooldown after combo finishes")]
         [SerializeField] private float postAttackCooldown = 1.0f;
 
         [Tooltip("Short delay between repeated attacks in combo")]
-        [SerializeField] private float comboRepeatGap = 0.15f;
+        [SerializeField] private float comboRepeatGap = 0.0f;
 
-        [Header("Attack Selection Weights")]
-        [SerializeField] private float lightPunchWeight = 40f;
-        [SerializeField] private float barragePunchWeight = 30f;
-        [SerializeField] private float kickWeight = 30f;
+        [Header("Attack Selection Chance (%)")]
+        [Tooltip("โอกาสในการออกท่าต่อยธรรมดา (0-100)\nรวมกันทั้งสามท่าไม่จำเป็นต้องเท่ากับ 100 - ระบบจะคำนวณสัดส่วนอัตโนมัติ")]
+        [Range(0f, 100f)]
+        [SerializeField] private float lightPunchChance = 40f;
+
+        [Tooltip("โอกาสในการออกท่าต่อยรัว (0-100)")]
+        [Range(0f, 100f)]
+        [SerializeField] private float barragePunchChance = 30f;
+
+        [Tooltip("โอกาสในการออกท่าเตะ (0-100)")]
+        [Range(0f, 100f)]
+        [SerializeField] private float kickChance = 30f;
 
         [Header("Attack Repeat Count (Min, Max)")]
         [SerializeField] private Vector2Int lightPunchRepeatRange = new Vector2Int(1, 1);
         [SerializeField] private Vector2Int barragePunchRepeatRange = new Vector2Int(1, 3);
         [SerializeField] private Vector2Int kickRepeatRange = new Vector2Int(1, 1);
+
+        [Header("Rotation Settings")]
+        [Tooltip("หมุนหาเพลเยอร์ด้วยความเร็วเท่าไหร่ (องศาต่อวินาที) ตอนปกติ/เดิน")]
+        [SerializeField] private float turnSpeed = 720f;
+
+        [Tooltip("ความเร็วในการหมุนหาเพลเยอร์ตอนโจมตี")]
+        [SerializeField] private float attackTurnSpeed = 360f;
+
+        [Tooltip("ความเร็วในการหมุนหาเพลเยอร์ตอนกลิ้ง (หลบ/แดช)")]
+        [SerializeField] private float rollTurnSpeed = 540f;
 
         #endregion
 
@@ -108,6 +129,8 @@ namespace NscGame.Enemy
 
         private float attackDecTimer = 0f;
         private bool isActing = false;
+        private float pacingTimer = 0f;
+        private Vector3 pacingDestination;
 
         #endregion
 
@@ -120,11 +143,31 @@ namespace NscGame.Enemy
             combat = GetComponent<EnemyCombat>();
             ragdoll = GetComponent<EnemyRagdoll>();
 
-            agent.updateRotation = true;
+            agent.updateRotation = false; // Manual control of rotation to face the player quickly
             agent.angularSpeed = 300f;
             agent.stoppingDistance = 0f; // Manual control via isStopped
             agent.autoBraking = true;
         }
+
+#if UNITY_EDITOR
+        // แสดงเปอร์เซ็นต์จริงใน Inspector console เมื่อแก้ค่า
+        private void OnValidate()
+        {
+            float total = lightPunchChance + barragePunchChance + kickChance;
+            if (total <= 0f) return;
+
+            float lp = lightPunchChance / total * 100f;
+            float bp = barragePunchChance / total * 100f;
+            float k  = kickChance / total * 100f;
+
+            UnityEngine.Debug.Log(
+                $"[EnemyController] Attack Chance (จริง): " +
+                $"ต่อยธรรมดา {lp:F1}% | " +
+                $"ต่อยรัว {bp:F1}% | " +
+                $"เตะ {k:F1}%"
+            );
+        }
+#endif
 
         public override void OnNetworkSpawn()
         {
@@ -156,6 +199,37 @@ namespace NscGame.Enemy
             {
                 animator.SetFloat(EnemyAnimParam.Speed, netSpeed.Value);
             }
+
+            if (IsServer)
+            {
+                RotateTowardsTarget();
+            }
+        }
+
+        private void RotateTowardsTarget()
+        {
+            if (playerTarget == null || netState.Value == EnemyState.Dead) return;
+
+            Vector3 direction = playerTarget.position - transform.position;
+            direction.y = 0f; // Keep rotation strictly on the Y axis (no tilting up/down)
+
+            if (direction.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(direction);
+                
+                // Select turn speed based on current state
+                float currentTurnSpeed = turnSpeed;
+                if (netState.Value == EnemyState.Attack)
+                {
+                    currentTurnSpeed = attackTurnSpeed;
+                }
+                else if (netState.Value == EnemyState.Roll)
+                {
+                    currentTurnSpeed = rollTurnSpeed;
+                }
+
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, currentTurnSpeed * Time.deltaTime);
+            }
         }
 
         #endregion
@@ -168,12 +242,22 @@ namespace NscGame.Enemy
             {
                 yield return null;
 
-                if (playerTarget == null || netState.Value == EnemyState.Dead)
+                if (netState.Value == EnemyState.Dead)
                     continue;
+
+                if (playerTarget == null)
+                {
+                    GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+                    if (playerObj != null)
+                        playerTarget = playerObj.transform;
+                    else
+                        continue;
+                }
 
                 if (isActing)
                 {
-                    attackDecTimer -= Time.deltaTime;
+                    // Reset pacing timer when acting so we pick a new point when we start pacing again
+                    pacingTimer = 0f;
                     continue;
                 }
 
@@ -181,21 +265,43 @@ namespace NscGame.Enemy
 
                 float dist = Vector3.Distance(transform.position, playerTarget.position);
 
-                // Priority 1: Attack range - stop and attack
-                if (dist <= attackRange)
+                // Priority 1: Attack range and cooldown is ready - stop and attack
+                if (dist <= attackRange && attackDecTimer <= 0f)
                 {
                     agent.isStopped = true;
                     netSpeed.Value = 0f;
+                    ChooseAndExecuteAttack();
+                }
+                // Priority 1b: Close to the player but on attack cooldown - walk/circle around the player
+                else if (dist <= stopDistance && attackDecTimer > 0f)
+                {
+                    pacingTimer -= Time.deltaTime;
+                    // If pacing destination is reached or timer expired, pick a new spot
+                    if (pacingTimer <= 0f || Vector3.Distance(transform.position, pacingDestination) < 0.5f)
+                    {
+                        float randomAngle = Random.Range(-75f, 75f); // Angle offset relative to player
+                        Vector3 dirToEnemy = (transform.position - playerTarget.position).normalized;
+                        if (dirToEnemy == Vector3.zero) dirToEnemy = transform.forward;
 
-                    if (attackDecTimer <= 0f)
-                    {
-                        attackDecTimer = attackDecisionInterval;
-                        ChooseAndExecuteAttack();
+                        Vector3 rotatedDir = Quaternion.Euler(0f, randomAngle, 0f) * dirToEnemy;
+                        float desiredDist = Random.Range(attackRange + 0.3f, stopDistance);
+
+                        pacingDestination = playerTarget.position + rotatedDir * desiredDist;
+
+                        // Verify destination is valid on NavMesh
+                        if (NavMesh.SamplePosition(pacingDestination, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
+                        {
+                            pacingDestination = hit.position;
+                        }
+
+                        pacingTimer = Random.Range(1.0f, 2.5f);
                     }
-                    else
-                    {
-                        SetState(EnemyState.Idle);
-                    }
+
+                    agent.isStopped = false;
+                    agent.speed = walkSpeed * 0.8f; // Move slightly slower while pacing
+                    agent.SetDestination(pacingDestination);
+                    netSpeed.Value = 0.5f;
+                    SetState(EnemyState.Walk);
                 }
                 // Priority 2: Stop distance - walk closer (between roll end and attack range)
                 else if (dist <= stopDistance && dist > attackRange)
@@ -245,6 +351,9 @@ namespace NscGame.Enemy
         {
             if (isActing) return;
 
+            // Set the attack cooldown timer to a randomized range
+            attackDecTimer = Random.Range(minAttackInterval, maxAttackInterval);
+
             AttackType chosen = PickWeightedAttack();
             int repeatCount = GetRepeatCountFor(chosen);
 
@@ -254,14 +363,14 @@ namespace NscGame.Enemy
 
         private AttackType PickWeightedAttack()
         {
-            float totalWeight = lightPunchWeight + barragePunchWeight + kickWeight;
+            float totalWeight = lightPunchChance + barragePunchChance + kickChance;
             if (totalWeight <= 0f) totalWeight = 1f;
 
             float roll = Random.value * totalWeight;
 
-            if (roll < lightPunchWeight)
+            if (roll < lightPunchChance)
                 return AttackType.LightPunch;
-            else if (roll < lightPunchWeight + barragePunchWeight)
+            else if (roll < lightPunchChance + barragePunchChance)
                 return AttackType.BarragePunch;
             else
                 return AttackType.Kick;
@@ -295,13 +404,16 @@ namespace NscGame.Enemy
                 float dist = Vector3.Distance(transform.position, playerTarget.position);
                 if (dist > attackRange) break;
 
+                bool isLastHit = (i == repeatCount - 1);
                 float duration = combat.ServerExecuteAttack(type);
                 yield return new WaitForSeconds(duration);
 
-                bool isLastHit = (i == repeatCount - 1);
                 if (!isLastHit && comboRepeatGap > 0f)
                     yield return new WaitForSeconds(comboRepeatGap);
             }
+
+            // Immediately stop combat effects and animations when combo finishes or is aborted
+            combat.ServerStopAllCombatEffects();
 
             SetState(EnemyState.Idle);
 
@@ -327,15 +439,22 @@ namespace NscGame.Enemy
             {
                 case EnemyState.Roll:
                     animator.SetBool(EnemyAnimParam.IsRolling, true);
+                    if (combat != null) combat.StopAllCombatEffectsLocal();
                     break;
 
                 case EnemyState.Dead:
                     animator.SetBool(EnemyAnimParam.IsDead, true);
                     animator.SetBool(EnemyAnimParam.IsRolling, false);
+                    if (combat != null) combat.StopAllCombatEffectsLocal();
+                    break;
+
+                case EnemyState.Idle:
+                case EnemyState.Walk:
+                    animator.SetBool(EnemyAnimParam.IsRolling, false);
+                    if (combat != null) combat.StopAllCombatEffectsLocal();
                     break;
 
                 default:
-                    animator.SetBool(EnemyAnimParam.IsRolling, false);
                     break;
             }
         }
