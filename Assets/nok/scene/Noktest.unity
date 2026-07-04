@@ -2903,15 +2903,15 @@ MonoBehaviour:
     m_Bits: 192
   footJumpForce: 15
   torsoJumpForce: 400
-  targetSmoothSpeed: 12
   standingUpwardPull: 25
-  recoveryProximityThreshold: 6
-  minRecoveryMultiplier: 0.5
+  footThicknessOffset: 0.2
+  upwardRecoveryBoost: 500
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
-  breakForceLimit: 8000
-  groundSeekForce: 50
+  maxFootVelocity: 25
+  groundCheckDistance: 0.6
+  plantedPosition: {x: 0, y: 0, z: 0}
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -4219,7 +4219,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 1.6666666
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 205765b89a2d2214f9adeda28d607608, type: 2}
   m_BuildHeightMesh: 0
@@ -6380,7 +6380,7 @@ GameObject:
   - component: {fileID: 1072517623}
   m_Layer: 0
   m_Name: Capsule
-  m_TagString: Player
+  m_TagString: BodyParts
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7452,11 +7452,12 @@ MonoBehaviour:
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
   ragdollRecoveryDelay: 1.5
+  recoveryUprightTorque: 600
+  recoveryHeightThreshold: 0.7
   maxTorsoStress: 500
   currentStress: 0
   stressDecayRate: 100
   continuousRecoveryForce: 750
-  recoveryHeightThreshold: 0.7
   torsoRb: {fileID: 2575685140956976036}
   groundRaycastOrigin: {fileID: 2575685140956976038}
   groundLayer:
@@ -7465,6 +7466,7 @@ MonoBehaviour:
   hipJoints: []
   armPullIntensity: 0
   minCenterForceMultiplier: 0.15
+  testSingleFootRecovery: 1
 --- !u!43 &1182790763
 Mesh:
   m_ObjectHideFlags: 0
@@ -13862,6 +13864,8 @@ MonoBehaviour:
   handRb: {fileID: 2575685140956976045}
   pivotPoint: {fileID: 2575685140956976039}
   playerCamera: {fileID: 0}
+  pivotOffset: {x: 0, y: 0, z: 0}
+  grabOffset: {x: 0, y: 0, z: 0}
   maxArmLength: 10
   handMoveSpeed: 15
   handDamper: 15
@@ -13878,6 +13882,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   targetSmoothSpeed: 12
+  torsoPullHorizontalScale: 0.2
+  maxAllowedHorizontalBoost: 3
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
@@ -13903,6 +13909,8 @@ MonoBehaviour:
   handRb: {fileID: 2575685140956976046}
   pivotPoint: {fileID: 2575685140956976040}
   playerCamera: {fileID: 0}
+  pivotOffset: {x: 0, y: 0, z: 0}
+  grabOffset: {x: 0, y: 0, z: 0}
   maxArmLength: 10
   handMoveSpeed: 15
   handDamper: 15
@@ -13919,6 +13927,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   targetSmoothSpeed: 12
+  torsoPullHorizontalScale: 0.2
+  maxAllowedHorizontalBoost: 3
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
@@ -13959,15 +13969,15 @@ MonoBehaviour:
     m_Bits: 192
   footJumpForce: 15
   torsoJumpForce: 400
-  targetSmoothSpeed: 12
   standingUpwardPull: 25
-  recoveryProximityThreshold: 6
-  minRecoveryMultiplier: 0.5
+  footThicknessOffset: 0.2
+  upwardRecoveryBoost: 500
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
-  breakForceLimit: 8000
-  groundSeekForce: 50
+  maxFootVelocity: 25
+  groundCheckDistance: 0.6
+  plantedPosition: {x: 0, y: 0, z: 0}
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2740861856955824685, guid: 694f2695c09d50949b50e5fed59cdace, type: 3}
