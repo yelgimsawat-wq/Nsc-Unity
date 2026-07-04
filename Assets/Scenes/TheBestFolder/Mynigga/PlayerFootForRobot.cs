@@ -127,7 +127,8 @@ public class PlayerFootForRobot : NetworkBehaviour
         {
             if (isPushingRecovery)
             {
-                // 🧊 แช่แข็งเท้าติดกับพื้นทันทีที่กด Q ยันตัวลุก! 
+                footRb.isKinematic = false; // 🔓 ลุกยืน: ปล่อยให้ฟิสิกส์/ข้อต่อทำงาน กัน Solver รวน
+                // 🧊 แช่แข็งเท้าติดกับพื้นทันทีที่กด Q ยันตัวลุก!
                 ApplyFootFreeze(true);
 
                 // 🦵 ส่งแรงดึงสะโพกเข้าหาศูนย์กลางเต็ม 100% (1f) เสมอ ไม่ต้องสนใจว่าขากางไกลแค่ไหนแล้ว
@@ -171,18 +172,25 @@ public class PlayerFootForRobot : NetworkBehaviour
             _isPlantedSet = true;
         }
 
-        footRb.linearVelocity = Vector3.zero;
+        // 🛑 เบรกเท้าให้นิ่ง — เซ็ต velocity ได้เฉพาะตอน dynamic (kinematic body ไม่มี velocity จาก solver)
+        // คำสั่งยังอยู่ครบตามเดิม แค่ทำงานตอนที่มีผลจริง (เช่นตอน recovery ที่ isKinematic=false)
+        if (!footRb.isKinematic)
+        {
+            footRb.linearVelocity = Vector3.zero;
+            if (!isRecovering) footRb.angularVelocity = Vector3.zero;
+        }
+
         footRb.MovePosition(plantedPosition + Vector3.up * footThicknessOffset);
 
         if (!isRecovering)
         {
-            footRb.angularVelocity = Vector3.zero;
             footRb.rotation = Quaternion.Euler(0, footRb.rotation.eulerAngles.y, 0);
         }
     }
 
     private void PerformRagdollFootPhysics()
     {
+        footRb.isKinematic = false; // 🔓 ล้ม: ปล่อยให้ฟิสิกส์ทำงานปกติ
         Vector3 rawTarget = _targetFootPos;
         Vector3 dir = rawTarget - pivotPoint.position;
         if (dir.magnitude > maxLegLength) rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
@@ -193,6 +201,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     private void PerformSteppingPhysics()
     {
+        footRb.isKinematic = false; // 🔓 ก้าวเดิน: ปล่อยให้ฟิสิกส์ทำงานปกติ
         Vector3 rawTarget = _targetFootPos;
         Vector3 dir = rawTarget - pivotPoint.position;
         float dist = dir.magnitude;
@@ -207,6 +216,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (torso == null || torso.torsoRb == null || torso.currentState.Value != TorsoMovement.TorsoState.Standing) return;
 
+        // 🔒 ตอนยืน: ล็อกเท้าตายตัวแบบ Kinematic ไม่มีวันหลุด/ไถล
+        footRb.isKinematic = true;
         ApplyFootFreeze();
 
         Vector3 offset = (_balanceShiftPos - pivotPoint.position) * balanceShiftMultiplier;
@@ -247,35 +258,23 @@ public class PlayerFootForRobot : NetworkBehaviour
                 if (_localJumpLock && IsGrounded() && !isJumping) _localJumpLock = false;
 
                 bool holdingClick = Input.GetMouseButton(0);
-                if (holdingClick && !isStepping) { isStepping = true; SetSteppingStateRpc(true); _holdTimer = 0f; _autoHeightEnabled = false; }
-                else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentYOffset = 0f; _holdTimer = 0f; _autoHeightEnabled = false; }
+                if (holdingClick && !isStepping) { isStepping = true; SetSteppingStateRpc(true); _currentYOffset = 0f; }
+                else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentYOffset = 0f; }
 
                 if (isStepping)
                 {
-                    _holdTimer += Time.deltaTime;
-                    if (_holdTimer >= autoHeightDelay) _autoHeightEnabled = true;
-
-                    // 🎮 Manual Override: กด E/Q เมื่อไหร่ ผู้เล่นคุมความสูงเอง 100% (ปิด Auto Height ชั่วคราว)
-                    bool manualHeightInput = Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Q);
-                    if (manualHeightInput) _autoHeightEnabled = false;
-
-                    if (Input.GetKey(KeyCode.E)) _currentYOffset += heightAdjustSpeed * Time.deltaTime;
-                    if (Input.GetKey(KeyCode.Q)) _currentYOffset -= heightAdjustSpeed * Time.deltaTime;
-                    // ⬆️ ปลดล็อกให้ยกเท้าขึ้นเหนือพื้นได้ (ค่าบวก) สูงสุดเท่ากับ maxLegLength ข้ามสิ่งกีดขวางได้
-                    _currentYOffset = Mathf.Clamp(_currentYOffset, -maxLegLength, maxLegLength);
+                    // 🎮 คุมความสูงเท้าด้วยมือตรงๆ: W ยกขึ้น / S กดลง
+                    if (Input.GetKey(KeyCode.W)) _currentYOffset += heightAdjustSpeed * Time.deltaTime;
+                    if (Input.GetKey(KeyCode.S)) _currentYOffset -= heightAdjustSpeed * Time.deltaTime;
+                    // ⬆️ ยกเท้าพ้นพื้นได้ (ค่าบวก) สูงสุดเท่ากับ maxLegLength
+                    _currentYOffset = Mathf.Clamp(_currentYOffset, 0f, maxLegLength);
 
                     Vector3 newTarget;
-                    if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
-                    {
-                        if (_autoHeightEnabled)
-                        {
-                            float optimal = Mathf.Clamp(pivotPoint.position.y - hit.point.y, minLegLength, maxLegLength);
-                            newTarget = hit.point + Vector3.up * (optimal * 0.5f);
-                        }
-                        // 🦿 ยกเท้าจากพื้นตาม _currentYOffset — ส่งพิกัดให้ Server ปล่อยฟิสิกส์สปริงเดิมค่อยๆ ดึงขึ้น (ไม่วาร์ป/ไม่กระชาก)
-                        else newTarget = hit.point + Vector3.up * _currentYOffset;
-                    }
-                    else newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
+                    // 🦿 ยิง Raycast หาพื้น (50m เผื่อหุ่นสเกลยักษ์สะโพกสูง) แล้วยกเป้าหมายเท้าตามค่าที่กด W/S + ชดเชยความหนาเท้ากันจมดิน
+                    if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 50f, groundLayer))
+                        newTarget = hit.point + Vector3.up * (_currentYOffset + footThicknessOffset);
+                    else
+                        newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
 
                     if ((newTarget - _lastSentTarget).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
                 }
@@ -336,6 +335,7 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         isJumping = true;
         _jumpCooldownTimer = JUMP_HOLD_DURATION;
+        footRb.isKinematic = false; // 🔓 กระโดด: ปลดล็อกก่อน AddForce (ไม่งั้นแรงไม่มีผลบน kinematic body)
         footRb.AddForce(Vector3.up * footJumpForce, ForceMode.VelocityChange);
         if (torso != null && torso.torsoRb != null) torso.torsoRb.AddForce(Vector3.up * torsoJumpForce, ForceMode.Acceleration);
     }
