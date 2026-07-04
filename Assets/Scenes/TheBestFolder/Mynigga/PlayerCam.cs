@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Netcode;
 
 public class PlayerCam : NetworkBehaviour
@@ -37,6 +37,7 @@ public class PlayerCam : NetworkBehaviour
     private Vector3 _smoothedPivot;
     private bool _pivotInitialized = false;
 
+    // followTarget ถูกเซ็ตโดย LobbyManager = "limb ที่ผู้เล่นเลือก" (แขน/ขา) หลัง spawn เสร็จ
     public Transform followTarget;
 
     public override void OnNetworkSpawn()
@@ -50,7 +51,11 @@ public class PlayerCam : NetworkBehaviour
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            yaw = transform.eulerAngles.y;
+            // [Client Fix 3] ดึง yaw เริ่มต้นจากเป้าหมายจริงถ้ามีแล้ว (fallback เป็น transform)
+            // หมายเหตุ: LobbyManager มักเซ็ต followTarget ทีหลัง ตอนนี้จึงอาจยังเป็น null
+            // การรอ + guard ใน LateUpdate คือตัวจัดการหลัก บรรทัดนี้แค่กันเผื่อ target พร้อมก่อน
+            Transform yawSource = followTarget != null ? followTarget : transform;
+            yaw = yawSource.eulerAngles.y;
         }
         else
         {
@@ -62,6 +67,10 @@ public class PlayerCam : NetworkBehaviour
     void LateUpdate()
     {
         if (!IsOwner || playercam == null) return;
+
+        // [Client Fix 1] รอจนกว่า LobbyManager จะเซ็ต followTarget (limb ที่ครอบครอง) ให้เสร็จ
+        // ฝั่ง Client กล้อง spawn ก่อนที่ limb จะถูกจัดสรร — กันไม่ให้ไปอ้างอิง transform ที่เพี้ยน
+        if (followTarget == null) return;
 
         // Orbit with right mouse button held
         if (Input.GetMouseButton(1))
@@ -80,8 +89,8 @@ public class PlayerCam : NetworkBehaviour
         }
 
         // [Camera Fix 1] Smooth pivot แยกก่อน ลด stutter จาก Rigidbody/FixedUpdate
-        Vector3 rawPivotPos = followTarget != null ? followTarget.position : transform.position;
-        Vector3 rawPivot    = rawPivotPos + targetOffset;
+        // [Optimization] followTarget การันตีไม่ null แล้วจาก guard ด้านบน ดึง position ครั้งเดียว
+        Vector3 rawPivot = followTarget.position + targetOffset;
 
         // [Camera Fix 2] Exponential smooth -- framerate-independent กว่า Lerp * deltaTime
         // สูตร: 1 - exp(-k*dt) ทำให้ผลสม่ำเสมอทุก framerate
@@ -89,22 +98,26 @@ public class PlayerCam : NetworkBehaviour
         if (!_pivotInitialized) { _smoothedPivot = rawPivot; _pivotInitialized = true; }
         else _smoothedPivot = Vector3.Lerp(_smoothedPivot, rawPivot, pt);
 
+        // [Optimization] cache transform ของกล้อง ลดการเรียก property .transform ซ้ำ
+        Transform camT = playercam.transform;
+
         // Calculate desired camera position from smoothed pivot
         Quaternion orbitRot   = Quaternion.Euler(pitch, yaw, 0f);
         Vector3    desiredPos = _smoothedPivot - (orbitRot * Vector3.forward * distance);
-        playercam.transform.position = Vector3.Lerp(playercam.transform.position, desiredPos, pt);
+        camT.position = Vector3.Lerp(camT.position, desiredPos, pt);
 
         // [Camera Fix 3] Slerp แทน LookAt() ตรงๆ
         // LookAt() หักมุมทันที เมื่อ pivot กระตุก กล้องก็กระตุกตามทันที
-        Vector3 lookDir = _smoothedPivot - playercam.transform.position;
+        Vector3 lookDir = _smoothedPivot - camT.position;
         if (lookDir.sqrMagnitude > 0.001f)
         {
             Quaternion targetRot = Quaternion.LookRotation(lookDir);
             float rt = 1f - Mathf.Exp(-rotationSmoothSpeed * Time.deltaTime);
-            playercam.transform.rotation = Quaternion.Slerp(playercam.transform.rotation, targetRot, rt);
+            camT.rotation = Quaternion.Slerp(camT.rotation, targetRot, rt);
         }
 
-        // Sync NetworkBehaviour transform position
-        transform.position = rawPivotPos;
+        // [Client Fix 2] ลบ `transform.position = rawPivotPos;` ทิ้ง
+        // กล้องเคลื่อนที่ที่ playercam.transform เรียบร้อยแล้ว การเขียนทับ Player Root ทุกเฟรม
+        // จะไปตีกับ NetworkTransform (server เป็นเจ้าของตำแหน่ง) ทำให้ฝั่ง Client เพี้ยน
     }
 }
