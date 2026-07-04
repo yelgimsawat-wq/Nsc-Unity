@@ -122,6 +122,9 @@ public class LobbyManager : NetworkBehaviour
     {
         Instance = this;
 
+        // Freeze physics early to prevent objects from falling before clicking start
+        FreezeAllPhysics();
+
         // ✅ ตรวจสอบว่า SettingsManager ยังอยู่ไหม ถ้าหายให้สร้างใหม่
         EnsureSettingsManagerExists();
 

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Netcode;
 
 public class PlayerCam : NetworkBehaviour
@@ -19,8 +19,12 @@ public class PlayerCam : NetworkBehaviour
     public float zoomSpeed = 2f;
     [Tooltip("Height offset above the player pivot")]
     public Vector3 targetOffset = new Vector3(0f, 1.5f, 0f);
-    [Tooltip("How smoothly the camera follows")]
-    public float smoothSpeed = 10f;
+
+    [Header("Smoothing")]
+    [Tooltip("ความเร็วในการ Smooth ตาม followTarget (สูง = เกาะแน่น, ต่ำ = ลอยตาม)")]
+    public float positionSmoothSpeed = 12f;
+    [Tooltip("ความเร็วในการ Smooth การหมุนกล้อง (แก้กระตุกตอน LookAt)")]
+    public float rotationSmoothSpeed = 15f;
 
     [Header("Vertical Angle Limits")]
     public float minVerticalAngle = -30f;
@@ -28,8 +32,12 @@ public class PlayerCam : NetworkBehaviour
 
     [HideInInspector] public float yaw = 0f;
     private float pitch = 25f;
-    
-    public Transform followTarget; // Assigned by LobbyManager
+
+    // [Camera Fix] Smooth pivot เพื่อลด stutter จาก Rigidbody ที่อัปเดตใน FixedUpdate
+    private Vector3 _smoothedPivot;
+    private bool _pivotInitialized = false;
+
+    public Transform followTarget;
 
     public override void OnNetworkSpawn()
     {
@@ -39,11 +47,9 @@ public class PlayerCam : NetworkBehaviour
             playeral.enabled = true;
             playercam.gameObject.tag = "MainCamera";
 
-            // Keep cursor visible and unlocked
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            // Initialize yaw from current rotation
             yaw = transform.eulerAngles.y;
         }
         else
@@ -55,15 +61,14 @@ public class PlayerCam : NetworkBehaviour
 
     void LateUpdate()
     {
-        if (!IsOwner) return;
-        if (playercam == null) return;
+        if (!IsOwner || playercam == null) return;
 
         // Orbit with right mouse button held
         if (Input.GetMouseButton(1))
         {
-            yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
+            yaw   += Input.GetAxis("Mouse X") * mouseSensitivity;
             pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
-            pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
+            pitch  = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
         }
 
         // Zoom with scroll wheel
@@ -71,19 +76,35 @@ public class PlayerCam : NetworkBehaviour
         if (Mathf.Abs(scroll) > 0.01f)
         {
             distance -= scroll * zoomSpeed;
-            distance = Mathf.Clamp(distance, minDistance, maxDistance);
+            distance  = Mathf.Clamp(distance, minDistance, maxDistance);
         }
 
-        // Calculate desired camera position
-        Vector3 pivotPos = followTarget != null ? followTarget.position : transform.position;
-        Vector3 pivot = pivotPos + targetOffset;
-        Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
-        Vector3 desiredPosition = pivot - (rotation * Vector3.forward * distance);
+        // [Camera Fix 1] Smooth pivot แยกก่อน ลด stutter จาก Rigidbody/FixedUpdate
+        Vector3 rawPivotPos = followTarget != null ? followTarget.position : transform.position;
+        Vector3 rawPivot    = rawPivotPos + targetOffset;
 
-        // Smooth follow
-        playercam.transform.position = Vector3.Lerp(playercam.transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
-        playercam.transform.LookAt(pivot);
+        // [Camera Fix 2] Exponential smooth -- framerate-independent กว่า Lerp * deltaTime
+        // สูตร: 1 - exp(-k*dt) ทำให้ผลสม่ำเสมอทุก framerate
+        float pt = 1f - Mathf.Exp(-positionSmoothSpeed * Time.deltaTime);
+        if (!_pivotInitialized) { _smoothedPivot = rawPivot; _pivotInitialized = true; }
+        else _smoothedPivot = Vector3.Lerp(_smoothedPivot, rawPivot, pt);
 
-        transform.position = followTarget != null ? followTarget.position : transform.position;
+        // Calculate desired camera position from smoothed pivot
+        Quaternion orbitRot   = Quaternion.Euler(pitch, yaw, 0f);
+        Vector3    desiredPos = _smoothedPivot - (orbitRot * Vector3.forward * distance);
+        playercam.transform.position = Vector3.Lerp(playercam.transform.position, desiredPos, pt);
+
+        // [Camera Fix 3] Slerp แทน LookAt() ตรงๆ
+        // LookAt() หักมุมทันที เมื่อ pivot กระตุก กล้องก็กระตุกตามทันที
+        Vector3 lookDir = _smoothedPivot - playercam.transform.position;
+        if (lookDir.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(lookDir);
+            float rt = 1f - Mathf.Exp(-rotationSmoothSpeed * Time.deltaTime);
+            playercam.transform.rotation = Quaternion.Slerp(playercam.transform.rotation, targetRot, rt);
+        }
+
+        // Sync NetworkBehaviour transform position
+        transform.position = rawPivotPos;
     }
 }

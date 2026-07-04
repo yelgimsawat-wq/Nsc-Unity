@@ -13,6 +13,13 @@ public class PlayerHandMovement : NetworkBehaviour
     public Rigidbody handRb;
     public Transform pivotPoint;
     public Camera playerCamera;
+    
+    [Header("Offsets (ปรับจุดศูนย์กลางได้อิสระ)")]
+    public Vector3 pivotOffset = Vector3.zero;
+    public Vector3 grabOffset = Vector3.zero;
+
+    public Vector3 PivotPosition => pivotPoint != null ? pivotPoint.TransformPoint(pivotOffset) : transform.position;
+    public Vector3 GrabPosition => handRb != null ? handRb.transform.TransformPoint(grabOffset) : transform.position;
 
     [Header("Movement & IK Tuning")]
     public float maxArmLength = 1.8f;
@@ -30,6 +37,17 @@ public class PlayerHandMovement : NetworkBehaviour
 
     [Header("Smoothing (Anti-Jitter)")]
     public float targetSmoothSpeed = 12f;
+
+    [Header("Arm Reach Limits")]
+    [Tooltip("สัดส่วนแรงแนวราบ (XZ) ที่ส่งไปยังลำตัวเมื่อแขนยืดสุด\n" +
+             "0 = ดันได้แค่แนวตั้ง (ลุกหรือยืนไม่ได้ใช้มือโกง)\n" +
+             "1 = ดันได้เต็มทุกทิศ (เหมือนเดิม)\n" +
+             "แนะนำ 0.15–0.25 = รู้สึกว่ามือดึงบ้างแต่ไม่โกงได้")]
+    [Range(0f, 1f)]
+    public float torsoPullHorizontalScale = 0.2f;
+    [Tooltip("ความเร็วสูงสุดของลำตัวในแนวราบที่แรงดึงจะเริ่มลดลง (m/s)\n" +
+             "ถ้าตัววิ่งเร็วกว่านี้แล้ว แรงดึงแนวราบจะ = 0 กันสะสม momentum")]
+    public float maxAllowedHorizontalBoost = 3f;
 
     [Header("Mouse Range (World Space)")]
     public float mouseReachX = 3f;
@@ -97,11 +115,11 @@ public class PlayerHandMovement : NetworkBehaviour
         currentPlaneYOffset = Mathf.Clamp(currentPlaneYOffset, -mouseReachDepth, mouseReachDepth);
 
         // ✅ คำนวณตำแหน่งเป้าหมายด้วยการยิง Ray จากเมาส์บนหน้าจอ ไปชนระนาบจำลอง (Plane)
-        Vector3 newTarget = pivotPoint.position;
+        Vector3 newTarget = PivotPosition;
         Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
         
         // สร้างระนาบจำลอง (Plane) หันหน้าเข้าหากล้อง วางไว้ที่ PivotPoint + ระยะความลึก (W/S)
-        Vector3 planeCenter = pivotPoint.position + playerCamera.transform.forward * currentPlaneYOffset;
+        Vector3 planeCenter = PivotPosition + playerCamera.transform.forward * currentPlaneYOffset;
         Plane virtualPlane = new Plane(-playerCamera.transform.forward, planeCenter);
 
         if (virtualPlane.Raycast(ray, out float enter))
@@ -109,13 +127,13 @@ public class PlayerHandMovement : NetworkBehaviour
             Vector3 hitPoint = ray.GetPoint(enter);
             
             // ✅ จำกัดระยะ (Clamp) ไม่ให้เอื้อมไกลหน้าจอเกินไป โดยอิงจากมุมมองกล้อง
-            Vector3 dir = hitPoint - pivotPoint.position;
+            Vector3 dir = hitPoint - PivotPosition;
             Vector3 localDir = playerCamera.transform.InverseTransformDirection(dir);
             
             localDir.x = Mathf.Clamp(localDir.x, -mouseReachX, mouseReachX);
             localDir.y = Mathf.Clamp(localDir.y, -mouseReachY, mouseReachY);
             
-            newTarget = pivotPoint.position + playerCamera.transform.TransformDirection(localDir);
+            newTarget = PivotPosition + playerCamera.transform.TransformDirection(localDir);
         }
 
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
@@ -140,13 +158,13 @@ public class PlayerHandMovement : NetworkBehaviour
     }
     
     [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { targetHandPosition = target; }
-    [Rpc(SendTo.Server)] private void ApplyHandRecoveryRpc() { torso.ApplyContinuousRecoveryForce(pivotPoint.position); }
+    [Rpc(SendTo.Server)] private void ApplyHandRecoveryRpc() { torso.ApplyContinuousRecoveryForce(PivotPosition); }
 
     [Rpc(SendTo.Server)]
     private void TryGrabRpc()
     {
         isGrabbing = true;
-        Collider[] hits = Physics.OverlapSphere(handRb.position, grabRadius, grabLayer);
+        Collider[] hits = Physics.OverlapSphere(GrabPosition, grabRadius, grabLayer);
         foreach (var h in hits)
         {
             Rigidbody rb = h.attachedRigidbody;
@@ -218,14 +236,14 @@ public class PlayerHandMovement : NetworkBehaviour
 
     protected virtual void PerformArmMovement()
     {
-        Vector3 dirFromPivot = smoothedHandTarget - pivotPoint.position;
+        Vector3 dirFromPivot = smoothedHandTarget - PivotPosition;
         float currentDistance = dirFromPivot.magnitude;
         Vector3 physicsTarget = smoothedHandTarget;
 
         if (isGrabbing && grabbedObject != null && grabbedObject.isKinematic)
         {
             // ปีนป่าย
-            Vector3 climbPullDir = physicsTarget - handRb.position;
+            Vector3 climbPullDir = physicsTarget - GrabPosition;
             torso.torsoRb.AddForce(climbPullDir * kinematicPullForce, ForceMode.Acceleration);
 
             float stressThisFrame = kinematicPullForce * Time.fixedDeltaTime * Mathf.Clamp01(currentDistance / maxArmLength);
@@ -234,18 +252,43 @@ public class PlayerHandMovement : NetworkBehaviour
         }
         else
         {
-            // เคลื่อนมือปกติ
             torso.armPullIntensity = 0f;
 
             if (currentDistance < 0.05f)
             {
-                physicsTarget = pivotPoint.position + (dirFromPivot.normalized * 0.05f);
+                physicsTarget = PivotPosition + (dirFromPivot.normalized * 0.05f);
             }
             else if (currentDistance > maxArmLength)
             {
-                physicsTarget = pivotPoint.position + (dirFromPivot / currentDistance) * maxArmLength;
+                physicsTarget = PivotPosition + (dirFromPivot / currentDistance) * maxArmLength;
                 Vector3 pullDir = dirFromPivot / currentDistance;
-                torso.torsoRb.AddForceAtPosition(pullDir * torsoPullForce, pivotPoint.position, ForceMode.Acceleration);
+
+                // ── [Anti Hand-Skating] ────────────────────────────────────────
+                // แยกแรงดึงออกเป็น แนวตั้ง (Y) และ แนวราบ (XZ)
+                // แรงแนวราบถูก scale ลงตาม torsoPullHorizontalScale
+                // และถูกลดเพิ่มเติมถ้าตัวกำลังเคลื่อนที่เร็วอยู่แล้วในทิศเดียวกัน
+                Vector3 pullVertical   = new Vector3(0f, pullDir.y, 0f);
+                Vector3 pullHorizontal = new Vector3(pullDir.x, 0f, pullDir.z);
+
+                // วัดความเร็วตัวในแนวราบ
+                Vector3 bodyHorizVel = torso.torsoRb.linearVelocity;
+                bodyHorizVel.y = 0f;
+
+                // ถ้าตัววิ่งในทิศเดียวกับแรงดึงอยู่แล้ว → ลดแรงแนวราบลง
+                float velAlongPull = Vector3.Dot(bodyHorizVel, pullHorizontal.normalized);
+                float horizScale   = torsoPullHorizontalScale *
+                                     Mathf.Clamp01(1f - velAlongPull / Mathf.Max(maxAllowedHorizontalBoost, 0.1f));
+
+                // [Audit Fix] ป้องกันไม่ให้แขนกดตัวเองจมพื้นเวลาล้มหรือกำลังพยายามลุก
+                bool isRagdollOrFalling = torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling;
+                if (pullVertical.y < 0f && isRagdollOrFalling)
+                {
+                    pullVertical.y *= 0.1f; // ลดแรงกดลง 90%
+                }
+
+                Vector3 cappedPullDir = pullVertical + pullHorizontal * horizScale;
+                torso.torsoRb.AddForceAtPosition(cappedPullDir * torsoPullForce, PivotPosition, ForceMode.Acceleration);
+                // ──────────────────────────────────────────────────────────────
 
                 float stressThisFrame = torsoPullForce * Time.fixedDeltaTime * 0.5f;
                 torso.AddStress(stressThisFrame);
@@ -261,13 +304,13 @@ public class PlayerHandMovement : NetworkBehaviour
         if (pivotPoint != null)
         {
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(pivotPoint.position, maxArmLength);
+            Gizmos.DrawWireSphere(PivotPosition, maxArmLength);
         }
 
         if (handRb != null)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(handRb.position, grabRadius);
+            Gizmos.DrawWireSphere(GrabPosition, grabRadius);
         }
     }
 }
