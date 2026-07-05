@@ -123,6 +123,7 @@ public class LobbyManager : NetworkBehaviour
         Instance = this;
 
         // Freeze physics early to prevent objects from falling before clicking start
+        ResolveActiveRobot(); // หาหุ่นตัวที่ active ก่อน — กัน freeze/อ้างอิงผิดตัว
         FreezeAllPhysics();
 
         // ✅ ตรวจสอบว่า SettingsManager ยังอยู่ไหม ถ้าหายให้สร้างใหม่
@@ -196,6 +197,8 @@ public class LobbyManager : NetworkBehaviour
     base.OnNetworkSpawn();
 
     // Freeze ทุก Rigidbody ตอนเปิด Panel ทั้ง Host และ Client
+    ResolveActiveRobot();  // เผื่อหุ่นถูกสลับ/ย้ายหลัง Awake
+    DisableExtraRobots();  // server ถอดหุ่นตัวเกินออกจากเกมอัตโนมัติ
     FreezeAllPhysics();
 
     // ✅ เปิด Panel ตอนเริ่ม
@@ -696,6 +699,8 @@ public class LobbyManager : NetworkBehaviour
         if (!IsServer) return;
         if (startButton != null) startButton.interactable = false;
 
+        ResolveActiveRobot(); // การันตีว่าโอน ownership ให้หุ่นตัวที่ active จริง
+
         // --- NEW: Transfer ownership to the players who selected the limbs ---
         for (int i = 0; i < limbOwners.Count; i++)
         {
@@ -755,6 +760,8 @@ public class LobbyManager : NetworkBehaviour
 
     private bool TryAssignAllLimbs()
     {
+        ResolveActiveRobot(); // ฝั่ง client ก็ต้องชี้หุ่นตัวเดียวกับ server ก่อนเสียบกล้อง
+
         bool allDone = true;
 
         for (int i = 0; i < limbOwners.Count; i++)
@@ -1121,6 +1128,75 @@ public class LobbyManager : NetworkBehaviour
     private GameObject GetLimbByIndex(int index)
     {
         return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
+    }
+
+    [Header("Robot Auto-Management")]
+    [Tooltip("ปิดหุ่นตัวเกินในฉากอัตโนมัติตอนเริ่มเกม เหลือเฉพาะตัวที่ระบบเลือกใช้\n" +
+             "จะได้ก็อป/ย้าย/ทดลองหุ่นหลายตัวในฉากได้โดยไม่ต้องนั่งปิดเอง")]
+    public bool autoDisableExtraRobots = true;
+
+    // ✅ [Auto Disable] ถอดหุ่นตัวเกินออกจากเกม (server เท่านั้น)
+    // ตัวที่ถูกเลือกโดย ResolveActiveRobot = ตัวจริง / ตัวอื่นที่ active ค้าง = ถูกถอด
+    private void DisableExtraRobots()
+    {
+        if (!autoDisableExtraRobots || robotContainer == null) return;
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
+        foreach (var torso in FindObjectsByType<TorsoMovement>(FindObjectsSortMode.None))
+        {
+            GameObject root = torso.transform.root.gameObject;
+            if (root == robotContainer) continue;
+
+            // ถอดจาก network ก่อน (ให้ client ทุกเครื่องเห็นตรงกัน) แล้วค่อยปิด
+            foreach (var no in root.GetComponentsInChildren<NetworkObject>(true))
+                if (no.IsSpawned) no.Despawn(false);
+
+            root.SetActive(false);
+            Debug.Log($"[Lobby] 🤖 ปิดหุ่นตัวเกินอัตโนมัติ: {root.name}");
+        }
+    }
+
+    // ✅ [Dynamic Robot Resolve] หา "หุ่นตัวที่ active จริง" ตอนรันไทม์
+    // แก้ปัญหา: ย้าย/ก็อป/สลับตัวหุ่นในฉากแล้ว reference เดิมยังชี้ตัวเก่าที่ปิดอยู่
+    // → freeze/ownership/กล้อง ไปลงหุ่นผิดตัวที่ตำแหน่งเดิม (อาการ "spawn ไม่ตรง")
+    private void ResolveActiveRobot()
+    {
+        // ถ้า container เดิมตาย/ถูกปิด → หาใหม่จาก TorsoMovement ที่ active อยู่
+        if (robotContainer == null || !robotContainer.activeInHierarchy)
+        {
+            TorsoMovement torso = FindFirstObjectByType<TorsoMovement>();
+            if (torso != null) robotContainer = torso.transform.root.gameObject;
+        }
+        if (robotContainer == null)
+        {
+            Debug.LogWarning("[Lobby] ไม่พบหุ่นที่ active ในฉากเลย!");
+            return;
+        }
+
+        // ถ้าช่องชิ้นส่วนยังชี้ของ active ครบทุกช่อง ก็ไม่ต้องทำอะไร
+        bool limbsValid = leftArm  != null && leftArm.activeInHierarchy  &&
+                          rightArm != null && rightArm.activeInHierarchy &&
+                          leftLeg  != null && leftLeg.activeInHierarchy  &&
+                          rightLeg != null && rightLeg.activeInHierarchy;
+        if (limbsValid) return;
+
+        // จับคู่ใหม่จากชิ้นส่วนของหุ่นตัวที่ active — ใช้ convention เดิมตามที่ต่อไว้ใน Inspector
+        // (มุมมอง UI หันหน้าเข้าหาผู้เล่น: ช่อง leftArm = มือขวาของหุ่น ฯลฯ)
+        foreach (var hand in robotContainer.GetComponentsInChildren<PlayerHandMovement>(true))
+        {
+            string n = hand.gameObject.name;
+            if (n.Contains("_R") || n.Contains("Right"))     leftArm  = hand.gameObject;
+            else if (n.Contains("_L") || n.Contains("Left")) rightArm = hand.gameObject;
+        }
+        foreach (var foot in robotContainer.GetComponentsInChildren<PlayerFootForRobot>(true))
+        {
+            string n = foot.gameObject.name;
+            if (n.Contains("_R") || n.Contains("Right"))     leftLeg  = foot.gameObject;
+            else if (n.Contains("_L") || n.Contains("Left")) rightLeg = foot.gameObject;
+        }
+
+        Debug.Log($"[Lobby] Resolved robot '{robotContainer.name}' | L.ARM→{(leftArm ? leftArm.name : "?")} " +
+                  $"R.ARM→{(rightArm ? rightArm.name : "?")} L.LEG→{(leftLeg ? leftLeg.name : "?")} R.LEG→{(rightLeg ? rightLeg.name : "?")}");
     }
 
     private GameObject GetPlayerObject(ulong clientId)
