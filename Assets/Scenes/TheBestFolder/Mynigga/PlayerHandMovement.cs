@@ -36,7 +36,29 @@ public class PlayerHandMovement : NetworkBehaviour
     public LayerMask groundLayer;
 
     [Header("Smoothing (Anti-Jitter)")]
-    public float targetSmoothSpeed = 12f;
+    [Tooltip("เวลาที่มือใช้ไล่ถึงเป้าหมาย (SmoothDamp) — สั้น = ตอบสนองไว/คม แนะนำ 0.03–0.05")]
+    public float smoothTime = 0.04f;
+
+    [Header("Stability (Anti-Overshoot)")]
+    [Tooltip("ระยะจากเป้าหมายที่เริ่มเบรกความเร็วมือ กันพุ่งเลยเป้าแล้วดีดกลับ")]
+    public float brakeDistance = 0.5f;
+    [Tooltip("ความแรงเบรกเมื่อเข้าใกล้เป้าหมาย (Acceleration)")]
+    public float brakeDamping = 8f;
+    [Tooltip("ชดเชยแรงโน้มถ่วงของมือ — สปริงไม่ต้องแบกน้ำหนักมือค้างไว้ ทำให้ยืดถึงเป้าจริง ไม่ตกสั้น")]
+    public bool compensateGravity = true;
+    [Tooltip("เพดานความเร็วเป้าหมายของสปริง (m/s)\n" +
+             "กันสปริงออกแรงมหาศาลตอนเป้าอยู่ไกล ซึ่งทำให้โซ่ข้อต่อแขนสั่น/ระเบิด")]
+    public float maxHandVelocity = 40f;
+    [Tooltip("ปิดการชนระหว่างมือกับชิ้นส่วนหุ่นตัวเอง\n" +
+             "ตัดอาการสั่นจากมือครูดลำตัว/แขน/มืออีกข้างตอนเล็งไปมา")]
+    public bool ignoreSelfCollision = true;
+
+    // เพดานความเร็วชั่วคราว — คลาสลูกเซ็ตตอนต่อย (0 = ใช้ maxHandVelocity ปกติ)
+    protected float velocityCapOverride = 0f;
+
+    // ระยะยืดพิเศษชั่วคราว — คลาสลูก (PlayerHandCombat) เซ็ตตอนปล่อยหมัด
+    // เพื่อขยาย reach limit จริงๆ แทนการหลอกเป้าหมายที่โดน clamp ทิ้ง
+    protected float extraReach = 0f;
 
     [Header("Arm Reach Limits")]
     [Tooltip("สัดส่วนแรงแนวราบ (XZ) ที่ส่งไปยังลำตัวเมื่อแขนยืดสุด\n" +
@@ -54,7 +76,7 @@ public class PlayerHandMovement : NetworkBehaviour
     public float mouseReachY = 3f;
     public float mouseReachDepth = 3f;
 
-    protected float currentPlaneYOffset = 0f;
+    protected float currentDepthOffset = 0f; // ระยะเข้า-ออกตามแนวกล้อง (W/S)
     protected bool isGrabbing = false;
     protected Rigidbody grabbedObject;
     protected FixedJoint grabJoint;
@@ -62,16 +84,49 @@ public class PlayerHandMovement : NetworkBehaviour
     protected Vector3 targetHandPosition;
     protected Vector3 smoothedHandTarget;
     protected bool smoothedHandInitialized = false;
+    protected Vector3 _smoothVelocityRef = Vector3.zero; // ความเร็วสำหรับ SmoothDamp
 
-    // ตัวแปรใหม่สำหรับล็อกสถานะและมุมกล้อง
     protected bool localGrabToggle = false;
-    protected Vector2 activeMouseNorm = Vector2.zero;
-    protected Vector3 lockedCamForward = Vector3.forward;
-    protected Vector3 lockedCamRight = Vector3.right;
-    protected Vector3 lockedCamUp = Vector3.up;
 
     protected Vector3 lastSentTarget;
     protected const float RPC_SEND_THRESHOLD = 0.05f;
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        // ✅ [Rest Pose] กันแขนสะบัดไปหา (0,0,0) ในเฟรมแรก:
+        // ใช้ตำแหน่งจริงของมือตอน spawn (ท่าขนาบลำตัวตาม prefab) เป็นเป้าหมายเริ่มต้น
+        // แขนจึงนิ่งอยู่ข้างลำตัวตั้งแต่เฟรมแรก จนกว่า Owner จะเริ่มขยับเมาส์จริง
+        Vector3 restPose = handRb != null
+            ? handRb.position
+            : PivotPosition + Vector3.down * (maxArmLength * 0.5f);
+
+        targetHandPosition = restPose;
+        smoothedHandTarget = restPose;
+        _smoothVelocityRef = Vector3.zero;
+        smoothedHandInitialized = true;
+        lastSentTarget = restPose;
+
+        if (IsServer && handRb != null)
+        {
+            // ✅ [Solver Boost] โซ่ข้อต่อแขนแก้สมการยากกว่า rigidbody เดี่ยว
+            // เพิ่มรอบ solver เฉพาะมือ → ข้อต่อนิ่งขึ้นตอนรับแรงสูง (ต่อย/เหวี่ยงเร็ว)
+            handRb.solverIterations = 12;
+            handRb.solverVelocityIterations = 4;
+
+            // ✅ [No Self-Collision] มือไม่ชนชิ้นส่วนหุ่นตัวเอง
+            // มือครูดลำตัว/ขา/มืออีกข้าง = แหล่งแรงสั่นและหมัดสะดุดที่ใหญ่ที่สุด
+            if (ignoreSelfCollision)
+            {
+                Collider[] handCols = handRb.GetComponentsInChildren<Collider>();
+                Collider[] bodyCols = transform.root.GetComponentsInChildren<Collider>(true);
+                foreach (var hc in handCols)
+                    foreach (var bc in bodyCols)
+                        if (hc != bc) Physics.IgnoreCollision(hc, bc, true);
+            }
+        }
+    }
 
     protected virtual void Update()
     {
@@ -92,9 +147,18 @@ public class PlayerHandMovement : NetworkBehaviour
 
     private void SmoothHandTarget()
     {
-        float t = 1f - Mathf.Exp(-targetSmoothSpeed * Time.fixedDeltaTime);
-        if (!smoothedHandInitialized) { smoothedHandTarget = targetHandPosition; smoothedHandInitialized = true; }
-        else smoothedHandTarget = Vector3.Lerp(smoothedHandTarget, targetHandPosition, t);
+        // SmoothDamp: คม/แม่น — smoothTime สั้น ตอบสนองไว มีเบรกในตัวกัน overshoot
+        if (!smoothedHandInitialized)
+        {
+            smoothedHandTarget = targetHandPosition;
+            _smoothVelocityRef = Vector3.zero;
+            smoothedHandInitialized = true;
+        }
+        else
+        {
+            smoothedHandTarget = Vector3.SmoothDamp(
+                smoothedHandTarget, targetHandPosition, ref _smoothVelocityRef, smoothTime, Mathf.Infinity, Time.fixedDeltaTime);
+        }
     }
 
     private Vector2 GetNormalizedMousePosition()
@@ -105,37 +169,41 @@ public class PlayerHandMovement : NetworkBehaviour
         );
     }
 
+    // ── Screen Basis (ล็อกเฉพาะ Yaw ของกล้อง) ─────────────────────────
+    // ใช้ทิศแนวราบของกล้องอย่างเดียว: มุมก้ม/เงย (pitch) ของกล้อง
+    // จะไม่มีผลต่อพิกัดมืออีกต่อไป → ตัด Drift/Jitter จากมุมกล้องทิ้งทั้งหมด
+    // เมาส์ขึ้น = มือขึ้นแนวดิ่งโลกเป๊ะๆ, เมาส์ขวา = มือไปขวาของจอในแนวราบ
+    private void GetScreenBasis(out Vector3 screenRight, out Vector3 screenUp, out Vector3 depthDir)
+    {
+        Vector3 flatForward = Vector3.ProjectOnPlane(playerCamera.transform.forward, Vector3.up);
+        if (flatForward.sqrMagnitude < 0.0001f) // กล้องมองดิ่งพอดี ใช้แกน up ของกล้องแทน
+            flatForward = Vector3.ProjectOnPlane(playerCamera.transform.up, Vector3.up);
+
+        depthDir    = flatForward.normalized;
+        screenRight = Vector3.Cross(Vector3.up, depthDir); // ตั้งฉากกันเสมอ ไม่สะสม error
+        screenUp    = Vector3.up;
+    }
+
     protected virtual void HandleInput()
     {
         if (currentState.Value != HandState.Attached) return;
 
-        // ✅ W/S สำหรับ เดินหน้า-ถอยหลัง (แกนลึก/Z-Depth)
-        if (Input.GetKey(KeyCode.W)) currentPlaneYOffset += planeYOffsetSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.S)) currentPlaneYOffset -= planeYOffsetSpeed * Time.deltaTime;
-        currentPlaneYOffset = Mathf.Clamp(currentPlaneYOffset, -mouseReachDepth, mouseReachDepth);
+        // ✅ [Depth] W/S ปรับเฉพาะระยะลึกเข้า-ออก (แยกขาดจากแกน XY โดยสิ้นเชิง)
+        if (Input.GetKey(KeyCode.W)) currentDepthOffset += planeYOffsetSpeed * Time.deltaTime;
+        if (Input.GetKey(KeyCode.S)) currentDepthOffset -= planeYOffsetSpeed * Time.deltaTime;
+        currentDepthOffset = Mathf.Clamp(currentDepthOffset, -mouseReachDepth, mouseReachDepth);
 
-        // ✅ คำนวณตำแหน่งเป้าหมายด้วยการยิง Ray จากเมาส์บนหน้าจอ ไปชนระนาบจำลอง (Plane)
-        Vector3 newTarget = PivotPosition;
-        Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
-        
-        // สร้างระนาบจำลอง (Plane) หันหน้าเข้าหากล้อง วางไว้ที่ PivotPoint + ระยะความลึก (W/S)
-        Vector3 planeCenter = PivotPosition + playerCamera.transform.forward * currentPlaneYOffset;
-        Plane virtualPlane = new Plane(-playerCamera.transform.forward, planeCenter);
+        // ✅ [Screen-to-World 1:1] เมาส์ normalized [-1,1] × ระยะเอื้อม = พิกัดโลกโดยตรง
+        // ไม่มี Virtual Plane, ไม่มี Raycast, ไม่พึ่ง camRight/camUp ที่เอียงตาม pitch
+        Vector2 mouseNorm = GetNormalizedMousePosition();
+        GetScreenBasis(out Vector3 screenRight, out Vector3 screenUp, out Vector3 depthDir);
 
-        if (virtualPlane.Raycast(ray, out float enter))
-        {
-            Vector3 hitPoint = ray.GetPoint(enter);
-            
-            // ✅ จำกัดระยะ (Clamp) ไม่ให้เอื้อมไกลหน้าจอเกินไป โดยอิงจากมุมมองกล้อง
-            Vector3 dir = hitPoint - PivotPosition;
-            Vector3 localDir = playerCamera.transform.InverseTransformDirection(dir);
-            
-            localDir.x = Mathf.Clamp(localDir.x, -mouseReachX, mouseReachX);
-            localDir.y = Mathf.Clamp(localDir.y, -mouseReachY, mouseReachY);
-            
-            newTarget = PivotPosition + playerCamera.transform.TransformDirection(localDir);
-        }
+        Vector3 newTarget = PivotPosition
+            + screenRight * (mouseNorm.x * mouseReachX)  // ซ้าย-ขวา ตามจอ
+            + screenUp    * (mouseNorm.y * mouseReachY)  // ขึ้น-ลง แนวดิ่งโลก
+            + depthDir    * currentDepthOffset;          // ลึกเข้า-ออก (W/S เท่านั้น)
 
+        // ✅ กันมือทะลุพื้น (คงไว้เหมือนเดิม)
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
             if (newTarget.y < hit.point.y) newTarget.y = hit.point.y;
 
@@ -240,6 +308,9 @@ public class PlayerHandMovement : NetworkBehaviour
         float currentDistance = dirFromPivot.magnitude;
         Vector3 physicsTarget = smoothedHandTarget;
 
+        // ✅ ระยะเอื้อมจริง = ค่าฐาน + ระยะพิเศษชั่วคราว (เช่นตอนปล่อยหมัด)
+        float reachLimit = maxArmLength + extraReach;
+
         if (isGrabbing && grabbedObject != null && grabbedObject.isKinematic)
         {
             // ปีนป่าย
@@ -258,9 +329,15 @@ public class PlayerHandMovement : NetworkBehaviour
             {
                 physicsTarget = PivotPosition + (dirFromPivot.normalized * 0.05f);
             }
-            else if (currentDistance > maxArmLength)
+            else if (currentDistance > reachLimit)
             {
-                physicsTarget = PivotPosition + (dirFromPivot / currentDistance) * maxArmLength;
+                // ✅ [Soft Clamp] เดิม clamp แข็งที่ผิวทรงกลม → เป้าหมายฟิสิกส์กระตุกทันทีที่ชนขอบ
+                // ทำให้สปริง "เด้งกลับ" ตอนยืดสุดแขน
+                // ใหม่: ระยะส่วนเกินถูกบีบแบบ asymptotic (ยอมเกินได้สูงสุด ~0.4m แบบนุ่มนวล)
+                float excess = currentDistance - reachLimit;
+                float softExcess = excess / (1f + excess * 2.5f);
+                physicsTarget = PivotPosition + (dirFromPivot / currentDistance) * (reachLimit + softExcess);
+
                 Vector3 pullDir = dirFromPivot / currentDistance;
 
                 // ── [Anti Hand-Skating] ────────────────────────────────────────
@@ -294,8 +371,28 @@ public class PlayerHandMovement : NetworkBehaviour
                 torso.AddStress(stressThisFrame);
             }
 
-            Vector3 velocityTarget = (physicsTarget - handRb.position) * handMoveSpeed;
-            handRb.AddForce((velocityTarget - handRb.linearVelocity) * handDamper, ForceMode.Acceleration);
+            // ── Spring + Stability ─────────────────────────────────────────
+            Vector3 toTarget = physicsTarget - handRb.position;
+
+            // ✅ [Velocity Cap] จำกัดความเร็วที่สปริงเรียกร้อง — เป้าไกลแค่ไหน
+            // สปริงก็ขอความเร็วได้ไม่เกินเพดาน → แรงในโซ่ข้อต่อไม่ระเบิด ไม่สั่น
+            float velCap = velocityCapOverride > 0f ? velocityCapOverride : maxHandVelocity;
+            Vector3 velocityTarget = Vector3.ClampMagnitude(toTarget * handMoveSpeed, velCap);
+            Vector3 force = (velocityTarget - handRb.linearVelocity) * handDamper;
+
+            // ✅ [Gravity Compensation] ตัวการหลักที่ "ยื้อ" แขนไว้:
+            // สปริงต้องเหลือระยะ error ค้างไว้เพื่อสร้างแรงต้านน้ำหนักมือ
+            // → มือจึงหยุดสั้นกว่าเป้าเสมอ (sag) ชดเชยทิ้งให้สปริงยืดถึงเป้าเต็มระยะ
+            if (compensateGravity && handRb.useGravity)
+                force -= Physics.gravity;
+
+            // ✅ [Proximity Brake] ใกล้เป้าแล้วเบรกความเร็วเพิ่มแบบ quadratic
+            // → มีแรงเหวี่ยงเต็มที่ตอนไกล แต่หยุดนิ่งแม่นยำตอนถึง กัน Overshoot/ดีดกลับ
+            float proximity = 1f - Mathf.Clamp01(toTarget.magnitude / Mathf.Max(brakeDistance, 0.01f));
+            if (proximity > 0f)
+                force -= handRb.linearVelocity * (brakeDamping * proximity * proximity);
+
+            handRb.AddForce(force, ForceMode.Acceleration);
         }
     }
 

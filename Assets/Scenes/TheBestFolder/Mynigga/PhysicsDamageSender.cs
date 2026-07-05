@@ -5,12 +5,20 @@ using NscGame.Enemy; // สำหรับเข้าถึง EnemyHealth
 [RequireComponent(typeof(Rigidbody))]
 public class PhysicsDamageSender : MonoBehaviour
 {
-    [Header("Damage Settings")]
+    [Header("Damage Settings (F = ma)")]
     [Tooltip("ความเร็วขั้นต่ำในการชนที่จะเกิดดาเมจ (กันชนเบาๆ แล้วเลือดลด)")]
     public float minVelocityThreshold = 8f;
 
-    [Tooltip("คูณความเร็วชนเป็นดาเมจ (เช่น ชนด้วย 10 m/s * 1.5 = 15 damage)")]
-    public float damageMultiplier = 1f;
+    [Tooltip("ตัวคูณแปลงแรงปะทะจริง (นิวตัน) เป็นดาเมจ — ใช้กับชิ้นส่วนที่ไม่มีระบบต่อย\n" +
+             "F = ma = impulse/Δt")]
+    public float forceToDamage = 0.01f;
+
+    [Tooltip("ตัวคูณแปลงความเร็วพีคของหมัด (m/s) เป็นดาเมจ — ใช้กับมือที่มี PlayerHandCombat\n" +
+             "เช่น หมัดพีค 55 m/s × 0.6 = ดาเมจ 33 → ค่าคงที่ต่อหมัด ไม่แกว่งตามมุมชน")]
+    public float speedToDamage = 0.6f;
+
+    [Tooltip("เพดานดาเมจต่อการชนหนึ่งครั้ง")]
+    public float maxDamagePerHit = 60f;
 
     [Header("Knockback Settings")]
     [Tooltip("แรง Knockback พื้นฐาน")]
@@ -28,10 +36,12 @@ public class PhysicsDamageSender : MonoBehaviour
 
     private Rigidbody rb;
     private AudioSource audioSource;
+    private PlayerHandCombat combat; // ถ้าติดบนมือที่มีระบบต่อย: คิดดาเมจเฉพาะตอนปล่อยหมัด (Shift)
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        combat = GetComponent<PlayerHandCombat>();
 
         // สร้าง AudioSource ถ้ายังไม่มี
         audioSource = GetComponent<AudioSource>();
@@ -45,16 +55,48 @@ public class PhysicsDamageSender : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
+        // ✅ [Bug Fix] ข้ามการชนกับชิ้นส่วนหุ่นตัวเอง
+        // เดิมมือครูดขา/ลำตัวตัวเองก็นับเป็นการปะทะ → หมัดจบก่อนถึงเป้า
+        if (collision.transform.root == transform.root)
+            return;
+
+        // ✅ [Bug Fix] กัน IndexOutOfRange จาก CCD บางเคสที่ contactCount = 0
+        if (collision.contactCount == 0)
+            return;
+
         // คำนวณความเร็วสัมพัทธ์ (Relative Velocity) จังหวะที่ชน
         float impactSpeed = collision.relativeVelocity.magnitude;
 
-        // ถ้าความเร็วน้อยเกินไป ไม่เกิดดาเมจ
-        if (impactSpeed < minVelocityThreshold)
-            return;
+        float finalDamage;
+        float finalKnockback;
 
-        // คำนวณดาเมจและแรง Knockback
-        float finalDamage = impactSpeed * damageMultiplier;
-        float finalKnockback = baseKnockbackForce + (impactSpeed * knockbackVelocityMultiplier);
+        if (combat != null)
+        {
+            // ✅ [มือที่มีระบบต่อย] ดาเมจคิดจาก "ความเร็วพีคของหมัดรอบนี้"
+            // - นับเฉพาะระหว่าง Punching หรือช่วงผ่อนผันสั้นๆ หลังปล่อย (damageGraceTime)
+            //   → แก้อาการดาเมจติดๆ ดับๆ ตอนหมัดถึงเป้าช้ากว่าจังหวะ state สลับ
+            // - ใช้ความเร็วพีค ไม่ใช่ impulse ตอนชน → ชนเฉียง/เป้าถอย ดาเมจไม่หายอีก
+            // - hasHitThisPunch ล็อกให้หนึ่งหมัด = หนึ่งดาเมจ
+            if (!combat.CanDealDamage)
+                return;
+
+            float punchSpeed = combat.PeakPunchSpeed;
+            if (punchSpeed < minVelocityThreshold)
+                return;
+
+            finalDamage = Mathf.Min(punchSpeed * speedToDamage, maxDamagePerHit);
+            finalKnockback = baseKnockbackForce + (punchSpeed * knockbackVelocityMultiplier);
+        }
+        else
+        {
+            // [ชิ้นส่วนทั่วไป] ใช้แรงปะทะจริงเหมือนเดิม: F = m·Δv/Δt = impulse/Δt
+            if (impactSpeed < minVelocityThreshold)
+                return;
+
+            float impactForce = collision.impulse.magnitude / Time.fixedDeltaTime;
+            finalDamage = Mathf.Min(impactForce * forceToDamage, maxDamagePerHit);
+            finalKnockback = baseKnockbackForce + (impactSpeed * knockbackVelocityMultiplier);
+        }
 
         // ทิศทางการชน (จากจุดชนแรก)
         Vector3 hitDirection = collision.contacts[0].normal * -1f; // กลับทิศเพราะ normal ชี้ออกจากพื้นผิว
@@ -71,7 +113,7 @@ public class PhysicsDamageSender : MonoBehaviour
                 enemyHealth.ServerTakeHit(finalDamage, hitDirection, finalKnockback);
             }
 
-            Debug.Log($"🥊 HIT! Impact Speed: {impactSpeed:F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");
+            Debug.Log($"🥊 HIT! PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");
 
             // เล่น VFX และ SFX (Client-side)
             SpawnImpactEffects(impactPoint, hitDirection);
@@ -80,6 +122,18 @@ public class PhysicsDamageSender : MonoBehaviour
         {
             // ชนกับสิ่งที่ไม่ใช่ Enemy (เช่น กำแพง, พื้น)
             Debug.Log($"💥 Collision at {impactSpeed:F1} m/s (no damage target)");
+        }
+
+        // ✅ [Bug Fix] แยกชะตากรรมหมัดตามสิ่งที่ชน:
+        // - โดนศัตรู → ล็อกดาเมจ + จบหมัด (หนึ่งหมัดหนึ่งดาเมจ)
+        // - โดนกำแพง/พื้นแรงๆ → จบหมัดแต่ "ไม่ล็อกดาเมจ" — ถ้าปัดไปโดนศัตรูในช่วง grace ยังนับ
+        // - ครูดเบาๆ → ไม่ทำอะไร หมัดพุ่งต่อ (เดิมครูดนิดเดียวหมัดก็ดับ)
+        if (combat != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        {
+            if (enemyHealth != null)
+                combat.NotifyPunchImpact();
+            else if (impactSpeed >= minVelocityThreshold)
+                combat.NotifyPunchBlocked();
         }
     }
 

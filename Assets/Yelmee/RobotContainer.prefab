@@ -2273,7 +2273,7 @@ MonoBehaviour:
   pivotPoint: {fileID: 4189651100505755601}
   playerCamera: {fileID: 0}
   maxArmLength: 9.5
-  handMoveSpeed: 15
+  handMoveSpeed: 25
   handDamper: 15
   planeYOffsetSpeed: 10
   grabRadius: 1
@@ -2287,9 +2287,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   targetSmoothSpeed: 12
-  mouseReachX: 8
-  mouseReachY: 8
-  mouseReachDepth: 2
+  mouseReachX: 11
+  mouseReachY: 11
+  mouseReachDepth: 10
   currentCombatState:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
@@ -3966,7 +3966,7 @@ MonoBehaviour:
   pivotPoint: {fileID: 7491236089628974010}
   playerCamera: {fileID: 0}
   maxArmLength: 9.5
-  handMoveSpeed: 15
+  handMoveSpeed: 25
   handDamper: 15
   planeYOffsetSpeed: 10
   grabRadius: 1
@@ -3980,9 +3980,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   targetSmoothSpeed: 12
-  mouseReachX: 8
-  mouseReachY: 8
-  mouseReachDepth: 5
+  mouseReachX: 11
+  mouseReachY: 11
+  mouseReachDepth: 10
   currentCombatState:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
