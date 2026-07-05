@@ -98,7 +98,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2277577622
+  GlobalObjectIdHash: 716019655
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -311,7 +311,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4030285512
+  GlobalObjectIdHash: 1709326718
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -524,7 +524,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2497810408
+  GlobalObjectIdHash: 2798077231
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -801,7 +801,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 714358732
+  GlobalObjectIdHash: 4208811363
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -902,7 +902,7 @@ MonoBehaviour:
   footRb: {fileID: 1421620812784873290}
   pivotPoint: {fileID: 3572450706684315797}
   playerCamera: {fileID: 0}
-  maxLegLength: 20
+  maxLegLength: 14
   minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
@@ -916,13 +916,14 @@ MonoBehaviour:
   torsoJumpForce: 400
   standingUpwardPull: 25
   footThicknessOffset: 0.2
-  upwardRecoveryBoost: 5000
+  upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
   plantedPosition: {x: 0, y: 0, z: 0}
+  ragdollFootMoveSpeed: 3
 --- !u!153 &7310984040740239260
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1124,7 +1125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3565056298
+  GlobalObjectIdHash: 3941698779
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1225,7 +1226,7 @@ MonoBehaviour:
   footRb: {fileID: 7946320219191970491}
   pivotPoint: {fileID: 1969783591416405876}
   playerCamera: {fileID: 0}
-  maxLegLength: 20
+  maxLegLength: 14
   minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
@@ -1239,13 +1240,14 @@ MonoBehaviour:
   torsoJumpForce: 400
   standingUpwardPull: 25
   footThicknessOffset: 0.2
-  upwardRecoveryBoost: 5000
+  upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
   plantedPosition: {x: 0, y: 0, z: 0}
+  ragdollFootMoveSpeed: 3
 --- !u!153 &5884711403799478836
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1447,7 +1449,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2221122106
+  GlobalObjectIdHash: 594144222
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1788,7 +1790,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3399973546
+  GlobalObjectIdHash: 2994197732
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1881,7 +1883,7 @@ MonoBehaviour:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
+    m_InternalValue: 2
   targetTorsoHeight: 20
   heightSpringForce: 500
   heightDamper: 40
@@ -1891,13 +1893,13 @@ MonoBehaviour:
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
   ragdollRecoveryDelay: 1.5
-  recoveryUprightTorque: 600
+  recoveryUprightTorque: 5
   recoveryHeightThreshold: 0.7
-  autoRecoverAfter: 3
-  maxTorsoStress: 500
+  maxTorsoStress: 50
   currentStress: 0
   stressDecayRate: 50
-  continuousRecoveryForce: 750
+  continuousRecoveryForce: 5
+  maxRecoveryUpVelocity: 12
   torsoRb: {fileID: 7881045751092331816}
   groundRaycastOrigin: {fileID: 6671827351452986682}
   groundLayer:
@@ -1908,7 +1910,7 @@ MonoBehaviour:
   - {fileID: 5918512235027225671}
   armPullIntensity: 0
   minCenterForceMultiplier: 0.15
-  testSingleFootRecovery: 0
+  testSingleFootRecovery: 1
 --- !u!1 &4485924092637935926
 GameObject:
   m_ObjectHideFlags: 0
@@ -2040,7 +2042,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2911911364
+  GlobalObjectIdHash: 1844671876
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -2263,6 +2265,7 @@ MonoBehaviour:
   compensateGravity: 1
   maxHandVelocity: 40
   ignoreSelfCollision: 1
+  ragdollHandSpringScale: 0.1
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
   mouseReachX: 20
@@ -2438,7 +2441,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1888120563
+  GlobalObjectIdHash: 4096890036
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -2661,6 +2664,7 @@ MonoBehaviour:
   compensateGravity: 1
   maxHandVelocity: 40
   ignoreSelfCollision: 1
+  ragdollHandSpringScale: 0.25
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
   mouseReachX: 20
@@ -2803,7 +2807,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1906514751
+  GlobalObjectIdHash: 2577541767
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -2943,7 +2947,7 @@ Transform:
   m_GameObject: {fileID: 5913191635356727031}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 862.64, y: 617.33, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3135,7 +3139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1914839872
+  GlobalObjectIdHash: 2428906623
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -3247,7 +3251,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3868277518
+  GlobalObjectIdHash: 3151246879
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -3523,7 +3527,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3222625452
+  GlobalObjectIdHash: 840420212
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -3736,7 +3740,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1340906442
+  GlobalObjectIdHash: 2262311767
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -4312,7 +4316,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2727701145
+  GlobalObjectIdHash: 1282164090
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1

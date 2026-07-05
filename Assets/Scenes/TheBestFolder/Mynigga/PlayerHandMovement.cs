@@ -52,6 +52,9 @@ public class PlayerHandMovement : NetworkBehaviour
     [Tooltip("ปิดการชนระหว่างมือกับชิ้นส่วนหุ่นตัวเอง\n" +
              "ตัดอาการสั่นจากมือครูดลำตัว/แขน/มืออีกข้างตอนเล็งไปมา")]
     public bool ignoreSelfCollision = true;
+    [Tooltip("สัดส่วนแรงสปริงมือตอนล้ม (Ragdoll) — ต่ำ = มือห้อยตามแรงโน้มถ่วง แต่ยังนัดจากเมาส์ได้เบาๆ\n" +
+             "0 = มือปล่อยตกอิสระเลย / 1 = สปริงแรงเท่าตอนยืน")]
+    [Range(0f, 1f)] public float ragdollHandSpringScale = 0.25f;
 
     // เพดานความเร็วชั่วคราว — คลาสลูกเซ็ตตอนต่อย (0 = ใช้ maxHandVelocity ปกติ)
     protected float velocityCapOverride = 0f;
@@ -452,6 +455,12 @@ public class PlayerHandMovement : NetworkBehaviour
 
     protected virtual void PerformArmMovement()
     {
+        // ✅ [Ragdoll Limp] ตอนตัวล้ม มือยังขยับตามเมาส์ได้ (ช่วยพยุง/ดันตัวตอนลุก)
+        // แต่ "ห้ามดึงลำตัว" — ตัด torsoPull ทิ้งไม่ให้แขนโกงลากตัวไหลตอนล้ม
+        bool torsoDown = torso != null &&
+            (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
+             torso.currentState.Value == TorsoMovement.TorsoState.Falling);
+
         Vector3 dirFromPivot = smoothedHandTarget - PivotPosition;
         float currentDistance = dirFromPivot.magnitude;
         Vector3 physicsTarget = smoothedHandTarget;
@@ -488,6 +497,11 @@ public class PlayerHandMovement : NetworkBehaviour
 
                 Vector3 pullDir = dirFromPivot / currentDistance;
 
+                // ✅ [Ragdoll No-Pull] ตอนล้ม: มือยังยืดสุดได้ แต่ไม่ส่งแรงดึงลำตัว
+                // กันแขนโกงลากตัวไหลไปมาตอน Ragdoll (ตัดเฉพาะแรง torsoPull ไม่แตะสปริงมือ)
+                if (!torsoDown)
+                {
+
                 // ── [Anti Hand-Skating] ────────────────────────────────────────
                 // แยกแรงดึงออกเป็น แนวตั้ง (Y) และ แนวราบ (XZ)
                 // แรงแนวราบถูก scale ลงตาม torsoPullHorizontalScale
@@ -517,21 +531,24 @@ public class PlayerHandMovement : NetworkBehaviour
 
                 float stressThisFrame = torsoPullForce * Time.fixedDeltaTime * 0.5f;
                 torso.AddStress(stressThisFrame);
+                } // end !torsoDown
             }
 
             // ── Spring + Stability ─────────────────────────────────────────
             Vector3 toTarget = physicsTarget - handRb.position;
 
+            // ✅ [Ragdoll Droop] ตอนล้ม: สปริงอ่อนลง + ไม่ชดเชยแรงโน้มถ่วง
+            // → มือห้อยตกตามแรงโน้มถ่วง/ร่วงตามตัว แต่ยังนัดตามเมาส์ได้เบาๆ (ขยับได้)
+            float springScale = torsoDown ? ragdollHandSpringScale : 1f;
+
             // ✅ [Velocity Cap] จำกัดความเร็วที่สปริงเรียกร้อง — เป้าไกลแค่ไหน
             // สปริงก็ขอความเร็วได้ไม่เกินเพดาน → แรงในโซ่ข้อต่อไม่ระเบิด ไม่สั่น
             float velCap = velocityCapOverride > 0f ? velocityCapOverride : maxHandVelocity;
-            Vector3 velocityTarget = Vector3.ClampMagnitude(toTarget * handMoveSpeed, velCap);
-            Vector3 force = (velocityTarget - handRb.linearVelocity) * handDamper;
+            Vector3 velocityTarget = Vector3.ClampMagnitude(toTarget * (handMoveSpeed * springScale), velCap);
+            Vector3 force = (velocityTarget - handRb.linearVelocity) * (handDamper * springScale);
 
-            // ✅ [Gravity Compensation] ตัวการหลักที่ "ยื้อ" แขนไว้:
-            // สปริงต้องเหลือระยะ error ค้างไว้เพื่อสร้างแรงต้านน้ำหนักมือ
-            // → มือจึงหยุดสั้นกว่าเป้าเสมอ (sag) ชดเชยทิ้งให้สปริงยืดถึงเป้าเต็มระยะ
-            if (compensateGravity && handRb.useGravity)
+            // ✅ [Gravity Compensation] ชดเชยน้ำหนักมือ "เฉพาะตอนยืน" — ตอนล้มปล่อยให้ตกจริง
+            if (compensateGravity && handRb.useGravity && !torsoDown)
                 force -= Physics.gravity;
 
             // ✅ [Proximity Brake] ใกล้เป้าแล้วเบรกความเร็วเพิ่มแบบ quadratic

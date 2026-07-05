@@ -143,8 +143,9 @@ public class PlayerFootForRobot : NetworkBehaviour
                 // 🦵 ส่งแรงดึงสะโพกเข้าหาศูนย์กลางเต็ม 100% (1f) เสมอ ไม่ต้องสนใจว่าขากางไกลแค่ไหนแล้ว
                 torso.ApplyContinuousRecoveryForce(pivotPoint.position, 1f);
 
-                // 🚀 แรงงัดขึ้นฟ้า: อัด 100% เสมอ (guard torsoRb กัน NRE)
-                if (torso.torsoRb != null)
+                // 🚀 แรงงัดขึ้น — ✅ [4-Player Fix] หยุดอัดเมื่อตัวพุ่งขึ้นเร็วพอแล้ว
+                // เดิม 2 เท้าอัดพร้อมกันไม่มีเพดาน → หุ่นพุ่งขึ้นฟ้าตอนหลายคนช่วยกันกด Q
+                if (torso.torsoRb != null && torso.torsoRb.linearVelocity.y < torso.maxRecoveryUpVelocity)
                     torso.torsoRb.AddForce(Vector3.up * upwardRecoveryBoost, ForceMode.Acceleration);
             }
             else
@@ -197,6 +198,10 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
     }
 
+    [Header("Ragdoll Limp")]
+    [Tooltip("แรงขยับเท้าตอนล้ม (Ragdoll) — เบากว่าตอนยืนมาก เพื่อให้ยับๆ ขยับได้แต่ไม่ดันลำตัวจนไหล")]
+    public float ragdollFootMoveSpeed = 3f;
+
     private void PerformRagdollFootPhysics()
     {
         footRb.isKinematic = false; // 🔓 ล้ม: ปล่อยให้ฟิสิกส์ทำงานปกติ
@@ -204,8 +209,20 @@ public class PlayerFootForRobot : NetworkBehaviour
         Vector3 dir = rawTarget - pivotPoint.position;
         if (dir.magnitude > maxLegLength) rawTarget = pivotPoint.position + dir.normalized * maxLegLength;
 
-        Vector3 vel = (rawTarget - footRb.position) * footMoveSpeed;
-        footRb.AddForce((vel - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
+        // ✅ [Ragdoll Fix] ใช้สปริงเบาลง — เท้าขยับตามเมาส์ได้นิดหน่อยเพื่อลุกง่ายขึ้น
+        Vector3 vel = (rawTarget - footRb.position) * ragdollFootMoveSpeed;
+        Vector3 force = (vel - footRb.linearVelocity) * legDamper;
+
+        // ✅ [No Torso Push] ตัดแรงส่วนที่ "ชี้เข้าหาลำตัว" ทิ้งเป็น 0
+        // เท้าดึงออก/ขยับด้านนอกได้ แต่ห้ามผลักตัวไหล (เอาเท้าจ่อตัวแล้วดันหุ่น)
+        if (torso != null && torso.torsoRb != null)
+        {
+            Vector3 toTorso = (torso.torsoRb.position - footRb.position).normalized;
+            float into = Vector3.Dot(force, toTorso);
+            if (into > 0f) force -= toTorso * into; // ลบเฉพาะองค์ประกอบที่พุ่งเข้าตัว
+        }
+
+        footRb.AddForce(force, ForceMode.Acceleration);
     }
 
     private void PerformSteppingPhysics()
@@ -221,13 +238,32 @@ public class PlayerFootForRobot : NetworkBehaviour
         footRb.AddForce((vel - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
     }
 
+    [Header("Standing Foot Lock (การันตีเท้าไม่หลุดพื้น)")]
+    [Tooltip("ระยะยิง Raycast ลงหาพื้นตอนยืน (เผื่อหุ่นสเกลใหญ่/สะโพกสูง)")]
+    public float standingGroundRayLength = 50f;
+
     private void PerformStandingPhysics()
     {
         if (torso == null || torso.torsoRb == null || torso.currentState.Value != TorsoMovement.TorsoState.Standing) return;
 
-        // 🔒 ตอนยืน: ล็อกเท้าตายตัวแบบ Kinematic ไม่มีวันหลุด/ไถล
+        // 🔒 [Hard Ground Lock] ตอนยืน (ไม่ step/ไม่ jump): เท้าต้องติดพื้นจริงเสมอ
+        // Kinematic = ไม่รับแรงใดๆ + re-raycast ทุกเฟรม → ตัวถูกดันไถลไปไหน เท้าก็ยัง
+        // เกาะพื้นจุดใต้ตัวเองตลอด ไม่มีวันลอย/ค้างจุดเก่า (หลุดล็อกเฉพาะ isStepping/isJumping)
         footRb.isKinematic = true;
-        ApplyFootFreeze();
+
+        Vector3 groundPos;
+        if (Physics.Raycast(footRb.position + Vector3.up * 2f, Vector3.down,
+                out RaycastHit hit, standingGroundRayLength, groundLayer))
+            groundPos = hit.point;
+        else if (Physics.Raycast(pivotPoint.position, Vector3.down,
+                out RaycastHit pivotHit, standingGroundRayLength, groundLayer))
+            groundPos = new Vector3(footRb.position.x, pivotHit.point.y, footRb.position.z);
+        else
+            groundPos = footRb.position; // ไม่เจอพื้นเลย (ลอยอยู่กลางอากาศ) — คงตำแหน่งเดิมไว้
+
+        plantedPosition = groundPos;
+        footRb.MovePosition(groundPos + Vector3.up * footThicknessOffset);
+        footRb.rotation = Quaternion.Euler(0f, footRb.rotation.eulerAngles.y, 0f);
 
         Vector3 offset = (_balanceShiftPos - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;

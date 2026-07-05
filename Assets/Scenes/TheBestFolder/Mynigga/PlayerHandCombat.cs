@@ -114,8 +114,13 @@ public class PlayerHandCombat : PlayerHandMovement
     [Rpc(SendTo.Server)]
     private void SetPunchingRpc(bool punching)
     {
+        // ✅ ตัวล้มอยู่ = ต่อยไม่ได้ (แขนอยู่โหมดปล่อยตามฟิสิกส์) — Q เพื่อลุกก่อน
+        bool torsoDown = torso != null &&
+            (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
+             torso.currentState.Value == TorsoMovement.TorsoState.Falling);
+
         // Server ตัดสิน state เองทั้งหมด — client ส่งได้แค่สัญญาณกด/ปล่อย
-        if (punching && currentCombatState.Value == CombatState.Idle)
+        if (punching && currentCombatState.Value == CombatState.Idle && !torsoDown)
             BeginPunch();
         else if (!punching && currentCombatState.Value == CombatState.Punching)
             EndPunch();

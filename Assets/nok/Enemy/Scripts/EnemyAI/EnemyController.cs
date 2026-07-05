@@ -245,6 +245,12 @@ namespace NscGame.Enemy
                 if (netState.Value == EnemyState.Dead)
                     continue;
 
+                // ✅ [NavMesh Guard] ฉากที่ไม่ได้ bake NavMesh (หรือศัตรูหลุดนอก mesh):
+                // ห้ามสั่ง agent เด็ดขาด ไม่งั้น error "Stop can only be called on an active agent..."
+                // จะพ่นทุกเฟรมจนอ่าน Console ไม่ได้
+                if (agent == null || !agent.enabled || !agent.isOnNavMesh)
+                    continue;
+
                 if (playerTarget == null)
                 {
                     GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -474,8 +480,10 @@ namespace NscGame.Enemy
             if (!IsServer) return;
 
             StopAllCoroutines();
-            agent.isStopped = true;
-            agent.enabled = false;
+            // ✅ [NavMesh Guard] สั่งหยุดได้เฉพาะ agent ที่อยู่บน NavMesh จริง
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+                agent.isStopped = true;
+            if (agent != null) agent.enabled = false;
             isActing = true;
             SetState(EnemyState.Dead);
 

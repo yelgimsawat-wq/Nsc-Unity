@@ -28,9 +28,6 @@ public class TorsoMovement : NetworkBehaviour
     public float recoveryUprightTorque = 600f;
     [Tooltip("สัดส่วนความสูงที่ต้องถึงก่อน snap กลับเป็น Standing (0.5 = ครึ่งความสูงปกติ)")]
     public float recoveryHeightThreshold = 0.5f;
-    [Tooltip("ล้มค้างนานเกินกี่วินาที ให้ระบบช่วยงัดตัวลุกเองอัตโนมัติ (0 = ปิด ต้องกด Q เอง)")]
-    public float autoRecoverAfter = 3f;
-    private float _ragdollTimer = 0f;
     private float _tiltTimer = 0f;
 
     [Header("Break Force System")]
@@ -40,6 +37,10 @@ public class TorsoMovement : NetworkBehaviour
 
     [Header("Continuous Recovery")]
     public float continuousRecoveryForce = 800f;
+    [Tooltip("ความเร็วขาขึ้นสูงสุดที่ยอมให้แรงลุกดันต่อ (m/s)\n" +
+             "ตัวกำลังพุ่งขึ้นเร็วกว่านี้แล้วแรง Q จะหยุดอัด — กันหุ่นพุ่งขึ้นฟ้าตอนหลายคนกดพร้อมกัน")]
+    public float maxRecoveryUpVelocity = 12f;
+    private float _lastRecoveryTick = -1f;
 
     [Header("References")]
     public Rigidbody torsoRb;
@@ -88,14 +89,10 @@ public class TorsoMovement : NetworkBehaviour
                 break;
             case TorsoState.Falling:
                 currentState.Value = TorsoState.Ragdoll;
-                _ragdollTimer = 0f;
                 break;
             case TorsoState.Ragdoll:
-                _ragdollTimer += Time.fixedDeltaTime;
-                // ✅ [Auto Recovery] ล้มค้างนานเกินกำหนด → ช่วยงัดตัวลุกให้เอง
-                // ใช้เส้นทางเดียวกับการกด Q ทุกประการ (แรงดัน + ทอร์กตั้งตรง + เช็คความสูง)
-                if (autoRecoverAfter > 0f && _ragdollTimer >= autoRecoverAfter && torsoRb != null)
-                    ApplyContinuousRecoveryForce(torsoRb.position);
+                // ✅ [ตามดีไซน์] ล้มแล้วต้องกด Q เท่านั้นถึงลุกได้ — ไม่มีลุกอัตโนมัติ
+                // (Auto Recovery เดิมอัดแรงทุก tick จนหุ่นลอยค้างฟ้าเป็นบอลลูน → ถอดทิ้งแล้ว)
                 break;
         }
     }
@@ -166,10 +163,13 @@ public class TorsoMovement : NetworkBehaviour
             }
         }
 
-        torsoRb.AddForce(-Physics.gravity, ForceMode.Acceleration);
-
+        // ✅ [Fly-away Fix] ชดเชยแรงโน้มถ่วง "เฉพาะตอนมีพื้นในระยะ" เท่านั้น
+        // เดิมใส่ -gravity ตลอดเวลา → หุ่นที่ถูกดีดพ้นระยะ raycast จะลอยค้างฟ้าไม่ตกลงมา
+        // ใหม่: หลุดพ้นพื้นเมื่อไหร่ แรงโน้มถ่วงกลับมาดึงลงตามธรรมชาติทันที
         if (groundRaycastOrigin != null && Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, targetTorsoHeight * 2f, groundLayer))
         {
+            torsoRb.AddForce(-Physics.gravity, ForceMode.Acceleration);
+
             float heightError = targetTorsoHeight - (groundRaycastOrigin.position.y - hit.point.y);
             torsoRb.AddForce(Vector3.up * ((heightError * heightSpringForce) - (torsoRb.linearVelocity.y * heightDamper)), ForceMode.Acceleration);
         }
@@ -187,7 +187,16 @@ public class TorsoMovement : NetworkBehaviour
     {
         if (torsoRb == null) return;
         if (currentState.Value != TorsoState.Ragdoll && currentState.Value != TorsoState.Falling) return;
-        
+
+        // ✅ [4-Player Fix] กันแรงลุกซ้อนกัน — เดิม 2 เท้า + 2 มือ + auto-recovery
+        // เรียกฟังก์ชันนี้พร้อมกันได้ 5 ทาง แรงคูณ 5 เท่า → หุ่นพุ่งขึ้นฟ้า
+        // จำกัดให้แรงลุกทำงานครั้งเดียวต่อ physics tick ไม่ว่ากี่คนจะกด Q
+        if (Mathf.Approximately(_lastRecoveryTick, Time.fixedTime)) return;
+        _lastRecoveryTick = Time.fixedTime;
+
+        // ✅ ตัวกำลังพุ่งขึ้นเร็วอยู่แล้ว → หยุดอัดเพิ่ม กันสะสมความเร็วจนทะยาน
+        if (torsoRb.linearVelocity.y > maxRecoveryUpVelocity) return;
+
         // [Audit Fix] ยกเลิกการใช้ ragdollRecoveryDelay บล็อกการกด Q
         // ถ้าผู้เล่นสามารถกด Q จนเท้าดันพื้นได้แล้ว (ระบบ IsGrounded ผ่าน) ควรให้สิทธิ์ลุกขึ้นทันที!
 
@@ -216,7 +225,6 @@ public class TorsoMovement : NetworkBehaviour
             if (testSingleFootRecovery || currentHeight >= targetTorsoHeight * recoveryHeightThreshold)
             {
                 _balanceLossTimer  = 0f;
-                _ragdollTimer      = 0f;
                 _tiltTimer         = 0f; // กันลุกปุ๊บโดนตัดสินว่าเอียงค้างแล้วล้มซ้ำ
                 currentState.Value = TorsoState.Standing;
             }
