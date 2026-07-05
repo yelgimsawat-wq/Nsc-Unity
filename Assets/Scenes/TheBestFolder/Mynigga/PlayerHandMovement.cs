@@ -76,6 +76,24 @@ public class PlayerHandMovement : NetworkBehaviour
     public float mouseReachY = 3f;
     public float mouseReachDepth = 3f;
 
+    [Header("Virtual Cursor (แก้ปัญหาขอบจอ)")]
+    [Tooltip("ล็อกเคอร์เซอร์จริงไว้กลางจอ แล้วใช้ mouse delta ขยับ 'จุดเล็งเสมือน' แทน\n" +
+             "เลื่อนเมาส์ได้ไม่จำกัด ไม่มีขอบจออีกต่อไป | ปิด = กลับไปใช้ตำแหน่งเมาส์จริงแบบเดิม")]
+    public bool useVirtualCursor = true;
+    [Tooltip("ความไวของจุดเล็งเสมือน")]
+    public float mouseSensitivity = 1.5f;
+    [Tooltip("วาด crosshair ที่จุดเล็งเสมือน ให้เห็นตลอดว่ามือกำลังจะไปไหน")]
+    public bool showCrosshair = true;
+
+    // จุดเล็งเสมือน normalized [-1,1] — static เพื่อให้มือสองข้างแชร์จุดเดียวกัน
+    protected static Vector2 sharedVirtualCursor = Vector2.zero;
+    // ✅ จุดเล็งเก็บเป็น offset จากหัวไหล่ใน "แกนโลก" — หันกล้องแล้วมือไม่กวาดตาม
+    protected static Vector3 sharedAimOffsetWorld = Vector3.down;
+    private static int _cursorUpdateFrame = -1;   // กันมือสองข้างบวก delta ซ้ำในเฟรมเดียว
+    private static int _crosshairDrawFrame = -1;  // กันวาด crosshair ซ้อนสองอัน
+    private static bool _everLocked = false;
+    private static GUIStyle _crosshairStyle;
+
     protected float currentDepthOffset = 0f; // ระยะเข้า-ออกตามแนวกล้อง (W/S)
     protected bool isGrabbing = false;
     protected Rigidbody grabbedObject;
@@ -128,6 +146,17 @@ public class PlayerHandMovement : NetworkBehaviour
         }
     }
 
+    public override void OnNetworkDespawn()
+    {
+        // คืนเคอร์เซอร์ให้ระบบเมื่อหุ่นหายจากเกม (กลับเมนู/ตาย) — ไม่งั้นคลิกเมนูไม่ได้
+        if (IsOwner && useVirtualCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        base.OnNetworkDespawn();
+    }
+
     protected virtual void Update()
     {
         if (!IsOwner || playerCamera == null) return;
@@ -161,12 +190,119 @@ public class PlayerHandMovement : NetworkBehaviour
         }
     }
 
-    private Vector2 GetNormalizedMousePosition()
+    private static Vector2 GetAbsoluteMouseNormalized()
     {
         return new Vector2(
             (Mathf.Clamp(Input.mousePosition.x, 0, Screen.width) / Screen.width) * 2f - 1f,
             (Mathf.Clamp(Input.mousePosition.y, 0, Screen.height) / Screen.height) * 2f - 1f
         );
+    }
+
+    // ✅ จุดเล็ง normalized [-1,1] สำหรับระบบอื่นทั้งเกม (เช่น PlayerFootForRobot)
+    // ตอนเคอร์เซอร์ถูกล็อก Input.mousePosition จะค้างกลางจอ — ต้องอ่านผ่านตัวนี้แทนเสมอ
+    public static Vector2 AimNormalized =>
+        Cursor.lockState == CursorLockMode.Locked ? sharedVirtualCursor : GetAbsoluteMouseNormalized();
+
+    private Vector2 GetNormalizedMousePosition()
+    {
+        // ✅ [Virtual Cursor] เคอร์เซอร์จริงถูกล็อกกลางจอ → อ่าน delta มาขยับจุดเล็งเสมือน
+        // ไม่มีขอบจอมาจำกัดการเลื่อนอีกต่อไป (แบบเดียวกับเกม FPS)
+        if (useVirtualCursor && Cursor.lockState == CursorLockMode.Locked)
+        {
+            if (Time.frameCount != _cursorUpdateFrame) // อัปเดตครั้งเดียวต่อเฟรม
+            {
+                _cursorUpdateFrame = Time.frameCount;
+                Vector2 delta = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+                sharedVirtualCursor += delta * (mouseSensitivity * 0.1f);
+                sharedVirtualCursor.x = Mathf.Clamp(sharedVirtualCursor.x, -1f, 1f);
+                sharedVirtualCursor.y = Mathf.Clamp(sharedVirtualCursor.y, -1f, 1f);
+            }
+            return sharedVirtualCursor;
+        }
+
+        // โหมดเดิม: ตำแหน่งเมาส์จริงบนจอ
+        return GetAbsoluteMouseNormalized();
+    }
+
+    private void LockVirtualCursor()
+    {
+        // เริ่มจุดเล็งจากตำแหน่งมือจริง ณ ตอนล็อก — มือไม่กระโดด
+        sharedVirtualCursor = GetAbsoluteMouseNormalized();
+        sharedAimOffsetWorld = (handRb != null ? handRb.position : PivotPosition) - PivotPosition;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        _everLocked = true;
+    }
+
+    // ✅ [Camera-Independent Aim] ขยับจุดเล็ง (แกนโลก) ด้วย delta ของเมาส์ + W/S เท่านั้น
+    // - หันกล้อง = ไม่มี delta = จุดเล็งอยู่ที่เดิมในโลก มือไม่กวาดตามกล้อง
+    // - ตอนขยับเมาส์ ทิศถูกตีความตามกล้อง "ปัจจุบัน" เสมอ → ขวาของจอ = ขวาที่เห็น
+    private void UpdateAimOffsetByDeltas()
+    {
+        if (Time.frameCount == _cursorUpdateFrame) return; // มือสองข้างเรียกซ้ำ อัปเดตครั้งเดียว
+        _cursorUpdateFrame = Time.frameCount;
+
+        GetScreenBasis(out Vector3 screenRight, out _, out Vector3 depthDir);
+
+        Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
+        float depthInput = (Input.GetKey(KeyCode.W) ? 1f : 0f) - (Input.GetKey(KeyCode.S) ? 1f : 0f);
+
+        // ✅ อัปเดตจุดเล็งเสมือน 2D คู่ขนานไปด้วย — ระบบอื่น (เช่นขา) ใช้ผ่าน AimNormalized
+        sharedVirtualCursor += md;
+        sharedVirtualCursor.x = Mathf.Clamp(sharedVirtualCursor.x, -1f, 1f);
+        sharedVirtualCursor.y = Mathf.Clamp(sharedVirtualCursor.y, -1f, 1f);
+
+        sharedAimOffsetWorld += screenRight * (md.x * mouseReachX)
+                              + Vector3.up  * (md.y * mouseReachY)
+                              + depthDir    * (depthInput * planeYOffsetSpeed * Time.deltaTime);
+
+        // clamp ในรัศมีเอื้อม: แนวราบ ≤ max(reachX, reachDepth), แนวดิ่ง ≤ reachY
+        Vector3 horiz = new Vector3(sharedAimOffsetWorld.x, 0f, sharedAimOffsetWorld.z);
+        float maxHoriz = Mathf.Max(mouseReachX, mouseReachDepth);
+        if (horiz.sqrMagnitude > maxHoriz * maxHoriz) horiz = horiz.normalized * maxHoriz;
+        sharedAimOffsetWorld = new Vector3(horiz.x,
+            Mathf.Clamp(sharedAimOffsetWorld.y, -mouseReachY, mouseReachY), horiz.z);
+    }
+
+    private void HandleCursorLock()
+    {
+        // Esc = ปลดล็อกชั่วคราว (ไปกดเมนู) / คลิกซ้ายกลับเข้าเกม = ล็อกต่อ
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        else if (Cursor.lockState != CursorLockMode.Locked &&
+                 (!_everLocked || Input.GetMouseButtonDown(0)))
+        {
+            LockVirtualCursor();
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (!IsOwner || !useVirtualCursor || !showCrosshair) return;
+        if (Cursor.lockState != CursorLockMode.Locked) return;
+        if (Time.frameCount == _crosshairDrawFrame) return; // มือเดียววาดพอ
+        _crosshairDrawFrame = Time.frameCount;
+
+        if (_crosshairStyle == null)
+            _crosshairStyle = new GUIStyle(GUI.skin.label)
+            { fontSize = 30, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+
+        // ✅ crosshair ฉายจากตำแหน่งจุดเล็งจริงในโลก — หันกล้องแล้ว crosshair
+        // เลื่อนบนจอตามจุดเดิมในโลก (feedback ตรงกับพฤติกรรมมือ)
+        if (playerCamera == null) return;
+        Vector3 screenPos = playerCamera.WorldToScreenPoint(PivotPosition + sharedAimOffsetWorld);
+        if (screenPos.z <= 0f) return; // จุดเล็งอยู่หลังกล้อง ไม่ต้องวาด
+
+        float sx = screenPos.x;
+        float sy = Screen.height - screenPos.y; // แกน y ของ GUI กลับด้าน
+
+        GUI.color = new Color(0f, 0f, 0f, 0.6f); // เงาให้อ่านออกบนฉากสว่าง
+        GUI.Label(new Rect(sx - 19f, sy - 19f, 40f, 40f), "+", _crosshairStyle);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(sx - 20f, sy - 20f, 40f, 40f), "+", _crosshairStyle);
     }
 
     // ── Screen Basis (ล็อกเฉพาะ Yaw ของกล้อง) ─────────────────────────
@@ -188,20 +324,32 @@ public class PlayerHandMovement : NetworkBehaviour
     {
         if (currentState.Value != HandState.Attached) return;
 
-        // ✅ [Depth] W/S ปรับเฉพาะระยะลึกเข้า-ออก (แยกขาดจากแกน XY โดยสิ้นเชิง)
-        if (Input.GetKey(KeyCode.W)) currentDepthOffset += planeYOffsetSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.S)) currentDepthOffset -= planeYOffsetSpeed * Time.deltaTime;
-        currentDepthOffset = Mathf.Clamp(currentDepthOffset, -mouseReachDepth, mouseReachDepth);
+        // ✅ [Pointer Lock] จัดการล็อก/ปลดล็อกเคอร์เซอร์ (เฉพาะโหมด Virtual Cursor)
+        if (useVirtualCursor) HandleCursorLock();
 
-        // ✅ [Screen-to-World 1:1] เมาส์ normalized [-1,1] × ระยะเอื้อม = พิกัดโลกโดยตรง
-        // ไม่มี Virtual Plane, ไม่มี Raycast, ไม่พึ่ง camRight/camUp ที่เอียงตาม pitch
-        Vector2 mouseNorm = GetNormalizedMousePosition();
-        GetScreenBasis(out Vector3 screenRight, out Vector3 screenUp, out Vector3 depthDir);
+        Vector3 newTarget;
+        if (useVirtualCursor && Cursor.lockState == CursorLockMode.Locked)
+        {
+            // ✅ [Camera-Independent Aim] จุดเล็ง = offset แกนโลก ขยับด้วย delta เท่านั้น
+            // หันกล้องเท่าไหร่มือก็อยู่ที่เดิม ไม่กวาดตามกล้องอีกต่อไป
+            UpdateAimOffsetByDeltas();
+            newTarget = PivotPosition + sharedAimOffsetWorld;
+        }
+        else
+        {
+            // โหมดเมาส์สัมบูรณ์ (Virtual Cursor ปิด / ปลดล็อกชั่วคราว): ระบบเดิมทุกประการ
+            if (Input.GetKey(KeyCode.W)) currentDepthOffset += planeYOffsetSpeed * Time.deltaTime;
+            if (Input.GetKey(KeyCode.S)) currentDepthOffset -= planeYOffsetSpeed * Time.deltaTime;
+            currentDepthOffset = Mathf.Clamp(currentDepthOffset, -mouseReachDepth, mouseReachDepth);
 
-        Vector3 newTarget = PivotPosition
-            + screenRight * (mouseNorm.x * mouseReachX)  // ซ้าย-ขวา ตามจอ
-            + screenUp    * (mouseNorm.y * mouseReachY)  // ขึ้น-ลง แนวดิ่งโลก
-            + depthDir    * currentDepthOffset;          // ลึกเข้า-ออก (W/S เท่านั้น)
+            Vector2 mouseNorm = GetNormalizedMousePosition();
+            GetScreenBasis(out Vector3 screenRight, out Vector3 screenUp, out Vector3 depthDir);
+
+            newTarget = PivotPosition
+                + screenRight * (mouseNorm.x * mouseReachX)  // ซ้าย-ขวา ตามจอ
+                + screenUp    * (mouseNorm.y * mouseReachY)  // ขึ้น-ลง แนวดิ่งโลก
+                + depthDir    * currentDepthOffset;          // ลึกเข้า-ออก (W/S เท่านั้น)
+        }
 
         // ✅ กันมือทะลุพื้น (คงไว้เหมือนเดิม)
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))

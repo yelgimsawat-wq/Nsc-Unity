@@ -80,6 +80,15 @@ public class PlayerFootForRobot : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         if (IsServer && torso != null) torso.RegisterFoot(this);
+
+        // ✅ [Rest Pose] กันเป้าเท้าเริ่มที่ (0,0,0) — บั๊กตระกูลเดียวกับที่แขนเคยเป็น
+        // ถ้าหุ่นล้มก่อน RPC แรกมาถึง เท้าจะพุ่งไปหาจุดกำเนิดโลก
+        if (IsServer && footRb != null)
+        {
+            _targetFootPos     = footRb.position;
+            _detachedTargetPos = footRb.position;
+            _balanceShiftPos   = pivotPoint != null ? pivotPoint.position : footRb.position;
+        }
     }
 
     public override void OnNetworkDespawn()
@@ -319,10 +328,10 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
     }
 
-    private Vector2 GetNormalizedMousePosition() => new Vector2(
-        (Mathf.Clamp(Input.mousePosition.x, 0, Screen.width)  / Screen.width)  * 2f - 1f,
-        (Mathf.Clamp(Input.mousePosition.y, 0, Screen.height) / Screen.height) * 2f - 1f
-    );
+    // ✅ [Pointer Lock Fix] อ่านจุดเล็งผ่านระบบกลางของ PlayerHandMovement
+    // เดิมอ่าน Input.mousePosition ตรงๆ ซึ่งค้างกลางจอตลอดหลังเปิด Virtual Cursor
+    // → ทิศเดิน/ถ่ายน้ำหนักติดอยู่ที่ (0,0) หุ่นเดินบอกทิศไม่ได้
+    private Vector2 GetNormalizedMousePosition() => PlayerHandMovement.AimNormalized;
 
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateFootTargetRpc(Vector3 v) { ValidateAndSetFootTarget(v); }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateBalanceShiftRpc(Vector3 v) { if (v.IsValid()) _balanceShiftPos = v; }

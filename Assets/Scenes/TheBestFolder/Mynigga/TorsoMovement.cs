@@ -28,7 +28,10 @@ public class TorsoMovement : NetworkBehaviour
     public float recoveryUprightTorque = 600f;
     [Tooltip("สัดส่วนความสูงที่ต้องถึงก่อน snap กลับเป็น Standing (0.5 = ครึ่งความสูงปกติ)")]
     public float recoveryHeightThreshold = 0.5f;
+    [Tooltip("ล้มค้างนานเกินกี่วินาที ให้ระบบช่วยงัดตัวลุกเองอัตโนมัติ (0 = ปิด ต้องกด Q เอง)")]
+    public float autoRecoverAfter = 3f;
     private float _ragdollTimer = 0f;
+    private float _tiltTimer = 0f;
 
     [Header("Break Force System")]
     public float maxTorsoStress = 500f;
@@ -89,6 +92,10 @@ public class TorsoMovement : NetworkBehaviour
                 break;
             case TorsoState.Ragdoll:
                 _ragdollTimer += Time.fixedDeltaTime;
+                // ✅ [Auto Recovery] ล้มค้างนานเกินกำหนด → ช่วยงัดตัวลุกให้เอง
+                // ใช้เส้นทางเดียวกับการกด Q ทุกประการ (แรงดัน + ทอร์กตั้งตรง + เช็คความสูง)
+                if (autoRecoverAfter > 0f && _ragdollTimer >= autoRecoverAfter && torsoRb != null)
+                    ApplyContinuousRecoveryForce(torsoRb.position);
                 break;
         }
     }
@@ -96,6 +103,25 @@ public class TorsoMovement : NetworkBehaviour
     private void HandleFakeHoverAndPosture()
     {
         if (torsoRb == null) return;
+
+        // ✅ [Bug Fix] maxBalanceAngle ถูกประกาศไว้แต่ไม่เคยถูกใช้เลย!
+        // เดิมหุ่นเอียงกี่องศาก็ยังนับว่ายืน ตราบใดที่เท้าแตะพื้น
+        // ใหม่: เอียงเกินกำหนดค้างครึ่ง grace period → ล้มจริงตามฟิสิกส์ที่ควรเป็น
+        float tiltAngle = Vector3.Angle(torsoRb.transform.up, Vector3.up);
+        if (tiltAngle > maxBalanceAngle)
+        {
+            _tiltTimer += Time.fixedDeltaTime;
+            if (_tiltTimer >= fallGracePeriod * 0.5f)
+            {
+                _tiltTimer = 0f;
+                currentState.Value = TorsoState.Falling;
+                return;
+            }
+        }
+        else
+        {
+            _tiltTimer = Mathf.Max(0f, _tiltTimer - Time.fixedDeltaTime * 2f);
+        }
 
         int groundedCount = 0;
         int balancedCount = 0;
@@ -106,8 +132,11 @@ public class TorsoMovement : NetworkBehaviour
             if (foot == null) continue;
             if (foot.IsBalanced) balancedCount++;
             if (!foot.IsGrounded()) continue;
+            // ✅ [Bug Fix] เท้าที่ footRb หายห้ามนับ — เดิมบวก Vector3.zero เข้า average
+            // ทำให้จุดศูนย์ถ่วงถูกลากไปหา (0,0,0) ของโลก ตัวหุ่นไหลผิดทิศ
+            if (foot.footRb == null) continue;
             groundedCount++;
-            avgFootPos += foot.footRb != null ? foot.footRb.position : Vector3.zero;
+            avgFootPos += foot.footRb.position;
         }
 
         int footCount = _attachedFeet.Count;
@@ -188,6 +217,7 @@ public class TorsoMovement : NetworkBehaviour
             {
                 _balanceLossTimer  = 0f;
                 _ragdollTimer      = 0f;
+                _tiltTimer         = 0f; // กันลุกปุ๊บโดนตัดสินว่าเอียงค้างแล้วล้มซ้ำ
                 currentState.Value = TorsoState.Standing;
             }
         }
