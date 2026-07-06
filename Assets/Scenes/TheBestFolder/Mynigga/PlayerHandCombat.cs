@@ -17,6 +17,9 @@ public class PlayerHandCombat : PlayerHandMovement
     public float maxPunchSpeed = 55f;
     [Tooltip("เวลาบูสต์สูงสุดต่อการกดหนึ่งครั้ง กันกด Shift ค้างลากตัวบินไปเรื่อยๆ")]
     public float maxPunchDuration = 0.75f;
+    [Tooltip("เวลาง้างหมัด (วินาที) — ดึงมือกลับเข้าไหล่ก่อนปล่อย\n" +
+             "ให้ทุกหมัดมีระยะเร่งเต็มๆ แม้แขนกำลังเหยียดค้างอยู่ (ไม่มีระยะ = ไม่มีความเร็ว = ไม่มีดาเมจ)")]
+    public float punchWindupTime = 0.12f;
     [Tooltip("แรงต้านสปริงตอนต่อย (ต่ำ = พุ่งทะลวง แต่ต่ำกว่า ~4 จะเริ่มคุมปลายหมัดไม่อยู่)")]
     public float punchDamper = 5f;
     [Tooltip("ระยะยืดพิเศษตอนต่อย — ขยาย reach limit ของคลาสแม่ให้หมัดยืดเกินระยะปกติได้")]
@@ -251,6 +254,19 @@ public class PlayerHandCombat : PlayerHandMovement
                 // ✅ [Aim Assist] มีศัตรูในกรวยเล็ง → เบนทิศหมัดเข้าหาให้เอง (realtime)
                 if (enableAimAssist && aimAssistAngle > 0f)
                     punchDir = ApplyAimAssist(punchDir);
+
+                // ✅ [Wind-up] ช่วงแรกของหมัด: ดึงมือกลับเข้าใกล้ไหล่ก่อน (ง้างหมัด)
+                // แก้ปัญหา "แขนเหยียดค้างแล้วต่อยไม่ออก" — หมัดมีระยะพุ่งเต็มทุกครั้ง
+                float punchElapsed = maxPunchDuration - punchTimer;
+                if (punchElapsed < punchWindupTime)
+                {
+                    smoothedHandTarget = PivotPosition + punchDir * (maxArmLength * 0.25f);
+                    velocityCapOverride = maxPunchSpeed;
+                    base.PerformArmMovement();
+                    smoothedHandTarget = originalTarget;
+                    velocityCapOverride = 0f;
+                    break; // ยังไม่อัดความเร่ง — รอปล่อยหมัดจริงหลังง้างเสร็จ
+                }
 
                 // ✅ [Force Full Extension] เป้าตอนต่อย = ระยะสุดแขน + เผื่อ เสมอ
                 // ไม่สนว่าจุดเล็งใกล้แค่ไหน → แขนเหยียดตรงเต็มระยะทุกหมัด
