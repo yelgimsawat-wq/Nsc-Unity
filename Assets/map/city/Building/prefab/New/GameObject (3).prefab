@@ -147,6 +147,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1448439262017619190}
     m_Modifications:
+    - target: {fileID: -1238923747792484122, guid: 025a3497fa872fe4ebfed7edb8eb310c, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 025a3497fa872fe4ebfed7edb8eb310c, type: 3}
       propertyPath: m_Layer
       value: 7
@@ -316,6 +320,10 @@ PrefabInstance:
     - target: {fileID: 400010, guid: d267fbb9e36c6e4458c9a8756d725a79, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 15.156
+      objectReference: {fileID: 0}
+    - target: {fileID: 2240260584004646204, guid: d267fbb9e36c6e4458c9a8756d725a79, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

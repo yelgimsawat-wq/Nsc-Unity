@@ -55,7 +55,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     [Header("--- Settings ---")]
     [SerializeField] private int maxPlayers = 4;
-    [SerializeField] private string nextSceneName = "67555"; // Scene name in Build Settings
+    [SerializeField] private string nextSceneName = "91626425186"; // Scene name in Build Settings
 
     [Header("--- UI Animation ---")]
     [SerializeField] private float uiFadeDuration = 0.22f;
