@@ -275,6 +275,7 @@ namespace NscGame.Enemy
                 if (dist <= attackRange && attackDecTimer <= 0f)
                 {
                     agent.isStopped = true;
+                    agent.velocity = Vector3.zero; // ✅ หยุด momentum ทันที ป้องกัน sliding
                     netSpeed.Value = 0f;
                     ChooseAndExecuteAttack();
                 }

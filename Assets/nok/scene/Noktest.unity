@@ -507,6 +507,11 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!4 &79126081 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6590666735173800845, guid: 5ba465d32e31dc445b1cd786bbc4f2a0, type: 3}
+  m_PrefabInstance: {fileID: 1471013488251224866}
+  m_PrefabAsset: {fileID: 0}
 --- !u!43 &86973552
 Mesh:
   m_ObjectHideFlags: 0
@@ -2912,6 +2917,8 @@ MonoBehaviour:
   maxFootVelocity: 25
   groundCheckDistance: 0.6
   plantedPosition: {x: 0, y: 0, z: 0}
+  ragdollFootMoveSpeed: 3
+  standingGroundRayLength: 50
 --- !u!43 &353483443
 Mesh:
   m_ObjectHideFlags: 0
@@ -6229,6 +6236,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1020166402}
   m_CullTransparentMesh: 1
+--- !u!1 &1064005438
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1064005439}
+  m_Layer: 0
+  m_Name: GameObject (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1064005439
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064005438}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.0077, y: -0.03, z: 0.0082}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 79126081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1064934882
 GameObject:
   m_ObjectHideFlags: 0
@@ -6380,7 +6418,7 @@ GameObject:
   - component: {fileID: 1072517623}
   m_Layer: 0
   m_Name: Capsule
-  m_TagString: BodyParts
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7458,6 +7496,7 @@ MonoBehaviour:
   currentStress: 0
   stressDecayRate: 100
   continuousRecoveryForce: 750
+  maxRecoveryUpVelocity: 12
   torsoRb: {fileID: 2575685140956976036}
   groundRaycastOrigin: {fileID: 2575685140956976038}
   groundLayer:
@@ -13229,6 +13268,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Panda
       objectReference: {fileID: 0}
+    - target: {fileID: 3334271558573223479, guid: 5ba465d32e31dc445b1cd786bbc4f2a0, type: 3}
+      propertyPath: lightPunchOrigin
+      value: 
+      objectReference: {fileID: 1064005439}
     - target: {fileID: 7289860638848580159, guid: 5ba465d32e31dc445b1cd786bbc4f2a0, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1680981501
@@ -13239,7 +13282,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 6590666735173800845, guid: 5ba465d32e31dc445b1cd786bbc4f2a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1064005439}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5ba465d32e31dc445b1cd786bbc4f2a0, type: 3}
 --- !u!1001 &2575685140956976035
@@ -13324,7 +13370,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 215100823864625656, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 13.74
       objectReference: {fileID: 0}
     - target: {fileID: 215100823864625656, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_LocalRotation.w
@@ -13708,7 +13754,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8812732268101212456, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8814153863935007078, guid: b40bf2f2b523cb44a8c49bfeb351f18f, type: 3}
       propertyPath: m_LocalScale.y
@@ -13881,12 +13927,21 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  targetSmoothSpeed: 12
+  smoothTime: 0.04
+  brakeDistance: 0.5
+  brakeDamping: 8
+  compensateGravity: 1
+  maxHandVelocity: 40
+  ignoreSelfCollision: 1
+  ragdollHandSpringScale: 0.25
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 1
 --- !u!114 &2575685140956976052
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13926,12 +13981,21 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  targetSmoothSpeed: 12
+  smoothTime: 0.04
+  brakeDistance: 0.5
+  brakeDamping: 8
+  compensateGravity: 1
+  maxHandVelocity: 40
+  ignoreSelfCollision: 1
+  ragdollHandSpringScale: 0.25
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
   mouseReachX: 8
   mouseReachY: 8
   mouseReachDepth: 2
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 1
 --- !u!114 &2575685140956976053
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13978,6 +14042,8 @@ MonoBehaviour:
   maxFootVelocity: 25
   groundCheckDistance: 0.6
   plantedPosition: {x: 0, y: 0, z: 0}
+  ragdollFootMoveSpeed: 3
+  standingGroundRayLength: 50
 --- !u!224 &2740861857073891293 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2740861856955824685, guid: 694f2695c09d50949b50e5fed59cdace, type: 3}
