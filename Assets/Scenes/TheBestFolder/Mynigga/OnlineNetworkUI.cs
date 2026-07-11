@@ -63,6 +63,8 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     [Header("--- Settings ---")]
     [SerializeField] private int maxPlayers = 4;
+    [Tooltip("Set to 1 for solo testing. Increase this only when testing multiplayer requirements.")]
+    [Min(1)] [SerializeField] private int minimumPlayersToStart = 1;
     [SerializeField] private string nextSceneName = "91626425186"; // Scene name in Build Settings
 
     [Header("--- UI Animation ---")]
@@ -380,7 +382,10 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (!IsServer) return;
         if (!CanStartGame())
         {
-            SetStatus("Cannot start yet. Need exactly 4 players.");
+            int connectedPlayers = NetworkManager.Singleton != null
+                ? NetworkManager.Singleton.ConnectedClientsIds.Count
+                : 0;
+            SetStatus($"Cannot start yet. Need at least {minimumPlayersToStart} player(s). Current: {connectedPlayers}.");
             return;
         }
 
@@ -1026,7 +1031,11 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     private bool CanStartGame()
     {
-        return IsServer && NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        if (!IsServer || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
+            return false;
+
+        int requiredPlayers = Mathf.Clamp(minimumPlayersToStart, 1, Mathf.Max(1, maxPlayers));
+        return NetworkManager.Singleton.ConnectedClientsIds.Count >= requiredPlayers;
     }
 
     private void RefreshStartButtonState()
