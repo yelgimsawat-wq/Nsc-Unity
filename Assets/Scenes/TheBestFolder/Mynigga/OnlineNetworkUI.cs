@@ -50,6 +50,14 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private Button copyCodeButton;
     [SerializeField] private Button leaveRoomButton;
 
+    [Header("--- Map Selection (Host after Start) ---")]
+    [SerializeField] private GameObject mapSelectPanel;
+    [SerializeField] private Button bossMapButton;
+    [SerializeField] private Button parkourMapButton;
+    [SerializeField] private Button cancelMapSelectButton;
+    [SerializeField] private string bossSceneName = "91626425186";
+    [SerializeField] private string parkourSceneName = "MAP";
+
     [Header("--- References ---")]
     [SerializeField] private Camera lobbyCam;
 
@@ -117,6 +125,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (lobbyCam != null) lobbyCam.depth = 100;
 
         SetVisibleInstant(waitingPanel, false);
+        SetVisibleInstant(mapSelectPanel, false);
         SetVisibleInstant(connectPanel, true);
         CaptureMenuFeelBasePose();
 
@@ -336,6 +345,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     /// </summary>
     private void SetupWaitingPanelRoles()
     {
+        SetVisibleInstant(mapSelectPanel, false);
+
         if (startButton != null)
         {
             startButton.gameObject.SetActive(IsServer); // Client will not see this button
@@ -373,14 +384,62 @@ public class OnlineNetworkUI : NetworkBehaviour
             return;
         }
 
-        if (startButton != null) startButton.interactable = false; // Prevent double-clicking
+        if (mapSelectPanel == null || bossMapButton == null || parkourMapButton == null)
+        {
+            SetStatus("Map Select UI is not assigned. Please assign the panel and both map buttons.");
+            return;
+        }
+
+        if (startButton != null) startButton.interactable = false;
+        // Host/Join temporarily disables every menu button while connecting.
+        // Re-enable the map choices explicitly when this panel is opened.
+        bossMapButton.interactable = true;
+        parkourMapButton.interactable = true;
+        if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = true;
+        SetVisibleAnimated(mapSelectPanel, true);
+        SetStatus("Select Map: Boss or Parkour");
+    }
+
+    private void OnBossMapClicked()
+    {
+        StartSelectedMap(bossSceneName, "Boss");
+    }
+
+    private void OnParkourMapClicked()
+    {
+        StartSelectedMap(parkourSceneName, "Parkour");
+    }
+
+    private void OnCancelMapSelectClicked()
+    {
+        if (!IsServer) return;
+        SetVisibleAnimated(mapSelectPanel, false);
+        RefreshStartButtonState();
+        SetStatus("Map selection cancelled.");
+    }
+
+    private void StartSelectedMap(string sceneName, string mapDisplayName)
+    {
+        if (!IsServer || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening) return;
+
+        if (string.IsNullOrWhiteSpace(sceneName) || !Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            SetStatus($"Cannot load {mapDisplayName}: Scene '{sceneName}' is not enabled in Build Settings.");
+            RefreshStartButtonState();
+            return;
+        }
+
+        SetVisibleAnimated(mapSelectPanel, false);
+        if (bossMapButton != null) bossMapButton.interactable = false;
+        if (parkourMapButton != null) parkourMapButton.interactable = false;
+        if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = false;
 
         if (lobbyCam != null) lobbyCam.gameObject.SetActive(false);
 
         // Load Scene for all Clients simultaneously via Netcode SceneManager
-        NetworkManager.Singleton.SceneManager.LoadScene(nextSceneName, LoadSceneMode.Single);
+        NetworkManager.Singleton.SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
 
-        Debug.Log($"[Server] Loading Scene: {nextSceneName}");
+        Debug.Log($"[Server] Loading {mapDisplayName} Scene: {sceneName}");
     }
 
     // ================================================================
@@ -407,6 +466,9 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (codeInputField != null) codeInputField.interactable = on;
         if (copyCodeButton != null) copyCodeButton.interactable = on;
         if (leaveRoomButton != null) leaveRoomButton.interactable = on;
+        if (bossMapButton != null) bossMapButton.interactable = on;
+        if (parkourMapButton != null) parkourMapButton.interactable = on;
+        if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = on;
     }
 
     private void ApplyButtonHoverColors()
@@ -423,6 +485,9 @@ public class OnlineNetworkUI : NetworkBehaviour
         ApplyButtonHoverColor(startButton);
         ApplyButtonHoverColor(copyCodeButton);
         ApplyButtonHoverColor(leaveRoomButton);
+        ApplyButtonHoverColor(bossMapButton);
+        ApplyButtonHoverColor(parkourMapButton);
+        ApplyButtonHoverColor(cancelMapSelectButton);
     }
 
     private void ApplyButtonHoverColor(Button button)
@@ -782,6 +847,24 @@ public class OnlineNetworkUI : NetworkBehaviour
             leaveRoomButton.onClick.AddListener(OnLeaveRoomClicked);
         }
 
+        if (bossMapButton != null)
+        {
+            bossMapButton.onClick.RemoveListener(OnBossMapClicked);
+            bossMapButton.onClick.AddListener(OnBossMapClicked);
+        }
+
+        if (parkourMapButton != null)
+        {
+            parkourMapButton.onClick.RemoveListener(OnParkourMapClicked);
+            parkourMapButton.onClick.AddListener(OnParkourMapClicked);
+        }
+
+        if (cancelMapSelectButton != null)
+        {
+            cancelMapSelectButton.onClick.RemoveListener(OnCancelMapSelectClicked);
+            cancelMapSelectButton.onClick.AddListener(OnCancelMapSelectClicked);
+        }
+
     }
 
     private void UnbindConnectPanelButtons()
@@ -801,6 +884,9 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (copyCodeButton != null) copyCodeButton.onClick.RemoveListener(OnCopyCodeClicked);
         if (leaveRoomButton != null) leaveRoomButton.onClick.RemoveListener(OnLeaveRoomClicked);
+        if (bossMapButton != null) bossMapButton.onClick.RemoveListener(OnBossMapClicked);
+        if (parkourMapButton != null) parkourMapButton.onClick.RemoveListener(OnParkourMapClicked);
+        if (cancelMapSelectButton != null) cancelMapSelectButton.onClick.RemoveListener(OnCancelMapSelectClicked);
     }
 
     private void OnPlayClicked()
@@ -930,6 +1016,7 @@ public class OnlineNetworkUI : NetworkBehaviour
             codeInputField.text = string.Empty;
 
         SetVisibleAnimated(waitingPanel, false);
+        SetVisibleInstant(mapSelectPanel, false);
         SetVisibleAnimated(connectPanel, true);
 
         SetConnectState(ConnectState.MainMenu);
