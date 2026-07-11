@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.Collections.Generic;
 
 public class PlayerHandMovement : NetworkBehaviour
 {
@@ -28,9 +29,13 @@ public class PlayerHandMovement : NetworkBehaviour
     public float planeYOffsetSpeed = 3f;
     public float grabRadius = 0.5f;
     public float grabBreakForce = 10000f; // แรงฉีกขาดเมื่อดึงของหนักเกิน
+    [Tooltip("ทำให้ Grab FixedJoint และข้อต่อทั้งโซ่แขนไม่มีวันแตกจากแรงฟิสิกส์ (ยังปล่อย Grab ด้วยปุ่ม F ได้)")]
+    public bool preventGrabBreakWhileRagdoll = true;
     public float torsoPullForce = 60f;
     [Tooltip("แรงที่ดึงตัวเมื่อจับ Kinematic Object (ใช้ปีนป่าย)")]
     public float kinematicPullForce = 150f;
+    [Tooltip("If disabled, pulling a fixed wall does not add torso break stress.")]
+    public bool kinematicGrabAddsStress = false;
     public float detachedMoveSpeed = 20f;
     public LayerMask grabLayer;
     public LayerMask groundLayer;
@@ -52,6 +57,11 @@ public class PlayerHandMovement : NetworkBehaviour
     [Tooltip("ปิดการชนระหว่างมือกับชิ้นส่วนหุ่นตัวเอง\n" +
              "ตัดอาการสั่นจากมือครูดลำตัว/แขน/มืออีกข้างตอนเล็งไปมา")]
     public bool ignoreSelfCollision = true;
+    [Tooltip("Match arm segment masses and raise solver quality while holding a grab.")]
+    public bool stabilizeArmChainWhileGrabbing = true;
+    [Min(0.01f)] public float stabilizedArmMass = 1f;
+    [Min(1)] public int stabilizedArmSolverIterations = 20;
+    [Min(1)] public int stabilizedArmSolverVelocityIterations = 8;
     [Tooltip("สัดส่วนแรงสปริงมือตอนล้ม (Ragdoll) — ต่ำ = มือห้อยตามแรงโน้มถ่วง แต่ยังนัดจากเมาส์ได้เบาๆ\n" +
              "0 = มือปล่อยตกอิสระเลย / 1 = สปริงแรงเท่าตอนยืน")]
     [Range(0f, 1f)] public float ragdollHandSpringScale = 0.25f;
@@ -105,6 +115,11 @@ public class PlayerHandMovement : NetworkBehaviour
     protected bool isGrabbing = false;
     protected Rigidbody grabbedObject;
     protected FixedJoint grabJoint;
+    public bool HasSupportingGrab =>
+        currentState.Value == HandState.Attached &&
+        isGrabbing && grabbedObject != null && grabbedObject.isKinematic && grabJoint != null;
+    private readonly Dictionary<Joint, Vector2> protectedArmJointLimits =
+        new Dictionary<Joint, Vector2>();
 
     protected Vector3 targetHandPosition;
     protected Vector3 smoothedHandTarget;
@@ -135,6 +150,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
         if (IsServer && handRb != null)
         {
+            if (torso != null) torso.RegisterHand(this);
             // ✅ [Solver Boost] โซ่ข้อต่อแขนแก้สมการยากกว่า rigidbody เดี่ยว
             // เพิ่มรอบ solver เฉพาะมือ → ข้อต่อนิ่งขึ้นตอนรับแรงสูง (ต่อย/เหวี่ยงเร็ว)
             handRb.solverIterations = 12;
@@ -155,6 +171,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        if (IsServer && torso != null) torso.UnregisterHand(this);
         // คืนเคอร์เซอร์ให้ระบบเมื่อหุ่นหายจากเกม (กลับเมนู/ตาย) — ไม่งั้นคลิกเมนูไม่ได้
         if (IsOwner && useVirtualCursor)
         {
@@ -335,6 +352,14 @@ public class PlayerHandMovement : NetworkBehaviour
         // ✅ กด F ครั้งเดียวเพื่อจับ / กดอีกครั้งเพื่อปล่อย (Toggle)
         if (Input.GetKeyDown(KeyCode.F))
         {
+            bool torsoDown = torso != null &&
+                (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
+                 torso.currentState.Value == TorsoMovement.TorsoState.Falling);
+
+            // While down, an existing grab may be released but a new grab cannot begin.
+            if (torsoDown && !localGrabToggle)
+                return;
+
             localGrabToggle = !localGrabToggle;
 
             if (localGrabToggle) 
@@ -353,19 +378,31 @@ public class PlayerHandMovement : NetworkBehaviour
     [Rpc(SendTo.Server)]
     private void TryGrabRpc()
     {
-        isGrabbing = true;
+        // Server authority: do not allow a client to start a new grab while ragdolled.
+        if (torso != null &&
+            (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
+             torso.currentState.Value == TorsoMovement.TorsoState.Falling))
+        {
+            ForceReleaseGrabClientRpc();
+            return;
+        }
+
         Collider[] hits = Physics.OverlapSphere(GrabPosition, grabRadius, grabLayer);
         foreach (var h in hits)
         {
             Rigidbody rb = h.attachedRigidbody;
             if (rb == null) continue;
+            isGrabbing = true;
             grabbedObject = rb;
 
             // ✅ จับได้ทั้ง Kinematic และ Dynamic
             grabJoint = handRb.gameObject.AddComponent<FixedJoint>();
             grabJoint.connectedBody = rb;
-            grabJoint.breakForce = grabBreakForce;
-            grabJoint.breakTorque = grabBreakForce;
+            float jointBreakLimit = preventGrabBreakWhileRagdoll
+                ? Mathf.Infinity
+                : grabBreakForce;
+            grabJoint.breakForce = jointBreakLimit;
+            grabJoint.breakTorque = jointBreakLimit;
 
             // ปิดการชนระหว่างของที่ถูกจับกับลำตัวหุ่น เพื่อป้องกันบั๊กบินขึ้นฟ้า
             IgnoreCollisionWithTorso(grabbedObject, true);
@@ -431,6 +468,22 @@ public class PlayerHandMovement : NetworkBehaviour
         bool torsoDown = torso != null &&
             (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
              torso.currentState.Value == TorsoMovement.TorsoState.Falling);
+        bool hasActiveGrab = isGrabbing && grabbedObject != null && grabJoint != null;
+
+        // Starting a new grab while down is blocked, so this can only protect a grab
+        // that already existed before ragdoll. Restore the normal limit after recovery.
+        if (hasActiveGrab)
+        {
+            float activeBreakForce = preventGrabBreakWhileRagdoll
+                ? Mathf.Infinity
+                : grabBreakForce;
+            grabJoint.breakForce = activeBreakForce;
+            grabJoint.breakTorque = activeBreakForce;
+        }
+
+        // When enabled, physics can never tear the arm chain apart. Explicit systems
+        // may still detach a limb by destroying its joint intentionally.
+        ProtectArmJointChain(preventGrabBreakWhileRagdoll);
 
         Vector3 dirFromPivot = smoothedHandTarget - PivotPosition;
         float currentDistance = dirFromPivot.magnitude;
@@ -445,8 +498,11 @@ public class PlayerHandMovement : NetworkBehaviour
             Vector3 climbPullDir = physicsTarget - GrabPosition;
             torso.torsoRb.AddForce(climbPullDir * kinematicPullForce, ForceMode.Acceleration);
 
-            float stressThisFrame = kinematicPullForce * Time.fixedDeltaTime * Mathf.Clamp01(currentDistance / maxArmLength);
-            torso.AddStress(stressThisFrame);
+            if (kinematicGrabAddsStress)
+            {
+                float stressThisFrame = kinematicPullForce * Time.fixedDeltaTime * Mathf.Clamp01(currentDistance / maxArmLength);
+                torso.AddStress(stressThisFrame);
+            }
             torso.armPullIntensity = Mathf.Clamp01(currentDistance / maxArmLength);
         }
         else
@@ -470,7 +526,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
                 // ✅ [Ragdoll No-Pull] ตอนล้ม: มือยังยืดสุดได้ แต่ไม่ส่งแรงดึงลำตัว
                 // กันแขนโกงลากตัวไหลไปมาตอน Ragdoll (ตัดเฉพาะแรง torsoPull ไม่แตะสปริงมือ)
-                if (!torsoDown)
+                if (!torsoDown || hasActiveGrab)
                 {
 
                 // ── [Anti Hand-Skating] ────────────────────────────────────────
@@ -502,7 +558,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
                 float stressThisFrame = torsoPullForce * Time.fixedDeltaTime * 0.5f;
                 torso.AddStress(stressThisFrame);
-                } // end !torsoDown
+                } // end standing or holding a pre-ragdoll grab
             }
 
             // ── Spring + Stability ─────────────────────────────────────────
@@ -510,7 +566,8 @@ public class PlayerHandMovement : NetworkBehaviour
 
             // ✅ [Ragdoll Droop] ตอนล้ม: สปริงอ่อนลง + ไม่ชดเชยแรงโน้มถ่วง
             // → มือห้อยตกตามแรงโน้มถ่วง/ร่วงตามตัว แต่ยังนัดตามเมาส์ได้เบาๆ (ขยับได้)
-            float springScale = torsoDown ? ragdollHandSpringScale : 1f;
+            // A grab that already existed before ragdoll keeps full arm strength.
+            float springScale = torsoDown && !hasActiveGrab ? ragdollHandSpringScale : 1f;
 
             // ✅ [Velocity Cap] จำกัดความเร็วที่สปริงเรียกร้อง — เป้าไกลแค่ไหน
             // สปริงก็ขอความเร็วได้ไม่เกินเพดาน → แรงในโซ่ข้อต่อไม่ระเบิด ไม่สั่น
@@ -519,7 +576,7 @@ public class PlayerHandMovement : NetworkBehaviour
             Vector3 force = (velocityTarget - handRb.linearVelocity) * (handDamper * springScale);
 
             // ✅ [Gravity Compensation] ชดเชยน้ำหนักมือ "เฉพาะตอนยืน" — ตอนล้มปล่อยให้ตกจริง
-            if (compensateGravity && handRb.useGravity && !torsoDown)
+            if (compensateGravity && handRb.useGravity && (!torsoDown || hasActiveGrab))
                 force -= Physics.gravity;
 
             // ✅ [Proximity Brake] ใกล้เป้าแล้วเบรกความเร็วเพิ่มแบบ quadratic
@@ -529,6 +586,61 @@ public class PlayerHandMovement : NetworkBehaviour
                 force -= handRb.linearVelocity * (brakeDamping * proximity * proximity);
 
             handRb.AddForce(force, ForceMode.Acceleration);
+        }
+    }
+
+    private void ProtectArmJointChain(bool protect)
+    {
+        if (!protect)
+        {
+            foreach (var savedLimit in protectedArmJointLimits)
+            {
+                if (savedLimit.Key == null) continue;
+                savedLimit.Key.breakForce = savedLimit.Value.x;
+                savedLimit.Key.breakTorque = savedLimit.Value.y;
+            }
+            protectedArmJointLimits.Clear();
+            return;
+        }
+
+        Rigidbody currentBody = handRb;
+        int safety = 0;
+        while (currentBody != null &&
+               (torso == null || currentBody != torso.torsoRb) &&
+               safety++ < 8)
+        {
+            if (stabilizeArmChainWhileGrabbing && HasSupportingGrab)
+            {
+                currentBody.mass = Mathf.Max(0.01f, stabilizedArmMass);
+                currentBody.solverIterations = Mathf.Max(currentBody.solverIterations, stabilizedArmSolverIterations);
+                currentBody.solverVelocityIterations = Mathf.Max(currentBody.solverVelocityIterations, stabilizedArmSolverVelocityIterations);
+            }
+
+            Joint[] armJoints = currentBody.GetComponents<Joint>();
+            if (armJoints.Length == 0) break;
+
+            Rigidbody nextBody = null;
+            foreach (Joint armJoint in armJoints)
+            {
+                if (armJoint == null) continue;
+
+                if (!protectedArmJointLimits.ContainsKey(armJoint))
+                {
+                    protectedArmJointLimits.Add(
+                        armJoint,
+                        new Vector2(armJoint.breakForce, armJoint.breakTorque));
+                }
+
+                armJoint.breakForce = Mathf.Infinity;
+                armJoint.breakTorque = Mathf.Infinity;
+
+                // The runtime grab FixedJoint points toward the grabbed object, not
+                // toward the torso, so never use it to continue the limb traversal.
+                if (nextBody == null && armJoint != grabJoint && armJoint.connectedBody != null)
+                    nextBody = armJoint.connectedBody;
+            }
+
+            currentBody = nextBody;
         }
     }
 

@@ -52,6 +52,7 @@ public class TorsoMovement : NetworkBehaviour
     public float minCenterForceMultiplier = 0.15f;
 
     private readonly HashSet<PlayerFootForRobot> _attachedFeet = new HashSet<PlayerFootForRobot>();
+    private readonly HashSet<PlayerHandMovement> _attachedHands = new HashSet<PlayerHandMovement>();
     private float _balanceLossTimer = 0f;
     // [Gameplay Fix G10] Cache เพื่อ update hipJoint เฉพาะตอน state เปลี่ยน
     private TorsoState _lastHipJointState = (TorsoState)(-1);
@@ -62,15 +63,29 @@ public class TorsoMovement : NetworkBehaviour
 
     public void RegisterFoot(PlayerFootForRobot foot) { if (foot != null) _attachedFeet.Add(foot); }
     public void UnregisterFoot(PlayerFootForRobot foot) { if (foot != null) _attachedFeet.Remove(foot); }
+    public void RegisterHand(PlayerHandMovement hand) { if (hand != null) _attachedHands.Add(hand); }
+    public void UnregisterHand(PlayerHandMovement hand) { if (hand != null) _attachedHands.Remove(hand); }
+
+    public bool HasSupportingHandGrab
+    {
+        get
+        {
+            _attachedHands.RemoveWhere(h => h == null);
+            foreach (PlayerHandMovement hand in _attachedHands)
+                if (hand.HasSupportingGrab) return true;
+            return false;
+        }
+    }
 
     void FixedUpdate()
     {
         if (!IsServer) return;
 
         _attachedFeet.RemoveWhere(f => f == null);
+        _attachedHands.RemoveWhere(h => h == null);
         currentStress = Mathf.Max(0f, currentStress - stressDecayRate * Time.fixedDeltaTime);
 
-        if (currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
+        if (!HasSupportingHandGrab && currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
             currentState.Value = TorsoState.Falling;
 
         // [Gameplay Fix G10] Set hipJoint เฉพาะตอน state เปลี่ยน ไม่ใช่ทุก FixedUpdate
@@ -100,12 +115,13 @@ public class TorsoMovement : NetworkBehaviour
     private void HandleFakeHoverAndPosture()
     {
         if (torsoRb == null) return;
+        bool supportedByHand = HasSupportingHandGrab;
 
         // ✅ [Bug Fix] maxBalanceAngle ถูกประกาศไว้แต่ไม่เคยถูกใช้เลย!
         // เดิมหุ่นเอียงกี่องศาก็ยังนับว่ายืน ตราบใดที่เท้าแตะพื้น
         // ใหม่: เอียงเกินกำหนดค้างครึ่ง grace period → ล้มจริงตามฟิสิกส์ที่ควรเป็น
         float tiltAngle = Vector3.Angle(torsoRb.transform.up, Vector3.up);
-        if (tiltAngle > maxBalanceAngle)
+        if (!supportedByHand && tiltAngle > maxBalanceAngle)
         {
             _tiltTimer += Time.fixedDeltaTime;
             if (_tiltTimer >= fallGracePeriod * 0.5f)
@@ -137,13 +153,13 @@ public class TorsoMovement : NetworkBehaviour
         }
 
         int footCount = _attachedFeet.Count;
-        if (footCount >= 2 && balancedCount == 0)
+        if (!supportedByHand && footCount >= 2 && balancedCount == 0)
         {
             currentState.Value = TorsoState.Falling;
             return;
         }
 
-        if (footCount > 0 && groundedCount == 0)
+        if (!supportedByHand && footCount > 0 && groundedCount == 0)
         {
             _balanceLossTimer += Time.fixedDeltaTime;
             if (_balanceLossTimer >= fallGracePeriod)

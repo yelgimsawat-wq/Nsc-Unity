@@ -12,7 +12,7 @@ public class PlayerFootForRobot : NetworkBehaviour
     public bool isPushingRecovery  = false;
     public bool isJumping          = false;
 
-    public bool IsBalanced => !isStepping && !isJumping && !isPushingRecovery && IsGrounded();
+    public bool IsBalanced => !_releasedForClimb && !isStepping && !isJumping && !isPushingRecovery && IsGrounded();
 
     [Header("References")]
     public TorsoMovement torso;
@@ -59,6 +59,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Header("Physics Safety")]
     public float maxFootVelocity = 25f;
     public float groundCheckDistance = 0.6f;
+    [Tooltip("ทำให้ Joint ทุกชนิดทั้งโซ่ขาไม่มีวันแตกจากแรงฟิสิกส์")]
+    public bool makeLegJointsUnbreakable = true;
 
     private Vector3 _targetFootPos;
     private Vector3 _balanceShiftPos;
@@ -75,6 +77,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     // 🧊 แช่แข็งเท้า
     private bool _isPlantedSet = false;
+    private bool _releasedForClimb = false;
     public Vector3 plantedPosition;
 
     public override void OnNetworkSpawn()
@@ -106,6 +109,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     void FixedUpdate()
     {
         if (!IsServer) return;
+
+        if (makeLegJointsUnbreakable && footRb != null)
+            MakeLegJointChainUnbreakable();
         if (footRb == null || pivotPoint == null) return; // 🛡️ กัน NRE ถ้า ref หลุด/ถูก despawn
 
         // ⚡ เทียบด้วย sqrMagnitude เลี่ยง sqrt ทุกเฟรม (ผลเท่าเดิม); คำนวณ magnitude จริงเฉพาะตอนเกินลิมิต
@@ -134,6 +140,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
         if (isRagdoll)
         {
+            _releasedForClimb = false;
             if (isPushingRecovery)
             {
                 footRb.isKinematic = false; // 🔓 ลุกยืน: ปล่อยให้ฟิสิกส์/ข้อต่อทำงาน กัน Solver รวน
@@ -156,7 +163,26 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
         else
         {
-            if (isStepping || isJumping)
+            bool supportingClimb = torso != null && torso.HasSupportingHandGrab;
+
+            // Keep a planted foot fixed while the leg can physically reach it. Once
+            // the torso climbs beyond that reach, release the plant without detaching
+            // the foot/leg joint chain, so the solver is not forced to tear the model apart.
+            if (supportingClimb && _isPlantedSet)
+            {
+                Vector3 plantedWorldPosition = plantedPosition + Vector3.up * footThicknessOffset;
+                if (Vector3.Distance(pivotPoint.position, plantedWorldPosition) > maxLegLength * 0.95f)
+                {
+                    _releasedForClimb = true;
+                    _isPlantedSet = false;
+                }
+            }
+            else if (!supportingClimb && _releasedForClimb && IsGrounded())
+            {
+                _releasedForClimb = false;
+            }
+
+            if (_releasedForClimb || isStepping || isJumping)
             {
                 _isPlantedSet = false;
                 PerformSteppingPhysics();
@@ -251,23 +277,55 @@ public class PlayerFootForRobot : NetworkBehaviour
         // เกาะพื้นจุดใต้ตัวเองตลอด ไม่มีวันลอย/ค้างจุดเก่า (หลุดล็อกเฉพาะ isStepping/isJumping)
         footRb.isKinematic = true;
 
-        Vector3 groundPos;
-        if (Physics.Raycast(footRb.position + Vector3.up * 2f, Vector3.down,
-                out RaycastHit hit, standingGroundRayLength, groundLayer))
-            groundPos = hit.point;
-        else if (Physics.Raycast(pivotPoint.position, Vector3.down,
-                out RaycastHit pivotHit, standingGroundRayLength, groundLayer))
-            groundPos = new Vector3(footRb.position.x, pivotHit.point.y, footRb.position.z);
-        else
-            groundPos = footRb.position; // ไม่เจอพื้นเลย (ลอยอยู่กลางอากาศ) — คงตำแหน่งเดิมไว้
+        if (!_isPlantedSet)
+        {
+            Vector3 groundPos;
+            if (Physics.Raycast(footRb.position + Vector3.up * 2f, Vector3.down,
+                    out RaycastHit hit, standingGroundRayLength, groundLayer))
+                groundPos = hit.point;
+            else if (Physics.Raycast(pivotPoint.position, Vector3.down,
+                    out RaycastHit pivotHit, standingGroundRayLength, groundLayer))
+                groundPos = new Vector3(footRb.position.x, pivotHit.point.y, footRb.position.z);
+            else
+                groundPos = footRb.position;
 
-        plantedPosition = groundPos;
-        footRb.MovePosition(groundPos + Vector3.up * footThicknessOffset);
+            plantedPosition = groundPos;
+            _isPlantedSet = true;
+        }
+
+        footRb.MovePosition(plantedPosition + Vector3.up * footThicknessOffset);
         footRb.rotation = Quaternion.Euler(0f, footRb.rotation.eulerAngles.y, 0f);
 
         Vector3 offset = (_balanceShiftPos - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
         torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, pivotPoint.position, ForceMode.Acceleration);
+    }
+
+    private void MakeLegJointChainUnbreakable()
+    {
+        Rigidbody currentBody = footRb;
+        int safety = 0;
+
+        while (currentBody != null &&
+               (torso == null || currentBody != torso.torsoRb) &&
+               safety++ < 8)
+        {
+            Joint[] joints = currentBody.GetComponents<Joint>();
+            if (joints.Length == 0) break;
+
+            Rigidbody nextBody = null;
+            foreach (Joint joint in joints)
+            {
+                if (joint == null) continue;
+                joint.breakForce = Mathf.Infinity;
+                joint.breakTorque = Mathf.Infinity;
+
+                if (nextBody == null && joint.connectedBody != null)
+                    nextBody = joint.connectedBody;
+            }
+
+            currentBody = nextBody;
+        }
     }
 
     private void PerformDetachedPhysics()

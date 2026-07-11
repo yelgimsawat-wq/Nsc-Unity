@@ -46,6 +46,13 @@ public class PlayerHandCombat : PlayerHandMovement
     [Tooltip("มุมกรวยช่วยเล็ง (องศา) — กว้าง = ดูดแรง, 0 = ปิด")]
     public float aimAssistAngle = 30f;
 
+    [Header("Aim Assist Gizmos")]
+    public bool showAimAssistGizmos = true;
+    public Color aimRangeColor = new Color(1f, 0.75f, 0f, 0.35f);
+    public Color rawAimColor = Color.cyan;
+    public Color assistedAimColor = Color.green;
+    [Range(4, 32)] public int aimConeSegments = 16;
+
     [Tooltip("โชว์ log สรุปทุกหมัด (ความเร็วพีค/ดาเมจที่จะได้/โดนเป้าไหม) ไว้เช็คจูนค่า")]
     public bool debugPunchLog = true;
 
@@ -186,26 +193,96 @@ public class PlayerHandCombat : PlayerHandMovement
     private static readonly Collider[] _assistBuffer = new Collider[32];
     private Vector3 ApplyAimAssist(Vector3 punchDir)
     {
+        return TryFindAimAssistTarget(punchDir, out Vector3 assistedDirection, out _)
+            ? assistedDirection
+            : punchDir;
+    }
+
+    private bool TryFindAimAssistTarget(Vector3 punchDir, out Vector3 assistedDirection, out Vector3 targetPosition)
+    {
+        Vector3 rawDirection = punchDir.sqrMagnitude > 0.0001f ? punchDir.normalized : transform.forward;
+        assistedDirection = rawDirection;
+        targetPosition = Vector3.zero;
+
         float range = maxArmLength + punchExtraReach;
         int count = Physics.OverlapSphereNonAlloc(PivotPosition, range, _assistBuffer);
-
         float bestAngle = aimAssistAngle;
-        Vector3 bestDir = punchDir;
+        bool found = false;
 
         for (int i = 0; i < count; i++)
         {
-            EnemyHealth enemy = _assistBuffer[i].GetComponentInParent<EnemyHealth>();
-            if (enemy == null) continue;
+            Collider candidate = _assistBuffer[i];
+            if (candidate == null || candidate.GetComponentInParent<EnemyHealth>() == null) continue;
 
-            Vector3 toEnemy = _assistBuffer[i].bounds.center - PivotPosition;
-            float angle = Vector3.Angle(punchDir, toEnemy);
+            Vector3 candidatePosition = candidate.bounds.center;
+            Vector3 toEnemy = candidatePosition - PivotPosition;
+            if (toEnemy.sqrMagnitude < 0.0001f) continue;
+
+            float angle = Vector3.Angle(rawDirection, toEnemy);
             if (angle < bestAngle)
             {
                 bestAngle = angle;
-                bestDir = toEnemy.normalized;
+                assistedDirection = toEnemy.normalized;
+                targetPosition = candidatePosition;
+                found = true;
             }
         }
-        return bestDir;
+
+        return found;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (!showAimAssistGizmos || !enableAimAssist || aimAssistAngle <= 0f) return;
+
+        Vector3 origin = PivotPosition;
+        float range = Mathf.Max(0.01f, maxArmLength + punchExtraReach);
+        // smoothedHandTarget is initialized only after spawning in Play Mode.
+        // In Edit Mode it is still world zero, which made the cone point backward
+        // toward the world origin. Preview the actual shoulder-to-hand direction.
+        Vector3 rawDirection = Application.isPlaying
+            ? smoothedHandTarget - origin
+            : (handRb != null ? handRb.position - origin : transform.position - origin);
+        if (rawDirection.sqrMagnitude < 0.0001f && handRb != null)
+            rawDirection = handRb.position - origin;
+        if (rawDirection.sqrMagnitude < 0.0001f)
+            rawDirection = transform.forward;
+        rawDirection.Normalize();
+
+        Gizmos.color = aimRangeColor;
+        Gizmos.DrawWireSphere(origin, range);
+
+        Gizmos.color = rawAimColor;
+        Gizmos.DrawLine(origin, origin + rawDirection * range);
+
+        Vector3 referenceUp = Mathf.Abs(Vector3.Dot(rawDirection, Vector3.up)) > 0.98f
+            ? Vector3.right
+            : Vector3.up;
+        Vector3 coneRight = Vector3.Cross(rawDirection, referenceUp).normalized;
+        Vector3 coneUp = Vector3.Cross(coneRight, rawDirection).normalized;
+        float coneRadians = aimAssistAngle * Mathf.Deg2Rad;
+        float coneRadius = Mathf.Sin(coneRadians) * range;
+        Vector3 coneCenter = origin + rawDirection * (Mathf.Cos(coneRadians) * range);
+        int segments = Mathf.Max(4, aimConeSegments);
+        Vector3 previous = coneCenter + coneRight * coneRadius;
+
+        for (int i = 1; i <= segments; i++)
+        {
+            float radians = (i / (float)segments) * Mathf.PI * 2f;
+            Vector3 point = coneCenter +
+                (coneRight * Mathf.Cos(radians) + coneUp * Mathf.Sin(radians)) * coneRadius;
+            Gizmos.DrawLine(previous, point);
+            if (i % Mathf.Max(1, segments / 4) == 0)
+                Gizmos.DrawLine(origin, point);
+            previous = point;
+        }
+
+        if (TryFindAimAssistTarget(rawDirection, out Vector3 assistedDirection, out Vector3 targetPosition))
+        {
+            Gizmos.color = assistedAimColor;
+            Gizmos.DrawLine(origin, origin + assistedDirection * range);
+            Gizmos.DrawWireSphere(targetPosition, Mathf.Max(0.1f, range * 0.04f));
+        }
     }
 
     protected override void FixedUpdate()

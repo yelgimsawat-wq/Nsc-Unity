@@ -84,6 +84,13 @@ public class JointPullAndReconnect : NetworkBehaviour
 
     public void ForceBreakJoint()
     {
+        // Infinity only prevents a physics break. Respect the controller's
+        // unbreakable rule for explicit damage/gameplay detach requests too.
+        if (handController != null && handController.preventGrabBreakWhileRagdoll)
+            return;
+        if (footController != null && footController.makeLegJointsUnbreakable)
+            return;
+
         if (!isConnected || currentJoint == null) return;
 
         Destroy(currentJoint);
