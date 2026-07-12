@@ -127,6 +127,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 64.969
       objectReference: {fileID: 0}
+    - target: {fileID: 8903746886249502030, guid: 8b680e0f7699a254c84ed6737b7eb53d, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -205,6 +209,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -72.652
       objectReference: {fileID: 0}
+    - target: {fileID: 3765850472446208779, guid: f6674c1362ba984468bc1e71a2323d66, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3765850472446208779, guid: f6674c1362ba984468bc1e71a2323d66, type: 3}
+      propertyPath: NetworkRigidbodyBaseExpanded
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -223,6 +235,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 618942001501526912}
     m_Modifications:
+    - target: {fileID: -4608485389632644780, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -601541038693183953, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
       propertyPath: m_Name
       value: Vehicle_Bus_color03
@@ -293,6 +313,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 618942001501526912}
     m_Modifications:
+    - target: {fileID: -9214277854874074971, guid: 921b4e33443ab5943afa3c4841e74cae, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 921b4e33443ab5943afa3c4841e74cae, type: 3}
       propertyPath: m_Name
       value: Building_Residential_color01

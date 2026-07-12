@@ -69,6 +69,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6212442460253799940}
     m_Modifications:
+    - target: {fileID: -8644341739032318003, guid: bc532b78ce09f234ea01da2deecfe035, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8644341739032318003, guid: bc532b78ce09f234ea01da2deecfe035, type: 3}
+      propertyPath: NetworkRigidbodyBaseExpanded
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: bc532b78ce09f234ea01da2deecfe035, type: 3}
       propertyPath: m_Name
       value: Building_Restaurant
@@ -147,6 +155,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6212442460253799940}
     m_Modifications:
+    - target: {fileID: -5382195041507863851, guid: b8365ae9a93a2e8498ae3c2646f3c455, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: b8365ae9a93a2e8498ae3c2646f3c455, type: 3}
       propertyPath: m_Name
       value: Building_House_04_color03
@@ -285,6 +297,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 8.177
       objectReference: {fileID: 0}
+    - target: {fileID: 8273383122131347589, guid: c3e95e72d6dba334594c3c5c37fcf18a, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -303,6 +319,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6212442460253799940}
     m_Modifications:
+    - target: {fileID: -6721023760137216282, guid: 979de0ac65f6d2b48a89e9088986637f, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 979de0ac65f6d2b48a89e9088986637f, type: 3}
       propertyPath: m_Name
       value: Vehicle_Container_color01
@@ -349,6 +369,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 979de0ac65f6d2b48a89e9088986637f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9201847083338529003, guid: 979de0ac65f6d2b48a89e9088986637f, type: 3}
+      propertyPath: AutoUpdateKinematicState
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -429,6 +453,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -15.001
       objectReference: {fileID: 0}
+    - target: {fileID: 2356366966549922527, guid: 65abb0f1b521f834bae80ea4c9d93734, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -447,6 +475,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6212442460253799940}
     m_Modifications:
+    - target: {fileID: -357496976379461824, guid: 1f284b42849610642bfb5d418a57840b, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 1f284b42849610642bfb5d418a57840b, type: 3}
       propertyPath: m_Name
       value: Building_House_01_color02

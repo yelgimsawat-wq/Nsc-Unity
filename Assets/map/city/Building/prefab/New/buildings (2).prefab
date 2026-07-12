@@ -73,6 +73,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -5848686114643920383, guid: 993432d7809c9bf489a5a96006618fef, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 3155995571
+      objectReference: {fileID: 0}
+    - target: {fileID: -27720019408426551, guid: 993432d7809c9bf489a5a96006618fef, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 993432d7809c9bf489a5a96006618fef, type: 3}
       propertyPath: m_Name
       value: Vehicle_Truck_color03
@@ -125,6 +133,10 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5980850757186698970, guid: 993432d7809c9bf489a5a96006618fef, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -143,6 +155,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -5572850175012557274, guid: 260808cfd9b21994d8c3007a7bc9934c, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 2478723437
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 260808cfd9b21994d8c3007a7bc9934c, type: 3}
       propertyPath: m_Name
       value: Building_Gas Station
@@ -203,6 +219,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: -3.481
       objectReference: {fileID: 0}
+    - target: {fileID: 4378227270549027722, guid: 260808cfd9b21994d8c3007a7bc9934c, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4378227270549027722, guid: 260808cfd9b21994d8c3007a7bc9934c, type: 3}
+      propertyPath: NetworkRigidbodyBaseExpanded
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -221,6 +245,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -8067928574506173443, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 2443253743
+      objectReference: {fileID: 0}
+    - target: {fileID: -4608485389632644780, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: -601541038693183953, guid: f269a0a343ed94c4e908a388c940ea06, type: 3}
       propertyPath: m_IsKinematic
       value: 1
@@ -327,6 +359,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -6398972154154959972, guid: 1d3fc70685d97b748ac1264d8da02551, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -1928986634886461050, guid: 1d3fc70685d97b748ac1264d8da02551, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 500766083
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 1d3fc70685d97b748ac1264d8da02551, type: 3}
       propertyPath: m_Name
       value: Building Sky_big_color03
@@ -489,6 +529,18 @@ PrefabInstance:
       propertyPath: m_IsKinematic
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 7369181244583720436, guid: b1969db97c2d8604ba4bfe3000a13858, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 3376982472
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550954361659164954, guid: b1969db97c2d8604ba4bfe3000a13858, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8713706113578215836, guid: b1969db97c2d8604ba4bfe3000a13858, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -567,6 +619,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6901090175127865652, guid: 3667b1c4d7f532647b9156782c0c80f0, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8047737055061659335, guid: 3667b1c4d7f532647b9156782c0c80f0, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 4199923985
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -585,6 +645,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -7720348451588674229, guid: 22106dc63dce41746ad234a91af2d657, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 22106dc63dce41746ad234a91af2d657, type: 3}
       propertyPath: m_Name
       value: Building Sky_big_color01
@@ -644,6 +708,10 @@ PrefabInstance:
     - target: {fileID: 400000, guid: 22106dc63dce41746ad234a91af2d657, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 754314570401114990, guid: 22106dc63dce41746ad234a91af2d657, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 3118551458
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -723,6 +791,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1354955699063406103, guid: 8b3eca4c34b9e1148a3c4d42a48dd5b8, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 1966550271
+      objectReference: {fileID: 0}
+    - target: {fileID: 6924705142721455080, guid: 8b3eca4c34b9e1148a3c4d42a48dd5b8, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -741,6 +817,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -5480448445589498408, guid: 0c7bcaa85c9494849bc7a0a18b7f3324, type: 3}
+      propertyPath: AutoUpdateKinematicState
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -1831059496664095468, guid: 0c7bcaa85c9494849bc7a0a18b7f3324, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 3750506563
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 0c7bcaa85c9494849bc7a0a18b7f3324, type: 3}
       propertyPath: m_Name
       value: Building_Clothing
@@ -819,6 +903,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5392200393049153559}
     m_Modifications:
+    - target: {fileID: -3334641425442944325, guid: 31bbda51eeab02f44a8e92a7da2f5ff8, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 1174803330
+      objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 31bbda51eeab02f44a8e92a7da2f5ff8, type: 3}
       propertyPath: m_Name
       value: Natures_Bush_01
@@ -877,6 +965,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 31bbda51eeab02f44a8e92a7da2f5ff8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1914633484049162062, guid: 31bbda51eeab02f44a8e92a7da2f5ff8, type: 3}
+      propertyPath: AutoUpdateKinematicState
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
