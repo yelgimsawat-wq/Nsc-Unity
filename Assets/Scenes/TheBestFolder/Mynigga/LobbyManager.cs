@@ -777,6 +777,29 @@ public class LobbyManager : NetworkBehaviour
             SetVisibleAnimated(selectionPanel, false);
 
         UnfreezeAllPhysics();
+
+        // เริ่มแสดงบทสอนเล่น (Tutorial) ตามตำแหน่ง แขน/ขา ของผู้เล่น
+        if (TutorialManager.Instance != null && Unity.Netcode.NetworkManager.Singleton != null)
+        {
+            int localLimbIndex = -1;
+            ulong localClientId = Unity.Netcode.NetworkManager.Singleton.LocalClientId;
+            for (int i = 0; i < limbOwners.Count; i++)
+            {
+                if (limbOwners[i] == localClientId)
+                {
+                    localLimbIndex = i;
+                    break;
+                }
+            }
+
+            if (localLimbIndex != -1)
+            {
+                TutorialManager.LimbRole role = localLimbIndex >= 2 ? TutorialManager.LimbRole.Leg : TutorialManager.LimbRole.Arm;
+                TutorialManager.Instance.SetRole(role);
+                TutorialManager.Instance.StartTutorial();
+                Debug.Log($"[Client] Tutorial started automatically for local limb {localLimbIndex} ({role}).");
+            }
+        }
     }
 
     private bool TryAssignAllLimbs()
