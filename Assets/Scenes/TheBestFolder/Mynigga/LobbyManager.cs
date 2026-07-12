@@ -114,6 +114,23 @@ public class LobbyManager : NetworkBehaviour
     // Hover state tracking for part images
     private int hoveredPartIndex = -1;
 
+    // ✅ [Startup Race Fix] true ก็ต่อเมื่อ OnNetworkSpawn ทำงานแล้วเท่านั้น
+    // (การันตีว่า NetworkManager กำลัง Listening อยู่จริง — ปุ่มใน Awake() ต่อสายให้กดได้เร็วเกินไป
+    // ถ้าคลิกก่อน NetworkManager พร้อม ServerRpc จะโดนปัดทิ้งพร้อม error "can only be invoked after starting")
+    private bool _networkReady = false;
+
+    // ทางเข้าเดียวที่อนุญาตให้ยิง RequestLimbServerRpc — กันคลิกทะลุก่อนเน็ตพร้อม
+    private void TryRequestLimb(int index)
+    {
+        if (!_networkReady)
+        {
+            Debug.LogWarning("[Lobby] ยังเชื่อมต่อเครือข่ายไม่เสร็จ รอสักครู่แล้วลองกดใหม่");
+            if (bottomStatusText != null) bottomStatusText.text = "CONNECTING... PLEASE WAIT";
+            return;
+        }
+        RequestLimbServerRpc(index);
+    }
+
     // ================================================================
     //  UNITY LIFECYCLE
     // ================================================================
@@ -165,7 +182,7 @@ public class LobbyManager : NetworkBehaviour
                 if (limbButtons[captured] != null)
                 {
                     limbButtons[captured].onClick.RemoveAllListeners();
-                    limbButtons[captured].onClick.AddListener(() => RequestLimbServerRpc(captured));
+                    limbButtons[captured].onClick.AddListener(() => TryRequestLimb(captured));
                 }
             }
         }
@@ -195,6 +212,10 @@ public class LobbyManager : NetworkBehaviour
     public override void OnNetworkSpawn()
 {
     base.OnNetworkSpawn();
+
+    // ✅ NetworkManager listening แน่นอนแล้ว ณ จุดนี้ — ปลดล็อกให้กดเลือกชิ้นส่วนได้
+    _networkReady = true;
+    if (bottomStatusText != null) bottomStatusText.text = "PLAYER STATUS: AWAITING SELECTION";
 
     // Freeze ทุก Rigidbody ตอนเปิด Panel ทั้ง Host และ Client
     ResolveActiveRobot();  // เผื่อหุ่นถูกสลับ/ย้ายหลัง Awake
@@ -301,7 +322,7 @@ public class LobbyManager : NetworkBehaviour
             EventTrigger.Entry clickEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
             clickEntry.callback.AddListener((_) =>
             {
-                RequestLimbServerRpc(captured);
+                TryRequestLimb(captured);
                 PlayPartClickFeedback(partImage);
             });
             trigger.triggers.Add(clickEntry);

@@ -20,6 +20,10 @@ public class TorsoMovement : NetworkBehaviour
     [Header("Balance Constraints")]
     public float maxBalanceAngle = 55f;
     public float fallGracePeriod = 1.0f;
+    [Tooltip("กันเฟรมเดียวหลอกล้ม: ต้องเห็น 'ทั้งสองเท้าไม่สมดุลพร้อมกัน' ค้างนานกว่านี้ก่อนถึงจะล้มจริง\n" +
+             "สำคัญมากในโหมดหลายผู้เล่น (ขาซ้าย-ขวาคุมคนละคน) ที่จังหวะ step อาจซ้อนกันสั้นๆจากดีเลย์เครือข่าย")]
+    public float bothFeetUnbalancedGrace = 0.15f;
+    private float _bothUnbalancedTimer = 0f;
 
     [Header("Ragdoll Recovery")]
     [Tooltip("วินาทีที่ต้องรอก่อนกดลุกได้ (ลดลงเพื่อให้ลุกง่ายขึ้น)")]
@@ -60,6 +64,9 @@ public class TorsoMovement : NetworkBehaviour
     [Header("Test Features")]
     [Tooltip("ติ๊กถูก = เปิดโหมดทดสอบ: ใช้เท้าข้างเดียวยันพื้นก็ดีดกลับมายืนได้ทันที | เอาติ๊กออก = ใช้ระบบคำนวณความสูงรวมแบบเดิม")]
     public bool testSingleFootRecovery = true;
+
+    // ให้เท้าแต่ละข้างมองเห็นกันได้ (ใช้ตั้งค่า ignore การชนระหว่างสองขา)
+    public IReadOnlyCollection<PlayerFootForRobot> AttachedFeet => _attachedFeet;
 
     public void RegisterFoot(PlayerFootForRobot foot) { if (foot != null) _attachedFeet.Add(foot); }
     public void UnregisterFoot(PlayerFootForRobot foot) { if (foot != null) _attachedFeet.Remove(foot); }
@@ -153,10 +160,25 @@ public class TorsoMovement : NetworkBehaviour
         }
 
         int footCount = _attachedFeet.Count;
-        if (!supportedByHand && footCount >= 2 && balancedCount == 0)
+        // ✅ [Multiplayer Debounce] เดิมเช็คนี้ล้มทันทีไม่มี grace เลย (ต่างจากเงื่อนไขอื่นด้านล่าง)
+        // ในโหมดหลายผู้เล่น (ขาซ้าย-ขวาคุมคนละคน) จังหวะ isStepping ของสองคนมีโอกาสซ้อนกันแค่เฟรมเดียว
+        // จากดีเลย์เครือข่าย ทำให้ตัวล้มทั้งที่จริงๆยังยืนอยู่ได้ (ร่วมกับ fix IsBalanced ในไฟล์ขา)
+        // ✅ [Tighter Fix] เพิ่ม groundedCount == 0 เข้าไปด้วย — เดิม balancedCount==0 ทริกเกอร์ได้จาก
+        // flag ล้วนๆ (เช่น isJumping ตั้งไปแล้วแต่เท้ายังไม่ทันลอยจริง) ตอนนี้ต้อง "เท้าทั้งคู่ลอยจริง"
+        // เท่านั้นถึงจะนับ ตัดโอกาส false-positive จาก flag ที่ไม่ตรงกับสถานะฟิสิกส์จริงทิ้งไปเลย
+        if (!supportedByHand && footCount >= 2 && balancedCount == 0 && groundedCount == 0)
         {
-            currentState.Value = TorsoState.Falling;
-            return;
+            _bothUnbalancedTimer += Time.fixedDeltaTime;
+            if (_bothUnbalancedTimer >= bothFeetUnbalancedGrace)
+            {
+                _bothUnbalancedTimer = 0f;
+                currentState.Value = TorsoState.Falling;
+                return;
+            }
+        }
+        else
+        {
+            _bothUnbalancedTimer = Mathf.Max(0f, _bothUnbalancedTimer - Time.fixedDeltaTime * 2f);
         }
 
         if (!supportedByHand && footCount > 0 && groundedCount == 0)

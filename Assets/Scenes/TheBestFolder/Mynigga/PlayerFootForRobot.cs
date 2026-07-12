@@ -1,5 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
+using Unity.Netcode.Components;
+using System.Collections.Generic;
 
 public class PlayerFootForRobot : NetworkBehaviour
 {
@@ -12,7 +14,12 @@ public class PlayerFootForRobot : NetworkBehaviour
     public bool isPushingRecovery  = false;
     public bool isJumping          = false;
 
-    public bool IsBalanced => !_releasedForClimb && !isStepping && !isJumping && !isPushingRecovery && IsGrounded();
+    // ✅ [Multiplayer Balance Fix] เดิม isStepping ตัดสิทธิ์ "สมดุล" ทันที แม้เท้ายังแตะพื้นอยู่จริง
+    // ปัญหา: ขาซ้าย-ขวาคุมคนละผู้เล่น เดินพร้อมกันมีโอกาสสูงที่จังหวะ isStepping จะซ้อนกันแค่เฟรมเดียว
+    // (ยิ่งซ้ำเติมด้วยดีเลย์เครือข่าย) → เข้าเงื่อนไข "ทั้งสองเท้าไม่สมดุล" ทั้งที่เท้ายังอยู่บนพื้น
+    // → ทั้งตัวล้มทันที (TorsoMovement) → เท้าโดนปลดล็อกเข้า Ragdoll ทันที = อาการ "เท้าหลุดจากพื้นจู่ๆ"
+    // แก้: ตราบใดที่เท้ายังแตะพื้นจริง (IsGrounded) ให้นับว่ายังสมดุลอยู่ แม้กำลัง step
+    public bool IsBalanced => !_releasedForClimb && !isJumping && !isPushingRecovery && IsGrounded();
 
     [Header("References")]
     public TorsoMovement torso;
@@ -80,9 +87,22 @@ public class PlayerFootForRobot : NetworkBehaviour
     private bool _releasedForClimb = false;
     public Vector3 plantedPosition;
 
+    [Header("Network Feel (Host/Client Parity)")]
+    [Tooltip("บังคับ snap ตำแหน่งแบบไม่ interpolate ทุกครั้งที่เท้า 'ปักลงพื้น' ใหม่\n" +
+             "แก้ปัญหา Host รู้สึกเท้าดูดพื้นแรง แต่ Client รู้สึกอ่อนกว่า — เพราะ NetworkTransform " +
+             "จะ interpolate การ snap นั้นให้ฝั่ง Client เห็นแบบค่อยๆ ลื่น แทนที่จะกระแทกทันทีเหมือน Host")]
+    public bool teleportOnPlant = true;
+    private NetworkTransform _footNetworkTransform;
+
+    [Tooltip("ปิดการชนเฉพาะ 'ขา ↔ ขาอีกข้าง' (เดินไขว้/เกี่ยวกันแล้วแรงกระแทกเขย่าลำตัวจนล้ม)\n" +
+             "ขายังชนลำตัว/พื้น/สิ่งอื่นได้ปกติ — ท่าล้มยังสมจริง ไม่พับทะลุตัวเอง")]
+    public bool ignoreSelfCollision = true;
+    private bool _selfCollisionConfigured = false;
+
     public override void OnNetworkSpawn()
     {
         if (IsServer && torso != null) torso.RegisterFoot(this);
+        _footNetworkTransform = GetComponent<NetworkTransform>();
 
         // ✅ [Rest Pose] กันเป้าเท้าเริ่มที่ (0,0,0) — บั๊กตระกูลเดียวกับที่แขนเคยเป็น
         // ถ้าหุ่นล้มก่อน RPC แรกมาถึง เท้าจะพุ่งไปหาจุดกำเนิดโลก
@@ -92,6 +112,56 @@ public class PlayerFootForRobot : NetworkBehaviour
             _detachedTargetPos = footRb.position;
             _balanceShiftPos   = pivotPoint != null ? pivotPoint.position : footRb.position;
         }
+    }
+
+    // เก็บ Collider ทั้งโซ่ขา (เท้า → ท่อนขา จนถึงก่อนถึงลำตัว)
+    private List<Collider> GetLegChainColliders()
+    {
+        var cols = new List<Collider>();
+        Rigidbody currentBody = footRb;
+        int safety = 0;
+        while (currentBody != null &&
+               (torso == null || currentBody != torso.torsoRb) &&
+               safety++ < 8)
+        {
+            cols.AddRange(currentBody.GetComponents<Collider>());
+
+            Rigidbody next = null;
+            foreach (Joint j in currentBody.GetComponents<Joint>())
+                if (j != null && next == null && j.connectedBody != null)
+                    next = j.connectedBody;
+            currentBody = next;
+        }
+        return cols;
+    }
+
+    // ✅ [Selective Self-Collision] ปิดการชนเฉพาะ "ขา ↔ ขาอีกข้าง"
+    // เวอร์ชันก่อนปิดชนกับทั้งตัว → ตอน Ragdoll ลำตัวทะลุขาลงไปกองกับพื้น ล้มดูหนักผิดปกติ
+    // เวอร์ชันนี้: สองขาไม่เกี่ยวกันเอง แต่ขายังชนลำตัว/พื้นได้ตามเดิม
+    private void ConfigureLegSelfCollision()
+    {
+        if (_selfCollisionConfigured || !ignoreSelfCollision) return;
+        if (torso == null || torso.RegisteredFootCount < 2) return; // รอเท้าอีกข้างลงทะเบียนก่อน
+
+        List<Collider> myLeg = GetLegChainColliders();
+        foreach (PlayerFootForRobot otherFoot in torso.AttachedFeet)
+        {
+            if (otherFoot == null || otherFoot == this || otherFoot.footRb == null) continue;
+            List<Collider> otherLeg = otherFoot.GetLegChainColliders();
+
+            foreach (Collider mine in myLeg)
+                foreach (Collider theirs in otherLeg)
+                    if (mine != null && theirs != null && mine != theirs)
+                        Physics.IgnoreCollision(mine, theirs, true);
+        }
+        _selfCollisionConfigured = true;
+    }
+
+    // ✅ [Host/Client Parity] Snap ตำแหน่งแบบไม่ interpolate ตอนปักเท้าลงพื้นใหม่
+    private void TeleportFootTo(Vector3 worldPos)
+    {
+        if (teleportOnPlant && _footNetworkTransform != null)
+            _footNetworkTransform.Teleport(worldPos, footRb.rotation, footRb.transform.localScale);
     }
 
     public override void OnNetworkDespawn()
@@ -109,6 +179,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     void FixedUpdate()
     {
         if (!IsServer) return;
+
+        ConfigureLegSelfCollision(); // ตั้งครั้งเดียวเมื่อเท้าทั้งคู่พร้อม (มี flag กันทำซ้ำ)
 
         if (makeLegJointsUnbreakable && footRb != null)
             MakeLegJointChainUnbreakable();
@@ -206,6 +278,7 @@ public class PlayerFootForRobot : NetworkBehaviour
                 plantedPosition = footRb.position;
 
             _isPlantedSet = true;
+            TeleportFootTo(plantedPosition + Vector3.up * footThicknessOffset);
         }
 
         // 🛑 เบรกเท้าให้นิ่ง — เซ็ต velocity ได้เฉพาะตอน dynamic (kinematic body ไม่มี velocity จาก solver)
@@ -291,6 +364,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
             plantedPosition = groundPos;
             _isPlantedSet = true;
+            TeleportFootTo(plantedPosition + Vector3.up * footThicknessOffset);
         }
 
         footRb.MovePosition(plantedPosition + Vector3.up * footThicknessOffset);
@@ -427,8 +501,12 @@ public class PlayerFootForRobot : NetworkBehaviour
     // → ทิศเดิน/ถ่ายน้ำหนักติดอยู่ที่ (0,0) หุ่นเดินบอกทิศไม่ได้
     private Vector2 GetNormalizedMousePosition() => PlayerHandMovement.AimNormalized;
 
-    [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateFootTargetRpc(Vector3 v) { ValidateAndSetFootTarget(v); }
-    [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateBalanceShiftRpc(Vector3 v) { if (v.IsValid()) _balanceShiftPos = v; }
+    // ✅ [Reliability Fix] เปลี่ยน footTarget/balanceShift จาก Unreliable → Reliable
+    // เดิมถ้าแพ็กเก็ตหลุดกลางอากาศตอนเดิน Server จะค้างใช้เป้าหมายเก่า พอแพ็กเก็ตใหม่มาถึงทีหลัง
+    // ตำแหน่งกระโดดข้ามแบบกระแทก ดูเหมือนเท้ากระตุก/หลุดจากพื้น — อัตราส่งถูกจำกัดด้วย
+    // RPC_SEND_THRESHOLD อยู่แล้ว ต้นทุน bandwidth ของ Reliable จึงต่ำมาก
+    [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void UpdateFootTargetRpc(Vector3 v) { ValidateAndSetFootTarget(v); }
+    [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void UpdateBalanceShiftRpc(Vector3 v) { if (v.IsValid()) _balanceShiftPos = v; }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateDetachedTargetRpc(Vector3 v) { if (v.IsValid()) _detachedTargetPos = v; }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void SetSteppingStateRpc(bool v) { isStepping = v; }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void SetRecoveryInputRpc(bool v) { isPushingRecovery = v; }

@@ -115,10 +115,6 @@ public class PlayerCam : NetworkBehaviour
             float rt = 1f - Mathf.Exp(-rotationSmoothSpeed * Time.deltaTime);
             camT.rotation = Quaternion.Slerp(camT.rotation, targetRot, rt);
         }
-        if (followTarget != null)
-        {
-            transform.position = followTarget.position;
-        }
         // [Client Fix 2] ลบ `transform.position = rawPivotPos;` ทิ้ง
         // กล้องเคลื่อนที่ที่ playercam.transform เรียบร้อยแล้ว การเขียนทับ Player Root ทุกเฟรม
         // จะไปตีกับ NetworkTransform (server เป็นเจ้าของตำแหน่ง) ทำให้ฝั่ง Client เพี้ยน
