@@ -44,6 +44,16 @@ public static class PlayerHudBuilder
 
         LocalRobotBinder binder = root.AddComponent<LocalRobotBinder>();
 
+        // ซ่อน HUD ไว้จนกว่า Host จะกด Start ใน LobbyManager
+        CanvasGroup rootGroup = root.AddComponent<CanvasGroup>();
+        rootGroup.alpha = 0f;
+        rootGroup.interactable = false;
+        rootGroup.blocksRaycasts = false;
+        HudVisibilityGate gate = root.AddComponent<HudVisibilityGate>();
+        SerializedObject gateSo = new SerializedObject(gate);
+        gateSo.FindProperty("canvasGroup").objectReferenceValue = rootGroup;
+        gateSo.ApplyModifiedPropertiesWithoutUndo();
+
         // ปุ่มทดสอบบังคับชิ้นหลุด (1-4) — ปิด enableDebugKeys ก่อนปล่อยเกมจริง
         DebugLimbBreaker debugBreaker = root.AddComponent<DebugLimbBreaker>();
         SerializedObject debugSo = new SerializedObject(debugBreaker);

@@ -94,6 +94,15 @@ public class LobbyManager : NetworkBehaviour
     private NetworkList<ulong> limbOwners = new NetworkList<ulong>(
         new ulong[] { ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue });
 
+    // ✅ เกมเริ่มหรือยัง (Host กด Start แล้ว) — sync ให้ทุกเครื่องรวมถึงคนที่เข้าห้องช้า
+    // ระบบอื่น (เช่น Player HUD) ใช้ตัวนี้ตัดสินว่าควรโชว์ UI ในเกมได้หรือยัง
+    private NetworkVariable<bool> netGameStarted = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+
+    public bool GameStarted => netGameStarted.Value;
+
     // เก็บรายชื่อ ClientId ที่ต่อเข้ามา เพื่อเอาไปแมปกับ Slot P1, P2, P3, P4
     private NetworkList<ulong> connectedClients = new NetworkList<ulong>();
 
@@ -719,6 +728,8 @@ public class LobbyManager : NetworkBehaviour
     {
         if (!IsServer) return;
         if (startButton != null) startButton.interactable = false;
+
+        netGameStarted.Value = true; // ปลดล็อก UI ในเกม (Player HUD) ทุกเครื่อง
 
         ResolveActiveRobot(); // การันตีว่าโอน ownership ให้หุ่นตัวที่ active จริง
 
