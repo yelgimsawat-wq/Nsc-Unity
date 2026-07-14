@@ -1174,6 +1174,22 @@ public class LobbyManager : NetworkBehaviour
         return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
     }
 
+    /// <summary>
+    /// ให้ระบบอื่น (เช่น Player HUD) รู้ว่า client คนหนึ่งเลือกคุมชิ้นไหน
+    /// คืน 0=แขนซ้าย 1=แขนขวา 2=ขาซ้าย 3=ขาขวา หรือ -1 ถ้ายังไม่ได้เลือก
+    /// (ownership อย่างเดียวเชื่อไม่ได้ — Host เป็นเจ้าของชิ้นที่ไม่มีใครเลือกโดย default)
+    /// </summary>
+    public int GetSelectedLimbIndex(ulong clientId)
+    {
+        for (int i = 0; i < limbOwners.Count; i++)
+        {
+            if (limbOwners[i] == clientId)
+                return i;
+        }
+
+        return -1;
+    }
+
     [Header("Robot Auto-Management")]
     [Tooltip("ปิดหุ่นตัวเกินในฉากอัตโนมัติตอนเริ่มเกม เหลือเฉพาะตัวที่ระบบเลือกใช้\n" +
              "จะได้ก็อป/ย้าย/ทดลองหุ่นหลายตัวในฉากได้โดยไม่ต้องนั่งปิดเอง")]

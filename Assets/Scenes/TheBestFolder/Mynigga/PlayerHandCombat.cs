@@ -72,6 +72,34 @@ public class PlayerHandCombat : PlayerHandMovement
     // ความเร็วพีคของหมัดรอบนี้ (คงค่าไว้จนถึงช่วง grace หลังปล่อย)
     public float PeakPunchSpeed => peakPunchSpeed;
 
+    // ✅ แรงหมัด (0-1) คำนวณจากความเร็วจริงบน Server แล้ว sync ให้ทุกเครื่องแสดง UI
+    // (ฟิสิกส์หมัดรันบน Server — ถ้า client อ่าน linearVelocity ตรงๆ จะได้ ~0 ตลอด)
+    private readonly NetworkVariable<float> netNormalizedPunchForce = new NetworkVariable<float>(
+        0f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+
+    // ค่าแรงหมัดสำหรับ UI — Server/โหมดออฟไลน์คำนวณสด, client ใช้ค่าที่ sync มา
+    // (ดาเมจจริงยังคิดจาก PeakPunchSpeed เหมือนเดิม ตัวนี้มีไว้แสดงผลอย่างเดียว)
+    public float NormalizedPunchForce
+    {
+        get
+        {
+            if (currentCombatState.Value != CombatState.Punching)
+                return 0f;
+
+            if (IsSpawned && !IsServer)
+                return netNormalizedPunchForce.Value;
+
+            if (handRb == null)
+                return 0f;
+
+            return Mathf.Clamp01(
+                handRb.linearVelocity.magnitude /
+                Mathf.Max(0.01f, maxPunchSpeed));
+        }
+    }
+
     // ✅ เงื่อนไขนับดาเมจ: ยังไม่เคยชนในหมัดนี้ และ (กำลังต่อย หรือ อยู่ในช่วงผ่อนผันหลังปล่อย)
     public bool CanDealDamage =>
         !hasHitThisPunch &&
@@ -152,6 +180,7 @@ public class PlayerHandCombat : PlayerHandMovement
     {
         currentCombatState.Value = CombatState.Recovering;
         recoveryTimer = 0f;
+        netNormalizedPunchForce.Value = 0f;
 
         if (handRb != null)
             handRb.collisionDetectionMode = originalCollisionMode;
@@ -295,7 +324,15 @@ public class PlayerHandCombat : PlayerHandMovement
         {
             // ✅ จำความเร็วสูงสุดของหมัดรอบนี้ไว้เป็นฐานคิดดาเมจ
             if (handRb != null)
+            {
                 peakPunchSpeed = Mathf.Max(peakPunchSpeed, handRb.linearVelocity.magnitude);
+
+                // sync แรงหมัดให้ client แสดง UI — เขียนเฉพาะตอนค่าขยับพอ ลด traffic
+                float normalizedForce = Mathf.Clamp01(
+                    handRb.linearVelocity.magnitude / Mathf.Max(0.01f, maxPunchSpeed));
+                if (Mathf.Abs(netNormalizedPunchForce.Value - normalizedForce) > 0.02f)
+                    netNormalizedPunchForce.Value = normalizedForce;
+            }
 
             punchTimer -= Time.fixedDeltaTime;
             if (punchTimer <= 0f) EndPunch();

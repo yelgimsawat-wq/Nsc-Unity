@@ -1,5 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Netcode;
+using System;
 
 [RequireComponent(typeof(Rigidbody))]
 public class JointPullAndReconnect : NetworkBehaviour
@@ -8,6 +9,8 @@ public class JointPullAndReconnect : NetworkBehaviour
     public Rigidbody targetBody;
     public float pullSpeed = 20f;
     public float pullDamper = 10f;
+    [Tooltip("เพดานความเร็วตอนถูกดึงกลับ (m/s) — กันชิ้นที่อยู่ไกลถูกสปริงเหวี่ยงจนพุ่งเลยเป้า")]
+    public float maxPullSpeed = 25f;
     public float reconnectDistance = 0.4f;
 
     [Header("Cooldown Settings")]
@@ -21,6 +24,33 @@ public class JointPullAndReconnect : NetworkBehaviour
     [SerializeField] private bool isConnected = true;
     [SerializeField] private bool isPulling = false;
     [SerializeField] private float currentCooldown = 0f;
+
+    // ===== Public API สำหรับ HUD =====
+    public bool IsConnected => isConnected;
+    public bool IsPullReady =>
+        !isConnected &&
+        currentCooldown <= 0f &&
+        targetBody != null;
+    public float RemainingReconnectCooldown => Mathf.Max(0f, currentCooldown);
+    public string PullKeyLabel => pullKey.ToString();
+
+    /// <summary>กำลังถูกดึงกลับอยู่ไหม (ให้ controller ของแขนขาหยุดขับแรงสู้กับแรงดึง)</summary>
+    public bool IsBeingPulled => isPulling;
+
+    /// <summary>ยิงบนทุกเครื่องเมื่อสถานะหลุด/ต่อกลับเปลี่ยน (true = ต่ออยู่)</summary>
+    public event Action<bool> OnConnectionStateChanged;
+
+    // ✅ สถานะเชื่อมต่อถูกตัดสินบน Server เท่านั้น แล้ว sync ให้ทุกเครื่องผ่านตัวนี้
+    // (เดิมเป็น bool ธรรมดา เครื่อง Client ไม่มีทางรู้ว่าชิ้นส่วนหลุด
+    //  → HUD ไม่อัปเดต และกด R ดึงชิ้นส่วนกลับไม่ได้เลยถ้าไม่ใช่ Host)
+    private readonly NetworkVariable<bool> netIsConnected = new NetworkVariable<bool>(
+        true,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+
+    // ✅ รองรับทดสอบคนเดียวแบบไม่ต่อ network: ถ้ายังไม่ spawn ให้เครื่องนี้มีสิทธิ์เต็ม
+    private bool HasLocalAuthority => !IsSpawned || IsOwner;
+    private bool HasServerAuthority => !IsSpawned || IsServer;
 
     private Rigidbody myRb;
 
@@ -57,6 +87,37 @@ public class JointPullAndReconnect : NetworkBehaviour
         {
             CaptureJointSetup(currentJoint);
         }
+
+        netIsConnected.OnValueChanged += OnNetConnectionChanged;
+
+        if (IsServer)
+        {
+            netIsConnected.Value = isConnected;
+        }
+        else
+        {
+            // ผู้เล่นที่เข้าห้องช้า: ดึงสถานะล่าสุดจาก Server มาใช้ทันที
+            ApplyConnectionState(netIsConnected.Value);
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        netIsConnected.OnValueChanged -= OnNetConnectionChanged;
+        base.OnNetworkDespawn();
+    }
+
+    private void Start()
+    {
+        // ✅ ทดสอบคนเดียวแบบไม่ต่อ network: OnNetworkSpawn ไม่ถูกเรียก เลย capture ตรงนี้แทน
+        if (!IsSpawned && currentJoint == null)
+        {
+            currentJoint = Joinobject.GetComponent<ConfigurableJoint>();
+            if (currentJoint != null)
+            {
+                CaptureJointSetup(currentJoint);
+            }
+        }
     }
 
     public void CaptureJointSetup(ConfigurableJoint joint)
@@ -71,7 +132,7 @@ public class JointPullAndReconnect : NetworkBehaviour
 
         savedSettings = new SavedConfigurableJointSettings(joint);
 
-        isConnected = true;
+        SetConnectionState(true);
         isPulling = false;
         currentCooldown = 0f;
         currentJoint = joint;
@@ -84,6 +145,9 @@ public class JointPullAndReconnect : NetworkBehaviour
 
     public void ForceBreakJoint()
     {
+        // การหลุดเป็นเรื่องของ Server เท่านั้น — Client รอรับผลผ่าน netIsConnected
+        if (IsSpawned && !IsServer) return;
+
         // Infinity only prevents a physics break. Respect the controller's
         // unbreakable rule for explicit damage/gameplay detach requests too.
         if (handController != null && handController.preventGrabBreakWhileRagdoll)
@@ -100,48 +164,66 @@ public class JointPullAndReconnect : NetworkBehaviour
 
     private void HandleDisconnection()
     {
-        isConnected = false;
-        currentCooldown = reconnectCooldown;
+        // OnJointBreak อาจยิงจากฟิสิกส์ local บนเครื่อง Client ด้วย
+        // แต่สถานะจริงให้ Server ตัดสินคนเดียว แล้ว sync กลับมา
+        if (IsSpawned && !IsServer)
+            return;
 
-        if (IsOwner)
+        if (!isConnected)
+            return;
+
+        SetConnectionState(false);
+        SetControllerStateServer(false);
+
+        // ✅ ขาหลุด = ยืนต่อไม่ได้ — สั่งล้ม (Falling → Ragdoll) ทันที
+        // ไม่งั้นระบบ hover ยังพยุงตัวลอยค้างกลางอากาศ แล้วขาที่หลุด
+        // เอื้อมกลับมาต่อไม่ถึงตำแหน่ง socket ที่ลอยอยู่
+        if (footController != null && footController.torso != null)
         {
-            SetControllerStateRpc(false);
+            TorsoMovement torso = footController.torso;
+            if (torso.currentState.Value == TorsoMovement.TorsoState.Standing)
+                torso.currentState.Value = TorsoMovement.TorsoState.Falling;
         }
     }
 
     private void Update()
     {
-        if (!IsOwner) return;
-
+        // นับ cooldown บนทุกเครื่อง ให้ HUD ฝั่ง Client รู้ว่าพร้อมดึงเมื่อไหร่
+        // (จุดเริ่มนับถูก sync พร้อมกันทุกเครื่องใน ApplyConnectionState)
         if (currentCooldown > 0f)
         {
             currentCooldown -= Time.deltaTime;
         }
+
+        if (!HasLocalAuthority) return;
 
         if (!isConnected && targetBody != null)
         {
             if (currentCooldown <= 0f && Input.GetKey(pullKey))
             {
                 if (!isPulling)
-                {
-                    isPulling = true;
-                    SetPullingStateRpc(true);
-                }
+                    SetPulling(true);
             }
             else
             {
                 if (isPulling)
-                {
-                    isPulling = false;
-                    SetPullingStateRpc(false);
-                }
+                    SetPulling(false);
             }
         }
     }
 
+    private void SetPulling(bool state)
+    {
+        isPulling = state;
+
+        // ยิง RPC ได้เฉพาะตอนต่อ network — โหมดทดสอบคนเดียวใช้ค่า local ตรงๆ
+        if (IsSpawned)
+            SetPullingStateRpc(state);
+    }
+
     private void FixedUpdate()
     {
-        if (!IsServer) return;
+        if (!HasServerAuthority) return;
 
         if (!isPulling || isConnected || targetBody == null) return;
 
@@ -155,6 +237,8 @@ public class JointPullAndReconnect : NetworkBehaviour
         }
 
         Vector3 velocityTarget = (targetSocketWorldPos - myRb.position) * pullSpeed;
+        // ชิ้นอยู่ไกล = สปริงคำนวณความเร็วมหาศาลจนพุ่งเลยเป้าแล้วแกว่ง — จำกัดเพดานไว้
+        velocityTarget = Vector3.ClampMagnitude(velocityTarget, maxPullSpeed);
         Vector3 force = (velocityTarget - myRb.linearVelocity) * pullDamper;
         myRb.AddForce(force, ForceMode.Acceleration);
     }
@@ -162,7 +246,6 @@ public class JointPullAndReconnect : NetworkBehaviour
     private void ReconnectSystem(Vector3 targetSocketWorldPos)
     {
         isPulling = false;
-        SetPullingStateRpc(false);
 
         myRb.isKinematic = true;
         myRb.linearVelocity = Vector3.zero;
@@ -177,15 +260,101 @@ public class JointPullAndReconnect : NetworkBehaviour
         currentJoint = Joinobject.AddComponent<ConfigurableJoint>();
         savedSettings.ApplyTo(currentJoint, targetBody);
 
-        isConnected = true;
+        SetConnectionState(true);
         SetControllerStateServer(true);
+    }
+
+    private void SetConnectionState(bool connected)
+    {
+        if (IsSpawned)
+        {
+            // เขียนผ่าน NetworkVariable แล้วให้ callback เป็นคน apply เหมือนกันทุกเครื่อง
+            // Client ธรรมดาห้ามเขียน — รอรับจาก Server อย่างเดียว
+            if (IsServer)
+                netIsConnected.Value = connected;
+            return;
+        }
+
+        ApplyConnectionState(connected);
+    }
+
+    private void OnNetConnectionChanged(bool previousValue, bool newValue)
+    {
+        ApplyConnectionState(newValue);
+    }
+
+    private void ApplyConnectionState(bool connected)
+    {
+        if (isConnected == connected)
+            return;
+
+        isConnected = connected;
+
+        if (connected)
+        {
+            currentCooldown = 0f;
+            isPulling = false;
+        }
+        else
+        {
+            currentCooldown = reconnectCooldown;
+        }
+
+        // ฝั่ง Client จัดการ ConfigurableJoint ในเครื่องตัวเองให้ตรงกับ Server
+        // (ถ้าปล่อย joint เก่าค้างไว้ มันจะดึงชิ้นส่วนสู้กับตำแหน่งที่ sync มา)
+        if (IsSpawned && !IsServer)
+        {
+            if (!connected)
+            {
+                if (currentJoint != null)
+                {
+                    Destroy(currentJoint);
+                    currentJoint = null;
+                }
+            }
+            else if (currentJoint == null && targetBody != null)
+            {
+                currentJoint = Joinobject.AddComponent<ConfigurableJoint>();
+                savedSettings.ApplyTo(currentJoint, targetBody);
+            }
+        }
+
+        OnConnectionStateChanged?.Invoke(connected);
+    }
+
+    // ================================================================
+    //  Debug: บังคับชิ้นหลุดสำหรับทดสอบ UI (ข้าม flag กันหลุดทุกตัว)
+    // ================================================================
+
+    /// <summary>เรียกจากปุ่มทดสอบ — ใช้ได้จากทุกเครื่อง (client จะส่งคำขอไป Server ให้เอง)</summary>
+    public void DebugRequestBreak()
+    {
+        if (!IsSpawned || IsServer)
+            DebugForceBreak();
+        else
+            DebugRequestBreakRpc();
+    }
+
+    [Rpc(SendTo.Server)]
+    private void DebugRequestBreakRpc() { DebugForceBreak(); }
+
+    private void DebugForceBreak()
+    {
+        if (IsSpawned && !IsServer) return;
+        if (!isConnected) return;
+
+        if (currentJoint != null)
+        {
+            Destroy(currentJoint);
+            currentJoint = null;
+        }
+
+        HandleDisconnection();
+        Debug.Log($"[Debug] force-broke limb '{name}'", this);
     }
 
     [Rpc(SendTo.Server)]
     private void SetPullingStateRpc(bool state) { isPulling = state; }
-
-    [Rpc(SendTo.Server)]
-    private void SetControllerStateRpc(bool isAttached) { SetControllerStateServer(isAttached); }
 
     private void SetControllerStateServer(bool isAttached)
     {
@@ -198,20 +367,14 @@ public class JointPullAndReconnect : NetworkBehaviour
 
     public void StartPullingExternal()
     {
-        if (!isConnected && IsOwner && currentCooldown <= 0f)
-        {
-            isPulling = true;
-            SetPullingStateRpc(true);
-        }
+        if (!isConnected && HasLocalAuthority && currentCooldown <= 0f)
+            SetPulling(true);
     }
 
     public void StopPullingExternal()
     {
-        if (IsOwner)
-        {
-            isPulling = false;
-            SetPullingStateRpc(false);
-        }
+        if (HasLocalAuthority)
+            SetPulling(false);
     }
 }
 

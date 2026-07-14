@@ -33,6 +33,8 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float footMoveSpeed = 15f;
     public float balanceShiftMultiplier = 0.3f;
     public float detachedMoveSpeed = 20f;
+    [Tooltip("เพดานความเร็วเท้าตอนหลุด (m/s) — กันเท้าปลิวหายจากสปริงไล่เป้าเมาส์")]
+    public float maxDetachedSpeed = 8f;
     public float heightAdjustSpeed = 3f;
     public float legDamper = 30f;
     public LayerMask groundLayer;
@@ -98,6 +100,22 @@ public class PlayerFootForRobot : NetworkBehaviour
              "ขายังชนลำตัว/พื้น/สิ่งอื่นได้ปกติ — ท่าล้มยังสมจริง ไม่พับทะลุตัวเอง")]
     public bool ignoreSelfCollision = true;
     private bool _selfCollisionConfigured = false;
+
+    [Header("Camera-Independent Aim (ไม่มีเมาส์บนจอ — เหมือนมือ)")]
+    [Tooltip("ล็อกเคอร์เซอร์กลางจอ แล้วใช้ mouse delta ขยับจุดเล็งเท้าในแกนโลก\n" +
+             "ไม่มีเคอร์เซอร์โผล่ + ไม่ติดขอบจอ + หันกล้องแล้วจุดเล็งไม่กวาดตาม (แบบเดียวกับมือ)")]
+    public bool useVirtualCursor = true;
+    [Tooltip("ความไวจุดเล็งเท้า")]
+    public float mouseSensitivity = 1.5f;
+    [Tooltip("วาด marker ที่จุดเล็งเท้า")]
+    public bool showCrosshair = false;
+
+    // จุดเล็งแนวราบ (offset จาก pivot ในแกนโลก) — เปลี่ยนด้วย delta เมาส์เท่านั้น ไม่ตามกล้อง
+    private Vector3 _footPlanarAim = Vector3.zero;
+    private bool _footEverLocked = false;
+    private bool _ignoreStepUntilRelease = false; // กันคลิกที่ใช้ดึงเมาส์กลับไปเริ่มก้าวเดิน
+    private Vector3 _footMarkerWorld;
+    private static GUIStyle _footCrosshairStyle;
 
     public override void OnNetworkSpawn()
     {
@@ -167,6 +185,12 @@ public class PlayerFootForRobot : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         if (IsServer && torso != null) torso.UnregisterFoot(this);
+        // คืนเคอร์เซอร์ตอนหุ่นหายจากเกม (กลับเมนู/ตาย) — ไม่งั้นคลิกเมนูไม่ได้
+        if (IsOwner && useVirtualCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     void Update()
@@ -199,9 +223,30 @@ public class PlayerFootForRobot : NetworkBehaviour
             isJumping = false;
 
         if (currentState.Value == FootState.Attached)
+        {
             HandleAttachedState();
-        else
+        }
+        else if (JointPull == null || !JointPull.IsBeingPulled)
+        {
+            // ตอนกดดึงกลับ (R) ต้องหยุดสปริงไล่เมาส์ของเท้า
+            // ไม่งั้นสองแรงสู้กันแล้วเท้าไม่มีวันกลับถึง socket
             PerformDetachedPhysics();
+        }
+    }
+
+    private JointPullAndReconnect _jointPull;
+    private bool _jointPullSearched;
+    private JointPullAndReconnect JointPull
+    {
+        get
+        {
+            if (!_jointPullSearched)
+            {
+                _jointPullSearched = true;
+                _jointPull = GetComponent<JointPullAndReconnect>();
+            }
+            return _jointPull;
+        }
     }
 
     private void HandleAttachedState()
@@ -405,18 +450,29 @@ public class PlayerFootForRobot : NetworkBehaviour
     private void PerformDetachedPhysics()
     {
         Vector3 velTarget = (_detachedTargetPos - footRb.position) * detachedMoveSpeed;
+        // เพดานความเร็ว — สปริงไล่เป้าไกลๆ เคยคำนวณความเร็วมหาศาลจนเท้าปลิวหาย
+        velTarget = Vector3.ClampMagnitude(velTarget, maxDetachedSpeed);
         footRb.AddForce((velTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
     }
 
     private void HandleInput()
     {
+        // ✅ [Camera-Independent Aim] ล็อกเคอร์เซอร์ + คำนวณจุดเล็งเท้าในแกนโลก (เหมือนมือ)
+        if (useVirtualCursor) HandleFootCursorLock();
+
+        // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → หยุดรับ input เท้าทั้งหมด
+        if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
+            return;
+
         if (currentState.Value == FootState.Attached)
         {
             bool isRagdoll = torso != null && (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling);
-            Vector2 mouseNorm = GetNormalizedMousePosition();
-            Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
-            Vector3 camRight = playerCamera.transform.right;  camRight.y = 0; camRight.Normalize();
-            Vector3 mouseOffset = camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
+            Vector3 mouseOffset = ComputeFootAimOffset();
+            // marker: ยิงลงพื้นให้ไปเกาะพื้นจริง (default = ระดับสะโพกถ้าไม่เจอพื้น)
+            _footMarkerWorld = Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f,
+                    Vector3.down, out RaycastHit markerHit, 60f, groundLayer)
+                ? markerHit.point
+                : pivotPoint.position + mouseOffset;
 
             Vector3 newBalance = pivotPoint.position + mouseOffset;
             if ((newBalance - _lastSentBalance).sqrMagnitude > RPC_SEND_THRESHOLD_SQR)
@@ -435,6 +491,12 @@ public class PlayerFootForRobot : NetworkBehaviour
                 if (_localJumpLock && IsGrounded() && !isJumping) _localJumpLock = false;
 
                 bool holdingClick = Input.GetMouseButton(0);
+                // คลิกที่ใช้ดึงเมาส์กลับ ไม่นับเป็นก้าวเดิน จนกว่าจะปล่อยแล้วกดใหม่
+                if (_ignoreStepUntilRelease)
+                {
+                    if (!holdingClick) _ignoreStepUntilRelease = false;
+                    holdingClick = false;
+                }
                 if (holdingClick && !isStepping) { isStepping = true; SetSteppingStateRpc(true); _currentYOffset = 0f; }
                 else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentYOffset = 0f; }
 
@@ -485,21 +547,102 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
         else
         {
-            Vector2 mouseNorm = GetNormalizedMousePosition();
-            Vector3 camFwd = playerCamera.transform.forward; camFwd.y = 0; camFwd.Normalize();
-            Vector3 camRight = playerCamera.transform.right; camRight.y = 0; camRight.Normalize();
-            Vector3 offset = (camRight * mouseNorm.x + camFwd * mouseNorm.y) * 5f;
-            if (Physics.Raycast(footRb.position + offset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
+            // เท้าหลุด (Detached): ใช้จุดเล็งแกนโลกเดียวกัน ขยายระยะเอื้อมออก
+            // ⚠️ ฐานจุดเล็งต้องเป็นสะโพก (จุดอ้างอิงนิ่ง) ห้ามใช้ตำแหน่งเท้าเอง —
+            // เดิมเป้า = เท้า + offset ทำให้เป้าวิ่งหนีตามเท้าไปเรื่อยๆ (feedback loop)
+            // ขยับเมาส์นิดเดียวเท้าเลยไล่เป้าด้วยความเร็วคงที่ไม่มีวันถึง = ปลิวหาย
+            Vector3 offset = ComputeFootAimOffset() * 2.5f;
+            Vector3 aimBase = pivotPoint != null ? pivotPoint.position : footRb.position;
+            if (Physics.Raycast(aimBase + offset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
             {
                 if ((hit.point - _lastSentDetached).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentDetached = hit.point; UpdateDetachedTargetRpc(hit.point); }
             }
         }
     }
 
-    // ✅ [Pointer Lock Fix] อ่านจุดเล็งผ่านระบบกลางของ PlayerHandMovement
-    // เดิมอ่าน Input.mousePosition ตรงๆ ซึ่งค้างกลางจอตลอดหลังเปิด Virtual Cursor
-    // → ทิศเดิน/ถ่ายน้ำหนักติดอยู่ที่ (0,0) หุ่นเดินบอกทิศไม่ได้
+    // ✅ [Pointer Lock Fix] fallback เมื่อไม่ได้ล็อกเคอร์เซอร์ — อ่านตำแหน่งเมาส์จริงบนจอ
     private Vector2 GetNormalizedMousePosition() => PlayerHandMovement.AimNormalized;
+
+    // ── Camera-Independent Foot Aim (ยกระบบมาจากมือ) ──────────────────
+
+    private void HandleFootCursorLock()
+    {
+        // Esc = ปลดล็อก เมาส์โผล่ (ไปกดเมนู)
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        // เคอร์เซอร์ปลดอยู่ → ครั้งแรกที่เข้าเกม หรือ คลิกซ้าย = ล็อกกลับ เมาส์หาย
+        if (Cursor.lockState != CursorLockMode.Locked)
+        {
+            if (!_footEverLocked || Input.GetMouseButtonDown(0))
+            {
+                LockFootCursor();
+                _ignoreStepUntilRelease = true; // คลิกนี้ใช้ดึงเมาส์กลับ ห้ามไปเริ่มก้าวเดิน
+            }
+        }
+    }
+
+    private void LockFootCursor()
+    {
+        // เริ่มจุดเล็งจากตำแหน่งเท้าจริง ณ ตอนล็อก — เท้าไม่กระโดด
+        Vector3 footOffset = footRb.position - pivotPoint.position;
+        _footPlanarAim = new Vector3(footOffset.x, 0f, footOffset.z);
+        float maxR = Mathf.Max(mouseReachX, mouseReachY);
+        if (_footPlanarAim.sqrMagnitude > maxR * maxR) _footPlanarAim = _footPlanarAim.normalized * maxR;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        _footEverLocked = true;
+    }
+
+    // จุดเล็งเท้า = offset แกนโลกจาก pivot | เปลี่ยนด้วย delta เมาส์ (ตีความตามกล้องปัจจุบัน)
+    // หันกล้อง = ไม่มี delta = จุดเล็งอยู่ที่เดิม | คลิกขวา = หมุนกล้อง จุดเล็งนิ่ง
+    private Vector3 ComputeFootAimOffset()
+    {
+        Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0f; camFwd.Normalize();
+        Vector3 camRight = playerCamera.transform.right;  camRight.y = 0f; camRight.Normalize();
+
+        if (useVirtualCursor && Cursor.lockState == CursorLockMode.Locked)
+        {
+            if (!Input.GetMouseButton(1))
+            {
+                Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
+                _footPlanarAim += camRight * (md.x * mouseReachX) + camFwd * (md.y * mouseReachY);
+                _footPlanarAim.y = 0f;
+                float maxR = Mathf.Max(mouseReachX, mouseReachY);
+                if (_footPlanarAim.sqrMagnitude > maxR * maxR)
+                    _footPlanarAim = _footPlanarAim.normalized * maxR;
+            }
+            return _footPlanarAim;
+        }
+
+        // fallback: เคอร์เซอร์ยังไม่ล็อก (กด Esc อยู่) → ใช้ตำแหน่งเมาส์จริง
+        Vector2 mouseNorm = GetNormalizedMousePosition();
+        return camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
+    }
+
+    private void OnGUI()
+    {
+        if (!IsOwner || !useVirtualCursor || !showCrosshair) return;
+        if (Cursor.lockState != CursorLockMode.Locked) return;
+        if (playerCamera == null) return;
+
+        if (_footCrosshairStyle == null)
+            _footCrosshairStyle = new GUIStyle(GUI.skin.label)
+            { fontSize = 26, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+
+        Vector3 screenPos = playerCamera.WorldToScreenPoint(_footMarkerWorld);
+        if (screenPos.z <= 0f) return;
+        float sx = screenPos.x, sy = Screen.height - screenPos.y;
+
+        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        GUI.Label(new Rect(sx - 13f, sy - 13f, 30f, 30f), "◈", _footCrosshairStyle);
+        GUI.color = new Color(0.5f, 0.85f, 1f);
+        GUI.Label(new Rect(sx - 14f, sy - 14f, 30f, 30f), "◈", _footCrosshairStyle);
+    }
 
     // ✅ [Reliability Fix] เปลี่ยน footTarget/balanceShift จาก Unreliable → Reliable
     // เดิมถ้าแพ็กเก็ตหลุดกลางอากาศตอนเดิน Server จะค้างใช้เป้าหมายเก่า พอแพ็กเก็ตใหม่มาถึงทีหลัง
