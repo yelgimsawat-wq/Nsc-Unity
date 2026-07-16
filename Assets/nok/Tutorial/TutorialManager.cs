@@ -80,7 +80,8 @@ public class TutorialManager : MonoBehaviour
     // ---- ARM-specific steps ----
     private static readonly string[] ArmSteps = new string[]
     {
-        "ARM — AIM  •  Move your mouse to aim your hand.\nLeft-click to lock the cursor and start controlling.",
+        "ARM — AIM  •  Move your mouse to aim your hand.",
+        "ARM — PUNCH  •  Hold Left Shift to punch.",
         "ARM — HEIGHT  •  Hold W to raise your hand up.\nHold S to push your hand down.",
         "ARM — GRAB  •  Press F near an object to grab it.\nPress F again to release the grab.",
         "ARM — RECOVERY  •  If the torso falls over,\npress Q to push yourself back up.",
