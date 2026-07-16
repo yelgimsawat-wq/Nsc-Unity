@@ -160,9 +160,10 @@ MonoBehaviour:
   distance: 8
   minDistance: 2
   maxDistance: 60
-  zoomSpeed: 2
+  zoomSpeed: 10
   targetOffset: {x: 0, y: 1.5, z: 0}
-  smoothSpeed: 10
+  positionSmoothSpeed: 12
+  rotationSmoothSpeed: 15
   minVerticalAngle: -30
   maxVerticalAngle: 80
   yaw: 0
