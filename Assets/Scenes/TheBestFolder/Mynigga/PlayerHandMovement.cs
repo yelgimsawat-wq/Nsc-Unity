@@ -464,16 +464,46 @@ public class PlayerHandMovement : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server)]
-    private void ReleaseGrabRpc()
+    private void ReleaseGrabRpc() => ServerReleaseGrab();
+
+    /// <summary>
+    /// ปล่อย grab ฝั่ง server — แยกออกจาก RPC เพื่อให้ระบบอื่น (เช่น RespawnManager)
+    /// สั่งปล่อยได้โดยตรง พร้อมแจ้ง owner ให้รีเซ็ต toggle F ด้วยเสมอ
+    /// </summary>
+    public void ServerReleaseGrab()
     {
+        if (!IsServer) return;
+
         isGrabbing = false;
-        if (grabJoint != null) Destroy(grabJoint);
-        
+        if (grabJoint != null)
+        {
+            Destroy(grabJoint);
+            grabJoint = null;
+        }
+
         if (grabbedObject != null)
         {
             IgnoreCollisionWithTorso(grabbedObject, false);
             grabbedObject = null;
         }
+
+        if (IsSpawned) ForceReleaseGrabClientRpc();
+    }
+
+    /// <summary>
+    /// เรียกจาก RespawnManager (ฝั่ง server) หลัง teleport ร่างกลับเช็คพอยต์
+    /// ปล่อย grab + รีเซ็ตเป้ามือเป็นตำแหน่งปัจจุบัน กันสปริงไล่เป้าเก่าที่จุดตกเหว
+    /// </summary>
+    public void ResetForRespawn()
+    {
+        if (!IsServer) return;
+
+        ServerReleaseGrab();
+
+        Vector3 rest = handRb != null ? handRb.position : PivotPosition;
+        targetHandPosition = rest;
+        smoothedHandTarget = rest;
+        _smoothVelocityRef = Vector3.zero;
     }
 
     private void IgnoreCollisionWithTorso(Rigidbody targetRb, bool ignore)

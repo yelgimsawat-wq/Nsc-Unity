@@ -10,13 +10,20 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class FallDeathZone : MonoBehaviour
 {
-    [SerializeField] private string bodyPartTag = "BodyPart";
-
     private void OnTriggerEnter(Collider other)
     {
         if (NetworkCheck.IsServerOrHost() == false) return;
 
-        if (!other.CompareTag(bodyPartTag)) return;
+        // ✅ เช็กจาก component จริงแทน tag — เดิมใช้ tag "BodyPart" ซึ่งถ้าลืมตั้งบน limb
+        // แม้ชิ้นเดียว ชิ้นนั้นจะตกทะลุโลกเงียบๆ ไม่มี respawn (แถม tag ที่ไม่ได้สร้างใน
+        // TagManager จะ log error ทุกครั้งที่ CompareTag ด้วย)
+        if (!RobotBodyCheck.IsRobotBodyPart(other)) return;
+
+        if (RespawnManager.Instance == null)
+        {
+            Debug.LogWarning("[FallDeathZone] RespawnManager ไม่อยู่ในฉาก — respawn ไม่ทำงาน");
+            return;
+        }
 
         Debug.Log($"{other.name} ตกออกนอกแมพ -> respawn ร่างกาย");
         RespawnManager.Instance.RespawnBody();

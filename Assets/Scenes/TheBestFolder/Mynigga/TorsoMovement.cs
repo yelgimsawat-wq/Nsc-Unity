@@ -388,6 +388,31 @@ public class TorsoMovement : NetworkBehaviour
         return false;
     }
 
+    /// <summary>
+    /// เรียกจาก RespawnManager (ฝั่ง server) หลัง teleport ร่างกลับเช็คพอยต์
+    /// ล้าง stress/timer ทั้งหมดแล้วตั้งกลับเป็นท่ายืน — limb ถูกจัดท่ายืนให้แล้วโดย RespawnManager
+    /// </summary>
+    public void ResetForRespawn()
+    {
+        if (!IsServer) return;
+
+        currentStress        = 0f;
+        _balanceLossTimer    = 0f;
+        _tiltTimer           = 0f;
+        _bothUnbalancedTimer = 0f;
+        _jumpGraceTimer      = 0f;
+        _landingAssistTimer  = 0f;
+        _pendingJumpFoot     = null;
+
+        if (torsoRb != null && !torsoRb.isKinematic)
+        {
+            torsoRb.linearVelocity  = Vector3.zero;
+            torsoRb.angularVelocity = Vector3.zero;
+        }
+
+        currentState.Value = TorsoState.Standing;
+    }
+
     [Rpc(SendTo.Server)]
     public void ApplyRecoveryForceRpc(Vector3 forcePosition)
     {

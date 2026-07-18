@@ -849,4 +849,29 @@ public class PlayerFootForRobot : NetworkBehaviour
         Vector3 point2 = footRb.position;
         return Physics.CheckCapsule(point1, point2, groundCheckDistance, groundLayer);
     }
+
+    /// <summary>
+    /// เรียกจาก RespawnManager (ฝั่ง server) หลัง teleport ร่างกลับเช็คพอยต์
+    /// สำคัญสุดคือ _isPlantedSet — plantedPosition เก่ายังชี้จุดตกเหว ถ้าไม่ล้าง
+    /// PerformStandingPhysics จะ MovePosition ลากเท้ากลับไปก้นเหวในเฟรมถัดไปทันที
+    /// และรีเซ็ตเป้าทุกตัวเป็นตำแหน่งปัจจุบัน (หลัง teleport แล้ว) กันสปริงไล่เป้าเก่า
+    /// </summary>
+    public void ResetForRespawn()
+    {
+        if (!IsServer) return;
+
+        _isPlantedSet     = false;
+        _releasedForClimb = false;
+        isStepping        = false;
+        isJumping         = false;
+        isPushingRecovery = false;
+        _jumpCooldownTimer = 0f;
+
+        if (footRb != null)
+        {
+            _targetFootPos     = footRb.position;
+            _detachedTargetPos = footRb.position;
+            _balanceShiftPos   = pivotPoint != null ? pivotPoint.position : footRb.position;
+        }
+    }
 }

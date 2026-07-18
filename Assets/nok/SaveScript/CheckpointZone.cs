@@ -22,12 +22,23 @@ public class CheckpointZone : MonoBehaviour
         // ถ้าใช้ Netcode for GameObjects, NetworkManager.Singleton.IsServer จะ true เฉพาะบนเครื่อง server/host
         if (NetworkCheck.IsServerOrHost() == false) return;
 
+        // ✅ ต้องเป็นชิ้นส่วนของหุ่นผู้เล่นเท่านั้น — เดิม tag ว่าง = รับทุก collider
+        // ทำให้ Enemy AI เดินผ่านจุดเซฟแล้ว checkpoint ถูกตั้งทั้งที่ผู้เล่นยังไม่เคยไปถึง
+        if (!RobotBodyCheck.IsRobotBodyPart(other)) return;
+
+        // ตัวกรองเสริม (ถ้าตั้ง tag ไว้): เช่นให้เฉพาะเท้าเหยียบเท่านั้น
         if (!string.IsNullOrEmpty(requiredTag) && !other.CompareTag(requiredTag))
             return;
 
         // ป้องกันการ trigger ซ้ำรัวๆ ถ้าต้องการให้เซฟได้ครั้งเดียวต่อจุด
         // (เอาออกได้ถ้าต้องการให้เดินผ่านซ้ำแล้วอัปเดตตำแหน่งใหม่ได้เรื่อยๆ)
         if (alreadyTriggered) return;
+
+        if (RespawnManager.Instance == null)
+        {
+            Debug.LogWarning("[CheckpointZone] RespawnManager ไม่อยู่ในฉาก — checkpoint ไม่ถูกบันทึก");
+            return;
+        }
 
         Transform point = respawnPoint != null ? respawnPoint : transform;
         RespawnManager.Instance.SetCheckpoint(point.position, point.rotation);

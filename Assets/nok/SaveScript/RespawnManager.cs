@@ -37,12 +37,22 @@ public class RespawnManager : NetworkBehaviour
     [Tooltip("จุดเกิดเริ่มต้น ถ้ายังไม่เคยเหยียบเช็คพอยต์ไหนเลย")]
     [SerializeField] private Transform defaultSpawnPoint;
 
+    [Tooltip("กัน respawn ซ้ำรัวๆ — ร่างตกเหวทั้งตัว แขนขาทยอยแตะ death zone ห่างกันไม่กี่เฟรม\n" +
+             "ถ้าไม่กันไว้ RespawnBody จะถูกเรียกซ้ำ 3-5 ครั้งติด (joint ปลด/ต่อวนซ้ำ)")]
+    [SerializeField] private float respawnCooldown = 1f;
+    private float _lastRespawnTime = -999f;
+
     // แคชไว้ตอน Awake เพื่อไม่ต้อง GetComponent ซ้ำทุกครั้งที่ respawn
     private NetworkTransform bodyRootNetTransform;
     private NetworkTransform[] limbNetTransforms;   // null ได้ถ้า limb ไม่มี NetworkTransform เป็นของตัวเอง
-    private NetworkObject[] limbNetworkObjects;      // null ได้ถ้า limb ไม่มี NetworkObject แยกจาก root
     private Joint[] allJoints;                       // ทุก joint ใต้ bodyRoot (รวม limb ทั้งหมด)
     private Rigidbody[] jointConnectedBodies;         // connectedBody เดิมของแต่ละ joint (Joint ไม่มี .enabled ให้ใช้)
+
+    // ✅ [Gameplay Reset] สคริปต์เกมเพลย์ที่ต้องรีเซ็ต state หลัง teleport
+    // ไม่งั้นเท้าจะ MovePosition กลับไปจุดปักเก่าที่ก้นเหว / มือลาก joint ที่ยังจับกำแพงเดิม
+    private TorsoMovement torsoMovement;
+    private PlayerFootForRobot[] feet;
+    private PlayerHandMovement[] hands;
 
     // เก็บตำแหน่ง/หมุนของแต่ละ limb แบบ "สัมพัทธ์กับ bodyRoot" ตอนเริ่มเกม
     // ใช้คำนวณตำแหน่งเป้าหมายตอน teleport แทนที่จะปล่อยให้ joint ดึงเอง (ซึ่งพังถ้าระยะไกล)
@@ -63,9 +73,21 @@ public class RespawnManager : NetworkBehaviour
     {
         bodyRootNetTransform = bodyRoot != null ? bodyRoot.GetComponent<NetworkTransform>() : null;
 
+        // สคริปต์เกมเพลย์ทั้งหมดใต้ร่าง — เอาไว้รีเซ็ต state หลัง respawn
+        if (bodyRoot != null)
+        {
+            torsoMovement = bodyRoot.GetComponentInChildren<TorsoMovement>(true);
+            feet = bodyRoot.GetComponentsInChildren<PlayerFootForRobot>(true);
+            hands = bodyRoot.GetComponentsInChildren<PlayerHandMovement>(true);
+        }
+        else
+        {
+            feet = new PlayerFootForRobot[0];
+            hands = new PlayerHandMovement[0];
+        }
+
         int n = limbRigidbodies?.Length ?? 0;
         limbNetTransforms = new NetworkTransform[n];
-        limbNetworkObjects = new NetworkObject[n];
         limbLocalPosOffset = new Vector3[n];
         limbLocalRotOffset = new Quaternion[n];
 
@@ -75,7 +97,6 @@ public class RespawnManager : NetworkBehaviour
             if (rb == null) continue;
 
             limbNetTransforms[i] = rb.GetComponent<NetworkTransform>();
-            limbNetworkObjects[i] = rb.GetComponent<NetworkObject>();
 
             // เก็บ offset สัมพัทธ์กับ bodyRoot ตอนเริ่มเกม (ตอนร่างอยู่ในท่ายืน/ท่าเริ่มต้นที่ถูกต้อง)
             if (bodyRoot != null)
@@ -106,11 +127,19 @@ public class RespawnManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+
         if (IsServer && defaultSpawnPoint != null)
         {
             currentCheckpointPos.Value = defaultSpawnPoint.position;
             currentCheckpointRot.Value = defaultSpawnPoint.rotation;
         }
+    }
+
+    public override void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+        base.OnDestroy();
     }
 
     /// <summary>
@@ -131,8 +160,20 @@ public class RespawnManager : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        // 🛡️ [Debounce] ร่างตกเหวทั้งตัว = หลาย limb แตะ death zone ห่างกันไม่กี่เฟรม
+        // กันไม่ให้ teleport + ปลด/ต่อ joint วนซ้ำรัวๆ
+        if (Time.time - _lastRespawnTime < respawnCooldown) return;
+        _lastRespawnTime = Time.time;
+
         Vector3 pos = currentCheckpointPos.Value;
         Quaternion rot = currentCheckpointRot.Value;
+
+        // 0) ปล่อย grab ของมือทุกข้างก่อน — FixedJoint ที่จับกำแพงถูกสร้าง runtime
+        //    ไม่อยู่ใน allJoints ที่ cache ไว้ ถ้าไม่ปล่อย มือจะวาร์ปไปพร้อม joint
+        //    ที่ยังเกาะกำแพงเดิม → constraint ระเบิด
+        if (hands != null)
+            foreach (var hand in hands)
+                if (hand != null) hand.ServerReleaseGrab();
 
         // 1) ปลด connectedBody ของ joint ทั้งหมดก่อน ป้องกัน physics solver พยายามแก้ constraint
         //    ระยะไกลด้วยแรงมหาศาลในเฟรมเดียว (อาการ "เด้ง/ค้าง" หลัง teleport)
@@ -142,8 +183,11 @@ public class RespawnManager : NetworkBehaviour
         //    การกระโดดตำแหน่งทันที ไม่ใช่การเคลื่อนที่ปกติที่ต้อง interpolate
         TeleportTransform(bodyRoot, bodyRootNetTransform, pos, rot);
 
-        var limbTeleportRpcTargets = new Dictionary<ulong, List<int>>();
-
+        // 3) Server teleport ทุก limb เองหมด — โปรเจกต์นี้ limb เป็น server-authoritative
+        //    (ฟิสิกส์รันบน server, NetworkTransform sync ลง client / ChangeOwnership แค่บอกว่า
+        //    ใครคุม input) เวอร์ชันก่อนส่ง RPC ให้ owner teleport เอง ซึ่งใช้ไม่ได้:
+        //    client ไม่มี authority บน NetworkTransform → Teleport ฝั่งนั้นถูกปัดทิ้ง
+        //    ผลคือแขนขาผู้เล่นค้างที่จุดตายในขณะที่ลำตัววาร์ปไปแล้ว
         for (int i = 0; i < limbRigidbodies.Length; i++)
         {
             var rb = limbRigidbodies[i];
@@ -153,84 +197,34 @@ public class RespawnManager : NetworkBehaviour
             Vector3 targetPos = pos + rot * limbLocalPosOffset[i];
             Quaternion targetRot = rot * limbLocalRotOffset[i];
 
-            var netObj = limbNetworkObjects[i];
-
-            // 3) ถ้า limb นี้มี NetworkObject แยกและ owner ไม่ใช่ server (host) เอง
-            //    server เขียนทับ Rigidbody ตรงๆ จะไม่มีผล เพราะ owner client ยัง simulate
-            //    ต่อแล้วส่งค่ากลับมาทับ — ต้องสั่งให้ owner เป็นคน teleport ของตัวเองผ่าน RPC
-            if (netObj != null && !netObj.IsOwnedByServer)
+            if (!rb.isKinematic)
             {
-                ulong ownerId = netObj.OwnerClientId;
-                if (!limbTeleportRpcTargets.TryGetValue(ownerId, out var indices))
-                {
-                    indices = new List<int>();
-                    limbTeleportRpcTargets[ownerId] = indices;
-                }
-                indices.Add(i);
-            }
-            else
-            {
-                // server-authoritative (หรือไม่มี NetworkObject แยก) — teleport ตรงนี้ได้เลย
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
-                TeleportTransform(rb.transform, limbNetTransforms[i], targetPos, targetRot);
             }
-        }
-
-        // ส่ง RPC แยกตาม owner client แต่ละคน พร้อมตำแหน่งเป้าหมายของ limb ที่เขาคุมอยู่
-        foreach (var kvp in limbTeleportRpcTargets)
-        {
-            ulong ownerId = kvp.Key;
-            List<int> indices = kvp.Value;
-
-            var limbIndices = indices.ToArray();
-            var targetPositions = new Vector3[limbIndices.Length];
-            var targetRotations = new Quaternion[limbIndices.Length];
-
-            for (int k = 0; k < limbIndices.Length; k++)
-            {
-                int i = limbIndices[k];
-                targetPositions[k] = pos + rot * limbLocalPosOffset[i];
-                targetRotations[k] = rot * limbLocalRotOffset[i];
-            }
-
-            var rpcParams = new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { ownerId } }
-            };
-
-            TeleportLimbsClientRpc(limbIndices, targetPositions, targetRotations, rpcParams);
+            TeleportTransform(rb.transform, limbNetTransforms[i], targetPos, targetRot);
         }
 
         // 4) ต่อ connectedBody กลับหลังจากทุกชิ้นอยู่ในตำแหน่งที่ถูกต้องแล้ว
         //    การ set connectedBody ใหม่ทำให้ joint คำนวณ anchor จากตำแหน่งปัจจุบัน แทนที่จะจำ
-        //    ตำแหน่งเก่าไว้แล้วพยายามดึงกลับด้วยแรงมหาศาล (สำหรับ limb ที่ต้องรอ RPC ไปถึง owner ก่อน
-        //    ให้หน่วง 1 เฟรมทาง physics ได้ — joint ยืดหยุ่นพอที่จะรับช่วงสั้นๆ นี้)
+        //    ตำแหน่งเก่าไว้แล้วพยายามดึงกลับด้วยแรงมหาศาล
         ReattachJoints();
 
+        // 5) รีเซ็ต gameplay state — สำคัญมาก:
+        //    เท้า: plantedPosition เก่าชี้จุดตกเหว ถ้าไม่ล้าง PerformStandingPhysics
+        //          จะ MovePosition ลากเท้ากลับไปก้นเหวในเฟรมถัดไปทันที
+        //    torso: ล้าง stress/timer ทั้งหมด แล้วตั้งกลับเป็นท่ายืน (limb ถูกจัดท่ายืนให้แล้ว)
+        if (feet != null)
+            foreach (var foot in feet)
+                if (foot != null) foot.ResetForRespawn();
+
+        if (hands != null)
+            foreach (var hand in hands)
+                if (hand != null) hand.ResetForRespawn();
+
+        if (torsoMovement != null) torsoMovement.ResetForRespawn();
+
         RespawnFeedbackClientRpc();
-    }
-
-    /// <summary>
-    /// เรียกที่ตัว owner client ของ limb แต่ละอัน ให้ teleport Rigidbody ของตัวเอง
-    /// เพราะถ้า NetworkTransform เป็น owner-authoritative แล้ว server สั่งตรงจะไม่มีผล
-    /// </summary>
-    [ClientRpc]
-    private void TeleportLimbsClientRpc(int[] limbIndices, Vector3[] targetPositions,
-        Quaternion[] targetRotations, ClientRpcParams rpcParams = default)
-    {
-        for (int k = 0; k < limbIndices.Length; k++)
-        {
-            int i = limbIndices[k];
-            if (i < 0 || i >= limbRigidbodies.Length) continue;
-
-            var rb = limbRigidbodies[i];
-            if (rb == null) continue;
-
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            TeleportTransform(rb.transform, limbNetTransforms[i], targetPositions[k], targetRotations[k]);
-        }
     }
 
     /// <summary>
