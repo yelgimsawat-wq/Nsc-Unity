@@ -205,13 +205,17 @@ public class LobbyManager : NetworkBehaviour
         UpdateMenuFeel();
     }
 
-    void OnDestroy()
+    public override void OnDestroy()
     {
+        if (Instance == this) Instance = null;
+
         ClearButtonClickFeedback();
         KillAllButtonClickTweens();
         KillAllUiTweens();
         KillAllPartColorTweens();
         originalUiScales.Clear();
+
+        base.OnDestroy();
     }
 
     // ================================================================
@@ -409,12 +413,21 @@ public class LobbyManager : NetworkBehaviour
     {
         if (partImage == null) return;
 
-        // Slight scale bump on hover
+        // Slight scale bump on hover — track in buttonClickTweens so it never
+        // fights the click-punch tween on the same transform and gets killed in OnDestroy
         Transform t = partImage.transform;
         Vector3 baseScale = GetOriginalScale(t);
         Vector3 targetScale = hovered ? baseScale * 1.05f : baseScale;
 
-        t.DOScale(targetScale, 0.15f).SetUpdate(true).SetEase(Ease.OutCubic);
+        if (buttonClickTweens.TryGetValue(t, out Tween running) && running != null && running.IsActive())
+            running.Kill(false);
+
+        Tween hoverTween = t.DOScale(targetScale, 0.15f)
+            .SetUpdate(true)
+            .SetEase(Ease.OutCubic)
+            .OnComplete(() => buttonClickTweens.Remove(t));
+
+        buttonClickTweens[t] = hoverTween;
 
         // Additive brightness tint on hover (only if not already lit by ownership)
         if (hovered)
@@ -477,9 +490,10 @@ public class LobbyManager : NetworkBehaviour
         RefreshBottomStatusText();
 
         // ✅ อัปเดตข้อความปุ่มแบบเก่าให้กลับมาใช้งานได้
+        // (เช็ก i < limbOwners.Count ด้วย กันพังถ้ามีปุ่มใน Inspector เกิน 4 ตัว)
         if (limbButtons != null)
         {
-            for (int i = 0; i < limbButtons.Length; i++)
+            for (int i = 0; i < limbButtons.Length && i < limbOwners.Count; i++)
             {
                 if (limbButtons[i] == null) continue;
 
@@ -500,12 +514,6 @@ public class LobbyManager : NetworkBehaviour
             }
         }
 
-        // Start button logic
-        if (IsServer && startButton != null)
-        {
-            // อาจจะเช็คว่าพร้อมทุกคนไหม หรือ Host เริ่มได้เลย
-            // เพื่อความเรียบง่าย Host สามารถเริ่มได้เลย
-        }
     }
 
     private void RefreshPlayerListUI()
@@ -695,6 +703,13 @@ public class LobbyManager : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestLimbServerRpc(int index, ServerRpcParams rpcParams = default)
     {
+        // Server-side validation — never trust an index coming from a client
+        if (index < 0 || index >= limbOwners.Count)
+        {
+            Debug.LogWarning($"[Server] Rejected invalid limb index {index} from Client {rpcParams.Receive.SenderClientId}");
+            return;
+        }
+
         ulong clientId = rpcParams.Receive.SenderClientId;
 
         // ถ้าอันที่กดอยู่แล้วของคนอื่น → ไม่ทำอะไร
@@ -1096,23 +1111,17 @@ public class LobbyManager : NetworkBehaviour
     // ================================================================
 
     /// <summary>
-    /// ตรวจสอบและสร้าง SettingsManager ถ้ายังไม่มี (DontDestroyOnLoad หายไปตอนเปลี่ยน Scene)
+    /// ตรวจสอบว่ามี SettingsManager ในฉากไหม
+    /// หมายเหตุ: ห้ามสร้างด้วย AddComponent เพราะ SettingsManager พึ่งพา UI references
+    /// ที่ต้องลากใน Inspector — ตัวที่สร้างสด ๆ จะ references เป็น null ทั้งหมดและใช้งานไม่ได้
+    /// ต้องวาง Prefab ของ SettingsManager ไว้ในฉากแทน
     /// </summary>
     private void EnsureSettingsManagerExists()
     {
         if (SettingsManager.Instance == null)
         {
-            Debug.LogWarning("[LobbyManager] SettingsManager.Instance is null! Creating new instance...");
-
-            // สร้าง GameObject ใหม่พร้อม SettingsManager component
-            GameObject settingsObj = new GameObject("SettingsManager");
-            settingsObj.AddComponent<SettingsManager>();
-
-            Debug.Log("[LobbyManager] ✅ SettingsManager created successfully!");
-        }
-        else
-        {
-            Debug.Log("[LobbyManager] ✅ SettingsManager already exists.");
+            Debug.LogWarning("[LobbyManager] SettingsManager.Instance is null! " +
+                "Place the SettingsManager prefab in this scene — an auto-created instance would have no UI references.");
         }
     }
 

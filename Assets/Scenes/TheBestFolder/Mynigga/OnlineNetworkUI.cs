@@ -96,6 +96,9 @@ public class OnlineNetworkUI : NetworkBehaviour
     private ISession session;
     private bool servicesReady;
     private string currentRoomCode = string.Empty;
+    // true = ผู้เล่นกด Leave เอง (UI ถูกจัดการใน OnLeaveRoomClicked แล้ว)
+    // false = โดนตัดจากอีกฝั่ง เช่น Host ปิดห้อง → OnNetworkStopped ต้องพากลับเมนูเอง
+    private bool intentionalLeave;
     private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
     private readonly Dictionary<Transform, Vector3> originalUiScales = new Dictionary<Transform, Vector3>();
     private readonly Dictionary<Transform, Tween> buttonClickTweens = new Dictionary<Transform, Tween>();
@@ -161,14 +164,19 @@ public class OnlineNetworkUI : NetworkBehaviour
         UpdateMenuFeel();
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        if (NetworkManager.Singleton != null)
+            NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
+
         UnbindConnectPanelButtons();
         UnbindWaitingPanelButtons();
         ClearButtonClickFeedback();
         KillAllButtonClickTweens();
         KillAllUiTweens();
         originalUiScales.Clear();
+
+        base.OnDestroy();
     }
 
     // ================================================================
@@ -178,6 +186,14 @@ public class OnlineNetworkUI : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+
+        intentionalLeave = false;
+
+        // ทุกเครื่อง (รวม Host) ฟังตอน "การเชื่อมต่อฝั่งเราหยุด" — ครอบคลุมทั้ง
+        // Host กดออก, Host หลุด, และเน็ตหลุด → Client จะเด้งกลับหน้าเมนูอัตโนมัติ
+        // (ห้าม unsubscribe ใน OnNetworkDespawn เพราะ despawn เกิดก่อน event นี้ยิง)
+        NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
+        NetworkManager.Singleton.OnClientStopped += OnNetworkStopped;
 
         // All Clients listen to NetworkVariable to update UI
         playerCount.OnValueChanged += OnPlayerCountChanged;
@@ -229,9 +245,14 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        // ConnectedClientsIds still counts the disconnecting client, so we subtract 1
-        int count = NetworkManager.Singleton.ConnectedClientsIds.Count - 1;
-        playerCount.Value = Mathf.Max(0, count);
+        // Count directly, excluding the disconnecting client — whether NGO has removed it
+        // from ConnectedClientsIds at callback time varies by version, so never assume -1.
+        int count = 0;
+        foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds)
+        {
+            if (id != clientId) count++;
+        }
+        playerCount.Value = count;
         RefreshStartButtonState();
         Debug.Log($"[Server] Client {clientId} disconnected. Players: {playerCount.Value}/{maxPlayers}");
     }
@@ -269,7 +290,10 @@ public class OnlineNetworkUI : NetworkBehaviour
             string code = session.Code;
             currentRoomCode = code;
 
-            NetworkManager.Singleton.StartHost();
+            // Sessions API (WithRelayNetwork) may auto-start the NetworkManager when the
+            // NGO integration is present — only start manually if it hasn't already.
+            if (!NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartHost();
 
             ShowWaitingPanel(code);
             SetStatus("Room created successfully! Code: " + code);
@@ -288,7 +312,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     async Task Join()
     {
-        string code = codeInputField != null ? codeInputField.text.Trim().ToUpper() : "";
+        string code = codeInputField != null ? codeInputField.text.Trim().ToUpperInvariant() : "";
 
         if (string.IsNullOrEmpty(code))
         {
@@ -304,7 +328,9 @@ public class OnlineNetworkUI : NetworkBehaviour
             session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
             currentRoomCode = code;
 
-            NetworkManager.Singleton.StartClient();
+            // Same auto-start caveat as Host() — avoid a redundant StartClient.
+            if (!NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartClient();
 
             ShowWaitingPanel(code);
             SetStatus("Joined successfully! Waiting for Host to start...");
@@ -954,7 +980,11 @@ public class OnlineNetworkUI : NetworkBehaviour
                 break;
             default:
                 SetStatus("Exiting game...");
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+#else
                 Application.Quit();
+#endif
                 break;
         }
     }
@@ -1009,12 +1039,70 @@ public class OnlineNetworkUI : NetworkBehaviour
         SetStatus("Copied room code: " + currentRoomCode);
     }
 
-    private void OnLeaveRoomClicked()
+    private async void OnLeaveRoomClicked()
     {
+        // บอก OnNetworkStopped ว่านี่คือการออกโดยตั้งใจ จะได้ไม่จัดการ UI ซ้ำ
+        intentionalLeave = true;
+
+        // Host: Shutdown ตัดการเชื่อมต่อ → Client ทุกเครื่องจะได้ event OnClientStopped
+        // ของฝั่งตัวเองแล้วเด้งกลับเมนูอัตโนมัติ (ดู OnNetworkStopped)
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
             NetworkManager.Singleton.Shutdown();
 
-        session = null;
+        await LeaveSessionAsync();
+
+        ReturnToMainMenu("Returned to Connect Panel.");
+    }
+
+    /// <summary>
+    /// เรียกเมื่อการเชื่อมต่อ Netcode ฝั่งเราหยุดลง — ไม่ว่าจะเพราะ Host ปิดห้อง,
+    /// Host หลุด, หรือเน็ตเราหลุดเอง ถ้าไม่ใช่การกด Leave เองให้พากลับหน้าเมนู
+    /// </summary>
+    private void OnNetworkStopped(bool wasHost)
+    {
+        if (NetworkManager.Singleton != null)
+            NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
+
+        if (intentionalLeave)
+        {
+            intentionalLeave = false;
+            return; // OnLeaveRoomClicked จัดการ UI เองแล้ว
+        }
+
+        // โดนตัดจากอีกฝั่ง — เคลียร์ session บน Services แล้วกลับเมนู
+        _ = LeaveSessionAsync();
+        ReturnToMainMenu(wasHost ? "Room closed." : "Disconnected: Host closed the room.");
+    }
+
+    /// <summary>
+    /// ออกจาก Session บน Unity Services ให้เรียบร้อย
+    /// Host = ลบห้องทิ้ง (คนอื่น join ต่อไม่ได้) / Client = ออกจากห้องเฉย ๆ
+    /// </summary>
+    private async Task LeaveSessionAsync()
+    {
+        if (session == null) return;
+
+        ISession leavingSession = session;
+        session = null; // กันเรียกซ้ำระหว่าง await
+
+        try
+        {
+            if (leavingSession.IsHost)
+                await leavingSession.AsHost().DeleteAsync();
+            else
+                await leavingSession.LeaveAsync();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[Network] Failed to leave session cleanly: " + e.Message);
+        }
+    }
+
+    /// <summary>
+    /// รีเซ็ต UI กลับหน้าเมนูหลัก (ใช้ทั้งตอนกด Leave เองและตอนโดน Host ปิดห้อง)
+    /// </summary>
+    private void ReturnToMainMenu(string statusMessage)
+    {
         currentRoomCode = string.Empty;
 
         if (codeInputField != null)
@@ -1026,7 +1114,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         SetConnectState(ConnectState.MainMenu);
         SetButtons(servicesReady);
-        SetStatus("Returned to Connect Panel.");
+        SetStatus(statusMessage);
     }
 
     private bool CanStartGame()
@@ -1049,23 +1137,17 @@ public class OnlineNetworkUI : NetworkBehaviour
     // ================================================================
 
     /// <summary>
-    /// ตรวจสอบและสร้าง SettingsManager ถ้ายังไม่มี (DontDestroyOnLoad หายไปตอนเปลี่ยน Scene)
+    /// ตรวจสอบว่ามี SettingsManager ในฉากไหม
+    /// หมายเหตุ: ห้ามสร้างด้วย AddComponent เพราะ SettingsManager พึ่งพา UI references
+    /// ที่ต้องลากใน Inspector — ตัวที่สร้างสด ๆ จะ references เป็น null ทั้งหมดและใช้งานไม่ได้
+    /// ต้องวาง Prefab ของ SettingsManager ไว้ในฉากแทน
     /// </summary>
     private void EnsureSettingsManagerExists()
     {
         if (SettingsManager.Instance == null)
         {
-            Debug.LogWarning("[OnlineNetworkUI] SettingsManager.Instance is null! Creating new instance...");
-
-            // สร้าง GameObject ใหม่พร้อม SettingsManager component
-            GameObject settingsObj = new GameObject("SettingsManager");
-            settingsObj.AddComponent<SettingsManager>();
-
-            Debug.Log("[OnlineNetworkUI] ✅ SettingsManager created successfully!");
-        }
-        else
-        {
-            Debug.Log("[OnlineNetworkUI] ✅ SettingsManager already exists.");
+            Debug.LogWarning("[OnlineNetworkUI] SettingsManager.Instance is null! " +
+                "Place the SettingsManager prefab in this scene — an auto-created instance would have no UI references.");
         }
     }
 }
