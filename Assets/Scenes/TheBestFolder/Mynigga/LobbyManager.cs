@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -1177,12 +1178,24 @@ public class LobbyManager : NetworkBehaviour
     private void UnfreezeAllPhysics()
     {
         if (robotContainer == null) return;
+
+        // ✅ [Client Leg Collapse Fix] ฟิสิกส์หุ่นเป็น server-authoritative ทั้งหมด
+        // (FixedUpdate ของเท้า/ลำตัวรันเฉพาะ server) — เดิมปลด kinematic "ทุกชิ้นทุกเครื่อง"
+        // ทำให้ฝั่ง Client มีฟิสิกส์ท้องถิ่นรันแข่งกับตำแหน่งที่ NetworkTransform ยัดมาจาก server
+        // → ขาย้วย/สั่น/พับบนจอ Client แล้ว input (pivot เพี้ยน) ป้อนกลับไปทำหุ่นล้มจริงบน server
+        //
+        // ใหม่: Server = dynamic ทุกชิ้น (จำลองจริง)
+        //       Client = ชิ้นที่มี NetworkTransform (เท้า/ลำตัว) เป็น kinematic ให้ sync พาไป
+        //                ท่อนขากลางที่ไม่ได้ sync ปล่อย dynamic ให้ joint ลากตามชิ้นที่ sync
+        bool isServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
+
         foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
         {
-            rigid.isKinematic = false;
-            rigid.WakeUp();
+            bool drivenByNetwork = !isServer && rigid.GetComponent<NetworkTransform>() != null;
+            rigid.isKinematic = drivenByNetwork;
+            if (!drivenByNetwork) rigid.WakeUp();
         }
-        Debug.Log("[Lobby] Physics unfrozen — Game running!");
+        Debug.Log($"[Lobby] Physics unfrozen — Game running! ({(isServer ? "Server: full simulation" : "Client: network-driven bodies kinematic")})");
     }
 
     // ================================================================

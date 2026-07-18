@@ -41,14 +41,27 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     [Header("Jump Settings")]
     public float footJumpForce  = 15f;
-    public float torsoJumpForce = 400f;
+    [Tooltip("เพดานความเร็วเท้าตอนดีดตัวกระโดด (m/s) — ใช้ค่าต่ำสุดระหว่างค่านี้กับ footJumpForce\n" +
+             "เดิมเท้าได้ 15 m/s แบบทันที ขณะลำตัวได้ ~8 m/s → ขาเหยียดสุดกระชากข้อต่อตั้งแต่เฟรมแรก")]
+    public float maxFootJumpVelocity = 7f;
+    // แรงดันลำตัวย้ายไปอยู่ที่ TorsoMovement (soloJumpForce / coopJumpBonusForce) —
+    // torso เป็นคนตัดสินใจเรื่อง Co-op Jump + เพดานความเร็วเอง
 
     [Header("Standing Stability")]
     public float standingUpwardPull = 25f;
 
+    [Header("Leg Stretch Tether (กันล้มตอนเดินขาเดียว)")]
+    [Tooltip("แรงสปริงรั้งลำตัวกลับเมื่อถูกลากออกไปจนเกินระยะขาที่ปักอยู่ — เท้านิ่งสนิท ตัวไม่ไหล")]
+    public float legStretchSpring = 80f;
+    [Tooltip("แรงหน่วงความเร็วลำตัวเฉพาะทิศที่พุ่งออกจากเท้าที่ปัก")]
+    public float legStretchDamper = 10f;
+
     [Header("Foot Freeze / Recovery Fix (เท้าหุ่นยนต์หนา)")]
     [Tooltip("ระยะยกจุดตรึงเท้าขึ้นชดเชยครึ่งความหนาของโมเดลเท้าใหม่ กันศูนย์กลาง Rigidbody จมพื้น")]
     public float footThicknessOffset = 0.2f;
+    [Tooltip("วัดความหนาเท้าจริงจาก Collider ตอน spawn แล้วเขียนทับค่าบน — เปลี่ยนโมเดล/สเกลหุ่น\n" +
+             "ไม่ต้องมานั่งจูนตัวเลขใหม่ (ปิดติ๊กถ้าอยากคุมค่าเองใน Inspector)")]
+    public bool autoMeasureFootThickness = true;
 
     [Header("Recovery Mechanics (ลุกตั้งไข่ง่ายขึ้น)")]
     [Tooltip("แรงเสริมทิศทางตั้งตรงส่งตรงไปที่ลำตัวแกน Y ป้องกันการนอนบิดเบี้ยวแข็งทื่อ")]
@@ -70,6 +83,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float groundCheckDistance = 0.6f;
     [Tooltip("ทำให้ Joint ทุกชนิดทั้งโซ่ขาไม่มีวันแตกจากแรงฟิสิกส์")]
     public bool makeLegJointsUnbreakable = true;
+    // ⚡ ตั้ง breakForce = Infinity ครั้งเดียวสำเร็จแล้วพอ — เดิมเดินโซ่ joint ทุก FixedUpdate
+    // (GetComponents จองหน่วยความจำใหม่ทุกครั้ง 50 ครั้ง/วิ ต่อขา = GC ฟรีๆ)
+    private bool _legJointsUnbreakableApplied = false;
 
     private Vector3 _targetFootPos;
     private Vector3 _balanceShiftPos;
@@ -119,8 +135,14 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+
         if (IsServer && torso != null) torso.RegisterFoot(this);
         _footNetworkTransform = GetComponent<NetworkTransform>();
+
+        // 📏 [Auto Thickness] วัดระยะจากจุดกำเนิด Rigidbody ถึง "จุดต่ำสุดของ collider เท้า"
+        // = ความหนาที่ต้องยกจริง — รันทุกเครื่อง (ฝั่ง owner ใช้คำนวณเป้าตอนก้าวด้วย)
+        if (autoMeasureFootThickness) MeasureFootThickness();
 
         // ✅ [Rest Pose] กันเป้าเท้าเริ่มที่ (0,0,0) — บั๊กตระกูลเดียวกับที่แขนเคยเป็น
         // ถ้าหุ่นล้มก่อน RPC แรกมาถึง เท้าจะพุ่งไปหาจุดกำเนิดโลก
@@ -129,6 +151,30 @@ public class PlayerFootForRobot : NetworkBehaviour
             _targetFootPos     = footRb.position;
             _detachedTargetPos = footRb.position;
             _balanceShiftPos   = pivotPoint != null ? pivotPoint.position : footRb.position;
+        }
+    }
+
+    // 📏 วัดความหนาเท้าจาก collider จริง: จุดกำเนิด Rigidbody สูงจากพื้นรองเท้าเท่าไหร่
+    // ใช้เฉพาะ collider ที่สังกัด footRb (กันเผลอนับ collider ของท่อนขาที่เป็นลูกใน hierarchy)
+    private void MeasureFootThickness()
+    {
+        if (footRb == null) return;
+
+        float lowestPoint = float.MaxValue;
+        foreach (Collider col in footRb.GetComponentsInChildren<Collider>())
+        {
+            if (col == null || col.attachedRigidbody != footRb) continue;
+            lowestPoint = Mathf.Min(lowestPoint, col.bounds.min.y);
+        }
+
+        if (lowestPoint == float.MaxValue) return; // ไม่เจอ collider — คงค่าจาก Inspector ไว้
+
+        float measured = footRb.position.y - lowestPoint;
+        // กันค่าหลุดโลก (collider ยังไม่ init/สเกลพัง) — ยอมรับเฉพาะช่วงสมเหตุสมผล
+        if (measured > 0.01f && measured < 2f)
+        {
+            footThicknessOffset = measured;
+            Debug.Log($"[Foot] 📏 Auto-measured footThicknessOffset = {measured:F3}m ({name})");
         }
     }
 
@@ -186,6 +232,22 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         if (IsServer && torso != null) torso.UnregisterFoot(this);
         // คืนเคอร์เซอร์ตอนหุ่นหายจากเกม (กลับเมนู/ตาย) — ไม่งั้นคลิกเมนูไม่ได้
+        ReleaseCursorIfOwner();
+
+        base.OnNetworkDespawn();
+    }
+
+    public override void OnDestroy()
+    {
+        // Safety net: ถ้า object ถูกทำลายโดยไม่ผ่าน despawn ปกติ (เช่น unload scene ตรงๆ)
+        // เคอร์เซอร์ต้องไม่ล็อกค้างถึงหน้าเมนู
+        ReleaseCursorIfOwner();
+
+        base.OnDestroy();
+    }
+
+    private void ReleaseCursorIfOwner()
+    {
         if (IsOwner && useVirtualCursor)
         {
             Cursor.lockState = CursorLockMode.None;
@@ -206,8 +268,8 @@ public class PlayerFootForRobot : NetworkBehaviour
 
         ConfigureLegSelfCollision(); // ตั้งครั้งเดียวเมื่อเท้าทั้งคู่พร้อม (มี flag กันทำซ้ำ)
 
-        if (makeLegJointsUnbreakable && footRb != null)
-            MakeLegJointChainUnbreakable();
+        if (makeLegJointsUnbreakable && !_legJointsUnbreakableApplied && footRb != null)
+            _legJointsUnbreakableApplied = MakeLegJointChainUnbreakable();
         if (footRb == null || pivotPoint == null) return; // 🛡️ กัน NRE ถ้า ref หลุด/ถูก despawn
 
         // ⚡ เทียบด้วย sqrMagnitude เลี่ยง sqrt ทุกเฟรม (ผลเท่าเดิม); คำนวณ magnitude จริงเฉพาะตอนเกินลิมิต
@@ -407,7 +469,8 @@ public class PlayerFootForRobot : NetworkBehaviour
             else
                 groundPos = footRb.position;
 
-            plantedPosition = groundPos;
+            // จุดปักต้องอยู่ในระยะที่ขาเอื้อมถึงจริงเสมอ — กันปักไกลแล้วขาเหยียดค้างตั้งแต่แรก
+            plantedPosition = ClampPlantWithinReach(groundPos);
             _isPlantedSet = true;
             TeleportFootTo(plantedPosition + Vector3.up * footThicknessOffset);
         }
@@ -418,12 +481,66 @@ public class PlayerFootForRobot : NetworkBehaviour
         Vector3 offset = (_balanceShiftPos - pivotPoint.position) * balanceShiftMultiplier;
         Vector3 pullDir = (footRb.position + Vector3.up * maxLegLength + offset) - pivotPoint.position;
         torso.torsoRb.AddForceAtPosition(pullDir * standingUpwardPull, pivotPoint.position, ForceMode.Acceleration);
+
+        // 🪢 [Anchor Tether] เดินขาเดียวต้อง "ไม่ล้ม และไม่ไหล":
+        // เท้าที่ปักอยู่นิ่งสนิท (kinematic ไม่ขยับตาม) แต่แทนที่จะปล่อยให้ลำตัวถูกขาอีกข้าง
+        // ลากออกไปจนขาเหยียดตึงแล้วคว่ำ → รั้งลำตัวไว้เหมือนเชือกล่ามกับจุดปัก
+        // ผล: ก้าวขาเดียวไปได้ไกลสุดหนึ่งช่วงขาแล้ว "หยุด" — อยากไปต่อต้องสลับขาก้าว
+        Vector3 plantedWorld = plantedPosition + Vector3.up * footThicknessOffset;
+        Vector3 away = pivotPoint.position - plantedWorld;
+        Vector2 flatAway = new Vector2(away.x, away.z);
+        float maxHorizontal = MaxHorizontalReach();
+        float excess = flatAway.magnitude - maxHorizontal;
+
+        if (excess > 0f && flatAway.sqrMagnitude > 0.0001f)
+        {
+            Vector3 pullBackDir = new Vector3(-flatAway.x, 0f, -flatAway.y).normalized;
+
+            // สปริงดึงสะโพกกลับเข้าระยะ + หน่วงเฉพาะความเร็วขาออก (ไม่แตะแกนตั้ง/แนวขวาง)
+            Vector3 torsoVel = torso.torsoRb.linearVelocity;
+            float outwardSpeed = Vector3.Dot(new Vector3(torsoVel.x, 0f, torsoVel.z), -pullBackDir);
+
+            Vector3 tetherForce = pullBackDir * (excess * legStretchSpring);
+            if (outwardSpeed > 0f)
+                tetherForce += pullBackDir * (outwardSpeed * legStretchDamper);
+
+            torso.torsoRb.AddForce(tetherForce, ForceMode.Acceleration);
+        }
     }
 
-    private void MakeLegJointChainUnbreakable()
+    // ── Leg Reach Helpers ──────────────────────────────────────────────
+
+    // รัศมีแนวราบสูงสุดระหว่างสะโพกกับจุดปักเท้า = maxLegLength ตรงๆ
+    // ⚠️ ห้ามคิดแบบ Pythagoras หักความสูงสะโพก — hover spring พยุงสะโพกลอยสูง
+    // เกือบเท่าความยาวขาอยู่แล้ว ระยะแนวราบจะเหลือ ~0 ทำให้จุดปักโดน clamp มาอยู่
+    // ใต้ตัว + tether รั้งสวนตลอดเวลา = อาการ "เดินไม่ไปข้างหน้า"
+    private float MaxHorizontalReach() => maxLegLength;
+
+    private Vector3 ClampPlantWithinReach(Vector3 groundPos)
+    {
+        Vector3 delta = groundPos - pivotPoint.position;
+        Vector2 flat = new Vector2(delta.x, delta.z);
+        float maxHorizontal = MaxHorizontalReach() * 0.9f; // ปักลึกกว่าเกณฑ์รั้งเล็กน้อย
+
+        if (flat.magnitude <= maxHorizontal) return groundPos;
+
+        Vector2 clamped = flat.normalized * maxHorizontal;
+        Vector3 target = new Vector3(pivotPoint.position.x + clamped.x, groundPos.y, pivotPoint.position.z + clamped.y);
+
+        // จุดใหม่อาจอยู่คนละระดับพื้น (ทางลาด/ขอบต่างระดับ) — หาความสูงพื้นจริงอีกรอบ
+        if (Physics.Raycast(target + Vector3.up * 2f, Vector3.down, out RaycastHit hit, standingGroundRayLength, groundLayer))
+            target.y = hit.point.y;
+
+        return target;
+    }
+
+    // คืน true เมื่อเจอ joint อย่างน้อย 1 ตัว (สำเร็จ → เลิกเรียกซ้ำ)
+    // คืน false ถ้าโซ่ยังไม่พร้อม (เช่นยัง spawn ไม่ครบ) → FixedUpdate หน้าลองใหม่
+    private bool MakeLegJointChainUnbreakable()
     {
         Rigidbody currentBody = footRb;
         int safety = 0;
+        bool foundAnyJoint = false;
 
         while (currentBody != null &&
                (torso == null || currentBody != torso.torsoRb) &&
@@ -438,6 +555,7 @@ public class PlayerFootForRobot : NetworkBehaviour
                 if (joint == null) continue;
                 joint.breakForce = Mathf.Infinity;
                 joint.breakTorque = Mathf.Infinity;
+                foundAnyJoint = true;
 
                 if (nextBody == null && joint.connectedBody != null)
                     nextBody = joint.connectedBody;
@@ -445,11 +563,16 @@ public class PlayerFootForRobot : NetworkBehaviour
 
             currentBody = nextBody;
         }
+
+        return foundAnyJoint;
     }
 
     private void PerformDetachedPhysics()
     {
-        Vector3 velTarget = (_detachedTargetPos - footRb.position) * detachedMoveSpeed;
+        // + footThicknessOffset — เป้า detached ถูกส่งมาเป็นจุดบนพื้นตรงๆ (hit.point)
+        // ไม่ยกขึ้นเท้าจะพยายามเอาศูนย์กลางตัวเองมุดลงไปอยู่ระดับพื้น
+        Vector3 target = _detachedTargetPos + Vector3.up * footThicknessOffset;
+        Vector3 velTarget = (target - footRb.position) * detachedMoveSpeed;
         // เพดานความเร็ว — สปริงไล่เป้าไกลๆ เคยคำนวณความเร็วมหาศาลจนเท้าปลิวหาย
         velTarget = Vector3.ClampMagnitude(velTarget, maxDetachedSpeed);
         footRb.AddForce((velTarget - footRb.linearVelocity) * legDamper, ForceMode.Acceleration);
@@ -461,8 +584,23 @@ public class PlayerFootForRobot : NetworkBehaviour
         if (useVirtualCursor) HandleFootCursorLock();
 
         // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → หยุดรับ input เท้าทั้งหมด
+        // ✅ [Stuck-State Fix] ต้องเคลียร์ state ที่ค้างอยู่ก่อนหยุด — ไม่งั้นถ้ากด Esc
+        // กลางก้าวเดิน/กลาง Q ค้าง server จะไม่มีวันได้รับคำสั่งหยุด เท้าเดินค้างตลอดที่อยู่ในเมนู
         if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
+        {
+            if (isStepping)
+            {
+                isStepping = false;
+                SetSteppingStateRpc(false);
+                _currentYOffset = 0f;
+            }
+            if (isPushingRecovery)
+            {
+                isPushingRecovery = false;
+                SetRecoveryInputRpc(false);
+            }
             return;
+        }
 
         if (currentState.Value == FootState.Attached)
         {
@@ -532,7 +670,8 @@ public class PlayerFootForRobot : NetworkBehaviour
                 }
 
                 Vector3 newTarget;
-                if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer)) newTarget = hit.point;
+                // + footThicknessOffset ด้วย — เดิมโหมด Ragdoll ใช้ hit.point ดิบๆ เท้าเลยมุดพื้น
+                if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer)) newTarget = hit.point + Vector3.up * footThicknessOffset;
                 else newTarget = pivotPoint.position + mouseOffset;
 
                 if ((newTarget - _lastSentTarget).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
@@ -555,6 +694,7 @@ public class PlayerFootForRobot : NetworkBehaviour
             Vector3 aimBase = pivotPoint != null ? pivotPoint.position : footRb.position;
             if (Physics.Raycast(aimBase + offset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
             {
+                _footMarkerWorld = hit.point; // อัปเดต marker ตอน Detached ด้วย — เดิมค้างที่จุดสุดท้ายก่อนหลุด
                 if ((hit.point - _lastSentDetached).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentDetached = hit.point; UpdateDetachedTargetRpc(hit.point); }
             }
         }
@@ -649,7 +789,7 @@ public class PlayerFootForRobot : NetworkBehaviour
     // ตำแหน่งกระโดดข้ามแบบกระแทก ดูเหมือนเท้ากระตุก/หลุดจากพื้น — อัตราส่งถูกจำกัดด้วย
     // RPC_SEND_THRESHOLD อยู่แล้ว ต้นทุน bandwidth ของ Reliable จึงต่ำมาก
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void UpdateFootTargetRpc(Vector3 v) { ValidateAndSetFootTarget(v); }
-    [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void UpdateBalanceShiftRpc(Vector3 v) { if (v.IsValid()) _balanceShiftPos = v; }
+    [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void UpdateBalanceShiftRpc(Vector3 v) { ValidateAndSetBalanceShift(v); }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)] private void UpdateDetachedTargetRpc(Vector3 v) { if (v.IsValid()) _detachedTargetPos = v; }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void SetSteppingStateRpc(bool v) { isStepping = v; }
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)] private void SetRecoveryInputRpc(bool v) { isPushingRecovery = v; }
@@ -657,11 +797,22 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
     private void ApplyJumpRpc()
     {
+        // 🛡️ [Server Validation] เช็กซ้ำฝั่ง server เสมอ — เงื่อนไขฝั่ง client เชื่อไม่ได้
+        // กัน client ยิง RPC รัวๆ ให้หุ่นลอยขึ้นฟ้า (เงื่อนไขเดียวกับที่ HandleInput เช็กก่อนส่ง)
+        if (footRb == null) return;
+        if (isJumping || _jumpCooldownTimer > 0f || !IsGrounded()) return;
+
         isJumping = true;
         _jumpCooldownTimer = JUMP_HOLD_DURATION;
         footRb.isKinematic = false; // 🔓 กระโดด: ปลดล็อกก่อน AddForce (ไม่งั้นแรงไม่มีผลบน kinematic body)
-        footRb.AddForce(Vector3.up * footJumpForce, ForceMode.VelocityChange);
-        if (torso != null && torso.torsoRb != null) torso.torsoRb.AddForce(Vector3.up * torsoJumpForce, ForceMode.Acceleration);
+
+        // ✅ [Force Parity] เท้าไม่พุ่งเร็วกว่าลำตัว — clamp ด้วย maxFootJumpVelocity
+        float footBoost = Mathf.Min(footJumpForce, maxFootJumpVelocity);
+        footRb.AddForce(Vector3.up * footBoost, ForceMode.VelocityChange);
+
+        // 🦘 แรงลำตัวให้ torso ตัดสินใจเอง: hop ขาเดียว / Co-op Jump สองขา / เพดานความเร็ว
+        // พร้อมเปิด Jump Grace ไม่ให้ระบบสมดุลตัดสินว่า "กระโดด = กำลังล้ม"
+        if (torso != null) torso.NotifyFootJump(this);
     }
 
     private void ValidateAndSetFootTarget(Vector3 target)
@@ -674,6 +825,21 @@ public class PlayerFootForRobot : NetworkBehaviour
             if (dir.magnitude > limit) target = pivotPoint.position + dir.normalized * limit;
         }
         _targetFootPos = target;
+    }
+
+    // 🛡️ [Server Validation] clamp จุด balance shift แบบเดียวกับ foot target
+    // เดิมเช็กแค่ IsValid (กัน NaN) — client ส่งพิกัดไกลๆ มาได้ แล้วค่านี้ถูกคูณเป็นแรงดัน
+    // ลำตัวใน PerformStandingPhysics → แรงมหาศาลผิดปกติ
+    private void ValidateAndSetBalanceShift(Vector3 target)
+    {
+        if (!target.IsValid()) return;
+        if (pivotPoint != null)
+        {
+            Vector3 dir = target - pivotPoint.position;
+            float limit = Mathf.Max(mouseReachX, mouseReachY) * SERVER_REACH_MARGIN;
+            if (dir.magnitude > limit) target = pivotPoint.position + dir.normalized * limit;
+        }
+        _balanceShiftPos = target;
     }
 
     public bool IsGrounded()

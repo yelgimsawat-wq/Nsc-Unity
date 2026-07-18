@@ -26,8 +26,6 @@ public class TorsoMovement : NetworkBehaviour
     private float _bothUnbalancedTimer = 0f;
 
     [Header("Ragdoll Recovery")]
-    [Tooltip("วินาทีที่ต้องรอก่อนกดลุกได้ (ลดลงเพื่อให้ลุกง่ายขึ้น)")]
-    public float ragdollRecoveryDelay = 0.8f;
     [Tooltip("แรงดึงลำตัวให้ตั้งตรงขณะกดลุก (ช่วยให้ไม่ลอยขึ้นแล้วยังล้มอยู่)")]
     public float recoveryUprightTorque = 600f;
     [Tooltip("สัดส่วนความสูงที่ต้องถึงก่อน snap กลับเป็น Standing (0.5 = ครึ่งความสูงปกติ)")]
@@ -45,6 +43,35 @@ public class TorsoMovement : NetworkBehaviour
              "ตัวกำลังพุ่งขึ้นเร็วกว่านี้แล้วแรง Q จะหยุดอัด — กันหุ่นพุ่งขึ้นฟ้าตอนหลายคนกดพร้อมกัน")]
     public float maxRecoveryUpVelocity = 12f;
     private float _lastRecoveryTick = -1f;
+
+    [Header("Jump System (Co-op)")]
+    [Tooltip("ระยะเวลาหลังกระโดดที่การตัดสินล้มจากสถานะเท้าถูก 'พักไว้' — ลอยเพราะกระโดด ≠ กำลังล้ม\n" +
+             "หมดเวลาแล้วยังไม่แตะพื้น ค่อยกลับมานับล้มตามปกติ")]
+    public float jumpGraceDuration = 1.2f;
+    [Tooltip("หน้าต่างเวลาที่สองขากด Space ห่างกันแล้วยังนับเป็น 'กระโดดพร้อมกัน' (Co-op Jump)")]
+    public float coopJumpWindow = 0.3f;
+    [Tooltip("แรงดันลำตัวขึ้นตอนกระโดดขาเดียว (hop เตี้ยๆ)")]
+    public float soloJumpForce = 250f;
+    [Tooltip("แรงโบนัสเพิ่มให้ตอนขาที่สองกดทันใน window — รวมกับ solo กลายเป็นกระโดดเต็มแรง")]
+    public float coopJumpBonusForce = 450f;
+    [Tooltip("เพดานความเร็วขาขึ้นจากการกระโดด (m/s) — แรงซ้อนกี่ทางก็ไม่ทะลุลิมิต\n" +
+             "หลักการเดียวกับ maxRecoveryUpVelocity ที่ใช้แก้ปัญหา 4 คนกด Q พร้อมกัน")]
+    public float maxJumpUpVelocity = 10f;
+
+    [Header("Landing Assist")]
+    [Tooltip("ระยะเวลาช่วยพยุงหลังลงพื้นจากการกระโดด — กันเด้ง/ยุบจน stress เกินแล้วล้มทั้งที่โดดสำเร็จ")]
+    public float landingAssistDuration = 0.4f;
+    [Tooltip("แรงหน่วงความเร็วลำตัวช่วงพยุงลงพื้น")]
+    public float landingAssistDamping = 4f;
+
+    private float _jumpGraceTimer = 0f;
+    private float _landingAssistTimer = 0f;
+    private PlayerFootForRobot _pendingJumpFoot = null;
+    private float _pendingJumpTime = -999f;
+    // ช่วงต้นของ grace ที่ยังไม่เช็ก landing — แรงกระโดดเพิ่งเริ่มออกฤทธิ์ ความเร็วยังไม่ขึ้น
+    private const float LANDING_CHECK_DELAY = 0.15f;
+    // สัดส่วนของ fallGracePeriod ที่ใช้เป็นเกณฑ์ "เอียงค้างนานเกิน" ก่อนตัดสินล้ม
+    private const float TILT_FALL_GRACE_RATIO = 0.5f;
 
     [Header("References")]
     public Rigidbody torsoRb;
@@ -92,7 +119,35 @@ public class TorsoMovement : NetworkBehaviour
         _attachedHands.RemoveWhere(h => h == null);
         currentStress = Mathf.Max(0f, currentStress - stressDecayRate * Time.fixedDeltaTime);
 
-        if (!HasSupportingHandGrab && currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
+        // 🦘 [Jump System] นับถอยหลัง grace + ตรวจจับ "ลงพื้นแล้ว" เพื่อสลับเข้าช่วงพยุง
+        if (_jumpGraceTimer > 0f)
+        {
+            _jumpGraceTimer -= Time.fixedDeltaTime;
+
+            // ลงพื้นแล้ว (ความเร็วขาขึ้นหมด + มีเท้าแตะพื้น) → จบ grace เริ่ม landing assist
+            // ⚠️ เริ่มเช็คหลังพ้นช่วงต้นของ grace เท่านั้น — เฟรมแรกๆ แรงกระโดดยังไม่ทัน
+            // ออกฤทธิ์ (ความเร็วยัง ~0 + เท้ายังแตะพื้น) เช็คทันทีจะโดนตัดสินว่า "ลงแล้ว"
+            // ตั้งแต่ยังไม่ทันลอย grace โดนตัดทิ้งทั้งที่เพิ่งกดกระโดด
+            float graceElapsed = jumpGraceDuration - _jumpGraceTimer;
+            if (graceElapsed >= LANDING_CHECK_DELAY && torsoRb != null &&
+                torsoRb.linearVelocity.y <= 0.5f && AnyFootGrounded())
+            {
+                _jumpGraceTimer = 0f;
+                _landingAssistTimer = landingAssistDuration;
+            }
+        }
+        else if (_landingAssistTimer > 0f)
+        {
+            _landingAssistTimer -= Time.fixedDeltaTime;
+            // หน่วงความเร็วลำตัวช่วงสั้นๆ หลังลงพื้น — กันเด้งกลับ/ไถลจนเสียสมดุล
+            if (torsoRb != null)
+                torsoRb.AddForce(-torsoRb.linearVelocity * landingAssistDamping, ForceMode.Acceleration);
+        }
+
+        // คำนวณครั้งเดียวต่อ tick — property นี้วนลิสต์มือ + RemoveWhere ทุกครั้งที่ถูกเรียก
+        bool supportedByHand = HasSupportingHandGrab;
+
+        if (!supportedByHand && currentStress >= maxTorsoStress && currentState.Value == TorsoState.Standing)
             currentState.Value = TorsoState.Falling;
 
         // [Gameplay Fix G10] Set hipJoint เฉพาะตอน state เปลี่ยน ไม่ใช่ทุก FixedUpdate
@@ -101,13 +156,13 @@ public class TorsoMovement : NetworkBehaviour
         if (currentVal != _lastHipJointState)
         {
             _lastHipJointState = currentVal;
-            UpdateHipJointMotion(currentVal);
+            UnlockHipJoints();
         }
 
         switch (currentState.Value)
         {
             case TorsoState.Standing:
-                HandleFakeHoverAndPosture();
+                HandleFakeHoverAndPosture(supportedByHand);
                 break;
             case TorsoState.Falling:
                 currentState.Value = TorsoState.Ragdoll;
@@ -119,30 +174,11 @@ public class TorsoMovement : NetworkBehaviour
         }
     }
 
-    private void HandleFakeHoverAndPosture()
+    private void HandleFakeHoverAndPosture(bool supportedByHand)
     {
         if (torsoRb == null) return;
-        bool supportedByHand = HasSupportingHandGrab;
 
-        // ✅ [Bug Fix] maxBalanceAngle ถูกประกาศไว้แต่ไม่เคยถูกใช้เลย!
-        // เดิมหุ่นเอียงกี่องศาก็ยังนับว่ายืน ตราบใดที่เท้าแตะพื้น
-        // ใหม่: เอียงเกินกำหนดค้างครึ่ง grace period → ล้มจริงตามฟิสิกส์ที่ควรเป็น
-        float tiltAngle = Vector3.Angle(torsoRb.transform.up, Vector3.up);
-        if (!supportedByHand && tiltAngle > maxBalanceAngle)
-        {
-            _tiltTimer += Time.fixedDeltaTime;
-            if (_tiltTimer >= fallGracePeriod * 0.5f)
-            {
-                _tiltTimer = 0f;
-                currentState.Value = TorsoState.Falling;
-                return;
-            }
-        }
-        else
-        {
-            _tiltTimer = Mathf.Max(0f, _tiltTimer - Time.fixedDeltaTime * 2f);
-        }
-
+        // นับสถานะเท้าก่อน — ใช้ทั้งเงื่อนไขเอียงและเงื่อนไขล้มจากเท้าด้านล่าง
         int groundedCount = 0;
         int balancedCount = 0;
         Vector3 avgFootPos = Vector3.zero;
@@ -159,6 +195,30 @@ public class TorsoMovement : NetworkBehaviour
             avgFootPos += foot.footRb.position;
         }
 
+        // ✅ [Design Rule] "การล้มเกิดจากเผลอก้าวสองขาพร้อมกันเท่านั้น"
+        // เช็กเอียงเกินองศาจึงทำงานเฉพาะตอน 'ไม่มีเท้าแตะพื้นเลย' (เช่นคะมำกลางอากาศ)
+        // — ตราบใดที่มีเท้าปักพื้นอยู่ ระบบ Tether ในขา (legStretchSpring) เป็นคนรั้ง
+        // ลำตัวไม่ให้ถูกลากจนเสียท่า แทนการจับล้มทิ้ง
+        float tiltAngle = Vector3.Angle(torsoRb.transform.up, Vector3.up);
+        if (!supportedByHand && groundedCount == 0 && tiltAngle > maxBalanceAngle)
+        {
+            _tiltTimer += Time.fixedDeltaTime;
+            if (_tiltTimer >= fallGracePeriod * TILT_FALL_GRACE_RATIO)
+            {
+                _tiltTimer = 0f;
+                currentState.Value = TorsoState.Falling;
+                return;
+            }
+        }
+        else
+        {
+            _tiltTimer = Mathf.Max(0f, _tiltTimer - Time.fixedDeltaTime * 2f);
+        }
+
+        // 🦘 [Jump Grace] ช่วงกระโดด/เพิ่งลงพื้น: พักการตัดสินล้มจาก "สถานะเท้า" ไว้ก่อน
+        // (เท้าลอยเพราะกระโดด ≠ กำลังล้ม)
+        bool jumpProtected = _jumpGraceTimer > 0f || _landingAssistTimer > 0f;
+
         int footCount = _attachedFeet.Count;
         // ✅ [Multiplayer Debounce] เดิมเช็คนี้ล้มทันทีไม่มี grace เลย (ต่างจากเงื่อนไขอื่นด้านล่าง)
         // ในโหมดหลายผู้เล่น (ขาซ้าย-ขวาคุมคนละคน) จังหวะ isStepping ของสองคนมีโอกาสซ้อนกันแค่เฟรมเดียว
@@ -166,7 +226,7 @@ public class TorsoMovement : NetworkBehaviour
         // ✅ [Tighter Fix] เพิ่ม groundedCount == 0 เข้าไปด้วย — เดิม balancedCount==0 ทริกเกอร์ได้จาก
         // flag ล้วนๆ (เช่น isJumping ตั้งไปแล้วแต่เท้ายังไม่ทันลอยจริง) ตอนนี้ต้อง "เท้าทั้งคู่ลอยจริง"
         // เท่านั้นถึงจะนับ ตัดโอกาส false-positive จาก flag ที่ไม่ตรงกับสถานะฟิสิกส์จริงทิ้งไปเลย
-        if (!supportedByHand && footCount >= 2 && balancedCount == 0 && groundedCount == 0)
+        if (!supportedByHand && !jumpProtected && footCount >= 2 && balancedCount == 0 && groundedCount == 0)
         {
             _bothUnbalancedTimer += Time.fixedDeltaTime;
             if (_bothUnbalancedTimer >= bothFeetUnbalancedGrace)
@@ -181,7 +241,7 @@ public class TorsoMovement : NetworkBehaviour
             _bothUnbalancedTimer = Mathf.Max(0f, _bothUnbalancedTimer - Time.fixedDeltaTime * 2f);
         }
 
-        if (!supportedByHand && footCount > 0 && groundedCount == 0)
+        if (!supportedByHand && !jumpProtected && footCount > 0 && groundedCount == 0)
         {
             _balanceLossTimer += Time.fixedDeltaTime;
             if (_balanceLossTimer >= fallGracePeriod)
@@ -204,7 +264,12 @@ public class TorsoMovement : NetworkBehaviour
         // ✅ [Fly-away Fix] ชดเชยแรงโน้มถ่วง "เฉพาะตอนมีพื้นในระยะ" เท่านั้น
         // เดิมใส่ -gravity ตลอดเวลา → หุ่นที่ถูกดีดพ้นระยะ raycast จะลอยค้างฟ้าไม่ตกลงมา
         // ใหม่: หลุดพ้นพื้นเมื่อไหร่ แรงโน้มถ่วงกลับมาดึงลงตามธรรมชาติทันที
-        if (groundRaycastOrigin != null && Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, targetTorsoHeight * 2f, groundLayer))
+        // 🦘 [Jump Fix] ปิด hover spring ระหว่างช่วงกระโดด (grace) — เดิมสปริงความสูง
+        // เห็นตัวลอยสูงกว่า targetTorsoHeight ก็ออกแรงกดกลับลง + damper หน่วงความเร็วขาขึ้น
+        // แรงกระโดดเลยโดนตัดทิ้งเกือบหมดตั้งแต่เฟรมแรกๆ → ตอนนี้ปล่อยให้ลอยตามวิถีธรรมชาติ
+        // แล้วสปริงค่อยกลับมาทำงานตอนลงพื้น (ช่วง landing assist ช่วยรับอยู่แล้ว)
+        if (_jumpGraceTimer <= 0f &&
+            groundRaycastOrigin != null && Physics.Raycast(groundRaycastOrigin.position, Vector3.down, out RaycastHit hit, targetTorsoHeight * 2f, groundLayer))
         {
             torsoRb.AddForce(-Physics.gravity, ForceMode.Acceleration);
 
@@ -221,7 +286,7 @@ public class TorsoMovement : NetworkBehaviour
             torsoRb.AddTorque((axis * (angle * uprightSpring)) - (torsoRb.angularVelocity * uprightDamper), ForceMode.Acceleration);
     }
 
-        public void ApplyContinuousRecoveryForce(Vector3 forcePosition, float strengthMultiplier = 1f)
+    public void ApplyContinuousRecoveryForce(Vector3 forcePosition, float strengthMultiplier = 1f)
     {
         if (torsoRb == null) return;
         if (currentState.Value != TorsoState.Ragdoll && currentState.Value != TorsoState.Falling) return;
@@ -262,31 +327,98 @@ public class TorsoMovement : NetworkBehaviour
             // [Audit Fix] Implement testSingleFootRecovery
             if (testSingleFootRecovery || currentHeight >= targetTorsoHeight * recoveryHeightThreshold)
             {
-                _balanceLossTimer  = 0f;
-                _tiltTimer         = 0f; // กันลุกปุ๊บโดนตัดสินว่าเอียงค้างแล้วล้มซ้ำ
+                _balanceLossTimer    = 0f;
+                _tiltTimer           = 0f; // กันลุกปุ๊บโดนตัดสินว่าเอียงค้างแล้วล้มซ้ำ
+                _bothUnbalancedTimer = 0f; // reset ให้ครบชุดเดียวกับ timer ล้มตัวอื่น
                 currentState.Value = TorsoState.Standing;
             }
         }
     }
 
-    [Rpc(SendTo.Server)] public void ApplyRecoveryForceRpc(Vector3 forcePosition) => ApplyContinuousRecoveryForce(forcePosition);
+    // ================================================================
+    //  🦘 Jump System — เรียกจาก ApplyJumpRpc ของเท้า (ฝั่ง server เท่านั้น)
+    // ================================================================
+
+    /// <summary>
+    /// เท้าข้างหนึ่งเพิ่งกระโดด — torso เป็นคนตัดสินใจว่าเป็น hop ขาเดียว
+    /// หรือ Co-op Jump (สองขากดภายใน coopJumpWindow = ได้แรงโบนัสเพิ่ม)
+    /// แรงทั้งหมดถูกคุมด้วยเพดาน maxJumpUpVelocity — ไม่มีทางซ้อนสะสมจนพุ่งฟ้า
+    /// </summary>
+    public void NotifyFootJump(PlayerFootForRobot foot)
+    {
+        if (torsoRb == null || currentState.Value != TorsoState.Standing) return;
+
+        // เข้าช่วง grace: การตัดสินล้มจากสถานะเท้าถูกพักไว้จนกว่าจะลงพื้น/หมดเวลา
+        _jumpGraceTimer = jumpGraceDuration;
+        _landingAssistTimer = 0f;
+
+        bool isCoopJump = _pendingJumpFoot != null && _pendingJumpFoot != foot &&
+                          (Time.fixedTime - _pendingJumpTime) <= coopJumpWindow;
+
+        if (isCoopJump)
+        {
+            _pendingJumpFoot = null; // ใช้คู่นี้ไปแล้ว กันขาที่สามมาต่อคอมโบ (เผื่ออนาคต)
+            ApplyJumpBoost(coopJumpBonusForce);
+            Debug.Log("[Server] 🚀 Co-op Jump! สองขากดพร้อมกัน — ได้แรงโบนัส");
+        }
+        else
+        {
+            _pendingJumpFoot = foot;
+            _pendingJumpTime = Time.fixedTime;
+            ApplyJumpBoost(soloJumpForce);
+        }
+    }
+
+    private void ApplyJumpBoost(float force)
+    {
+        // ✅ เพดานจริง ไม่ใช่แค่ประตู — เดิมเช็ก "ยังไม่ถึงเพดาน" แล้วอัดแรงเต็มก้อน
+        // Co-op Jump เลยทะลุเพดานได้ (5 m/s จากขาแรก + โบนัสเต็มจากขาสอง = ~14 ทั้งที่เพดาน 10)
+        // ใหม่: คิดเป็น Δv แล้ว clamp ตาม headroom ที่เหลือ — ความเร็วสุดท้ายไม่เกินเพดานเสมอ
+        float headroom = maxJumpUpVelocity - torsoRb.linearVelocity.y;
+        if (headroom <= 0f) return;
+
+        float deltaV = Mathf.Min(force * Time.fixedDeltaTime, headroom);
+        torsoRb.AddForce(Vector3.up * deltaV, ForceMode.VelocityChange);
+    }
+
+    private bool AnyFootGrounded()
+    {
+        foreach (var foot in _attachedFeet)
+            if (foot != null && foot.IsGrounded()) return true;
+        return false;
+    }
+
+    [Rpc(SendTo.Server)]
+    public void ApplyRecoveryForceRpc(Vector3 forcePosition)
+    {
+        // 🛡️ [Server Validation] ห้ามเชื่อพิกัดจาก client — จุดออกแรงยิ่งไกลตัว
+        // ยิ่งได้ torque แรง (AddForceAtPosition) ส่งพิกัดไกลๆ/NaN มาปั่นหุ่นได้
+        if (torsoRb == null || !forcePosition.IsValid()) return;
+
+        const float MAX_FORCE_POINT_RADIUS = 3f;
+        Vector3 offset = forcePosition - torsoRb.position;
+        if (offset.sqrMagnitude > MAX_FORCE_POINT_RADIUS * MAX_FORCE_POINT_RADIUS)
+            forcePosition = torsoRb.position + offset.normalized * MAX_FORCE_POINT_RADIUS;
+
+        ApplyContinuousRecoveryForce(forcePosition);
+    }
     public void AddStress(float amount) => currentStress = Mathf.Min(currentStress + amount, maxTorsoStress * 1.5f);
     public int RegisteredFootCount => _attachedFeet.Count;
 
-    // [Gameplay Fix G10] แยก method ออกมา เรียกเฉพาะตอน state เปลี่ยน
-    private void UpdateHipJointMotion(TorsoState state)
+    // [Audit Fix] ปลดล็อก hipJoints เป็น Free เสมอ ไม่ใช้ Locked เพื่อไม่ให้แช่แข็งผิดท่า
+    // อาศัยพลังจาก Angular Drives (Spring) ของข้อต่อดึงกลับให้ตรงแทนอย่างเป็นธรรมชาติ
+    // (เดิมชื่อ UpdateHipJointMotion(state) แต่ไม่เคยใช้ state — ทุกสถานะตั้งค่าเดียวกัน
+    // เปลี่ยนชื่อให้ตรงพฤติกรรมจริง จะได้ไม่หลอกคนอ่านว่ามี logic per-state)
+    private void UnlockHipJoints()
     {
         if (hipJoints == null || hipJoints.Length == 0) return;
-        
-        // [Audit Fix] ปลดล็อก hipJoints ตลอดเวลา ไม่ใช้ Locked เพื่อไม่ให้เกิดอาการแช่แข็งผิดท่า
-        // อาศัยพลังจาก Angular Drives (Spring) ของข้อต่อดึงกลับให้ตรงแทนอย่างเป็นธรรมชาติ
-        ConfigurableJointMotion motion = ConfigurableJointMotion.Free;
+
         foreach (var hip in hipJoints)
         {
             if (hip == null) continue;
-            hip.angularXMotion = motion;
-            hip.angularYMotion = motion;
-            hip.angularZMotion = motion;
+            hip.angularXMotion = ConfigurableJointMotion.Free;
+            hip.angularYMotion = ConfigurableJointMotion.Free;
+            hip.angularZMotion = ConfigurableJointMotion.Free;
         }
     }
 

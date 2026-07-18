@@ -10585,9 +10585,12 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   footJumpForce: 15
-  torsoJumpForce: 400
+  maxFootJumpVelocity: 7
   standingUpwardPull: 25
+  legStretchSpring: 80
+  legStretchDamper: 10
   footThicknessOffset: 0.2
+  autoMeasureFootThickness: 1
   upwardRecoveryBoost: 500
   mouseReachX: 2
   mouseReachY: 2
@@ -11064,6 +11067,14 @@ PrefabInstance:
       propertyPath: mouseReachY
       value: 20
       objectReference: {fileID: 0}
+    - target: {fileID: 3905546791085401226, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: footThicknessOffset
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3905546791085401226, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: autoMeasureFootThickness
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4047172851023031174, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 915719927
@@ -11083,6 +11094,14 @@ PrefabInstance:
     - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: mouseReachY
       value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: footThicknessOffset
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: autoMeasureFootThickness
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7040322331119305267, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: GlobalObjectIdHash
