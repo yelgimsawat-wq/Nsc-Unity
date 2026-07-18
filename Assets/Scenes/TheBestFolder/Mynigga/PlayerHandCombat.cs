@@ -45,6 +45,9 @@ public class PlayerHandCombat : PlayerHandMovement
     public bool enableAimAssist = true;
     [Tooltip("มุมกรวยช่วยเล็ง (องศา) — กว้าง = ดูดแรง, 0 = ปิด")]
     public float aimAssistAngle = 30f;
+    [Tooltip("Layer ที่ให้ aim assist สแกนหา (ตั้งเป็น layer ของศัตรูเท่านั้น!)\n" +
+             "ถ้าปล่อย Everything ไว้ buffer จะเต็มด้วยกำแพง/พื้นก่อนถึงตัวศัตรู ทำ assist วืดแบบสุ่ม")]
+    public LayerMask aimAssistLayer = ~0;
 
     [Header("Aim Assist Gizmos")]
     public bool showAimAssistGizmos = true;
@@ -135,6 +138,14 @@ public class PlayerHandCombat : PlayerHandMovement
 
     private void HandleCombatInput()
     {
+        // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → ปล่อยหมัดที่ค้างแล้วหยุดรับ input ต่อย
+        // ไม่งั้น Shift ค้างจะต่อยรัวต่อระหว่างผู้เล่นคลิกเมนูอยู่
+        if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
+        {
+            if (punchHeld) { punchHeld = false; SetPunchingRpc(false); }
+            return;
+        }
+
         // ⚡ กด Shift ค้าง = อัดความเร่งเข้าหมัด / ปล่อย = หยุดบูสต์
         if (Input.GetKeyDown(KeyCode.LeftShift)) punchHeld = true;
         if (Input.GetKeyUp(KeyCode.LeftShift)) { punchHeld = false; SetPunchingRpc(false); }
@@ -219,7 +230,9 @@ public class PlayerHandCombat : PlayerHandMovement
     }
 
     // ✅ [Aim Assist] หา EnemyHealth ในกรวยรอบทิศหมัด แล้วเบนทิศเข้าหาเป้าที่มุมแคบสุด
-    private static readonly Collider[] _assistBuffer = new Collider[32];
+    // buffer 64 + กรองด้วย aimAssistLayer — เดิมสแกนทุก layer ในรัศมี ~7m
+    // ฉากเมือง prop เยอะ buffer 32 ช่องเต็มด้วยกำแพงก่อนถึงศัตรู = assist วืดแบบสุ่ม
+    private static readonly Collider[] _assistBuffer = new Collider[64];
     private Vector3 ApplyAimAssist(Vector3 punchDir)
     {
         return TryFindAimAssistTarget(punchDir, out Vector3 assistedDirection, out _)
@@ -234,7 +247,7 @@ public class PlayerHandCombat : PlayerHandMovement
         targetPosition = Vector3.zero;
 
         float range = maxArmLength + punchExtraReach;
-        int count = Physics.OverlapSphereNonAlloc(PivotPosition, range, _assistBuffer);
+        int count = Physics.OverlapSphereNonAlloc(PivotPosition, range, _assistBuffer, aimAssistLayer);
         float bestAngle = aimAssistAngle;
         bool found = false;
 

@@ -120,6 +120,12 @@ public class PlayerHandMovement : NetworkBehaviour
         isGrabbing && grabbedObject != null && grabbedObject.isKinematic && grabJoint != null;
     private readonly Dictionary<Joint, Vector2> protectedArmJointLimits =
         new Dictionary<Joint, Vector2>();
+    // ✅ เก็บมวลดั้งเดิมของท่อนแขน — stabilizeArmChain เคยเขียนทับมวลถาวรตั้งแต่จับปีนครั้งแรก
+    private readonly Dictionary<Rigidbody, float> originalArmMasses =
+        new Dictionary<Rigidbody, float>();
+    // ⚡ เดินโซ่ joint เฉพาะตอนมีอะไรต้องเปลี่ยนจริง — เดิม GetComponents ทุก FixedUpdate = GC ฟรีๆ
+    private bool _armJointsProtected = false;
+    private bool _armChainStabilized = false;
 
     protected Vector3 targetHandPosition;
     protected Vector3 smoothedHandTarget;
@@ -173,12 +179,25 @@ public class PlayerHandMovement : NetworkBehaviour
     {
         if (IsServer && torso != null) torso.UnregisterHand(this);
         // คืนเคอร์เซอร์ให้ระบบเมื่อหุ่นหายจากเกม (กลับเมนู/ตาย) — ไม่งั้นคลิกเมนูไม่ได้
+        ReleaseCursorIfOwner();
+        base.OnNetworkDespawn();
+    }
+
+    public override void OnDestroy()
+    {
+        // Safety net: ถ้า object ถูกทำลายโดยไม่ผ่าน despawn ปกติ (unload scene ตรงๆ)
+        // เคอร์เซอร์ต้องไม่ล็อกค้างถึงหน้าเมนู — แบบเดียวกับฝั่งเท้า
+        ReleaseCursorIfOwner();
+        base.OnDestroy();
+    }
+
+    private void ReleaseCursorIfOwner()
+    {
         if (IsOwner && useVirtualCursor)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
-        base.OnNetworkDespawn();
     }
 
     protected virtual void Update()
@@ -190,6 +209,7 @@ public class PlayerHandMovement : NetworkBehaviour
     protected virtual void FixedUpdate()
     {
         if (!IsServer) return;
+        if (handRb == null) return; // 🛡️ กัน NRE ถ้า ref หลุด/ถูก despawn (แบบเดียวกับเท้า)
         SmoothHandTarget();
 
         if (currentState.Value == HandState.Attached)
@@ -309,6 +329,11 @@ public class PlayerHandMovement : NetworkBehaviour
         // ✅ [Pointer Lock] จัดการล็อก/ปลดล็อกเคอร์เซอร์ (เฉพาะโหมด Virtual Cursor)
         if (useVirtualCursor) HandleCursorLock();
 
+        // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → หยุดรับ input มือทั้งหมด
+        // แบบเดียวกับฝั่งเท้า — กัน W/S ขยับมือ, F จับของ ระหว่างผู้เล่นคลิกเมนูอยู่
+        if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
+            return;
+
         // ✅ [World-Anchored Aim — ระบบเดียว]
         // จุดเล็งมือเปลี่ยนได้ทางเดียว: delta ของเมาส์ (ตีความตามกล้องปัจจุบัน) + W/S = ความสูง
         // ตัด "โหมดตามตำแหน่งเมาส์สัมบูรณ์" ทิ้งแล้ว — เดิมสองระบบทับกัน มือกระโดดตอนสลับล็อกเคอร์เซอร์
@@ -368,12 +393,27 @@ public class PlayerHandMovement : NetworkBehaviour
                 ReleaseGrabRpc();
         }
 
-        if (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))
+        if (torso != null && torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))
             ApplyHandRecoveryRpc();
     }
     
-    [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { targetHandPosition = target; }
-    [Rpc(SendTo.Server)] private void ApplyHandRecoveryRpc() { torso.ApplyContinuousRecoveryForce(PivotPosition); }
+    [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { ValidateAndSetHandTarget(target); }
+    [Rpc(SendTo.Server)] private void ApplyHandRecoveryRpc() { if (torso != null) torso.ApplyContinuousRecoveryForce(PivotPosition); }
+
+    // 🛡️ [Server Validation] แบบเดียวกับ ValidateAndSetFootTarget ฝั่งขา —
+    // NaN หลุดเข้ามาพังทั้งโซ่ฟิสิกส์แขน / พิกัดไกลเกินก็ถูกดึงกลับเข้าระยะเล็งจริง
+    private const float SERVER_REACH_MARGIN = 1.5f;
+    private void ValidateAndSetHandTarget(Vector3 target)
+    {
+        if (!target.IsValid()) return;
+
+        Vector3 pivot = PivotPosition;
+        Vector3 dir = target - pivot;
+        float limit = Mathf.Max(mouseReachX, Mathf.Max(mouseReachY, mouseReachDepth)) * SERVER_REACH_MARGIN;
+        if (dir.magnitude > limit) target = pivot + dir.normalized * limit;
+
+        targetHandPosition = target;
+    }
 
     [Rpc(SendTo.Server)]
     private void TryGrabRpc()
@@ -387,13 +427,20 @@ public class PlayerHandMovement : NetworkBehaviour
             return;
         }
 
+        // 🛡️ กันจับซ้อน — ถ้า RPC เข้ามาซ้ำตอนมี joint อยู่แล้ว FixedJoint ตัวใหม่จะทับ field
+        // แต่ตัวเก่ายังเกาะ handRb ถาวร = ของที่เคยจับติดมือตลอดกาล
+        if (isGrabbing || grabJoint != null || handRb == null) return;
+
         Collider[] hits = Physics.OverlapSphere(GrabPosition, grabRadius, grabLayer);
+        bool grabbedSomething = false;
+
         foreach (var h in hits)
         {
             Rigidbody rb = h.attachedRigidbody;
             if (rb == null) continue;
             isGrabbing = true;
             grabbedObject = rb;
+            grabbedSomething = true;
 
             // ✅ จับได้ทั้ง Kinematic และ Dynamic
             grabJoint = handRb.gameObject.AddComponent<FixedJoint>();
@@ -409,6 +456,11 @@ public class PlayerHandMovement : NetworkBehaviour
 
             break;
         }
+
+        // จับพลาด (ไม่มีอะไรในรัศมี) → บอก owner ให้รีเซ็ต toggle
+        // ไม่งั้นฝั่ง client คิดว่ากำลังจับอยู่ ต้องกด F สองทีถึงจะจับใหม่ได้
+        if (!grabbedSomething)
+            ForceReleaseGrabClientRpc();
     }
 
     [Rpc(SendTo.Server)]
@@ -600,17 +652,38 @@ public class PlayerHandMovement : NetworkBehaviour
                 savedLimit.Key.breakTorque = savedLimit.Value.y;
             }
             protectedArmJointLimits.Clear();
+            _armJointsProtected = false;
+            RestoreArmMasses();
             return;
         }
 
+        bool stabilizing = stabilizeArmChainWhileGrabbing && HasSupportingGrab;
+
+        // ✅ เลิกจับแล้ว → คืนมวลแขนเป็นค่าดั้งเดิม (เดิมมวลถูกเขียนทับถาวรตั้งแต่ปีนครั้งแรก
+        // ฟิสิกส์แขน/น้ำหนักหมัดเปลี่ยนไปตลอดชีวิตโดยไม่มีใครรู้)
+        if (!stabilizing)
+        {
+            RestoreArmMasses();
+            _armChainStabilized = false;
+        }
+
+        // ⚡ ทุกอย่างถูกตั้งครบแล้วและไม่มีอะไรเปลี่ยน → ไม่ต้องเดินโซ่ซ้ำทุก tick
+        if (_armJointsProtected && (!stabilizing || _armChainStabilized))
+            return;
+
         Rigidbody currentBody = handRb;
         int safety = 0;
+        bool foundAnyJoint = false;
+
         while (currentBody != null &&
                (torso == null || currentBody != torso.torsoRb) &&
                safety++ < 8)
         {
-            if (stabilizeArmChainWhileGrabbing && HasSupportingGrab)
+            if (stabilizing)
             {
+                if (!originalArmMasses.ContainsKey(currentBody))
+                    originalArmMasses.Add(currentBody, currentBody.mass);
+
                 currentBody.mass = Mathf.Max(0.01f, stabilizedArmMass);
                 currentBody.solverIterations = Mathf.Max(currentBody.solverIterations, stabilizedArmSolverIterations);
                 currentBody.solverVelocityIterations = Mathf.Max(currentBody.solverVelocityIterations, stabilizedArmSolverVelocityIterations);
@@ -633,6 +706,7 @@ public class PlayerHandMovement : NetworkBehaviour
 
                 armJoint.breakForce = Mathf.Infinity;
                 armJoint.breakTorque = Mathf.Infinity;
+                foundAnyJoint = true;
 
                 // The runtime grab FixedJoint points toward the grabbed object, not
                 // toward the torso, so never use it to continue the limb traversal.
@@ -642,6 +716,19 @@ public class PlayerHandMovement : NetworkBehaviour
 
             currentBody = nextBody;
         }
+
+        if (foundAnyJoint) _armJointsProtected = true;
+        if (stabilizing) _armChainStabilized = true;
+    }
+
+    private void RestoreArmMasses()
+    {
+        if (originalArmMasses.Count == 0) return;
+
+        foreach (var savedMass in originalArmMasses)
+            if (savedMass.Key != null) savedMass.Key.mass = savedMass.Value;
+
+        originalArmMasses.Clear();
     }
 
     private void OnDrawGizmosSelected()

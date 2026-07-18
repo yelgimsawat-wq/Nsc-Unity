@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
@@ -104,8 +105,26 @@ public class LobbyManager : NetworkBehaviour
 
     public bool GameStarted => netGameStarted.Value;
 
-    // เก็บรายชื่อ ClientId ที่ต่อเข้ามา เพื่อเอาไปแมปกับ Slot P1, P2, P3, P4
-    private NetworkList<ulong> connectedClients = new NetworkList<ulong>();
+    // ✅ [Name Sync] ข้อมูลผู้เล่นหนึ่งคนใน lobby — เก็บ clientId คู่กับชื่อใน struct เดียว
+    // (ใช้ struct เดียวแทน list คู่ขนานสองอัน กันหลุด sync กันเอง)
+    public struct LobbyPlayer : INetworkSerializable, System.IEquatable<LobbyPlayer>
+    {
+        public ulong clientId;
+        public FixedString64Bytes playerName;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref clientId);
+            serializer.SerializeValue(ref playerName);
+        }
+
+        public bool Equals(LobbyPlayer other) =>
+            clientId == other.clientId && playerName.Equals(other.playerName);
+    }
+
+    // เก็บรายชื่อผู้เล่นที่ต่อเข้ามา (id + ชื่อ) เพื่อเอาไปแมปกับ Slot P1, P2, P3, P4
+    // ชื่อมาจาก PlayerPrefs ของแต่ละเครื่อง ส่งขึ้น server ผ่าน SubmitPlayerNameServerRpc
+    private NetworkList<LobbyPlayer> connectedClients = new NetworkList<LobbyPlayer>();
 
     // DOTween tracking dictionaries (ported from OnlineNetworkUI)
     private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
@@ -244,14 +263,18 @@ public class LobbyManager : NetworkBehaviour
     {
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-        
-        // Add already connected clients
+
+        // Add already connected clients (ชื่อ default ไว้ก่อน — เดี๋ยวแต่ละเครื่องส่งชื่อจริงตามมา)
         foreach (ulong clientId in NetworkManager.Singleton.ConnectedClientsIds)
         {
-            if (!connectedClients.Contains(clientId))
-                connectedClients.Add(clientId);
+            if (FindPlayerIndex(clientId) < 0)
+                connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player" });
         }
     }
+
+    // ✅ [Name Sync] ทุกเครื่อง (รวม Host) ส่งชื่อจาก Settings ขึ้น server
+    // → server อัปเดต NetworkList → ทุกคนเห็นชื่อจริงของกันและกัน
+    SubmitPlayerNameServerRpc(PlayerPrefs.GetString("PlayerName", "Player"));
 
     // Subscribe NetworkList → อัปเดต UI ปุ่มทุกครั้งที่มีคนจอง
     limbOwners.OnListChanged += OnLimbOwnersChanged;
@@ -288,15 +311,16 @@ public class LobbyManager : NetworkBehaviour
 
     private void OnClientConnected(ulong clientId)
     {
-        if (IsServer && !connectedClients.Contains(clientId))
-            connectedClients.Add(clientId);
+        if (IsServer && FindPlayerIndex(clientId) < 0)
+            connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player" });
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
         if (IsServer)
         {
-            connectedClients.Remove(clientId);
+            int index = FindPlayerIndex(clientId);
+            if (index >= 0) connectedClients.RemoveAt(index);
             // ถ้าคนนั้นจอง limb ไว้ ให้เอาออกด้วย
             for (int i = 0; i < limbOwners.Count; i++)
             {
@@ -474,7 +498,7 @@ public class LobbyManager : NetworkBehaviour
         RefreshAllButtonUI();
     }
 
-    private void OnConnectedClientsChanged(NetworkListEvent<ulong> changeEvent)
+    private void OnConnectedClientsChanged(NetworkListEvent<LobbyPlayer> changeEvent)
     {
         RefreshAllButtonUI();
     }
@@ -522,7 +546,8 @@ public class LobbyManager : NetworkBehaviour
         for (int i = 0; i < 4; i++)
         {
             bool hasPlayer = i < connectedClients.Count;
-            ulong clientId = hasPlayer ? connectedClients[i] : ulong.MaxValue;
+            LobbyPlayer player = hasPlayer ? connectedClients[i] : default;
+            ulong clientId = hasPlayer ? player.clientId : ulong.MaxValue;
 
             // 1. Avatar Color
             if (playerAvatarImages != null && i < playerAvatarImages.Length && playerAvatarImages[i] != null)
@@ -530,25 +555,17 @@ public class LobbyManager : NetworkBehaviour
                 playerAvatarImages[i].color = hasPlayer ? Color.white : new Color(1f, 1f, 1f, 0.3f);
             }
 
-            // 2. Name Text
+            // 2. Name Text — ✅ [Name Sync] ใช้ชื่อจริงที่ sync มาจากเครื่องของแต่ละคน
             if (playerNameTexts != null && i < playerNameTexts.Length && playerNameTexts[i] != null)
             {
                 if (hasPlayer)
                 {
-                    // ✅ ถ้าเป็นตัวเอง ให้แสดงชื่อจาก Settings + เลข Slot
-                    if (clientId == NetworkManager.Singleton.LocalClientId)
-                    {
-                        string myName = PlayerPrefs.GetString("PlayerName", "Player");
-                        playerNameTexts[i].text = $"{myName} (P{i + 1})";
-                    }
-                    else if (clientId == NetworkManager.ServerClientId)
-                    {
-                        playerNameTexts[i].text = $"Host (P{i + 1})";
-                    }
-                    else
-                    {
-                        playerNameTexts[i].text = $"Player (P{i + 1})";
-                    }
+                    string displayName = player.playerName.ToString();
+                    if (string.IsNullOrEmpty(displayName)) displayName = "Player";
+
+                    // ติดป้าย [Host] ให้รู้ว่าใครเป็นเจ้าของห้อง
+                    string hostTag = clientId == NetworkManager.ServerClientId ? " [Host]" : "";
+                    playerNameTexts[i].text = $"{displayName} (P{i + 1}){hostTag}";
                 }
                 else
                 {
@@ -696,6 +713,43 @@ public class LobbyManager : NetworkBehaviour
         3 => "Right Leg",
         _ => "?"
     };
+
+    // ================================================================
+    //  Player Name Sync
+    // ================================================================
+
+    private int FindPlayerIndex(ulong clientId)
+    {
+        for (int i = 0; i < connectedClients.Count; i++)
+        {
+            if (connectedClients[i].clientId == clientId)
+                return i;
+        }
+        return -1;
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void SubmitPlayerNameServerRpc(string playerName, ServerRpcParams rpcParams = default)
+    {
+        ulong senderId = rpcParams.Receive.SenderClientId;
+
+        // 🛡️ Server-side validation: ชื่อว่าง → default, ยาวเกิน → ตัด (FixedString64 จุจำกัด)
+        if (string.IsNullOrWhiteSpace(playerName)) playerName = "Player";
+        playerName = playerName.Trim();
+        if (playerName.Length > 20) playerName = playerName.Substring(0, 20);
+
+        int index = FindPlayerIndex(senderId);
+        if (index < 0)
+        {
+            // RPC มาถึงก่อน callback connect (กันเหนียว) — เพิ่มเข้าลิสต์เลย
+            connectedClients.Add(new LobbyPlayer { clientId = senderId, playerName = playerName });
+            return;
+        }
+
+        LobbyPlayer entry = connectedClients[index];
+        entry.playerName = playerName;
+        connectedClients[index] = entry; // เขียนทับ index เดิม → OnListChanged ยิง → UI refresh ทุกเครื่อง
+    }
 
     // ================================================================
     //  Select Part — Send to Server to check availability
