@@ -707,6 +707,9 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     private void HandleFootCursorLock()
     {
+        // 🏁 เกมจบแล้ว (Win/GameOver panel ขึ้น) — ห้ามล็อกเมาส์กลับ ผู้เล่นต้องคลิกปุ่มบน panel
+        if (GameFlowManager.GameEnded) return;
+
         // Esc = ปลดล็อก เมาส์โผล่ (ไปกดเมนู)
         if (Input.GetKeyDown(KeyCode.Escape))
         {

@@ -283,6 +283,9 @@ public class PlayerHandMovement : NetworkBehaviour
 
     private void HandleCursorLock()
     {
+        // 🏁 เกมจบแล้ว (Win/GameOver panel ขึ้น) — ห้ามล็อกเมาส์กลับ ผู้เล่นต้องคลิกปุ่มบน panel
+        if (GameFlowManager.GameEnded) return;
+
         // Esc = ปลดล็อกชั่วคราว (ไปกดเมนู) / คลิกซ้ายกลับเข้าเกม = ล็อกต่อ
         if (Input.GetKeyDown(KeyCode.Escape))
         {

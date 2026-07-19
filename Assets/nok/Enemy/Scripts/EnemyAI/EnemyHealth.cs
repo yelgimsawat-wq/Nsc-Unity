@@ -175,6 +175,11 @@ namespace NscGame.Enemy
         {
             isDead = true;
             controller.ServerDie();
+
+            // 🏆 [GameFlow] บอสตาย = ชนะ — แจ้ง GameFlowManager โชว์ WinPanel ทุกเครื่อง
+            // (ซีนที่ไม่มี GameFlowManager เช่นซีนเทส ก็แค่ไม่เกิดอะไร)
+            if (GameFlowManager.Instance != null)
+                GameFlowManager.Instance.TriggerVictory();
         }
 
         #endregion
