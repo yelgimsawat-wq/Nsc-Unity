@@ -45,6 +45,12 @@ namespace NscGame.Enemy
 
         [SerializeField] private LayerMask playerLayer;
 
+        [Header("Simple Hit (ยึดตัวผู้เล่นเป็นศูนย์กลาง)")]
+        [Tooltip("เพดานระยะที่หมัดถือว่า 'เอื้อมถึง' ผู้เล่น — วิ่งหนีพ้นระยะนี้ก่อนจังหวะกระแทก = หลบได้\nตั้งให้ ≈ Attack Range ของ EnemyController + เผื่อเล็กน้อย")]
+        [SerializeField] private float maxStrikeReach = 16f;
+
+        private Transform playerTransform; // cache เป้าจาก tag "Player"
+
         [Header("Damage Values")]
         [SerializeField] private float lightPunchDamage = 10f;
         [SerializeField] private float barragePunchDamage = 5f;
@@ -263,19 +269,50 @@ namespace NscGame.Enemy
 
         private void ProcessHitDetection(Vector3 origin, float radius, float damage, AttackType attackType)
         {
-            Collider[] hits = Physics.OverlapSphere(origin, radius, playerLayer);
+            // ✅ [Simple Hit v1] เช็คโดนโดยยึด "ตำแหน่งผู้เล่นจริง" เป็นศูนย์กลาง
+            // จบปัญหา origin/สเกลบอส/bone ทุกแบบ: ออกท่าแล้วผู้เล่นยังอยู่ในระยะเอื้อม = โดน
+            // การหลบ = วิ่งออกนอก maxStrikeReach ก่อนจังหวะกระแทก
+            // (ขั้นถัดไปค่อยจูนดีเลย์ 3.5s/4s ให้ตรงอนิเมชัน — ดูคอมเมนต์ใน routine)
+            if (playerTransform == null)
+            {
+                // ✅ [No-Tag Fix] เอาเป้าจาก EnemyController (หา TorsoMovement ให้แล้ว)
+                // — ห้ามหาด้วย tag "Player" เพราะซีนจริงไม่มีชิ้นไหนติด tag นี้ → null ตลอด
+                // → center ถอยไปใช้ bone → วืดแบบเดิม (เช็คด้วย MCP มากับตาแล้ว)
+                var ctrl = GetComponent<EnemyController>();
+                if (ctrl != null) playerTransform = ctrl.PlayerTarget;
+            }
+
+            Vector3 center = origin;
+            if (playerTransform != null)
+            {
+                // ผู้เล่นพ้นระยะเอื้อมไปแล้ว = หมัดวืด (กันดาเมจตามไปโดนข้ามแมพ)
+                if (Vector3.Distance(transform.position, playerTransform.position) > maxStrikeReach)
+                {
+                    Debug.Log($"[EnemyCombat] 💨 {attackType} วืด — ผู้เล่นหนีพ้นระยะ");
+                    return;
+                }
+
+                center = playerTransform.position;
+            }
+
+            Collider[] hits = Physics.OverlapSphere(center, radius, playerLayer);
+
+            // กันชิ้นเดียวโดนซ้ำหลายดอก (หนึ่งชิ้นมีหลาย collider) + หา component จาก parent ได้
+            HashSet<IHittable> damagedTargets = new HashSet<IHittable>();
 
             foreach (Collider col in hits)
             {
-                IHittable target = col.GetComponent<IHittable>();
-                if (target != null)
-                {
-                    target.ServerTakeDamage(damage, attackType, transform.forward);
+                IHittable target = col.GetComponentInParent<IHittable>();
+                if (target == null || !damagedTargets.Add(target)) continue;
 
-                    Vector3 hitPoint = col.ClosestPoint(origin);
-                    SpawnHitConfirmClientRpc(attackType, hitPoint, GetVfxRotation(attackType));
-                }
+                target.ServerTakeDamage(damage, attackType, transform.forward);
+
+                Vector3 hitPoint = col.ClosestPoint(center);
+                SpawnHitConfirmClientRpc(attackType, hitPoint, GetVfxRotation(attackType));
             }
+
+            // log ไว้เช็คตอนเทสว่าระบบมองเห็นการโดนจริง — เลข 0 แปลว่า layer/collider ยังไม่ตรง
+            Debug.Log($"[EnemyCombat] 👊 {attackType} โดน {damagedTargets.Count} ชิ้น (dmg {damage}/ชิ้น)");
         }
 
         #endregion

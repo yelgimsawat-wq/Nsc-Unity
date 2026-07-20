@@ -145,7 +145,10 @@ namespace NscGame.Enemy
 
             agent.updateRotation = false; // Manual control of rotation to face the player quickly
             agent.angularSpeed = 300f;
-            agent.stoppingDistance = 0f; // Manual control via isStopped
+            // ✅ [Bulldozer Fix] เบรกก่อนถึงตัวหุ่นที่ ~75% ของ attackRange — เดิม stoppingDistance = 0
+            // บอสเดินดันหุ่นไถลไปเรื่อยๆ ระยะเลยแกว่งไม่เคยนิ่งพอให้เข้าเงื่อนไขตี
+            // (พิสูจน์ผ่าน MCP แล้ว: เซ็ต 14 แล้วระยะนิ่ง → ตีติดทันที)
+            agent.stoppingDistance = Mathf.Max(0f, attackRange * 0.75f);
             agent.autoBraking = true;
         }
 
@@ -178,10 +181,7 @@ namespace NscGame.Enemy
 
             if (IsServer)
             {
-                GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-                if (playerObj != null)
-                    playerTarget = playerObj.transform;
-
+                playerTarget = FindRobotTarget();
                 StartCoroutine(ServerDecisionLoop());
             }
         }
@@ -253,10 +253,8 @@ namespace NscGame.Enemy
 
                 if (playerTarget == null)
                 {
-                    GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-                    if (playerObj != null)
-                        playerTarget = playerObj.transform;
-                    else
+                    playerTarget = FindRobotTarget();
+                    if (playerTarget == null)
                         continue;
                 }
 
@@ -269,7 +267,9 @@ namespace NscGame.Enemy
 
                 attackDecTimer -= Time.deltaTime;
 
-                float dist = Vector3.Distance(transform.position, playerTarget.position);
+                // ✅ [Floating Torso Fix] วัดระยะ "แนวราบ" เท่านั้น — ลำตัวหุ่นลอยอยู่ที่ y≈16
+                // ระยะ 3D เกิน attackRange (13) เสมอต่อให้บอสยืนชิดตัว = ไม่มีวันเข้าเงื่อนไขตี
+                float dist = HorizontalDistanceTo(playerTarget.position);
 
                 // Priority 1: Attack range and cooldown is ready - stop and attack
                 if (dist <= attackRange && attackDecTimer <= 0f)
@@ -408,7 +408,7 @@ namespace NscGame.Enemy
                 // Stop combo if player moves out of range
                 if (playerTarget == null) break;
 
-                float dist = Vector3.Distance(transform.position, playerTarget.position);
+                float dist = HorizontalDistanceTo(playerTarget.position); // แนวราบ เหตุผลเดียวกับ decision loop
                 if (dist > attackRange) break;
 
                 bool isLastHit = (i == repeatCount - 1);
@@ -434,6 +434,23 @@ namespace NscGame.Enemy
         {
             if (netState.Value != newState)
                 netState.Value = newState;
+        }
+
+        // ✅ [No-Tag Fix] หาเป้าจาก TorsoMovement component ตรงๆ — เดิมหาจาก tag "Player"
+        // ซึ่งเช็คในซีนจริงแล้ว "ไม่มีชิ้นไหนติด tag นี้เลย" (ลำตัวติด tag "Body")
+        // → playerTarget เป็น null ตลอด → บอสไม่เคยเข้าโหมดโจมตีแม้แต่ครั้งเดียว
+        private Transform FindRobotTarget()
+        {
+            TorsoMovement torso = FindFirstObjectByType<TorsoMovement>();
+            if (torso == null) return null;
+            return torso.torsoRb != null ? torso.torsoRb.transform : torso.transform;
+        }
+
+        private float HorizontalDistanceTo(Vector3 position)
+        {
+            Vector3 delta = position - transform.position;
+            delta.y = 0f;
+            return delta.magnitude;
         }
 
         #endregion
@@ -497,6 +514,9 @@ namespace NscGame.Enemy
             if (ragdoll != null)
                 ragdoll.EnableRagdoll(impactForce);
         }
+
+        /// <summary>เป้าหมายปัจจุบัน (ลำตัวหุ่น) — EnemyCombat ใช้เป็นศูนย์กลางเช็คโดน</summary>
+        public Transform PlayerTarget => playerTarget;
 
         public void ServerBeginKnockback()
         {
