@@ -49,7 +49,14 @@ namespace NscGame.Enemy
         [Tooltip("เพดานระยะที่หมัดถือว่า 'เอื้อมถึง' ผู้เล่น — วิ่งหนีพ้นระยะนี้ก่อนจังหวะกระแทก = หลบได้\nตั้งให้ ≈ Attack Range ของ EnemyController + เผื่อเล็กน้อย")]
         [SerializeField] private float maxStrikeReach = 16f;
 
-        private Transform playerTransform; // cache เป้าจาก tag "Player"
+        [Header("Hit Timing (วินาทีหลังเริ่มท่า → จังหวะคิดดาเมจ)")]
+        [Tooltip("จูนให้ตรงเฟรมที่หมัดกระแทกในอนิเมชัน LightPunch")]
+        [SerializeField] private float lightPunchHitDelay = 0.5f;
+
+        [Tooltip("จูนให้ตรงเฟรมที่เท้ากระแทกในอนิเมชัน Kick")]
+        [SerializeField] private float kickHitDelay = 0.8f;
+
+        private EnemyController controller; // ใช้ดึงเป้าปัจจุบันสดๆ ทุกครั้งที่เช็คโดน
 
         [Header("Damage Values")]
         [SerializeField] private float lightPunchDamage = 10f;
@@ -95,6 +102,7 @@ namespace NscGame.Enemy
         {
             animator = GetComponent<Animator>();
             audioSource = GetComponent<AudioSource>();
+            controller = GetComponent<EnemyController>();
 
             if (hitboxOrigin == null)
                 hitboxOrigin = transform;
@@ -238,7 +246,8 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.LightPunch, origin.position, GetVfxRotation(AttackType.LightPunch));
 
-            yield return new WaitForSeconds(3.5f);
+            // คิดดาเมจให้ตรงเฟรมกระแทกของอนิเมชัน (เดิมรอ 3.5s → ผู้เล่นเดินหนีพ้นไปแล้ว)
+            yield return new WaitForSeconds(lightPunchHitDelay);
 
             ProcessHitDetection(origin.position, lightPunchRadius, lightPunchDamage, AttackType.LightPunch);
         }
@@ -262,57 +271,83 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.Kick, origin.position, GetVfxRotation(AttackType.Kick));
 
-            yield return new WaitForSeconds(4f);
+            yield return new WaitForSeconds(kickHitDelay);
 
             ProcessHitDetection(origin.position, kickRadius, kickDamage, AttackType.Kick);
         }
 
         private void ProcessHitDetection(Vector3 origin, float radius, float damage, AttackType attackType)
         {
-            // ✅ [Simple Hit v1] เช็คโดนโดยยึด "ตำแหน่งผู้เล่นจริง" เป็นศูนย์กลาง
-            // จบปัญหา origin/สเกลบอส/bone ทุกแบบ: ออกท่าแล้วผู้เล่นยังอยู่ในระยะเอื้อม = โดน
+            // ✅ [Simple Hit v2] หุ่นผู้เล่นตัวใหญ่มาก (มือ/เท้าห่างลำตัว 15-18m) แต่ radius แค่ 5-7m
+            // → OverlapSphere รอบลำตัวไม่มีทางแตะชิ้นที่มี RobotHealth (มือ/เท้า) เลย = โดน 0 ตลอด
+            // แก้เป็น: หา IHittable ทุกชิ้นของหุ่นเป้าหมายตรงๆ — ชิ้นในรัศมีจากจุดกระแทกโดนหมด
+            // ถ้าไม่มีสักชิ้น โดนชิ้นที่ใกล้จุดกระแทกสุด 1 ชิ้นเสมอ (อยู่ในระยะ = ตีติดแน่นอน)
             // การหลบ = วิ่งออกนอก maxStrikeReach ก่อนจังหวะกระแทก
-            // (ขั้นถัดไปค่อยจูนดีเลย์ 3.5s/4s ให้ตรงอนิเมชัน — ดูคอมเมนต์ใน routine)
+            Transform playerTransform = controller != null ? controller.PlayerTarget : null;
             if (playerTransform == null)
             {
-                // ✅ [No-Tag Fix] เอาเป้าจาก EnemyController (หา TorsoMovement ให้แล้ว)
-                // — ห้ามหาด้วย tag "Player" เพราะซีนจริงไม่มีชิ้นไหนติด tag นี้ → null ตลอด
-                // → center ถอยไปใช้ bone → วืดแบบเดิม (เช็คด้วย MCP มากับตาแล้ว)
-                var ctrl = GetComponent<EnemyController>();
-                if (ctrl != null) playerTransform = ctrl.PlayerTarget;
+                Debug.Log($"[EnemyCombat] ⚠️ {attackType} ไม่มีเป้าหมาย (PlayerTarget null)");
+                return;
             }
 
-            Vector3 center = origin;
-            if (playerTransform != null)
+            // ✅ เช็คระยะ "แนวราบ" เท่านั้น — ลำตัวหุ่นลอยอยู่ y≈16 ระยะ 3D เกิน 16m ตลอด → วืดฟรี
+            Vector3 flatSelf = transform.position;
+            Vector3 flatTarget = playerTransform.position;
+            flatSelf.y = 0f;
+            flatTarget.y = 0f;
+            if (Vector3.Distance(flatSelf, flatTarget) > maxStrikeReach)
             {
-                // ผู้เล่นพ้นระยะเอื้อมไปแล้ว = หมัดวืด (กันดาเมจตามไปโดนข้ามแมพ)
-                if (Vector3.Distance(transform.position, playerTransform.position) > maxStrikeReach)
+                Debug.Log($"[EnemyCombat] 💨 {attackType} วืด — ผู้เล่นหนีพ้นระยะ");
+                return;
+            }
+
+            // ชิ้นส่วนที่รับดาเมจได้ทั้งหมดของหุ่นเป้าหมาย (RobotHealth อยู่บนมือ/เท้า)
+            // ข้ามชิ้นที่หลุดไปแล้ว — ตีชิ้นที่กองพื้นอยู่ = ดาเมจฟรี ไม่มีความหมาย
+            IHittable[] allParts = playerTransform.root.GetComponentsInChildren<IHittable>();
+            List<IHittable> partList = new List<IHittable>();
+            foreach (IHittable p in allParts)
+            {
+                if (p is RobotHealth rh && rh.Jpar != null && !rh.Jpar.IsConnected)
+                    continue;
+                partList.Add(p);
+            }
+            IHittable[] parts = partList.ToArray();
+
+            if (parts.Length == 0)
+            {
+                Debug.Log($"[EnemyCombat] 🏆 {attackType} — ชิ้นส่วนหุ่นหลุดหมดแล้ว ไม่เหลืออะไรให้ตี");
+                return;
+            }
+
+            int hitCount = 0;
+
+            foreach (IHittable part in parts)
+            {
+                Transform partT = ((Component)part).transform;
+                float dist = Vector3.Distance(origin, partT.position);
+
+                if (dist <= radius)
                 {
-                    Debug.Log($"[EnemyCombat] 💨 {attackType} วืด — ผู้เล่นหนีพ้นระยะ");
-                    return;
+                    part.ServerTakeDamage(damage, attackType, transform.forward);
+                    SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
+                    hitCount++;
                 }
-
-                center = playerTransform.position;
             }
 
-            Collider[] hits = Physics.OverlapSphere(center, radius, playerLayer);
-
-            // กันชิ้นเดียวโดนซ้ำหลายดอก (หนึ่งชิ้นมีหลาย collider) + หา component จาก parent ได้
-            HashSet<IHittable> damagedTargets = new HashSet<IHittable>();
-
-            foreach (Collider col in hits)
+            // ไม่มีชิ้นไหนอยู่ในรัศมี แต่ผู้เล่นยังอยู่ในระยะเอื้อม → โดน 1 ชิ้น
+            // สุ่มจาก "ทุกชิ้น" เท่าๆ กัน — ถ้าเลือกตามระยะ เท้าซึ่งอยู่ระดับพื้น
+            // เดียวกับจุดกระแทกบอสจะใกล้สุดตลอด → ขาโดนล้วนๆ มือไม่เคยโดนเลย
+            if (hitCount == 0)
             {
-                IHittable target = col.GetComponentInParent<IHittable>();
-                if (target == null || !damagedTargets.Add(target)) continue;
+                IHittable picked = parts[Random.Range(0, parts.Length)];
 
-                target.ServerTakeDamage(damage, attackType, transform.forward);
-
-                Vector3 hitPoint = col.ClosestPoint(center);
-                SpawnHitConfirmClientRpc(attackType, hitPoint, GetVfxRotation(attackType));
+                Transform partT = ((Component)picked).transform;
+                picked.ServerTakeDamage(damage, attackType, transform.forward);
+                SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
+                hitCount = 1;
             }
 
-            // log ไว้เช็คตอนเทสว่าระบบมองเห็นการโดนจริง — เลข 0 แปลว่า layer/collider ยังไม่ตรง
-            Debug.Log($"[EnemyCombat] 👊 {attackType} โดน {damagedTargets.Count} ชิ้น (dmg {damage}/ชิ้น)");
+            Debug.Log($"[EnemyCombat] 👊 {attackType} โดน {hitCount} ชิ้น (dmg {damage}/ชิ้น)");
         }
 
         #endregion

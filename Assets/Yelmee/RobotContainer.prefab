@@ -10,43 +10,67 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 559680754945020659, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 102824691
+      value: 623328031
       objectReference: {fileID: 0}
     - target: {fileID: 576927500626843547, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 3266457807
+      value: 3554083452
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: handMoveSpeed
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 1483107057343592160, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 954400150
+      value: 2575251579
       objectReference: {fileID: 0}
     - target: {fileID: 1632578667036511310, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 3835349775
+      value: 527551741
       objectReference: {fileID: 0}
     - target: {fileID: 1715725670134875486, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 204187122
+      value: 3630201836
       objectReference: {fileID: 0}
     - target: {fileID: 1797033197322800298, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 4263932689
+      value: 714834229
+      objectReference: {fileID: 0}
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: mouseReachY
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: footThicknessOffset
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: autoMeasureFootThickness
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3481833401209976696, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1006552296
+      value: 1604678980
       objectReference: {fileID: 0}
     - target: {fileID: 3648706694988192804, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 4151396942
+      value: 4292904361
       objectReference: {fileID: 0}
     - target: {fileID: 4181405713274170145, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 2833825791
+      value: 2698701143
       objectReference: {fileID: 0}
     - target: {fileID: 4714729722796991775, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 2309604592
+      value: 915719927
+      objectReference: {fileID: 0}
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: mouseReachY
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: footThicknessOffset
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 5913191635356727031, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: m_Name
@@ -54,7 +78,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5962145731777525622, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 3063381678
+      value: 3885975231
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: maxTorsoStress
@@ -78,11 +102,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6308388643719817161, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 961360759
+      value: 3839956205
       objectReference: {fileID: 0}
     - target: {fileID: 6696804326391761074, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1791816317
+      value: 4028785515
       objectReference: {fileID: 0}
     - target: {fileID: 6878265183785188439, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: m_LocalPosition.x
@@ -94,7 +118,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6878265183785188439, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -10.7
       objectReference: {fileID: 0}
     - target: {fileID: 6878265183785188439, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: m_LocalRotation.w
@@ -126,11 +150,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7748554905250656570, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 833574957
+      value: 2954028037
       objectReference: {fileID: 0}
     - target: {fileID: 7848920279370601407, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1826862148
+      value: 1054211749
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: handMoveSpeed
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: ragdollHandSpringScale
@@ -201,6 +229,7 @@ MonoBehaviour:
   targetBody: {fileID: 1448890986740222897}
   pullSpeed: 20
   pullDamper: 10
+  maxPullSpeed: 25
   reconnectDistance: 2
   reconnectCooldown: 3
   pullKey: 114
@@ -249,6 +278,7 @@ MonoBehaviour:
   targetBody: {fileID: 1448890986740222897}
   pullSpeed: 20
   pullDamper: 10
+  maxPullSpeed: 25
   reconnectDistance: 2
   reconnectCooldown: 3
   pullKey: 114
@@ -302,6 +332,7 @@ MonoBehaviour:
   targetBody: {fileID: 1448890986740222897}
   pullSpeed: 20
   pullDamper: 10
+  maxPullSpeed: 25
   reconnectDistance: 2
   reconnectCooldown: 3
   pullKey: 114
@@ -350,6 +381,7 @@ MonoBehaviour:
   targetBody: {fileID: 1448890986740222897}
   pullSpeed: 20
   pullDamper: 10
+  maxPullSpeed: 25
   reconnectDistance: 2
   reconnectCooldown: 3
   pullKey: 114

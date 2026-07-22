@@ -58,6 +58,7 @@ public class HullRingUI : MonoBehaviour
                 continue;
 
             health.currentHp.OnValueChanged += OnHealthChanged;
+            health.currentMaxHp.OnValueChanged += OnHealthChanged; // เพดานลดตอนชิ้นหลุด → วงแหวนต้องคำนวณใหม่
             boundHealths.Add(health);
         }
 
@@ -69,7 +70,10 @@ public class HullRingUI : MonoBehaviour
         foreach (RobotHealth health in boundHealths)
         {
             if (health != null)
+            {
                 health.currentHp.OnValueChanged -= OnHealthChanged;
+                health.currentMaxHp.OnValueChanged -= OnHealthChanged;
+            }
         }
 
         boundHealths.Clear();
@@ -91,8 +95,9 @@ public class HullRingUI : MonoBehaviour
             if (health == null)
                 continue;
 
+            // เทียบกับ "เพดานปัจจุบัน" ที่ sync จาก Server — MaxHp ตายตัวจะเพี้ยนหลังชิ้นเคยหลุด
             float normalized = Mathf.Clamp01(
-                health.currentHp.Value / Mathf.Max(1f, health.MaxHp));
+                health.currentHp.Value / Mathf.Max(1f, health.currentMaxHp.Value));
 
             if (normalized < worstNormalized)
             {
@@ -104,7 +109,7 @@ public class HullRingUI : MonoBehaviour
         if (worst == null)
             return;
 
-        float maxHp = Mathf.Max(1f, worst.MaxHp);
+        float maxHp = Mathf.Max(1f, worst.currentMaxHp.Value);
         float currentHp = Mathf.Clamp(worst.currentHp.Value, 0f, maxHp);
         float normalizedHp = currentHp / maxHp;
 

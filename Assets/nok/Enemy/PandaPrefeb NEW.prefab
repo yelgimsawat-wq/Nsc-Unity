@@ -1161,17 +1161,17 @@ MonoBehaviour:
   lightPunchOrigin: {fileID: 5421555216582004341}
   barragePunchOrigin: {fileID: 2932997863085949807}
   kickOrigin: {fileID: 3005892400223596938}
-  lightPunchRadius: 5
-  barragePunchRadius: 4
-  kickRadius: 6
+  lightPunchRadius: 6
+  barragePunchRadius: 5
+  kickRadius: 7
   playerLayer:
     serializedVersion: 2
     m_Bits: 8
-  lightPunchDamage: 10
-  barragePunchDamage: 5
+  lightPunchDamage: 20
+  barragePunchDamage: 8
   barragePunchHitCount: 6
   barrageHitInterval: 0.1
-  kickDamage: 25
+  kickDamage: 40
   punchVfxPrefab: {fileID: 5250149500812822168, guid: 6fcc2822db4fb9a4da05d827344f325a, type: 3}
   barrageVfxPrefab: {fileID: 1168517310011630812, guid: 5c6eaef51d01f5b449b50958e49e48bc, type: 3}
   kickVfxPrefab: {fileID: 5250149500812822168, guid: 6fcc2822db4fb9a4da05d827344f325a, type: 3}

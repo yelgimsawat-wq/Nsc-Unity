@@ -148,12 +148,10 @@ public class JointPullAndReconnect : NetworkBehaviour
         // การหลุดเป็นเรื่องของ Server เท่านั้น — Client รอรับผลผ่าน netIsConnected
         if (IsSpawned && !IsServer) return;
 
-        // Infinity only prevents a physics break. Respect the controller's
-        // unbreakable rule for explicit damage/gameplay detach requests too.
-        if (handController != null && handController.preventGrabBreakWhileRagdoll)
-            return;
-        if (footController != null && footController.makeLegJointsUnbreakable)
-            return;
+        // ⚠️ ไม่เช็ค preventGrabBreakWhileRagdoll / makeLegJointsUnbreakable ที่นี่
+        // flag พวกนั้นมีไว้กัน "ฟิสิกส์" ฉีกข้อต่อเองเท่านั้น (breakForce = Infinity)
+        // การหลุดจากดาเมจ (RobotHealth.Break) เป็นเกมเพลย์ ต้องหลุดได้เสมอ
+        // — เดิมเช็คไว้ทำให้ HP หมดแล้วชิ้นส่วนไม่เคยหลุดเลย
 
         if (!isConnected || currentJoint == null) return;
 
