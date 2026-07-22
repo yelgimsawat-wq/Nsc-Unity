@@ -62,8 +62,23 @@ namespace NscGame.Enemy
         [SerializeField] private float lightPunchDamage = 10f;
         [SerializeField] private float barragePunchDamage = 5f;
         [SerializeField] private int barragePunchHitCount = 6;
-        [SerializeField] private float barrageHitInterval = 0.15f;
         [SerializeField] private float kickDamage = 25f;
+
+        [Header("Barrage Timing")]
+        [Tooltip("ความยาวอนิเมชันต่อยรัว (วินาที) — ดาเมจทุกดอกกระจายเต็มช่วงนี้ และ VFX เล่นยาวจนจบท่า")]
+        [SerializeField] private float barrageDuration = 1.5f;
+
+        [Header("Attack Animation Reset")]
+        [Tooltip("หน่วงหลังดาเมจดอกสุดท้าย ก่อนตัดอนิเมชันกลับท่าเริ่มต้น (ให้ภาพกระแทกค้างแป๊บนึง)")]
+        [SerializeField] private float attackRecoverDelay = 0.25f;
+
+        [Tooltip("ระยะเวลา crossfade ตอนตัดกลับท่าเริ่มต้น")]
+        [SerializeField] private float attackResetFade = 0.15f;
+
+        // คลิปอนิเมชันโจมตียาว 3-4 วิ แต่ดาเมจจบใน ~1 วิ — ดาเมจจบเมื่อไหร่
+        // ตัดอนิเมชันกลับ state ว่าง (ท่าเริ่มต้น) ทันที ภาพ/ดาเมจ/VFX จะจบพร้อมกัน
+        private const string AttackLayerName = " Attack layer"; // ชื่อจริงใน controller มี space นำหน้า
+        private const string AttackIdleState = "New State";     // state ว่าง (default) ของ layer โจมตี
 
         [Header("VFX Prefabs")]
         [SerializeField] private GameObject punchVfxPrefab;
@@ -101,7 +116,9 @@ namespace NscGame.Enemy
         private void Awake()
         {
             animator = GetComponent<Animator>();
-            audioSource = GetComponent<AudioSource>();
+            // เคารพค่าที่ลากใส่ Inspector ก่อน — เดิมเขียนทับเสมอทำให้ลาก AudioSource อื่นมาใส่ไม่มีผล
+            if (audioSource == null)
+                audioSource = GetComponent<AudioSource>();
             controller = GetComponent<EnemyController>();
 
             if (hitboxOrigin == null)
@@ -218,22 +235,24 @@ namespace NscGame.Enemy
             }
         }
 
+        // ระยะเวลาท่าต้องยาวกว่า hit delay เสมอ — ไม่งั้น EnemyController จบท่า
+        // แล้วเริ่มท่าใหม่ก่อนดาเมจท่าเก่าจะลง (delay เป็นค่าจูนได้ใน Inspector)
         private float ExecuteLightPunch()
         {
             StartCoroutine(ServerLightPunchRoutine());
-            return 0.8f;
+            return Mathf.Max(0.8f, lightPunchHitDelay + 0.2f);
         }
 
         private float ExecuteBarragePunch()
         {
             StartCoroutine(ServerBarrageRoutine());
-            return barragePunchHitCount * barrageHitInterval + 0.5f;
+            return barrageDuration + 0.3f;
         }
 
         private float ExecuteKick()
         {
             StartCoroutine(ServerKickRoutine());
-            return 1.2f;
+            return Mathf.Max(1.2f, kickHitDelay + 0.2f);
         }
 
         #endregion
@@ -246,10 +265,13 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.LightPunch, origin.position, GetVfxRotation(AttackType.LightPunch));
 
-            // คิดดาเมจให้ตรงเฟรมกระแทกของอนิเมชัน (เดิมรอ 3.5s → ผู้เล่นเดินหนีพ้นไปแล้ว)
             yield return new WaitForSeconds(lightPunchHitDelay);
 
             ProcessHitDetection(origin.position, lightPunchRadius, lightPunchDamage, AttackType.LightPunch);
+
+            // ดาเมจจบแล้ว → ตัดอนิเมชันกลับท่าเริ่มต้น (คลิปยาว 4 วิ ปล่อยไว้ภาพจะค้างท่าต่อย)
+            yield return new WaitForSeconds(attackRecoverDelay);
+            ResetAttackLayerClientRpc();
         }
 
         private IEnumerator ServerBarrageRoutine()
@@ -258,11 +280,27 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.BarragePunch, origin.position, GetVfxRotation(AttackType.BarragePunch));
 
+            // กระจายดาเมจทุกดอกให้เต็มความยาวอนิเมชัน — เดิมตีครบใน 0.6 วิแรก
+            // แล้วช่วงท้ายท่าเป็นช่วงตาย ดาเมจ/ฟีลไม่ตรงกับภาพที่ยังต่อยรัวอยู่
+            float interval = barrageDuration / Mathf.Max(1, barragePunchHitCount);
+
             for (int i = 0; i < barragePunchHitCount; i++)
             {
-                yield return new WaitForSeconds(barrageHitInterval);
+                yield return new WaitForSeconds(interval);
+
+                // บอสตาย/ล้มกลางท่า → หยุดรัวทันที (ศพห้ามตีต่อ)
+                if (controller != null && controller.CurrentState == EnemyState.Dead)
+                {
+                    ResetAttackLayerClientRpc();
+                    yield break;
+                }
+
                 ProcessHitDetection(origin.position, barragePunchRadius, barragePunchDamage, AttackType.BarragePunch);
             }
+
+            // ดาเมจครบทุกดอกแล้ว → ตัดอนิเมชันกลับท่าเริ่มต้น (คลิปต่อยรัวเป็น loop ปล่อยไว้จะรัวไม่หยุด)
+            yield return new WaitForSeconds(attackRecoverDelay);
+            ResetAttackLayerClientRpc();
         }
 
         private IEnumerator ServerKickRoutine()
@@ -274,6 +312,9 @@ namespace NscGame.Enemy
             yield return new WaitForSeconds(kickHitDelay);
 
             ProcessHitDetection(origin.position, kickRadius, kickDamage, AttackType.Kick);
+
+            yield return new WaitForSeconds(attackRecoverDelay);
+            ResetAttackLayerClientRpc();
         }
 
         private void ProcessHitDetection(Vector3 origin, float radius, float damage, AttackType attackType)
@@ -283,6 +324,13 @@ namespace NscGame.Enemy
             // แก้เป็น: หา IHittable ทุกชิ้นของหุ่นเป้าหมายตรงๆ — ชิ้นในรัศมีจากจุดกระแทกโดนหมด
             // ถ้าไม่มีสักชิ้น โดนชิ้นที่ใกล้จุดกระแทกสุด 1 ชิ้นเสมอ (อยู่ในระยะ = ตีติดแน่นอน)
             // การหลบ = วิ่งออกนอก maxStrikeReach ก่อนจังหวะกระแทก
+            // ✅ บอสตายระหว่างรอจังหวะกระแทก (ผู้เล่นต่อยตายทัน) → ศพห้ามคิดดาเมจ
+            if (controller != null && controller.CurrentState == EnemyState.Dead)
+            {
+                Debug.Log($"[EnemyCombat] 💀 {attackType} ยกเลิก — บอสตายก่อนจังหวะกระแทก");
+                return;
+            }
+
             Transform playerTransform = controller != null ? controller.PlayerTarget : null;
             if (playerTransform == null)
             {
@@ -319,6 +367,11 @@ namespace NscGame.Enemy
                 return;
             }
 
+            // Barrage ห้ามยิง hit-confirm รายดอก — VFX จำกัด 1 ตัว/ประเภท ดอกใหม่จะ
+            // Destroy VFX หลักที่กำลังเล่นทุก interval → เอฟเฟคกระพริบไม่เคยเล่นจบท่า
+            // (VFX หลักถูก spawn ตอนเริ่มท่าแล้ว ให้เล่นยาวจนจบเอง)
+            bool spawnHitVfx = attackType != AttackType.BarragePunch;
+
             int hitCount = 0;
 
             foreach (IHittable part in parts)
@@ -329,7 +382,8 @@ namespace NscGame.Enemy
                 if (dist <= radius)
                 {
                     part.ServerTakeDamage(damage, attackType, transform.forward);
-                    SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
+                    if (spawnHitVfx)
+                        SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
                     hitCount++;
                 }
             }
@@ -343,7 +397,8 @@ namespace NscGame.Enemy
 
                 Transform partT = ((Component)picked).transform;
                 picked.ServerTakeDamage(damage, attackType, transform.forward);
-                SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
+                if (spawnHitVfx)
+                    SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
                 hitCount = 1;
             }
 
@@ -406,6 +461,17 @@ namespace NscGame.Enemy
                     PlaySfx(sfxKick);
                     break;
             }
+        }
+
+        [ClientRpc]
+        private void ResetAttackLayerClientRpc()
+        {
+            if (animator == null) return;
+
+            int layer = animator.GetLayerIndex(AttackLayerName);
+            if (layer < 0) layer = 2; // fallback: layer โจมตีคือ index 2 ใน controller ปัจจุบัน
+
+            animator.CrossFade(AttackIdleState, attackResetFade, layer);
         }
 
         [ClientRpc]

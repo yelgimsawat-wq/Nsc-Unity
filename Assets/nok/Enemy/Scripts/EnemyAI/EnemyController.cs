@@ -518,6 +518,9 @@ namespace NscGame.Enemy
         /// <summary>เป้าหมายปัจจุบัน (ลำตัวหุ่น) — EnemyCombat ใช้เป็นศูนย์กลางเช็คโดน</summary>
         public Transform PlayerTarget => playerTarget;
 
+        /// <summary>สถานะปัจจุบัน — EnemyCombat ใช้เช็คว่าตายแล้วห้ามคิดดาเมจต่อ</summary>
+        public EnemyState CurrentState => netState.Value;
+
         public void ServerBeginKnockback()
         {
             if (!IsServer) return;
