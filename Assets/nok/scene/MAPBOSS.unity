@@ -53724,7 +53724,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8248719911397258219, guid: fcf0cd342d9514d479d628cc1bae99a4, type: 3}
       propertyPath: attackRange
-      value: 18.29
+      value: 11.59
       objectReference: {fileID: 0}
     - target: {fileID: 8248719911397258219, guid: fcf0cd342d9514d479d628cc1bae99a4, type: 3}
       propertyPath: stopDistance
@@ -53739,16 +53739,8 @@ PrefabInstance:
       value: 57.9
       objectReference: {fileID: 0}
     - target: {fileID: 8620932885198903548, guid: fcf0cd342d9514d479d628cc1bae99a4, type: 3}
-      propertyPath: kickRadius
-      value: 8.68
-      objectReference: {fileID: 0}
-    - target: {fileID: 8620932885198903548, guid: fcf0cd342d9514d479d628cc1bae99a4, type: 3}
       propertyPath: lightPunchRadius
       value: 5.2
-      objectReference: {fileID: 0}
-    - target: {fileID: 8620932885198903548, guid: fcf0cd342d9514d479d628cc1bae99a4, type: 3}
-      propertyPath: barragePunchRadius
-      value: 6.74
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -75885,6 +75877,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[3]'
       value: 
       objectReference: {fileID: 2100000, guid: 9b2df62ff2ec56a4a957bf71f1b4a6fb, type: 2}
+    - target: {fileID: 2608499188745227814, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: 'm_Materials.Array.data[4]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9b2df62ff2ec56a4a957bf71f1b4a6fb, type: 2}
     - target: {fileID: 2714461088329369131, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3616310078
@@ -75987,6 +75983,10 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 15c26ecc780d76840af46f9512d3fa7e, type: 2}
     - target: {fileID: 4973569313666659871, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: 'm_Materials.Array.data[3]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9b2df62ff2ec56a4a957bf71f1b4a6fb, type: 2}
+    - target: {fileID: 4973569313666659871, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: 'm_Materials.Array.data[4]'
       value: 
       objectReference: {fileID: 2100000, guid: 9b2df62ff2ec56a4a957bf71f1b4a6fb, type: 2}
     - target: {fileID: 5266276898847767009, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
@@ -84223,10 +84223,10 @@ SceneRoots:
   - {fileID: 7924498382289506603}
   - {fileID: 1435685968}
   - {fileID: 1762066276}
+  - {fileID: 2928029711378329680}
   - {fileID: 1118263129}
   - {fileID: 116275122}
   - {fileID: 2121108727}
   - {fileID: 1532558102}
   - {fileID: 1478623425}
   - {fileID: 1305670543}
-  - {fileID: 2928029711378329680}

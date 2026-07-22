@@ -110,7 +110,11 @@ public class PhysicsDamageSender : MonoBehaviour
             // ✅ ส่งดาเมจให้ Enemy (Server จะประมวลผล)
             if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
             {
-                enemyHealth.ServerTakeHit(finalDamage, hitDirection, finalKnockback);
+                // FIX: pass impactPoint (the real collision contact point) so the
+                // hit VFX/SFX in EnemyHealth spawn where the punch actually
+                // landed, instead of falling back to transform.position
+                // (the enemy's pivot / center of the model).
+                enemyHealth.ServerTakeHit(finalDamage, hitDirection, finalKnockback, impactPoint);
             }
 
             Debug.Log($"🥊 HIT! PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");

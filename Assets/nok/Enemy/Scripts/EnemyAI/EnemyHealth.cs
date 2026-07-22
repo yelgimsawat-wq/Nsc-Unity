@@ -9,6 +9,16 @@
 //      enemyHp.ServerTakeHit(damage, hitDirection, knockbackForce);
 //
 //  Note: hitDirection should be the attacking player's forward direction
+//
+//  CHANGELOG (fixes):
+//  - Awake() no longer overwrites an Inspector-assigned AudioSource with null
+//    when GetComponent<AudioSource>() finds nothing (e.g. AudioSource is on
+//    a child object).
+//  - Hit VFX/SFX now play even on a killing blow (previously an early
+//    `return` in ServerTakeHit skipped PlayHitEffectsClientRpc entirely).
+//  - Added editor warnings when hitVfxPrefab / sfxHit / audioSource are
+//    left unassigned, so missing effects are caught immediately instead of
+//    failing silently.
 // =============================================================================
 
 using System.Collections;
@@ -71,7 +81,22 @@ namespace NscGame.Enemy
         {
             controller = GetComponent<EnemyController>();
             agent = GetComponent<NavMeshAgent>();
-            audioSource = GetComponent<AudioSource>();
+
+            // FIX: don't blindly overwrite an Inspector-assigned AudioSource.
+            // Previously this line ran unconditionally and set audioSource to
+            // null whenever the AudioSource lived on a child object instead
+            // of this GameObject, silently killing all hit SFX.
+            if (audioSource == null)
+                audioSource = GetComponent<AudioSource>();
+
+#if UNITY_EDITOR
+            if (audioSource == null)
+                Debug.LogWarning($"[EnemyHealth] '{name}' has no AudioSource assigned or attached — hit SFX will not play.", this);
+            if (sfxHit == null)
+                Debug.LogWarning($"[EnemyHealth] '{name}' has no sfxHit clip assigned — hit SFX will not play.", this);
+            if (hitVfxPrefab == null)
+                Debug.LogWarning($"[EnemyHealth] '{name}' has no hitVfxPrefab assigned — hit VFX will not play.", this);
+#endif
         }
 
         public override void OnNetworkSpawn()
@@ -93,14 +118,31 @@ namespace NscGame.Enemy
         /// <param name="damage">Damage amount to apply</param>
         /// <param name="hitDirection">Direction of attack (usually player's forward)</param>
         /// <param name="knockbackForce">Base knockback force (recommended: 3-8)</param>
-        public void ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce)
+        /// <param name="hitPoint">
+        /// World-space point where the attack actually made contact
+        /// (e.g. Collision.contacts[0].point or the hit collider's closest
+        /// point). Omit to fall back to a position above the enemy's pivot.
+        /// </param>
+        public void ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce, Vector3? hitPoint = null)
         {
             if (!IsServer || isDead) return;
 
             // Apply damage
             CurrentHp.Value = Mathf.Max(0, CurrentHp.Value - damage);
 
-            // Check for death before knockback
+            // Broadcast hit effects to all clients.
+            // FIX: this now runs BEFORE the death check so a killing blow
+            // still plays its VFX/SFX. Previously ServerDie() returned early
+            // and skipped this call entirely on the hit that killed the enemy.
+            //
+            // FIX: use the actual collision contact point instead of the
+            // enemy's transform.position, which is always the pivot/feet and
+            // made the VFX spawn in the center of the model regardless of
+            // where the punch landed.
+            Vector3 impactPos = hitPoint ?? (transform.position + Vector3.up * 0.8f);
+            PlayHitEffectsClientRpc(impactPos);
+
+            // Check for death after effects have been broadcast
             if (CurrentHp.Value <= 0)
             {
                 ServerDie();
@@ -116,10 +158,6 @@ namespace NscGame.Enemy
             Vector3 knockDir = hitDirection.normalized;
             knockDir.y = 0.15f;
             knockDir.Normalize();
-
-            // Broadcast hit effects to all clients
-            Vector3 impactPos = transform.position + Vector3.up * 0.8f;
-            PlayHitEffectsClientRpc(impactPos);
 
             // Apply knockback on server
             StartCoroutine(ServerKnockbackRoutine(knockDir * totalForce));
