@@ -58,10 +58,31 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private string bossSceneName = "91626425186";
     [SerializeField] private string parkourSceneName = "MAP";
 
+    [Header("--- Room Size Select (หลังกด Host) ---")]
+    [Tooltip("แผงเลือกขนาดห้อง — เปิดขึ้นตอนกด Host ก่อนสร้างห้องจริง\n" +
+             "ปล่อยว่าง = ข้ามขั้นนี้ สร้างห้องขนาดปกติเลย (พฤติกรรมเดิม)")]
+    [SerializeField] private GameObject roomSizePanel;
+
+    [Tooltip("ปุ่ม \"4 คน\" — ห้องโหมดปกติ (Boss/Parkour)")]
+    [SerializeField] private Button room4Button;
+
+    [Tooltip("ปุ่ม \"8 คน\" — ห้อง PVP กด Start แล้วเข้าฉาก PVP ตรงๆ ไม่ต้องเลือกแมพ")]
+    [SerializeField] private Button room8Button;
+
+    [SerializeField] private Button cancelRoomSizeButton;
+
+    [Header("--- PVP Mode ---")]
+    [Tooltip("ชื่อฉาก PVP (ต้องเปิดใน Build Settings)")]
+    [SerializeField] private string pvpSceneName = "PVP";
+
+    [Tooltip("ความจุห้อง PVP — 2 ทีม × 4 ชิ้นส่วน = 8")]
+    [Min(2)] [SerializeField] private int maxPlayersPvp = 8;
+
     [Header("--- References ---")]
     [SerializeField] private Camera lobbyCam;
 
     [Header("--- Settings ---")]
+    [Tooltip("ความจุห้องโหมดปกติ (Boss/Parkour) — โหมด PVP ใช้ maxPlayersPvp แทน")]
     [SerializeField] private int maxPlayers = 4;
     [Tooltip("Set to 1 for solo testing. Increase this only when testing multiplayer requirements.")]
     [Min(1)] [SerializeField] private int minimumPlayersToStart = 1;
@@ -93,8 +114,26 @@ public class OnlineNetworkUI : NetworkBehaviour
     private NetworkVariable<int> playerCount = new NetworkVariable<int>(
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+    // ความจุ + โหมดของห้องต้อง sync ให้ Client ด้วย ไม่งั้น Client จะโชว์ "Players: 2/4"
+    // ในห้อง PVP ที่จริงๆ จุ 8 (Client อ่านค่าจากฟิลด์ของตัวเองซึ่งเป็นค่าโหมดปกติ)
+    private NetworkVariable<int> roomCapacity = new NetworkVariable<int>(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    private NetworkVariable<bool> roomIsPvp = new NetworkVariable<bool>(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    // จำไว้ตอนกดสร้างห้อง แล้วค่อยเขียนลง NetworkVariable ตอน spawn
+    // (เขียนก่อน spawn ไม่ได้ — Netcode จะ throw)
+    private int pendingRoomCapacity;
+    private bool pendingRoomIsPvp;
+
+    /// <summary>ความจุห้องที่ใช้โชว์ UI — ก่อน spawn ยังไม่มีค่า ให้ fallback เป็นค่าโหมดปกติ</summary>
+    private int RoomCapacity => roomCapacity.Value > 0 ? roomCapacity.Value : maxPlayers;
+
     private ISession session;
     private bool servicesReady;
+    // true ระหว่าง Host()/Join() กำลังทำงาน — กันกดซ้ำแล้วสอง attempt ทับกัน
+    private bool isConnecting;
     private string currentRoomCode = string.Empty;
     // true = ผู้เล่นกด Leave เอง (UI ถูกจัดการใน OnLeaveRoomClicked แล้ว)
     // false = โดนตัดจากอีกฝั่ง เช่น Host ปิดห้อง → OnNetworkStopped ต้องพากลับเมนูเอง
@@ -131,6 +170,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         SetVisibleInstant(waitingPanel, false);
         SetVisibleInstant(mapSelectPanel, false);
+        SetVisibleInstant(roomSizePanel, false);
         SetVisibleInstant(connectPanel, true);
         CaptureMenuFeelBasePose();
 
@@ -197,6 +237,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         // All Clients listen to NetworkVariable to update UI
         playerCount.OnValueChanged += OnPlayerCountChanged;
+        roomCapacity.OnValueChanged += OnRoomCapacityChanged;
 
         if (IsServer)
         {
@@ -206,6 +247,8 @@ public class OnlineNetworkUI : NetworkBehaviour
 
             // Initial count (Host is counted as 1)
             playerCount.Value = NetworkManager.Singleton.ConnectedClientsIds.Count;
+
+            ApplyPendingRoomInfo();
         }
 
         // Update UI immediately with current value
@@ -219,6 +262,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         playerCount.OnValueChanged -= OnPlayerCountChanged;
+        roomCapacity.OnValueChanged -= OnRoomCapacityChanged;
 
         if (IsServer && NetworkManager.Singleton != null)
         {
@@ -267,42 +311,119 @@ public class OnlineNetworkUI : NetworkBehaviour
         RefreshStartButtonState();
     }
 
+    // ความจุมาถึง Client ทีหลัง playerCount ได้ — ต้องวาดป้ายใหม่ตอนมันมา
+    // ไม่งั้น Client ค้างที่ "Players: 2/4" ทั้งที่ห้อง PVP จุ 8
+    private void OnRoomCapacityChanged(int oldValue, int newValue)
+    {
+        UpdatePlayerCountUI(playerCount.Value);
+    }
+
     private void UpdatePlayerCountUI(int count)
     {
         if (playerCountLabel != null)
-            playerCountLabel.text = $"Players: {count}/{maxPlayers}";
+            playerCountLabel.text = $"Players: {count}/{RoomCapacity}";
+    }
+
+    /// <summary>[SERVER] เขียนโหมด/ความจุห้องลง NetworkVariable — เรียกได้หลัง spawn เท่านั้น</summary>
+    private void ApplyPendingRoomInfo()
+    {
+        if (!IsServer || !IsSpawned || pendingRoomCapacity <= 0) return;
+
+        roomCapacity.Value = pendingRoomCapacity;
+        roomIsPvp.Value = pendingRoomIsPvp;
     }
 
     // ================================================================
     //  Create Room (HOST)
     // ================================================================
 
-    async Task Host()
+    /// <summary>
+    /// กด Host → เปิดแผงเลือกขนาดห้องก่อน ยังไม่สร้างห้องจริง
+    /// (ความจุถูกล็อกตอน CreateSessionAsync เปลี่ยนทีหลังไม่ได้ จึงต้องถามก่อน)
+    /// </summary>
+    private void OnHostClicked()
     {
+        if (isConnecting) return;
+
+        // ยังไม่ได้ต่อแผงใน Inspector → ทำตัวเหมือนเดิม สร้างห้องขนาดปกติเลย
+        if (roomSizePanel == null || (room4Button == null && room8Button == null))
+        {
+            _ = Host(false);
+            return;
+        }
+
+        if (room4Button != null) room4Button.interactable = true;
+        if (room8Button != null) room8Button.interactable = true;
+        if (cancelRoomSizeButton != null) cancelRoomSizeButton.interactable = true;
+
+        SetVisibleAnimated(roomSizePanel, true);
+        SetStatus("Select room size: 4 players (Co-op) or 8 players (PVP)");
+    }
+
+    private void OnRoomSizeChosen(bool pvp)
+    {
+        if (isConnecting) return;
+
+        SetVisibleAnimated(roomSizePanel, false);
+        _ = Host(pvp);
+    }
+
+    private void OnCancelRoomSizeClicked()
+    {
+        if (isConnecting) return;
+
+        SetVisibleAnimated(roomSizePanel, false);
+        SetStatus("Room creation cancelled.");
+    }
+
+    /// <param name="pvp">true = ห้อง PVP (จุ 8 คน, กด Start แล้วเข้าฉาก PVP ตรงๆ)</param>
+    async Task Host(bool pvp)
+    {
+        if (isConnecting) return;
+
+        isConnecting = true;
         SetButtons(false);
-        SetStatus("Creating room...");
+        SetStatus(pvp ? "Creating PVP room..." : "Creating room...");
+
+        // ความจุถูกล็อกตอน CreateSessionAsync เปลี่ยนทีหลังไม่ได้
+        // จึงต้องรู้โหมดตั้งแต่ตอนนี้ — เป็นเหตุผลที่แยกปุ่มสร้างห้อง PVP ออกมา
+        int capacity = pvp ? Mathf.Max(2, maxPlayersPvp) : Mathf.Max(1, maxPlayers);
+        pendingRoomCapacity = capacity;
+        pendingRoomIsPvp = pvp;
 
         try
         {
-            var options = new SessionOptions { MaxPlayers = maxPlayers }.WithRelayNetwork();
+            // Never build a session on top of leftover Netcode state — see ResetNetworkStateAsync.
+            await ResetNetworkStateAsync();
+
+            var options = new SessionOptions { MaxPlayers = capacity }.WithRelayNetwork();
             session = await MultiplayerService.Instance.CreateSessionAsync(options);
 
             string code = session.Code;
             currentRoomCode = code;
 
-            // Sessions API (WithRelayNetwork) may auto-start the NetworkManager when the
-            // NGO integration is present — only start manually if it hasn't already.
+            // Sessions API (WithRelayNetwork) starts the NetworkManager itself when the NGO
+            // integration is present. If it did not, the transport has no relay data and a
+            // manual StartHost() would bind to nothing — treat it as a failed attempt instead.
             if (!NetworkManager.Singleton.IsListening)
-                NetworkManager.Singleton.StartHost();
+                throw new Exception("Session created but Netcode did not start.");
+
+            ApplyPendingRoomInfo(); // เผื่อ spawn เสร็จไปแล้วระหว่างรอ await
 
             ShowWaitingPanel(code);
-            SetStatus("Room created successfully! Code: " + code);
+            SetStatus($"{(pvp ? "PVP room" : "Room")} created successfully! Code: " + code);
         }
         catch (Exception e)
         {
+            await ResetNetworkStateAsync();
+            currentRoomCode = string.Empty;
             SetStatus("Failed to create room: " + e.Message);
             SetButtons(true);
             Debug.LogError(e);
+        }
+        finally
+        {
+            isConnecting = false;
         }
     }
 
@@ -320,26 +441,41 @@ public class OnlineNetworkUI : NetworkBehaviour
             return;
         }
 
+        if (isConnecting) return;
+
+        isConnecting = true;
         SetButtons(false);
         SetStatus("Joining...");
 
         try
         {
+            // A previous attempt that failed at "start NetworkManager" leaves NGO listening on a
+            // relay allocation the Sessions SDK has already torn down. Joining again on top of it
+            // makes the SDK log "NetworkManager is already connected", skip its own start, and
+            // report success for a client that is not actually connected to the Host.
+            await ResetNetworkStateAsync();
+
             session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
             currentRoomCode = code;
 
-            // Same auto-start caveat as Host() — avoid a redundant StartClient.
+            // Same caveat as Host() — the SDK owns the start, so no manual StartClient().
             if (!NetworkManager.Singleton.IsListening)
-                NetworkManager.Singleton.StartClient();
+                throw new Exception("Session joined but Netcode did not start.");
 
             ShowWaitingPanel(code);
             SetStatus("Joined successfully! Waiting for Host to start...");
         }
         catch (Exception e)
         {
+            await ResetNetworkStateAsync();
+            currentRoomCode = string.Empty;
             SetStatus("Failed to join: " + e.Message);
             SetButtons(true);
             Debug.LogError(e);
+        }
+        finally
+        {
+            isConnecting = false;
         }
     }
 
@@ -412,6 +548,14 @@ public class OnlineNetworkUI : NetworkBehaviour
                 ? NetworkManager.Singleton.ConnectedClientsIds.Count
                 : 0;
             SetStatus($"Cannot start yet. Need at least {minimumPlayersToStart} player(s). Current: {connectedPlayers}.");
+            return;
+        }
+
+        // ห้อง PVP เลือกโหมดไปตั้งแต่ตอนสร้างห้องแล้ว → ไม่ต้องถามแมพซ้ำ เข้าเลย
+        if (roomIsPvp.Value)
+        {
+            if (startButton != null) startButton.interactable = false;
+            StartSelectedMap(pvpSceneName, "PVP");
             return;
         }
 
@@ -492,6 +636,9 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (settingsButton != null) settingsButton.interactable = on;
         if (backButton != null) backButton.interactable = on;
         if (hostButton != null) hostButton.interactable = on;
+        if (room4Button != null) room4Button.interactable = on;
+        if (room8Button != null) room8Button.interactable = on;
+        if (cancelRoomSizeButton != null) cancelRoomSizeButton.interactable = on;
         if (joinButton != null) joinButton.interactable = on;
         if (joinConfirmButton != null) joinConfirmButton.interactable = on;
         if (codeInputField != null) codeInputField.interactable = on;
@@ -511,6 +658,9 @@ public class OnlineNetworkUI : NetworkBehaviour
         ApplyButtonHoverColor(settingsButton);
         ApplyButtonHoverColor(backButton);
         ApplyButtonHoverColor(hostButton);
+        ApplyButtonHoverColor(room4Button);
+        ApplyButtonHoverColor(room8Button);
+        ApplyButtonHoverColor(cancelRoomSizeButton);
         ApplyButtonHoverColor(joinButton);
         ApplyButtonHoverColor(joinConfirmButton);
         ApplyButtonHoverColor(startButton);
@@ -688,6 +838,8 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (hostButton != null)
             hostButton.gameObject.SetActive(false);
 
+        SetVisibleInstant(roomSizePanel, false);
+
         if (joinButton != null)
             joinButton.gameObject.SetActive(false);
 
@@ -848,7 +1000,25 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (hostButton != null)
         {
             hostButton.onClick.RemoveAllListeners();
-            hostButton.onClick.AddListener(() => _ = Host());
+            hostButton.onClick.AddListener(OnHostClicked);
+        }
+
+        if (room4Button != null)
+        {
+            room4Button.onClick.RemoveAllListeners();
+            room4Button.onClick.AddListener(() => OnRoomSizeChosen(false));
+        }
+
+        if (room8Button != null)
+        {
+            room8Button.onClick.RemoveAllListeners();
+            room8Button.onClick.AddListener(() => OnRoomSizeChosen(true));
+        }
+
+        if (cancelRoomSizeButton != null)
+        {
+            cancelRoomSizeButton.onClick.RemoveAllListeners();
+            cancelRoomSizeButton.onClick.AddListener(OnCancelRoomSizeClicked);
         }
 
         if (joinButton != null)
@@ -1011,6 +1181,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         // Fallback for old one-screen layout: keep host/join buttons synced with online step
         if (hostButton != null) hostButton.gameObject.SetActive(showOnline);
+        if (!showOnline) SetVisibleInstant(roomSizePanel, false);
         if (joinButton != null) joinButton.gameObject.SetActive(showOnline);
 
         if (backButton != null) backButton.gameObject.SetActive(!showMain);
@@ -1099,6 +1270,31 @@ public class OnlineNetworkUI : NetworkBehaviour
     }
 
     /// <summary>
+    /// เคลียร์สถานะเน็ตเวิร์กให้สะอาดก่อนเริ่ม Host/Join ครั้งใหม่ และหลังจาก attempt ที่ล้มเหลว
+    /// ถ้าไม่ทำ NetworkManager ที่ค้างอยู่จาก attempt เก่าจะทำให้ Sessions SDK ข้ามการ start
+    /// (ขึ้น log "NetworkManager is already connected") แล้วได้ Client ที่ไม่ได้ต่อกับ Host จริง
+    /// </summary>
+    private async Task ResetNetworkStateAsync()
+    {
+        await LeaveSessionAsync();
+
+        NetworkManager nm = NetworkManager.Singleton;
+        if (nm == null || (!nm.IsListening && !nm.ShutdownInProgress)) return;
+
+        // Shutdown ที่นี่เป็นการล้างของเราเอง — อย่าให้ OnNetworkStopped พา UI กลับเมนูซ้ำ
+        intentionalLeave = true;
+
+        if (!nm.ShutdownInProgress) nm.Shutdown();
+
+        // NGO ปิดจริงตอนท้ายเฟรม — รอจนปิดเสร็จก่อน ไม่งั้น attempt ถัดไปเจอสถานะค้างอีก
+        for (int i = 0; i < 300 && (nm.IsListening || nm.ShutdownInProgress); i++)
+            await Task.Yield();
+
+        if (nm.IsListening)
+            Debug.LogWarning("[Network] NetworkManager did not shut down in time before the next attempt.");
+    }
+
+    /// <summary>
     /// รีเซ็ต UI กลับหน้าเมนูหลัก (ใช้ทั้งตอนกด Leave เองและตอนโดน Host ปิดห้อง)
     /// </summary>
     private void ReturnToMainMenu(string statusMessage)
@@ -1122,7 +1318,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (!IsServer || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
             return false;
 
-        int requiredPlayers = Mathf.Clamp(minimumPlayersToStart, 1, Mathf.Max(1, maxPlayers));
+        int requiredPlayers = Mathf.Clamp(minimumPlayersToStart, 1, Mathf.Max(1, RoomCapacity));
         return NetworkManager.Singleton.ConnectedClientsIds.Count >= requiredPlayers;
     }
 
