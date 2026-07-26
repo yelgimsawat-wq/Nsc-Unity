@@ -102,13 +102,21 @@ public class PhysicsDamageSender : MonoBehaviour
         Vector3 hitDirection = collision.contacts[0].normal * -1f; // กลับทิศเพราะ normal ชี้ออกจากพื้นผิว
         Vector3 impactPoint = collision.contacts[0].point;
 
-        // ค้นหา EnemyHealth ในสิ่งที่ชน
+        bool isServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
+
+        // ค้นหาเป้าที่รับดาเมจได้ในสิ่งที่ชน — บอส (PVE) หรือชิ้นส่วนหุ่นอีกฝ่าย (PVP)
         EnemyHealth enemyHealth = collision.gameObject.GetComponentInParent<EnemyHealth>();
+        RobotHealth robotHealth = enemyHealth == null
+            ? collision.gameObject.GetComponentInParent<RobotHealth>()
+            : null;
+
+        // โดนเป้าที่คิดดาเมจได้จริงไหม — ใช้ตัดสินชะตากรรมหมัดด้านล่าง
+        bool hitDamageTarget = false;
 
         if (enemyHealth != null)
         {
             // ✅ ส่งดาเมจให้ Enemy (Server จะประมวลผล)
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+            if (isServer)
             {
                 // FIX: pass impactPoint (the real collision contact point) so the
                 // hit VFX/SFX in EnemyHealth spawn where the punch actually
@@ -117,14 +125,36 @@ public class PhysicsDamageSender : MonoBehaviour
                 enemyHealth.ServerTakeHit(finalDamage, hitDirection, finalKnockback, impactPoint);
             }
 
+            hitDamageTarget = true;
             Debug.Log($"🥊 HIT! PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");
 
             // เล่น VFX และ SFX (Client-side)
             SpawnImpactEffects(impactPoint, hitDirection);
         }
+        else if (robotHealth != null)
+        {
+            // ✅ [PVP] ชกชิ้นส่วนหุ่นอีกฝ่าย
+            // การชนชิ้นส่วนหุ่นตัวเองถูกกันด้วย root check ที่หัวฟังก์ชันแล้ว
+            // ตัวนี้กันเพิ่มกรณีหุ่นคนละตัวแต่อยู่ทีมเดียวกัน (เผื่อขยายเป็น 2v2 ทีมละ 2 หุ่น)
+            if (!RobotTeam.AreEnemies(transform, collision.transform))
+            {
+                Debug.Log($"🤝 หมัดโดนหุ่นทีมเดียวกัน — ไม่คิดดาเมจ");
+            }
+            else
+            {
+                // RobotHealth ปฏิเสธเองถ้าชิ้นนั้นหลุดไปแล้ว (เช็คใน ApplyDamage)
+                if (isServer)
+                    robotHealth.ServerTakeDamage(finalDamage, AttackType.LightPunch, hitDirection);
+
+                hitDamageTarget = true;
+                Debug.Log($"🥊 PVP HIT! {robotHealth.gameObject.name} | PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1}");
+
+                SpawnImpactEffects(impactPoint, hitDirection);
+            }
+        }
         else
         {
-            // ชนกับสิ่งที่ไม่ใช่ Enemy (เช่น กำแพง, พื้น)
+            // ชนกับสิ่งที่ไม่มีเลือด (เช่น กำแพง, พื้น)
             Debug.Log($"💥 Collision at {impactSpeed:F1} m/s (no damage target)");
         }
 
@@ -132,9 +162,9 @@ public class PhysicsDamageSender : MonoBehaviour
         // - โดนศัตรู → ล็อกดาเมจ + จบหมัด (หนึ่งหมัดหนึ่งดาเมจ)
         // - โดนกำแพง/พื้นแรงๆ → จบหมัดแต่ "ไม่ล็อกดาเมจ" — ถ้าปัดไปโดนศัตรูในช่วง grace ยังนับ
         // - ครูดเบาๆ → ไม่ทำอะไร หมัดพุ่งต่อ (เดิมครูดนิดเดียวหมัดก็ดับ)
-        if (combat != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        if (combat != null && isServer)
         {
-            if (enemyHealth != null)
+            if (hitDamageTarget)
                 combat.NotifyPunchImpact();
             else if (impactSpeed >= minVelocityThreshold)
                 combat.NotifyPunchBlocked();
