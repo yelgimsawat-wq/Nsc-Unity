@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e80c69504d6a6a488d2c9626c27b229, type: 3}
+  m_Name: Pistol
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemDefinition
+  displayName: Gun
+  description: 
+  icon: {fileID: 21300004, guid: 7ab74e659e1f0a34d9cfec21c478fc12, type: 3}
+  accentColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+  heldPrefab: {fileID: 2623583702254990283, guid: 871011ac0019e8a4688b26a68e20d4f3, type: 3}
+  worldPrefab: {fileID: 405431038859656498, guid: 363ce87176ab00b4f86f8a760af7b39b, type: 3}
+  holdPositionOffset: {x: 0, y: 0, z: 0}
+  holdRotationOffset: {x: 0, y: 0, z: 0}
+  holdScale: {x: 1, y: 1, z: 1}
