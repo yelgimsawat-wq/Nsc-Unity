@@ -4,11 +4,15 @@ using UnityEngine.UI;
 namespace NscUnity.Items
 {
     /// <summary>
-    /// วงล้อเลือกไอเทมสไตล์เกนชิน — กด Tab ค้าง เวลาจะช้าลงและวงล้อเด้งขึ้นมากลางจอ
+    /// วงล้อเลือกไอเทมสไตล์เกนชิน — กด Tab ค้าง วงล้อเด้งขึ้นมากลางจอ
     /// เลื่อนเมาส์ไปทางไอเทมที่ต้องการ แล้วปล่อย Tab เพื่อสลับไอเทมนั้นขึ้นมือ
     ///
     /// UI ทั้งหมดถูกสร้างด้วยโค้ดตอนรันไทม์ ไม่ต้องเตรียม Canvas หรือ Prefab ใดๆ
     /// แค่แปะสคริปต์นี้ไว้บน Empty GameObject ในฉาก แล้วลาก PlayerInventory มาใส่
+    ///
+    /// ⚠️ เคยมีระบบสโลว์โมชัน (ลด Time.timeScale + Time.fixedDeltaTime ตอนวงล้อเปิด) แต่เอาออกแล้ว
+    /// เพราะทำให้เกมค้าง — ฉากนี้มีฟิสิกส์เยอะ (ข้อต่อ/ragdoll หุ่นยนต์) การลด fixedDeltaTime ลงพร้อมกับ
+    /// timeScale ทำให้ Unity ต้องเรียก FixedUpdate ถี่ขึ้นมากเพื่อไล่ตามเวลาจริง จนเข้า spiral of death ค้างไปเลย
     /// </summary>
     public class ItemWheelUI : MonoBehaviour
     {
@@ -22,8 +26,7 @@ namespace NscUnity.Items
         [Tooltip("ให้ล้อเมาส์สลับไอเทมได้ด้วยตอนไม่ได้เปิดวงล้อ")]
         [SerializeField] private bool scrollWheelSwitching = true;
 
-        [Header("สโลว์โมชัน")]
-        [SerializeField, Range(0.02f, 1f)] private float slowMotionScale = 0.15f;
+        [Header("แอนิเมชัน")]
         [SerializeField, Range(0.02f, 0.5f)] private float openDuration = 0.12f;
 
         [Header("รูปทรงวงล้อ (หน่วยอิงจอ 1920x1080)")]
@@ -74,8 +77,6 @@ namespace NscUnity.Items
         private float openAmount;
         private int hoveredIndex = -1;
 
-        private float defaultFixedDelta;
-        private float previousTimeScale = 1f;
         private CursorLockMode previousCursorLock;
         private bool previousCursorVisible;
 
@@ -83,7 +84,6 @@ namespace NscUnity.Items
 
         private void Awake()
         {
-            defaultFixedDelta = Time.fixedDeltaTime;
             TryInitialize();
         }
 
@@ -281,10 +281,6 @@ namespace NscUnity.Items
 
             hoveredIndex = inventory.EquippedIndex;
 
-            previousTimeScale = Time.timeScale;
-            Time.timeScale = slowMotionScale;
-            Time.fixedDeltaTime = defaultFixedDelta * slowMotionScale;
-
             previousCursorLock = Cursor.lockState;
             previousCursorVisible = Cursor.visible;
             Cursor.lockState = CursorLockMode.None;
@@ -311,8 +307,6 @@ namespace NscUnity.Items
 
         private void RestoreWorldState()
         {
-            Time.timeScale = previousTimeScale;
-            Time.fixedDeltaTime = defaultFixedDelta;
             Cursor.lockState = previousCursorLock;
             Cursor.visible = previousCursorVisible;
         }
@@ -480,7 +474,7 @@ namespace NscUnity.Items
             hintText.rectTransform.anchoredPosition = new Vector2(0f, 90f);
             hintText.text = holdToOpen
                 ? "เลื่อนเมาส์เลือกไอเทม  •  ปล่อย Tab เพื่อยืนยัน  •  Esc ยกเลิก"
-                : "เลื่อนเมาส์เลือกไอเทม  •  กด Tab อีกครั้งเพื่อยืนยัน  •  Esc ยกเลิก";
+                : "เลื่อนเมาส์เลือกไอเทม  •  กด Tab อีกครั้งเพื่อยืนยัน  •  Esc ยกเลิก"; // ไม่มีสโลว์โมชันแล้ว
         }
 
         private SlotView BuildSlot(int index, float step)

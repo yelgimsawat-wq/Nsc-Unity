@@ -48,6 +48,10 @@ public class PlayerCam : NetworkBehaviour
             playeral.enabled = true;
             playercam.gameObject.tag = "MainCamera";
 
+            // กันเคส AudioListener ค้างจากซีนก่อนหน้า (เช่น Main Camera ของ Menu) หรือจากผู้เล่นคนอื่น
+            // ให้เหลือ AudioListener ที่ enabled อยู่ในซีนแค่ตัวเดียวเสมอ
+            EnsureSingleAudioListener();
+
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
@@ -61,6 +65,15 @@ public class PlayerCam : NetworkBehaviour
         {
             playercam.enabled = false;
             playeral.enabled = false;
+        }
+    }
+
+    private void EnsureSingleAudioListener()
+    {
+        AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+        foreach (AudioListener listener in listeners)
+        {
+            if (listener != playeral) listener.enabled = false;
         }
     }
 

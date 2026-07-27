@@ -1,3 +1,4 @@
+using NscGame.Pvp;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -19,6 +20,15 @@ namespace NscUnity.Items
         public float hitRadius;
         public float visualSize;
 
+        /// <summary>ทีมของคนยิง (PVP) — ใช้กันยิงเพื่อนร่วมทีม None = ไม่ได้อยู่ในแมตช์ PVP</summary>
+        public PvpTeam shooterTeam;
+
+        /// <summary>
+        /// NetworkObjectId ของหุ่นที่ยิง — ใช้แยก "ยิงโดนตัวเอง" (อนุญาต) ออกจาก "ยิงโดนเพื่อนร่วมทีมคนอื่น" (กันไว้)
+        /// เทียบแบบเป๊ะกับ NetworkObjectId ของหุ่นเป้าหมาย ไม่ใช่แค่เทียบทีมเฉยๆ
+        /// </summary>
+        public ulong shooterRobotId;
+
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref origin);
@@ -28,6 +38,8 @@ namespace NscUnity.Items
             serializer.SerializeValue(ref knockback);
             serializer.SerializeValue(ref maxDistance);
             serializer.SerializeValue(ref hitRadius);
+            serializer.SerializeValue(ref shooterTeam);
+            serializer.SerializeValue(ref shooterRobotId);
             serializer.SerializeValue(ref visualSize);
         }
     }

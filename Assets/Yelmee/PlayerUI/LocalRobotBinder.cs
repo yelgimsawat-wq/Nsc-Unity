@@ -25,6 +25,29 @@ public class LocalRobotBinder : MonoBehaviour
 
     public bool IsBound { get; private set; }
     public Transform RobotRoot { get; private set; }
+
+    /// <summary>
+    /// หุ่นที่ "ต้อง" bind — ตั้งจากภายนอกเพื่อข้ามการเดาจาก ownership
+    ///
+    /// ทำไมต้องมี: โหมดที่มีหุ่นสองตัวในฉาก (PVP) เดาจาก ownership ไม่ได้
+    /// เพราะ Host มี IsOwner = true กับชิ้นส่วนที่ยังไม่มีใครจองของหุ่น "ทั้งสองตัว"
+    /// binder เลยคว้าตัวแรกที่เจอ ซึ่งอาจเป็นหุ่นฝั่งตรงข้าม →
+    /// HUD โชว์เลือด/สถานะแขนขาของศัตรูแทนของตัวเอง
+    ///
+    /// ปล่อย null = พฤติกรรมเดิมทุกอย่าง (โหมด Boss/Parkour ไม่ได้รับผลกระทบ)
+    /// </summary>
+    private Transform preferredRobotRoot;
+
+    /// <summary>บังคับให้ bind หุ่นตัวนี้ แล้ว rebind ทันที — ส่ง null เพื่อกลับไปเดาเองแบบเดิม</summary>
+    public void SetPreferredRobotRoot(Transform root)
+    {
+        if (preferredRobotRoot == root) return;
+
+        preferredRobotRoot = root;
+        IsBound = false;            // บังคับให้ TryBind ทำงานรอบใหม่
+        nextBindAttemptTime = 0f;
+    }
+
     public TorsoMovement Torso { get; private set; }
 
     public JointPullAndReconnect LeftArmJoint { get; private set; }
@@ -133,6 +156,23 @@ public class LocalRobotBinder : MonoBehaviour
         JointPullAndReconnect[] allJoints = FindObjectsByType<JointPullAndReconnect>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
 
+        // 0) ถูกสั่งมาแล้วว่าหุ่นไหนของเรา (PVP) → ใช้ตัวนั้นอย่างเดียว ห้าม fallback
+        //    ถ้า fallback ไปเดาต่อ จะกลับไปคว้าหุ่นฝั่งตรงข้ามเหมือนเดิม
+        if (preferredRobotRoot != null)
+        {
+            NetworkBehaviour hinted = FirstInsideRoot(allCombats, preferredRobotRoot)
+                                   ?? FirstInsideRoot(allJoints, preferredRobotRoot);
+
+            if (hinted == null)
+            {
+                LogDiagnostic($"preferred robot '{preferredRobotRoot.name}' ยังไม่มีชิ้นส่วนพร้อม — รอรอบหน้า");
+                return;
+            }
+
+            BindFromAnchor(hinted, allJoints);
+            return;
+        }
+
         // 1) anchor = อะไรก็ได้ของหุ่นที่ "เรา" เป็นเจ้าของสักชิ้น
         NetworkBehaviour localAnchor = FindLocalOwner(allCombats);
         if (localAnchor == null)
@@ -163,7 +203,14 @@ public class LocalRobotBinder : MonoBehaviour
             return;
         }
 
-        Transform robotRoot = ResolveRobotRoot(localAnchor);
+        BindFromAnchor(localAnchor, allJoints);
+    }
+
+    /// <summary>ผูก reference ทั้งชุดจากชิ้นส่วนตั้งต้นที่รู้แล้วว่าเป็นหุ่นตัวไหน</summary>
+    private void BindFromAnchor(NetworkBehaviour anchorBehaviour, JointPullAndReconnect[] allJoints)
+    {
+        anchor = anchorBehaviour; // field — NeedsRebind() ใช้ตัวนี้เช็คว่ายัง bind อยู่ไหม
+        Transform robotRoot = ResolveRobotRoot(anchor);
         TorsoMovement torso = robotRoot.GetComponentInChildren<TorsoMovement>(true);
 
         JointPullAndReconnect leftArm = null;
@@ -235,12 +282,11 @@ public class LocalRobotBinder : MonoBehaviour
 
         OwnedLimbHealth = OwnedHealths.Count > 0 ? OwnedHealths[0] : null;
 
-        anchor = localAnchor;
         IsBound = true;
 
         Debug.Log(
             $"[PlayerHUD] bound to '{robotRoot.name}' | owned limb: " +
-            $"{(OwnedJoint != null ? OwnedJoint.name : "none")} | anchor: {localAnchor.name}",
+            $"{(OwnedJoint != null ? OwnedJoint.name : "none")} | anchor: {anchor.name}",
             this);
 
         OnBound?.Invoke();
@@ -257,6 +303,19 @@ public class LocalRobotBinder : MonoBehaviour
             return joint.targetBody.transform.root;
 
         return behaviour.transform.root;
+    }
+
+    /// <summary>ชิ้นส่วนตัวแรกที่อยู่ใต้หุ่นตัวที่ระบุ — ใช้ตอนถูกสั่งมาว่าให้ bind หุ่นไหน</summary>
+    private static NetworkBehaviour FirstInsideRoot<T>(T[] behaviours, Transform root)
+        where T : NetworkBehaviour
+    {
+        foreach (T behaviour in behaviours)
+        {
+            if (behaviour != null && behaviour.transform.IsChildOf(root))
+                return behaviour;
+        }
+
+        return null;
     }
 
     private static NetworkBehaviour FindLocalOwner<T>(T[] behaviours)

@@ -274,6 +274,10 @@ namespace NscGame.Pvp
             if (hud.GetComponent<CanvasGroup>() == null) hud.AddComponent<CanvasGroup>();
             if (hud.GetComponent<PvpPlayerHudGate>() == null)
                 Undo.AddComponent<PvpPlayerHudGate>(hud);
+
+            // บอก LocalRobotBinder ว่าหุ่นไหนของเรา — ไม่มีตัวนี้ HUD จะไปเกาะหุ่นศัตรูได้
+            if (hud.GetComponent<PvpHudRobotBinder>() == null)
+                Undo.AddComponent<PvpHudRobotBinder>(hud);
         }
 
         #endregion

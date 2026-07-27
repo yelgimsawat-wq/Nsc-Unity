@@ -1,3 +1,4 @@
+using NscGame.Pvp;
 using UnityEngine;
 
 namespace NscUnity.Items
@@ -49,10 +50,11 @@ namespace NscUnity.Items
         [SerializeField] private float sizeMultiplier = 1f;
 
         [Header("พลังตามชาร์จ")]
-        [SerializeField] private float minDamage = 8f;
-        [SerializeField] private float maxDamage = 40f;
-        [SerializeField] private float minKnockback = 2f;
-        [SerializeField] private float maxKnockback = 10f;
+        [Tooltip("ชิ้นส่วนหุ่น PVP มีเลือด 500 — ตั้งไว้ให้ชาร์จเต็ม 2 นัดพอดีหักชิ้นส่วนที่เลือดเต็ม (260×2 = 520)")]
+        [SerializeField] private float minDamage = 60f;
+        [SerializeField] private float maxDamage = 260f;
+        [SerializeField] private float minKnockback = 8f;
+        [SerializeField] private float maxKnockback = 25f;
 
         [Header("การเดินทางของกระสุน")]
         [SerializeField] private float speed = 25f;
@@ -140,6 +142,19 @@ namespace NscUnity.Items
             Transform origin = Muzzle;
             float size = ResolveSize(chargePercent);
 
+            // หาว่าเรายิงในนามหุ่นทีมไหน (ถ้าอยู่ในแมตช์ PVP) — ส่งไปกับกระสุนเพื่อกันยิงเพื่อนร่วมทีม (รวมถึงตัวเอง)
+            // ต้องหาจาก Holder (HandItemHolder ที่อยู่บนแขนจริงในฉากตั้งแต่ต้น) ไม่ใช่จาก Muzzle
+            // เพราะ Muzzle เป็นลูกของปืนที่เพิ่ง Instantiate ขึ้นมาใหม่ ลำดับชั้นอาจไต่ไปไม่ถึง root ที่ลงทะเบียนไว้
+            // (ทำให้หาทีมไม่เจอ กลายเป็น None แล้วเช็คกันยิงตัวเอง/เพื่อนร่วมทีมพลาดไป)
+            PvpRobotTeam shooterRobot = PvpRobotTeam.FindByPart(Holder.transform);
+
+            if (shooterRobot == null && PvpTeamManager.Instance != null && PvpTeamManager.Instance.IsFighting)
+            {
+                Debug.LogWarning($"[ChargeGunHeldItem] หาทีมของ '{Holder.name}' ไม่เจอทั้งที่กำลังสู้กันอยู่ — " +
+                                  "จะยิงโดยไม่มีทีม (shooterTeam = None) เสี่ยงยิงเพื่อนร่วมทีม/ตัวเองเข้าโดยไม่ตั้งใจ " +
+                                  "เช็คว่า Holder อยู่ใต้ robotRoot ที่ PvpRobotTeam ลงทะเบียนไว้จริงไหม", Holder);
+            }
+
             FireData data = new FireData
             {
                 origin = origin.position,
@@ -149,7 +164,9 @@ namespace NscUnity.Items
                 knockback = Mathf.Lerp(minKnockback, maxKnockback, chargePercent),
                 maxDistance = maxDistance,
                 hitRadius = baseHitRadius * (size / Mathf.Max(0.01f, minSize * sizeMultiplier)),
-                visualSize = size
+                visualSize = size,
+                shooterTeam = shooterRobot != null ? shooterRobot.Team : PvpTeam.None,
+                shooterRobotId = shooterRobot != null ? shooterRobot.NetworkObjectId : 0
             };
 
             Holder.RequestFire(data);
@@ -192,7 +209,7 @@ namespace NscUnity.Items
             projectileRoot.transform.SetPositionAndRotation(data.origin, Quaternion.LookRotation(data.direction));
 
             Projectile projectile = projectileRoot.AddComponent<Projectile>();
-            projectile.Init(data.direction, data.speed, data.damage, data.knockback, data.maxDistance, data.hitRadius, hitLayers, impactEffectPrefab);
+            projectile.Init(data.direction, data.speed, data.damage, data.knockback, data.maxDistance, data.hitRadius, hitLayers, impactEffectPrefab, data.shooterTeam, data.shooterRobotId);
 
             if (shotEffectPrefab != null)
             {
