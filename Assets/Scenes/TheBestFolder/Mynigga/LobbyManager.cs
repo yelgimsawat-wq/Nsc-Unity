@@ -1277,6 +1277,29 @@ public class LobbyManager : NetworkBehaviour
         return -1;
     }
 
+    /// <summary>
+    /// Returns the exact runtime limb selected by this client. This is safer
+    /// than rebuilding the mapping elsewhere because the lobby presents the
+    /// robot from the front and intentionally mirrors left/right labels.
+    /// </summary>
+    public GameObject GetSelectedLimbForClient(ulong clientId)
+    {
+        return GetLimbByIndex(GetSelectedLimbIndex(clientId));
+    }
+
+    /// <summary>
+    /// Returns true only when this exact limb is the one selected by the client
+    /// in the lobby. Network ownership alone is not enough because the Host owns
+    /// every unassigned limb by default.
+    /// </summary>
+    public bool IsLimbSelectedByClient(GameObject limb, ulong clientId)
+    {
+        if (limb == null)
+            return false;
+
+        return GetSelectedLimbForClient(clientId) == limb;
+    }
+
     [Header("Robot Auto-Management")]
     [Tooltip("ปิดหุ่นตัวเกินในฉากอัตโนมัติตอนเริ่มเกม เหลือเฉพาะตัวที่ระบบเลือกใช้\n" +
              "จะได้ก็อป/ย้าย/ทดลองหุ่นหลายตัวในฉากได้โดยไม่ต้องนั่งปิดเอง")]

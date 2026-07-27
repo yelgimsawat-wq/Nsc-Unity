@@ -16,6 +16,26 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3554083452
       objectReference: {fileID: 0}
+    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kickReach
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: recoveryDamping
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kickAcceleration
+      value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maximumKickSpeed
+      value: 70
+      objectReference: {fileID: 0}
+    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: minimumKickSpeed
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handMoveSpeed
       value: 15
@@ -156,6 +176,26 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 1054211749
       objectReference: {fileID: 0}
+    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kickReach
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: recoveryDamping
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kickAcceleration
+      value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maximumKickSpeed
+      value: 70
+      objectReference: {fileID: 0}
+    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: minimumKickSpeed
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handMoveSpeed
       value: 15
@@ -251,7 +291,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotHealth
   ShowTopMostFoldoutHeaderGroup: 1
   MaxHp: 500
+  hpLossPerBreak: 125
+  minMaxHp: 50
   currentHp:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 500
+  currentMaxHp:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
@@ -300,7 +347,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotHealth
   ShowTopMostFoldoutHeaderGroup: 1
   MaxHp: 500
+  hpLossPerBreak: 125
+  minMaxHp: 50
   currentHp:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 500
+  currentMaxHp:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
@@ -354,7 +408,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotHealth
   ShowTopMostFoldoutHeaderGroup: 1
   MaxHp: 500
+  hpLossPerBreak: 125
+  minMaxHp: 50
   currentHp:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 500
+  currentMaxHp:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
@@ -403,7 +464,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotHealth
   ShowTopMostFoldoutHeaderGroup: 1
   MaxHp: 500
+  hpLossPerBreak: 125
+  minMaxHp: 50
   currentHp:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 500
+  currentMaxHp:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0

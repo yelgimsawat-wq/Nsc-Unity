@@ -34,9 +34,12 @@ public class LocalRobotBinder : MonoBehaviour
 
     public PlayerHandCombat LeftHand { get; private set; }
     public PlayerHandCombat RightHand { get; private set; }
+    public PlayerLegCombat LeftLeg { get; private set; }
+    public PlayerLegCombat RightLeg { get; private set; }
 
     /// <summary>มือที่เราคุม — null ถ้าผู้เล่นคนนี้คุมขา</summary>
     public PlayerHandCombat OwnedHand { get; private set; }
+    public PlayerLegCombat OwnedLeg { get; private set; }
 
     /// <summary>ชิ้นส่วนชิ้นแรกที่เราเป็นเจ้าของ (แขนซ้าย → แขนขวา → ขาซ้าย → ขาขวา)</summary>
     public JointPullAndReconnect OwnedJoint { get; private set; }
@@ -77,39 +80,31 @@ public class LocalRobotBinder : MonoBehaviour
 
         // ผู้เล่นเปลี่ยนชิ้นที่เลือกในลอบบี้ (หรือเพิ่งเลือกหลัง HUD bind ไปแล้ว)
         // → rebind เพื่ออัปเดตชิ้นที่คุม ไม่งั้นแถบพลังหมัด/prompt จะอิงชิ้นเก่า
-        int selectedIndex = GetLobbySelectedIndex();
-        if (selectedIndex >= 0 && JointForLimbIndex(selectedIndex) != OwnedJoint)
+        JointPullAndReconnect selectedJoint = GetLobbySelectedJoint();
+        if (selectedJoint != null && selectedJoint != OwnedJoint)
             return true;
 
         // LobbyManager โอน ownership หลัง spawn ได้ — anchor ที่ไม่ใช่ของเราแล้วต้องหาใหม่
         return anchor.IsSpawned && !anchor.IsOwner;
     }
 
-    /// <summary>ชิ้นที่ client นี้เลือกใน lobby (0-3) หรือ -1 ถ้าไม่มีข้อมูล</summary>
-    private int GetLobbySelectedIndex()
+    /// <summary>Joint ของชิ้นที่ client นี้เลือกจริงใน lobby หรือ null ถ้าไม่มีข้อมูล</summary>
+    private JointPullAndReconnect GetLobbySelectedJoint()
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
-            return -1;
+            return null;
 
         if (lobby == null)
             lobby = FindFirstObjectByType<LobbyManager>(FindObjectsInactive.Include);
 
         if (lobby == null)
-            return -1;
+            return null;
 
-        return lobby.GetSelectedLimbIndex(NetworkManager.Singleton.LocalClientId);
-    }
-
-    private JointPullAndReconnect JointForLimbIndex(int index)
-    {
-        return index switch
-        {
-            0 => LeftArmJoint,
-            1 => RightArmJoint,
-            2 => LeftLegJoint,
-            3 => RightLegJoint,
-            _ => null
-        };
+        GameObject selectedLimb = lobby.GetSelectedLimbForClient(
+            NetworkManager.Singleton.LocalClientId);
+        return selectedLimb != null
+            ? selectedLimb.GetComponent<JointPullAndReconnect>()
+            : null;
     }
 
     /// <summary>ชื่อย่อของชิ้นส่วนไว้โชว์บน HUD (L-ARM / R-ARM / L-LEG / R-LEG)</summary>
@@ -208,14 +203,17 @@ public class LocalRobotBinder : MonoBehaviour
         RightLegJoint = rightLeg;
         LeftHand = leftArm.GetComponent<PlayerHandCombat>();
         RightHand = rightArm.GetComponent<PlayerHandCombat>();
+        LeftLeg = leftLeg.GetComponent<PlayerLegCombat>();
+        RightLeg = rightLeg.GetComponent<PlayerLegCombat>();
 
         // ชิ้นที่ "เราคุมจริง" ยึดตามที่เลือกใน lobby ก่อน — Host เป็นเจ้าของชิ้นที่
         // ไม่มีใครเลือกโดย default ถ้าดูจาก ownership อย่างเดียวจะนับผิดว่าคุมมือ
         // ทั้งที่เลือกขา / ไม่มีข้อมูล lobby (เทสไม่ผ่านลอบบี้) ค่อย fallback เป็น ownership
-        OwnedJoint = JointForLimbIndex(GetLobbySelectedIndex());
+        OwnedJoint = GetLobbySelectedJoint();
         if (OwnedJoint == null)
             OwnedJoint = FirstLocallyOwned(leftArm, rightArm, leftLeg, rightLeg);
         OwnedHand = OwnedJoint != null ? OwnedJoint.GetComponent<PlayerHandCombat>() : null;
+        OwnedLeg = OwnedJoint != null ? OwnedJoint.GetComponent<PlayerLegCombat>() : null;
 
         // รวมเลือดของทุกชิ้นที่เราคุม (เทสคนเดียว = ครบ 4, เล่นจริง = 1 ชิ้น)
         // ชิ้นที่เลือกเล่นต้องอยู่ต้นลิสต์ — วงแหวนเลือกโชว์ตัวแรกเมื่อเลือดเท่ากัน

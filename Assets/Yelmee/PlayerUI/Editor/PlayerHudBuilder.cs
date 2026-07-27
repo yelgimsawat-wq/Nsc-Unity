@@ -61,7 +61,7 @@ public static class PlayerHudBuilder
         debugSo.ApplyModifiedPropertiesWithoutUndo();
 
         BuildHullRing(root.transform, binder);
-        BuildPunchForce(root.transform, binder);
+        BuildKickCharge(root.transform, binder);
         BuildStatusPrompt(root.transform, binder);
         BuildLimbStatusPanel(root.transform, binder);
 
@@ -134,27 +134,27 @@ public static class PlayerHudBuilder
     }
 
     // ================================================================
-    //  สเต็ป 2: หลอดพลังหมัด (แสดงเฉพาะมือที่เราคุม — PunchForceUI เป็นคนซ่อน/โชว์)
+    //  Step 2: Charge Kick meter (shown only to the leg owner)
     // ================================================================
 
     private const int PunchSegmentCount = 8;
 
-    private static void BuildPunchForce(Transform canvasRoot, LocalRobotBinder binder)
+    private static void BuildKickCharge(Transform canvasRoot, LocalRobotBinder binder)
     {
-        RectTransform group = CreateRect(canvasRoot, "PunchForce");
+        RectTransform group = CreateRect(canvasRoot, "KickCharge");
         group.anchorMin = Vector2.zero;
         group.anchorMax = Vector2.zero;
         group.pivot = Vector2.zero;
         group.anchoredPosition = new Vector2(310f, 95f);
         group.sizeDelta = new Vector2(360f, 70f);
 
-        // กลุ่ม visual แยกไว้ให้ PunchForceUI ปิดทั้งก้อนเมื่อผู้เล่นคุมขา
+        // Keep visuals under one object so KickChargeUI can hide them for arm players.
         RectTransform content = CreateRect(group, "Content");
         Stretch(content);
 
         TMP_FontAsset font = FindHudFont();
 
-        TextMeshProUGUI label = CreateText(content, "Label", "PUNCH FORCE", font, 22f, LabelGrey);
+        TextMeshProUGUI label = CreateText(content, "Label", "KICK CHARGE", font, 22f, LabelGrey);
         label.rectTransform.anchorMin = new Vector2(0f, 1f);
         label.rectTransform.anchorMax = new Vector2(0f, 1f);
         label.rectTransform.pivot = new Vector2(0f, 1f);
@@ -181,8 +181,8 @@ public static class PlayerHudBuilder
             segments[i] = segment;
         }
 
-        PunchForceUI punchUI = group.gameObject.AddComponent<PunchForceUI>();
-        SerializedObject so = new SerializedObject(punchUI);
+        KickChargeUI kickChargeUI = group.gameObject.AddComponent<KickChargeUI>();
+        SerializedObject so = new SerializedObject(kickChargeUI);
         so.FindProperty("binder").objectReferenceValue = binder;
         so.FindProperty("content").objectReferenceValue = content.gameObject;
         so.FindProperty("filledColor").colorValue = PunchAmber;

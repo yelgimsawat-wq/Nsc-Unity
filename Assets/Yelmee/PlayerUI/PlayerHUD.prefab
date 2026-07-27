@@ -2822,7 +2822,7 @@ GameObject:
   - component: {fileID: 3720080790490606355}
   - component: {fileID: 5477696537872837001}
   m_Layer: 0
-  m_Name: PunchForce
+  m_Name: KickCharge
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2859,7 +2859,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1f7e6284b716a654490642e083f56040, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PunchForceUI
+  m_EditorClassIdentifier: Assembly-CSharp::KickChargeUI
   binder: {fileID: 6832937701221736264}
   content: {fileID: 1716666292730042879}
   segments:
@@ -2938,7 +2938,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: PUNCH FORCE
+  m_text: KICK CHARGE
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 5aa0d1217e5b1134188bbd20ebe0f3f8, type: 2}
   m_sharedMaterial: {fileID: -2539789275778671002, guid: 5aa0d1217e5b1134188bbd20ebe0f3f8, type: 2}

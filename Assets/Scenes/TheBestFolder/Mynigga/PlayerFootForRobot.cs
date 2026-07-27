@@ -36,6 +36,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Tooltip("เพดานความเร็วเท้าตอนหลุด (m/s) — กันเท้าปลิวหายจากสปริงไล่เป้าเมาส์")]
     public float maxDetachedSpeed = 8f;
     public float heightAdjustSpeed = 3f;
+    [Tooltip("How high the foot lifts automatically while Left Mouse is held. Releasing Left Mouse still plants the foot normally.")]
+    [Min(0f)]
+    public float clickLiftHeight = 0.35f;
     public float legDamper = 30f;
     public LayerMask groundLayer;
 
@@ -132,6 +135,10 @@ public class PlayerFootForRobot : NetworkBehaviour
     private bool _ignoreStepUntilRelease = false; // กันคลิกที่ใช้ดึงเมาส์กลับไปเริ่มก้าวเดิน
     private Vector3 _footMarkerWorld;
     private static GUIStyle _footCrosshairStyle;
+    private PlayerLegCombat _legCombat;
+
+    public bool IsKickMotionActive =>
+        _legCombat != null && _legCombat.IsKickMotionActive;
 
     public override void OnNetworkSpawn()
     {
@@ -139,6 +146,7 @@ public class PlayerFootForRobot : NetworkBehaviour
 
         if (IsServer && torso != null) torso.RegisterFoot(this);
         _footNetworkTransform = GetComponent<NetworkTransform>();
+        _legCombat = GetComponent<PlayerLegCombat>();
 
         // 📏 [Auto Thickness] วัดระยะจากจุดกำเนิด Rigidbody ถึง "จุดต่ำสุดของ collider เท้า"
         // = ความหนาที่ต้องยกจริง — รันทุกเครื่อง (ฝั่ง owner ใช้คำนวณเป้าตอนก้าวด้วย)
@@ -273,7 +281,8 @@ public class PlayerFootForRobot : NetworkBehaviour
         if (footRb == null || pivotPoint == null) return; // 🛡️ กัน NRE ถ้า ref หลุด/ถูก despawn
 
         // ⚡ เทียบด้วย sqrMagnitude เลี่ยง sqrt ทุกเฟรม (ผลเท่าเดิม); คำนวณ magnitude จริงเฉพาะตอนเกินลิมิต
-        if (footRb.linearVelocity.sqrMagnitude > maxFootVelocity * maxFootVelocity)
+        if (!IsKickMotionActive &&
+            footRb.linearVelocity.sqrMagnitude > maxFootVelocity * maxFootVelocity)
         {
             float excess = footRb.linearVelocity.magnitude - maxFootVelocity;
             footRb.AddForce(-footRb.linearVelocity.normalized * excess * 10f, ForceMode.Acceleration);
@@ -342,6 +351,15 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
         else
         {
+            // Charge Kick owns the foot Rigidbody during the launch/recovery window.
+            // Do not let the standing lock or step spring cancel the kick velocity.
+            if (IsKickMotionActive)
+            {
+                _isPlantedSet = false;
+                footRb.isKinematic = false;
+                return;
+            }
+
             bool supportingClimb = torso != null && torso.HasSupportingHandGrab;
 
             // Keep a planted foot fixed while the leg can physically reach it. Once
@@ -635,7 +653,12 @@ public class PlayerFootForRobot : NetworkBehaviour
                     if (!holdingClick) _ignoreStepUntilRelease = false;
                     holdingClick = false;
                 }
-                if (holdingClick && !isStepping) { isStepping = true; SetSteppingStateRpc(true); _currentYOffset = 0f; }
+                if (holdingClick && !isStepping)
+                {
+                    isStepping = true;
+                    SetSteppingStateRpc(true);
+                    _currentYOffset = Mathf.Clamp(clickLiftHeight, 0f, maxLegLength);
+                }
                 else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentYOffset = 0f; }
 
                 if (isStepping)
@@ -767,6 +790,26 @@ public class PlayerFootForRobot : NetworkBehaviour
         return camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
     }
 
+    public Vector3 GetKickAimDirection()
+    {
+        // Aim from the hip/pivot instead of from the foot. While the foot is
+        // already hovering over the marker both points share the same X/Z, so
+        // foot-to-marker aiming collapses to zero and loses the chosen direction.
+        Vector3 origin = pivotPoint != null ? pivotPoint.position : transform.position;
+        Vector3 direction = _footMarkerWorld - origin;
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            direction = pivotPoint != null ? pivotPoint.forward : transform.forward;
+            direction.y = 0f;
+        }
+
+        // A push kick travels horizontally. Upward bias made the whole robot hop
+        // and read visually as a jump instead of a thrust.
+        return direction.normalized;
+    }
+
     private void OnGUI()
     {
         if (!IsOwner || !useVirtualCursor || !showCrosshair) return;
@@ -869,6 +912,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         isJumping         = false;
         isPushingRecovery = false;
         _jumpCooldownTimer = 0f;
+        if (_legCombat == null)
+            _legCombat = GetComponent<PlayerLegCombat>();
+        _legCombat?.ResetForRespawn();
 
         if (footRb != null)
         {

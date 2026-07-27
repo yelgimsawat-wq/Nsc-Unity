@@ -2,14 +2,14 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// หลอดพลังหมัดแบบช่องๆ — แสดง "เฉพาะมือที่ผู้เล่นคนนี้คุม" เท่านั้น
-/// หมัดของมืออีกข้าง (เพื่อนคุม) ไม่ขยับแถบเรา และผู้เล่นที่คุมขาจะไม่เห็นแถบนี้เลย
+/// Segmented Charge Kick meter shown only to the player who owns a leg.
+/// The visible maximum shrinks with that leg's HP, matching its real kick power.
 /// </summary>
-public class PunchForceUI : MonoBehaviour
+public class KickChargeUI : MonoBehaviour
 {
     [SerializeField] private LocalRobotBinder binder;
 
-    [Tooltip("กลุ่ม visual ทั้งหมดของแถบ — ถูกปิดเมื่อผู้เล่นคนนี้ไม่ได้คุมมือ")]
+    [Tooltip("All meter visuals. Hidden when this player does not own a leg.")]
     [SerializeField] private GameObject content;
 
     [SerializeField] private Image[] segments;
@@ -18,7 +18,7 @@ public class PunchForceUI : MonoBehaviour
     [SerializeField] private Color filledColor = new Color(1f, 0.72f, 0.2f, 1f);
     [SerializeField] private Color emptyColor = new Color(1f, 1f, 1f, 0.16f);
 
-    private PlayerHandCombat ownedHand;
+    private PlayerLegCombat ownedLeg;
     private int litSegments = -1;
 
     private void Awake()
@@ -46,32 +46,32 @@ public class PunchForceUI : MonoBehaviour
 
     private void HandleBound()
     {
-        ownedHand = binder.OwnedHand;
+        ownedLeg = binder.OwnedLeg;
 
-        // คุมขา (ไม่ได้เป็นเจ้าของมือสักข้าง) → ไม่มีแถบพลังหมัด
+        // Arm players do not need the Charge Kick meter.
         if (content != null)
-            content.SetActive(ownedHand != null);
+            content.SetActive(ownedLeg != null);
 
         litSegments = -1;
-        ApplyForce(0f);
+        ApplyCharge(0f);
     }
 
     private void Update()
     {
-        if (ownedHand == null)
+        if (ownedLeg == null)
             return;
 
-        ApplyForce(ownedHand.IsPunching ? ownedHand.NormalizedPunchForce : 0f);
+        ApplyCharge(ownedLeg.EffectiveNormalizedKickCharge);
     }
 
-    private void ApplyForce(float normalizedForce)
+    private void ApplyCharge(float normalizedCharge)
     {
         if (segments == null || segments.Length == 0)
             return;
 
-        int lit = normalizedForce <= 0f
+        int lit = normalizedCharge <= 0f
             ? 0
-            : Mathf.Clamp(Mathf.CeilToInt(normalizedForce * segments.Length), 0, segments.Length);
+            : Mathf.Clamp(Mathf.CeilToInt(normalizedCharge * segments.Length), 0, segments.Length);
 
         if (lit == litSegments)
             return;

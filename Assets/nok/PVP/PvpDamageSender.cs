@@ -36,6 +36,9 @@ namespace NscGame.Pvp
                  "ใช้ค่าเดียวกับตอนตีบอส — RobotHealth เอาดาเมจไปคูณ 2 เป็นแรงกระเด็น ตั้งสูงแล้วหุ่นจะปลิว")]
         public float speedToDamage = 0.6f;
 
+        [Tooltip("ตัวคูณความเร็วพีคของ Charge Kick (m/s) เป็นดาเมจ")]
+        public float kickSpeedToDamage = 1.2f;
+
         [Tooltip("ตัวคูณแรงปะทะจริง (นิวตัน) → ดาเมจ | ใช้กับชิ้นที่ไม่มีระบบต่อย เช่นเท้า")]
         public float forceToDamage = 0.01f;
 
@@ -59,12 +62,14 @@ namespace NscGame.Pvp
         #endregion
 
         private PlayerHandCombat combat;  // มีเฉพาะบนมือที่ใช้ระบบต่อย
+        private PlayerLegCombat legCombat;
         private PvpRobotTeam ownRobot;    // หุ่นที่ชิ้นส่วนนี้สังกัด (= ทีมของเรา)
         private bool warnedMissingTeam;
 
         private void Awake()
         {
             combat = GetComponent<PlayerHandCombat>();
+            legCombat = GetComponent<PlayerLegCombat>();
         }
 
         private void Start()
@@ -146,9 +151,12 @@ namespace NscGame.Pvp
 
                 if (!TryComputeDamage(collision, impactSpeed, out float damage))
                 {
-                    Reject(impactSpeed, combat != null && !combat.CanDealDamage
+                    string reason = combat != null && !combat.CanDealDamage
                         ? "หมัดนี้จบไปแล้ว หรือเคยเข้าเป้าแล้วรอบนี้ (CanDealDamage = false)"
-                        : $"ความเร็ว {impactSpeed:F1} m/s ต่ำกว่าเกณฑ์ {minVelocityThreshold}");
+                        : legCombat != null && !legCombat.CanDealDamage
+                            ? "เท้าชนโดยไม่ได้อยู่ในจังหวะ Charge Kick"
+                            : $"ความเร็ว {impactSpeed:F1} m/s ต่ำกว่าเกณฑ์ {minVelocityThreshold}";
+                    Reject(impactSpeed, reason);
                 }
                 else
                 {
@@ -187,6 +195,7 @@ namespace NscGame.Pvp
                     {
                         // หนึ่งหมัด = หนึ่งดาเมจ (ล็อกไม่ให้ครูดต่อแล้วนับซ้ำ)
                         if (combat != null) combat.NotifyPunchImpact();
+                        if (legCombat != null) legCombat.NotifyKickImpact();
                         return;
                     }
                 }
@@ -196,6 +205,8 @@ namespace NscGame.Pvp
             // → จบหมัดแต่ไม่ล็อกดาเมจ ถ้าหมัดปัดต่อไปโดนคู่แข่งในช่วง grace ยังนับอยู่
             if (combat != null && impactSpeed >= minVelocityThreshold)
                 combat.NotifyPunchBlocked();
+            else if (legCombat != null && impactSpeed >= minVelocityThreshold)
+                legCombat.NotifyKickBlocked();
         }
 
         private float _nextRejectLogTime;
@@ -234,6 +245,18 @@ namespace NscGame.Pvp
                 if (punchSpeed < minVelocityThreshold) return false;
 
                 damage = Mathf.Min(punchSpeed * speedToDamage, maxDamagePerHit);
+                return true;
+            }
+
+            if (legCombat != null)
+            {
+                // Walking, jumping and recovery collisions cannot deal kick damage.
+                if (!legCombat.CanDealDamage) return false;
+
+                float kickSpeed = legCombat.PeakKickSpeed;
+                if (kickSpeed < minVelocityThreshold) return false;
+
+                damage = Mathf.Min(kickSpeed * kickSpeedToDamage, maxDamagePerHit);
                 return true;
             }
 

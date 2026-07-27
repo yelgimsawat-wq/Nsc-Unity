@@ -17,6 +17,9 @@ public class PhysicsDamageSender : MonoBehaviour
              "เช่น หมัดพีค 55 m/s × 0.6 = ดาเมจ 33 → ค่าคงที่ต่อหมัด ไม่แกว่งตามมุมชน")]
     public float speedToDamage = 0.6f;
 
+    [Tooltip("ตัวคูณความเร็วพีคของ Charge Kick (m/s) เป็นดาเมจ")]
+    public float kickSpeedToDamage = 1.2f;
+
     [Tooltip("เพดานดาเมจต่อการชนหนึ่งครั้ง")]
     public float maxDamagePerHit = 60f;
 
@@ -37,11 +40,13 @@ public class PhysicsDamageSender : MonoBehaviour
     private Rigidbody rb;
     private AudioSource audioSource;
     private PlayerHandCombat combat; // ถ้าติดบนมือที่มีระบบต่อย: คิดดาเมจเฉพาะตอนปล่อยหมัด (Shift)
+    private PlayerLegCombat legCombat;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         combat = GetComponent<PlayerHandCombat>();
+        legCombat = GetComponent<PlayerLegCombat>();
 
         // สร้าง AudioSource ถ้ายังไม่มี
         audioSource = GetComponent<AudioSource>();
@@ -87,6 +92,19 @@ public class PhysicsDamageSender : MonoBehaviour
             finalDamage = Mathf.Min(punchSpeed * speedToDamage, maxDamagePerHit);
             finalKnockback = baseKnockbackForce + (punchSpeed * knockbackVelocityMultiplier);
         }
+        else if (legCombat != null)
+        {
+            // A foot deals damage only during an intentional Charge Kick.
+            if (!legCombat.CanDealDamage)
+                return;
+
+            float kickSpeed = legCombat.PeakKickSpeed;
+            if (kickSpeed < minVelocityThreshold)
+                return;
+
+            finalDamage = Mathf.Min(kickSpeed * kickSpeedToDamage, maxDamagePerHit);
+            finalKnockback = baseKnockbackForce + (kickSpeed * knockbackVelocityMultiplier);
+        }
         else
         {
             // [ชิ้นส่วนทั่วไป] ใช้แรงปะทะจริงเหมือนเดิม: F = m·Δv/Δt = impulse/Δt
@@ -126,7 +144,10 @@ public class PhysicsDamageSender : MonoBehaviour
             }
 
             hitDamageTarget = true;
-            Debug.Log($"🥊 HIT! PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");
+            float attackSpeed = combat != null
+                ? combat.PeakPunchSpeed
+                : legCombat != null ? legCombat.PeakKickSpeed : impactSpeed;
+            Debug.Log($"🥊 HIT! PeakSpeed: {attackSpeed:F1} m/s | Damage: {finalDamage:F1} | Knockback: {finalKnockback:F1}");
 
             // เล่น VFX และ SFX (Client-side)
             SpawnImpactEffects(impactPoint, hitDirection);
@@ -144,10 +165,16 @@ public class PhysicsDamageSender : MonoBehaviour
             {
                 // RobotHealth ปฏิเสธเองถ้าชิ้นนั้นหลุดไปแล้ว (เช็คใน ApplyDamage)
                 if (isServer)
-                    robotHealth.ServerTakeDamage(finalDamage, AttackType.LightPunch, hitDirection);
+                    robotHealth.ServerTakeDamage(
+                        finalDamage,
+                        legCombat != null ? AttackType.Kick : AttackType.LightPunch,
+                        hitDirection);
 
                 hitDamageTarget = true;
-                Debug.Log($"🥊 PVP HIT! {robotHealth.gameObject.name} | PeakSpeed: {(combat != null ? combat.PeakPunchSpeed : impactSpeed):F1} m/s | Damage: {finalDamage:F1}");
+                float attackSpeed = combat != null
+                    ? combat.PeakPunchSpeed
+                    : legCombat != null ? legCombat.PeakKickSpeed : impactSpeed;
+                Debug.Log($"🥊 PVP HIT! {robotHealth.gameObject.name} | PeakSpeed: {attackSpeed:F1} m/s | Damage: {finalDamage:F1}");
 
                 SpawnImpactEffects(impactPoint, hitDirection);
             }
@@ -168,6 +195,13 @@ public class PhysicsDamageSender : MonoBehaviour
                 combat.NotifyPunchImpact();
             else if (impactSpeed >= minVelocityThreshold)
                 combat.NotifyPunchBlocked();
+        }
+        else if (legCombat != null && isServer)
+        {
+            if (hitDamageTarget)
+                legCombat.NotifyKickImpact();
+            else if (impactSpeed >= minVelocityThreshold)
+                legCombat.NotifyKickBlocked();
         }
     }
 

@@ -130,9 +130,46 @@ public class PlayerHandCombat : PlayerHandMovement
 
         if (!IsOwner || currentState.Value != HandState.Attached) return;
 
+        if (!CanReadCombatInputForThisLimb())
+        {
+            if (punchHeld)
+            {
+                punchHeld = false;
+                SetPunchingRpc(false);
+            }
+            return;
+        }
+
         HandleCombatInput();
     }
 
+    private bool CanReadCombatInputForThisLimb()
+    {
+        NetworkManager manager = NetworkManager.Singleton;
+
+        // Scenes without a limb-selection lobby keep the existing ownership rule.
+        if (manager == null || !manager.IsListening)
+            return true;
+
+        if (limbSelectionLobby == null)
+        {
+            limbSelectionLobby = LobbyManager.Instance;
+            if (limbSelectionLobby == null)
+            {
+                limbSelectionLobby = FindFirstObjectByType<LobbyManager>(
+                    FindObjectsInactive.Include);
+            }
+        }
+
+        if (limbSelectionLobby == null)
+            return true;
+
+        return limbSelectionLobby.IsLimbSelectedByClient(
+            gameObject,
+            manager.LocalClientId);
+    }
+
+    private LobbyManager limbSelectionLobby;
     private bool punchHeld = false;
     private float nextPunchRequestTime = 0f;
 

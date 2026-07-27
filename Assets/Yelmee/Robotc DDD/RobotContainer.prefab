@@ -96,7 +96,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 716019655
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -121,7 +121,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -167,7 +167,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkRigidbody
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkRigidbodyBaseExpanded: 0
@@ -309,7 +309,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 1709326718
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -334,7 +334,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -380,7 +380,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkRigidbody
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkRigidbodyBaseExpanded: 0
@@ -522,7 +522,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 2798077231
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -547,7 +547,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -718,6 +718,8 @@ GameObject:
   - component: {fileID: 4642929196155745102}
   - component: {fileID: 5726095937807362579}
   - component: {fileID: 7310984040740239260}
+  - component: {fileID: 8940036673481268773}
+  - component: {fileID: 281823945385840059}
   m_Layer: 3
   m_Name: LeftFoot
   m_TagString: BodyParts
@@ -907,23 +909,35 @@ MonoBehaviour:
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
+  maxDetachedSpeed: 8
   heightAdjustSpeed: 3
+  clickLiftHeight: 2.4
   legDamper: 25
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
   footJumpForce: 15
-  torsoJumpForce: 400
+  maxFootJumpVelocity: 7
   standingUpwardPull: 25
+  legStretchSpring: 80
+  legStretchDamper: 10
   footThicknessOffset: 0.2
+  autoMeasureFootThickness: 1
   upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
+  makeLegJointsUnbreakable: 1
   plantedPosition: {x: 0, y: 0, z: 0}
+  teleportOnPlant: 1
+  ignoreSelfCollision: 1
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 0
   ragdollFootMoveSpeed: 3
+  standingGroundRayLength: 50
 --- !u!153 &7310984040740239260
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1026,6 +1040,52 @@ ConfigurableJoint:
   m_EnablePreprocessing: 1
   m_MassScale: 1
   m_ConnectedMassScale: 1
+--- !u!114 &8940036673481268773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 826449864210624870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
+  ShowTopMostFoldoutHeaderGroup: 1
+  kickKey: 304
+  fullChargeDuration: 1
+  minimumCharge: 0.12
+  minimumKickSpeed: 8
+  maximumKickSpeed: 24
+  kickAcceleration: 120
+  kickDuration: 0.3
+  kickReach: 5
+  maxTorsoUpwardSpeedDuringKick: 0.75
+  recoveryDuration: 0.18
+  recoveryDamping: 8
+  minimumPowerAtZeroHealth: 0.3
+--- !u!114 &281823945385840059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 826449864210624870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  minVelocityThreshold: 8
+  forceToDamage: 0.01
+  speedToDamage: 0.6
+  kickSpeedToDamage: 1.2
+  maxDamagePerHit: 60
+  baseKnockbackForce: 5
+  knockbackVelocityMultiplier: 0.3
+  impactVfxPrefab: {fileID: 0}
+  impactSfx: {fileID: 0}
 --- !u!1 &1092308282534952556
 GameObject:
   m_ObjectHideFlags: 0
@@ -1042,6 +1102,8 @@ GameObject:
   - component: {fileID: 8566873619902316513}
   - component: {fileID: 2455239865576692288}
   - component: {fileID: 5884711403799478836}
+  - component: {fileID: 970124958746250394}
+  - component: {fileID: 4859128338769249676}
   m_Layer: 3
   m_Name: RightFoot
   m_TagString: BodyParts
@@ -1231,23 +1293,35 @@ MonoBehaviour:
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
+  maxDetachedSpeed: 8
   heightAdjustSpeed: 3
+  clickLiftHeight: 2.4
   legDamper: 25
   groundLayer:
     serializedVersion: 2
     m_Bits: 192
   footJumpForce: 15
-  torsoJumpForce: 400
+  maxFootJumpVelocity: 7
   standingUpwardPull: 25
+  legStretchSpring: 80
+  legStretchDamper: 10
   footThicknessOffset: 0.2
+  autoMeasureFootThickness: 1
   upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
   autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
+  makeLegJointsUnbreakable: 1
   plantedPosition: {x: 0, y: 0, z: 0}
+  teleportOnPlant: 1
+  ignoreSelfCollision: 1
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 0
   ragdollFootMoveSpeed: 3
+  standingGroundRayLength: 50
 --- !u!153 &5884711403799478836
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1350,6 +1424,52 @@ ConfigurableJoint:
   m_EnablePreprocessing: 1
   m_MassScale: 1
   m_ConnectedMassScale: 1
+--- !u!114 &970124958746250394
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1092308282534952556}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
+  ShowTopMostFoldoutHeaderGroup: 1
+  kickKey: 304
+  fullChargeDuration: 1
+  minimumCharge: 0.12
+  minimumKickSpeed: 8
+  maximumKickSpeed: 24
+  kickAcceleration: 120
+  kickDuration: 0.3
+  kickReach: 5
+  maxTorsoUpwardSpeedDuringKick: 0.75
+  recoveryDuration: 0.18
+  recoveryDamping: 8
+  minimumPowerAtZeroHealth: 0.3
+--- !u!114 &4859128338769249676
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1092308282534952556}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  minVelocityThreshold: 8
+  forceToDamage: 0.01
+  speedToDamage: 0.6
+  kickSpeedToDamage: 1.2
+  maxDamagePerHit: 60
+  baseKnockbackForce: 5
+  knockbackVelocityMultiplier: 0.3
+  impactVfxPrefab: {fileID: 0}
+  impactSfx: {fileID: 0}
 --- !u!1 &1528576265982772549
 GameObject:
   m_ObjectHideFlags: 0
@@ -1892,7 +2012,7 @@ MonoBehaviour:
   autoCenterGravityForce: 250
   maxBalanceAngle: 45
   fallGracePeriod: 0.5
-  ragdollRecoveryDelay: 1.5
+  bothFeetUnbalancedGrace: 0.15
   recoveryUprightTorque: 5
   recoveryHeightThreshold: 0.7
   maxTorsoStress: 50
@@ -1900,6 +2020,13 @@ MonoBehaviour:
   stressDecayRate: 50
   continuousRecoveryForce: 5
   maxRecoveryUpVelocity: 12
+  jumpGraceDuration: 1.2
+  coopJumpWindow: 0.3
+  soloJumpForce: 250
+  coopJumpBonusForce: 450
+  maxJumpUpVelocity: 10
+  landingAssistDuration: 0.4
+  landingAssistDamping: 4
   torsoRb: {fileID: 7881045751092331816}
   groundRaycastOrigin: {fileID: 6671827351452986682}
   groundLayer:
@@ -2250,8 +2377,10 @@ MonoBehaviour:
   planeYOffsetSpeed: 10
   grabRadius: 2
   grabBreakForce: 10000
+  preventGrabBreakWhileRagdoll: 1
   torsoPullForce: 10
   kinematicPullForce: 20
+  kinematicGrabAddsStress: 0
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -2265,6 +2394,10 @@ MonoBehaviour:
   compensateGravity: 1
   maxHandVelocity: 40
   ignoreSelfCollision: 1
+  stabilizeArmChainWhileGrabbing: 1
+  stabilizedArmMass: 1
+  stabilizedArmSolverIterations: 20
+  stabilizedArmSolverVelocityIterations: 8
   ragdollHandSpringScale: 0.1
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
@@ -2282,6 +2415,7 @@ MonoBehaviour:
   punchAcceleration: 600
   maxPunchSpeed: 55
   maxPunchDuration: 0.75
+  punchWindupTime: 0.12
   punchDamper: 5
   punchExtraReach: 8
   punchBrakeScale: 0.05
@@ -2289,6 +2423,14 @@ MonoBehaviour:
   damageGraceTime: 0.2
   enableAimAssist: 1
   aimAssistAngle: 30
+  aimAssistLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  showAimAssistGizmos: 1
+  aimRangeColor: {r: 1, g: 0.75, b: 0, a: 0.35}
+  rawAimColor: {r: 0, g: 1, b: 1, a: 1}
+  assistedAimColor: {r: 0, g: 1, b: 0, a: 1}
+  aimConeSegments: 16
   debugPunchLog: 1
 --- !u!114 &7704462238168756950
 MonoBehaviour:
@@ -2305,6 +2447,7 @@ MonoBehaviour:
   minVelocityThreshold: 8
   forceToDamage: 0.01
   speedToDamage: 0.6
+  kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
   baseKnockbackForce: 5
   knockbackVelocityMultiplier: 0.3
@@ -2649,8 +2792,10 @@ MonoBehaviour:
   planeYOffsetSpeed: 10
   grabRadius: 2
   grabBreakForce: 10000
+  preventGrabBreakWhileRagdoll: 1
   torsoPullForce: 10
   kinematicPullForce: 20
+  kinematicGrabAddsStress: 0
   detachedMoveSpeed: 20
   grabLayer:
     serializedVersion: 2
@@ -2664,6 +2809,10 @@ MonoBehaviour:
   compensateGravity: 1
   maxHandVelocity: 40
   ignoreSelfCollision: 1
+  stabilizeArmChainWhileGrabbing: 1
+  stabilizedArmMass: 1
+  stabilizedArmSolverIterations: 20
+  stabilizedArmSolverVelocityIterations: 8
   ragdollHandSpringScale: 0.25
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
@@ -2681,6 +2830,7 @@ MonoBehaviour:
   punchAcceleration: 600
   maxPunchSpeed: 55
   maxPunchDuration: 0.75
+  punchWindupTime: 0.12
   punchDamper: 5
   punchExtraReach: 8
   punchBrakeScale: 0.05
@@ -2688,6 +2838,14 @@ MonoBehaviour:
   damageGraceTime: 0.2
   enableAimAssist: 1
   aimAssistAngle: 30
+  aimAssistLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  showAimAssistGizmos: 1
+  aimRangeColor: {r: 1, g: 0.75, b: 0, a: 0.35}
+  rawAimColor: {r: 0, g: 1, b: 1, a: 1}
+  assistedAimColor: {r: 0, g: 1, b: 0, a: 1}
+  aimConeSegments: 16
   debugPunchLog: 1
 --- !u!114 &4453908891334473178
 MonoBehaviour:
@@ -2704,6 +2862,7 @@ MonoBehaviour:
   minVelocityThreshold: 8
   forceToDamage: 0.01
   speedToDamage: 0.6
+  kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
   baseKnockbackForce: 5
   knockbackVelocityMultiplier: 0.3
