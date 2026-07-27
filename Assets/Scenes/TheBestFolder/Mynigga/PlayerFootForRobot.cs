@@ -140,6 +140,11 @@ public class PlayerFootForRobot : NetworkBehaviour
     public bool IsKickMotionActive =>
         _legCombat != null && _legCombat.IsKickMotionActive;
 
+    // รวมช่วงง้างขาด้วย — ตอนง้าง PlayerLegCombat เป็นคนขับเท้าเอง
+    // ถ้าปล่อยให้สปริงก้าวเดินทำงานต่อ มันจะลากเท้ากลับไปหาจุดที่เมาส์ชี้ ท่าง้างเลยไม่เกิด
+    public bool IsKickControllingFoot =>
+        _legCombat != null && _legCombat.IsKickControllingFoot;
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -351,9 +356,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
         else
         {
-            // Charge Kick owns the foot Rigidbody during the launch/recovery window.
+            // Charge Kick owns the foot Rigidbody during the wind-up/launch/recovery window.
             // Do not let the standing lock or step spring cancel the kick velocity.
-            if (IsKickMotionActive)
+            if (IsKickControllingFoot)
             {
                 _isPlantedSet = false;
                 footRb.isKinematic = false;

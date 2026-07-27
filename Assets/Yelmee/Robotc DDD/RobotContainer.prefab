@@ -96,7 +96,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 716019655
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -121,7 +121,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -167,7 +167,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkRigidbody
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkRigidbodyBaseExpanded: 0
@@ -309,7 +309,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 1709326718
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -334,7 +334,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -380,7 +380,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkRigidbody
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkRigidbodyBaseExpanded: 0
@@ -522,7 +522,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 2798077231
   InScenePlacedSourceGlobalObjectIdHash: 0
@@ -547,7 +547,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkTransform
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkTransformExpanded: 0
@@ -1050,21 +1050,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
   ShowTopMostFoldoutHeaderGroup: 1
   kickKey: 304
   fullChargeDuration: 1
   minimumCharge: 0.12
-  minimumKickSpeed: 8
-  maximumKickSpeed: 24
-  kickAcceleration: 120
+  minimumKickSpeed: 30
+  maximumKickSpeed: 70
+  kickAcceleration: 600
   kickDuration: 0.3
-  kickReach: 5
+  kickReach: 6
   maxTorsoUpwardSpeedDuringKick: 0.75
+  kickMoveSpeed: 25
+  kickDamper: 8
+  kickTargetReach: 18
+  enableWindup: 1
+  windupPullBack: 4.5
+  windupMoveSpeed: 6
+  windupDamper: 6
+  maxWindupSpeed: 12
   recoveryDuration: 0.18
-  recoveryDamping: 8
+  recoveryDamping: 14
   minimumPowerAtZeroHealth: 0.3
+  debugKickLog: 1
 --- !u!114 &281823945385840059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1075,7 +1084,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
   minVelocityThreshold: 8
   forceToDamage: 0.01
@@ -1434,21 +1443,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
   ShowTopMostFoldoutHeaderGroup: 1
   kickKey: 304
   fullChargeDuration: 1
   minimumCharge: 0.12
-  minimumKickSpeed: 8
-  maximumKickSpeed: 24
-  kickAcceleration: 120
+  minimumKickSpeed: 30
+  maximumKickSpeed: 70
+  kickAcceleration: 600
   kickDuration: 0.3
-  kickReach: 5
+  kickReach: 6
   maxTorsoUpwardSpeedDuringKick: 0.75
+  kickMoveSpeed: 25
+  kickDamper: 8
+  kickTargetReach: 18
+  enableWindup: 1
+  windupPullBack: 4.5
+  windupMoveSpeed: 6
+  windupDamper: 6
+  maxWindupSpeed: 12
   recoveryDuration: 0.18
-  recoveryDamping: 8
+  recoveryDamping: 14
   minimumPowerAtZeroHealth: 0.3
+  debugKickLog: 1
 --- !u!114 &4859128338769249676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1459,7 +1477,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
   minVelocityThreshold: 8
   forceToDamage: 0.01

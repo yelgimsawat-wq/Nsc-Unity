@@ -28,15 +28,47 @@ public class PlayerLegCombat : NetworkBehaviour
     [SerializeField] private float minimumKickSpeed = 30f;
     [Min(0f)]
     [SerializeField] private float maximumKickSpeed = 70f;
+    // 600 = ค่าเดียวกับ punchAcceleration บน prefab เป๊ะ (หมัดกับเตะแรงเท่ากัน)
     [Min(0f)]
-    [SerializeField] private float kickAcceleration = 350f;
+    [SerializeField] private float kickAcceleration = 600f;
     [Min(0.05f)]
     [SerializeField] private float kickDuration = 0.3f;
-    // ต้องพอให้เท้าเร่งถึงความเร็วสูงสุดได้ก่อนโดนตัดจบด้วยระยะ (ดูคอมเมนต์ด้านบน)
+    // เท้าเร่งถึงความเร็วสูงสุดที่ระยะ ~5.25 m (คำนวณที่ dt 0.02 มวลประสิทธิผล 1.625 kg)
+    // ตั้ง 6 = ตัดจบ "ตอนพีคพอดี" ขณะขายังอยู่ในกรวยที่เอื้อมถึง
+    // ถ้าตั้งไกลกว่านี้ ครึ่งหลังของท่าจะกลายเป็นการดันขาสู้กับข้อต่อที่ล็อกแกนเลื่อนไว้
     [Min(0.1f)]
-    [SerializeField] private float kickReach = 10f;
+    [SerializeField] private float kickReach = 6f;
     [Min(0f)]
     [SerializeField] private float maxTorsoUpwardSpeedDuringKick = 0.75f;
+
+    [Header("Kick Drive (สปริงแบบเดียวกับแขน)")]
+    [Tooltip("อัตราแปลงระยะห่างจากเป้า → ความเร็วที่สปริงสั่ง = handMoveSpeed ของแขน")]
+    [Min(0.1f)]
+    [SerializeField] private float kickMoveSpeed = 25f;
+    [Tooltip("ตัวหลักที่คุมความ 'แข็งเป็นหุ่นยนต์' — ยิ่งสูงยิ่งสปริงสู้ข้อต่อแรง\n" +
+             "8 = สัดส่วนเดียวกับหมัด (punchDamper 5 / handDamper 15 = 0.33 → legDamper 25 × 0.33)\n" +
+             "ถ้ายังดูแข็งอยู่ ลดตัวนี้เป็น 6 ก่อนไปแตะค่าอื่น")]
+    [Min(0.1f)]
+    [SerializeField] private float kickDamper = 8f;
+    [Tooltip("ระยะจากสะโพกถึงเป้าที่สปริงวิ่งไล่ ต้องไกลกว่าความยาวขา (14) สปริงจะได้ไม่ผ่อนแรงกลางทาง\n" +
+             "หลักเดียวกับหมัดที่ปักเป้าไว้ที่ maxArmLength + 2")]
+    [Min(1f)]
+    [SerializeField] private float kickTargetReach = 18f;
+
+    [Header("Wind-Up (ง้างขาระหว่างชาร์จ)")]
+    [Tooltip("ดึงเท้าถอยหลังระหว่างกด Shift ค้าง — ยิ่งค้างนานยิ่งง้างลึก\n" +
+             "ได้ทั้งท่าที่อ่านออกว่ากำลังจะเตะ และเป็น feedback บอกระดับพลังไปในตัว")]
+    [SerializeField] private bool enableWindup = true;
+    [Tooltip("ระยะถอยหลังสูงสุดตอนชาร์จเต็ม (เมตร)")]
+    [Min(0f)]
+    [SerializeField] private float windupPullBack = 4.5f;
+    [Min(0.1f)]
+    [SerializeField] private float windupMoveSpeed = 6f;
+    [Min(0.1f)]
+    [SerializeField] private float windupDamper = 6f;
+    [Tooltip("เพดานความเร็วตอนง้าง — ช้าๆ ให้ผู้เล่นอีกฝ่ายอ่านท่าออก")]
+    [Min(0.1f)]
+    [SerializeField] private float maxWindupSpeed = 12f;
 
     [Header("Return To Movement")]
     [Min(0f)]
@@ -65,6 +97,13 @@ public class PlayerLegCombat : NetworkBehaviour
     public bool IsKickMotionActive =>
         currentAction.Value == LegActionState.Kicking ||
         currentAction.Value == LegActionState.Recovering;
+
+    // ช่วงที่ "ท่าเตะเป็นเจ้าของเท้า" — กว้างกว่า IsKickMotionActive ตรงที่รวมตอนง้างด้วย
+    // PlayerFootForRobot ใช้ตัวนี้ตัดสินใจว่าจะหยุดสปริงก้าวเดิน/ตัวล็อกยืนของมันเอง
+    // ต้องแยกจาก IsKickMotionActive เพราะเพดาน maxFootVelocity ยังควรทำงานตอนง้าง (ง้างช้าอยู่แล้ว)
+    public bool IsKickControllingFoot =>
+        IsKickMotionActive ||
+        (enableWindup && currentAction.Value == LegActionState.Charging);
     public bool CanDealDamage =>
         currentAction.Value == LegActionState.Kicking &&
         !hasHitThisKick;
@@ -119,6 +158,18 @@ public class PlayerLegCombat : NetworkBehaviour
     private Vector3 kickDirection;
     private bool hasHitThisKick;
 
+    // สะโพกเก็บเป็นพิกัด "ลำตัว" ไม่ใช่พิกัดโลก และไม่อ่าน pivotPoint สดๆ ทุกเฟรม
+    // ⚠️ เพราะบน prefab นี้ LeftLegPivotPoint ถูก parent ไว้ใต้ UpperRightLeg (ต้นขาอีกข้าง!)
+    // อ่านสดจะได้จุดที่แกว่งไปมาตามขาที่กำลังรับน้ำหนักอยู่
+    private Vector3 kickHipLocalOffset;
+    private float kickReleaseFootDrop;
+
+    private Vector3 windupDirection;
+    private Vector3 windupStartOffset;
+    private float windupFootY;
+
+    private CollisionDetectionMode originalFootCollisionMode;
+
     private void Awake()
     {
         footController = GetComponent<PlayerFootForRobot>();
@@ -126,6 +177,12 @@ public class PlayerLegCombat : NetworkBehaviour
         legHealth = GetComponent<RobotHealth>();
         reconnect = GetComponent<JointPullAndReconnect>();
         damageSender = GetComponent<PhysicsDamageSender>();
+
+        // เท้าบน prefab เป็น Discrete — ที่ 70 m/s เท้าเดินทาง 1.4 m ต่อ 1 step ฟิสิกส์
+        // จะทะลุ collider ที่บางกว่านั้นแบบเงียบๆ ต้องสลับเป็น ContinuousDynamic ตอนเตะ
+        // (PlayerHandCombat ทำแบบเดียวกันกับหมัด 55 m/s อยู่แล้ว)
+        if (footRb != null)
+            originalFootCollisionMode = footRb.collisionDetectionMode;
     }
 
     public override void OnNetworkSpawn()
@@ -188,7 +245,9 @@ public class PlayerLegCombat : NetworkBehaviour
         {
             localCharging = true;
             localChargeStartedAt = Time.unscaledTime;
-            BeginChargeRpc();
+            // ส่งทิศเล็ง ณ ตอนเริ่มชาร์จไปด้วย — server ต้องใช้กำหนดทิศง้างถอยหลัง
+            // (server อ่านจุดเล็งเองไม่ได้ เพราะ _footMarkerWorld อัปเดตเฉพาะฝั่ง owner)
+            BeginChargeRpc(footController.GetKickAimDirection());
         }
 
         if (!localCharging)
@@ -249,17 +308,36 @@ public class PlayerLegCombat : NetworkBehaviour
         switch (currentAction.Value)
         {
             case LegActionState.Charging:
+                DriveWindup();
                 break;
 
             case LegActionState.Kicking:
+            {
                 actionTimer -= Time.fixedDeltaTime;
                 footRb.isKinematic = false;
 
-                Vector3 desiredVelocity = kickDirection * activeKickSpeed;
-                footRb.linearVelocity = Vector3.MoveTowards(
-                    footRb.linearVelocity,
-                    desiredVelocity,
-                    kickAcceleration * Time.fixedDeltaTime);
+                Vector3 hip = CurrentKickHipAnchor();
+
+                // เป้าไกลเกินความยาวขา (18 > maxLegLength 14) สปริงจึงไม่มีวันผ่อนแรงกลางทาง
+                // หลักการเดียวกับหมัดที่ปักเป้าไว้ PivotPosition + punchDir * (maxArmLength + 2)
+                // แกน Y ล็อกไว้ที่ระดับเท้าตอนปล่อย = รักษาความสูงที่ผู้เล่นเล็งไว้ด้วย W/S
+                Vector3 kickTarget = hip + kickDirection * kickTargetReach;
+                kickTarget.y = hip.y - kickReleaseFootDrop;
+
+                // ── สปริงแบบแขน ── ห้ามเขียน linearVelocity ตรงๆ อีกต่อไป
+                // ของเดิม footRb.linearVelocity = MoveTowards(...) ทิ้งอิมพัลส์แก้ของ solver ทุกเฟรม
+                // ท่อนขาเลยถูก "ลาก" ตามเท้าแทนที่จะ "เหวี่ยง" = อาการแข็งเป็นหุ่นยนต์ที่เห็น
+                // ข้อต่อทั้งโซ่ล็อกแกนเลื่อนอยู่แล้ว solver จึงทำหน้าที่เป็นลิมิตระยะขาให้เอง
+                Vector3 toTarget = kickTarget - footRb.position;
+                Vector3 velocityTarget = Vector3.ClampMagnitude(toTarget * kickMoveSpeed, activeKickSpeed);
+                Vector3 force = (velocityTarget - footRb.linearVelocity) * kickDamper;
+
+                // เครื่องยนต์ F = ma — แกนแรงเป็นแนวราบล้วน ไม่มีองค์ประกอบ Y เด็ดขาด
+                // (เคยใส่แรงเงยขึ้นแล้วหุ่นกระโดดทั้งตัว ดู GetKickAimDirection ใน PlayerFootForRobot)
+                if (Vector3.Dot(footRb.linearVelocity, kickDirection) < activeKickSpeed)
+                    force += kickDirection * kickAcceleration;
+
+                footRb.AddForce(force, ForceMode.Acceleration);
 
                 BraceTorsoAgainstJump();
 
@@ -270,16 +348,83 @@ public class PlayerLegCombat : NetworkBehaviour
                 if (actionTimer <= 0f || forwardDistance >= kickReach)
                     BeginRecovery();
                 break;
+            }
 
             case LegActionState.Recovering:
                 actionTimer -= Time.fixedDeltaTime;
                 footRb.isKinematic = false;
                 footRb.AddForce(-footRb.linearVelocity * recoveryDamping, ForceMode.Acceleration);
 
+                // เท้าเข้าช่วงนี้ด้วยความเร็วสูง แรงหน่วงที่กดเท้าลงจะสะท้อนขึ้นลำตัวผ่านโซ่ข้อต่อ
+                // เดิมเรียกเฉพาะตอน Kicking ลำตัวเลยไม่มีอะไรกันตอนที่โมเมนตัมถูกปล่อยออกมาจริงๆ
+                BraceTorsoAgainstJump();
+
                 if (actionTimer <= 0f)
                     ResetServerState();
                 break;
         }
+    }
+
+    /// <summary>
+    /// ง้างขาระหว่างชาร์จ — ดึงเท้าถอยหลังตามระดับพลังที่สะสม
+    /// ⚠️ แนวราบล้วน: คัดลอกความสูงเท้า ณ ตอนเริ่มชาร์จมาใช้ตรงๆ
+    /// เงื่อนไขล้มทุกตัวใน TorsoMovement ต้องการ groundedCount == 0 และ IsGrounded()
+    /// ตัดสินจากแกน Y ของเท้า การถอยแนวราบจึงขยับตัวจับล้มไม่ได้เลยแม้แต่ tick เดียว
+    /// (เท้าลอยพ้นพื้นตั้งแต่ก่อนชาร์จอยู่แล้ว เพราะ input บังคับให้ต้องกำลังก้าวอยู่)
+    /// </summary>
+    private void DriveWindup()
+    {
+        if (!enableWindup)
+            return;
+
+        footRb.isKinematic = false;
+
+        float heldDuration = Mathf.Max(0f, Time.time - serverChargeStartedAt);
+        float charge = Mathf.Clamp01(heldDuration / Mathf.Max(0.05f, fullChargeDuration));
+
+        // เริ่มจากตำแหน่งเท้าตอนเริ่มชาร์จ แล้วค่อยๆ ถอย — charge = 0 คือไม่ขยับเลย
+        Vector3 hip = CurrentKickHipAnchor();
+        Vector3 windupTarget = hip + windupStartOffset - windupDirection * (windupPullBack * charge);
+        windupTarget.y = windupFootY;
+
+        Vector3 toTarget = windupTarget - footRb.position;
+        Vector3 velocityTarget = Vector3.ClampMagnitude(toTarget * windupMoveSpeed, maxWindupSpeed);
+        Vector3 force = (velocityTarget - footRb.linearVelocity) * windupDamper;
+
+        // ท่านี้แค่ "ค้างเท้าไว้" ไม่ใช่ดีดขึ้น การหักล้างแรงโน้มถ่วงจึงไม่สร้างแรงยกสุทธิ
+        // ถ้าไม่หักล้าง เท้าจะตกลงมา ~0.55 m ระหว่างง้าง (แรงโน้มถ่วงโปรเจกต์นี้คือ -20 ไม่ใช่ -9.81)
+        if (footRb.useGravity)
+            force -= Physics.gravity;
+
+        footRb.AddForce(force, ForceMode.Acceleration);
+    }
+
+    /// <summary>
+    /// สะโพกปัจจุบัน คำนวณจาก offset ที่เก็บไว้ในพิกัดลำตัว — ลำตัวหมุน/เคลื่อนที่แล้วท่าเตะตามไปด้วย
+    /// จงใจไม่อ่าน pivotPoint สดๆ เพราะมันถูก parent ไว้ใต้ต้นขาอีกข้างที่แกว่งอิสระ
+    /// </summary>
+    private Vector3 CurrentKickHipAnchor()
+    {
+        TorsoMovement kickTorso = footController != null ? footController.torso : null;
+        if (kickTorso != null && kickTorso.torsoRb != null)
+            return kickTorso.torsoRb.position + kickTorso.torsoRb.rotation * kickHipLocalOffset;
+
+        return footController != null && footController.pivotPoint != null
+            ? footController.pivotPoint.position
+            : footRb.position;
+    }
+
+    /// <summary>เก็บตำแหน่งสะโพกเป็นพิกัดลำตัว ณ วินาทีที่เรียก</summary>
+    private void CaptureKickHipAnchor()
+    {
+        Vector3 hipNow = footController != null && footController.pivotPoint != null
+            ? footController.pivotPoint.position
+            : footRb.position;
+
+        TorsoMovement kickTorso = footController != null ? footController.torso : null;
+        kickHipLocalOffset = (kickTorso != null && kickTorso.torsoRb != null)
+            ? Quaternion.Inverse(kickTorso.torsoRb.rotation) * (hipNow - kickTorso.torsoRb.position)
+            : Vector3.zero;
     }
 
     private bool CanUseKickInputLocally()
@@ -336,7 +481,7 @@ public class PlayerLegCombat : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
-    private void BeginChargeRpc()
+    private void BeginChargeRpc(Vector3 aimDirection)
     {
         if (currentAction.Value != LegActionState.Idle || !CanStartKickOnServer())
             return;
@@ -349,6 +494,28 @@ public class PlayerLegCombat : NetworkBehaviour
         serverChargeStartedAt = Time.time;
         PeakKickSpeed = 0f;
         hasHitThisKick = false;
+
+        CaptureKickHipAnchor();
+
+        // ทิศง้าง = ตรงข้ามทิศเล็ง ล็อกไว้ตั้งแต่เริ่มชาร์จ (ท่ายืนถูกคอมมิตแล้ว)
+        aimDirection.y = 0f;
+        if (!IsFinite(aimDirection) || aimDirection.sqrMagnitude < 0.001f)
+        {
+            aimDirection = footController.pivotPoint != null
+                ? footController.pivotPoint.forward
+                : transform.forward;
+            aimDirection.y = 0f;
+        }
+        windupDirection = aimDirection.sqrMagnitude > 0.001f
+            ? aimDirection.normalized
+            : Vector3.forward;
+
+        // จุดตั้งต้นของการง้าง = ตำแหน่งเท้าปัจจุบันเทียบสะโพก (แนวราบ)
+        // charge = 0 จึงแปลว่า "ไม่ขยับ" เท้าไม่กระตุกตอนเริ่มกด Shift
+        Vector3 startOffset = footRb.position - CurrentKickHipAnchor();
+        startOffset.y = 0f;
+        windupStartOffset = startOffset;
+        windupFootY = footRb.position.y;
     }
 
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
@@ -385,6 +552,16 @@ public class PlayerLegCombat : NetworkBehaviour
         currentAction.Value = LegActionState.Kicking;
 
         footRb.isKinematic = false;
+
+        // เก็บสะโพกใหม่ ณ วินาทีปล่อย — ท่าง้างเพิ่งย้ายลำตัว/ขาไปจากตอนเริ่มชาร์จ
+        CaptureKickHipAnchor();
+
+        // ระยะที่เท้าห้อยต่ำกว่าสะโพกตอนปล่อย → เป้าของสปริงเริ่มที่ระดับเท้าพอดี
+        // ผู้เล่นเล็งความสูงไว้แค่ไหนด้วย W/S ท่าเตะก็ออกจากระดับนั้น
+        kickReleaseFootDrop = CurrentKickHipAnchor().y - footRb.position.y;
+
+        // 70 m/s × 0.02 s = 1.40 m ต่อ step — Discrete ทะลุ collider ที่บางกว่านั้นแบบเงียบๆ
+        footRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
     }
 
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable)]
@@ -478,6 +655,11 @@ public class PlayerLegCombat : NetworkBehaviour
         kickStartPosition = Vector3.zero;
         PeakKickSpeed = 0f;
         hasHitThisKick = false;
+
+        // คืนโหมดชนที่ "ปลายช่วง recovery" ไม่ใช่ตอน BeginRecovery
+        // เท้ายังวิ่งด้วยความเร็วสูงตลอดช่วงหน่วง ถ้าคืนเป็น Discrete ตั้งแต่ต้นก็ยังทะลุได้อยู่ดี
+        if (footRb != null)
+            footRb.collisionDetectionMode = originalFootCollisionMode;
     }
 
     private static bool IsFinite(Vector3 value)
