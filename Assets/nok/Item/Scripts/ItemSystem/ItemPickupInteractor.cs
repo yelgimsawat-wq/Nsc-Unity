@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -22,9 +23,6 @@ namespace NscUnity.Items
         [Header("ระยะตรวจจับ")]
         [SerializeField] private float pickupRange = 2.5f;
 
-        [Tooltip("Layer ของไอเทมในฉาก แนะนำให้สร้าง Layer ชื่อ 'Item' แล้วเลือกเฉพาะอันนั้น")]
-        [SerializeField] private LayerMask itemLayers = ~0;
-
         [Tooltip("มุมสูงสุดจากทิศที่ผู้เล่นหันหน้า (180 = เก็บได้รอบตัว)")]
         [SerializeField, Range(15f, 180f)] private float maxPickupAngle = 180f;
 
@@ -37,6 +35,10 @@ namespace NscUnity.Items
         [Tooltip("เก็บของแล้วหยิบขึ้นมือเลย")]
         [SerializeField] private bool equipOnPickup = true;
 
+        [Header("Debug")]
+        [Tooltip("พิมพ์ log ทุกขั้นตอนตอนกดเก็บของ — เปิดไว้ตอนหาสาเหตุว่าทำไมเก็บไม่ได้")]
+        [SerializeField] private bool debugLog = true;
+
         /// <summary>ปุ่มเก็บของจริงตอนนี้ — ให้ PickupPromptUI อ่านค่านี้แทนการเขียนตัวอักษรตายตัว จะได้ไม่เพี้ยนเวลาเปลี่ยนปุ่ม</summary>
         public KeyCode PickupKey => pickupKey;
 
@@ -46,17 +48,18 @@ namespace NscUnity.Items
         /// <summary>ยิงเมื่อไอเทมเป้าหมายเปลี่ยน — เอาไปโชว์/ซ่อนป้าย "[E] เก็บ ..."</summary>
         public event Action<WorldItem> OnFocusChanged;
 
-        private static readonly Collider[] OverlapBuffer = new Collider[32];
-
         private Transform Origin => detectionOrigin != null ? detectionOrigin : transform;
 
         private void Awake()
         {
+            // ปกติทั้งชุด (กระเป๋า/มือ/ตัวเก็บของ) อยู่บนแขนข้างเดียวกันหมด เพราะผู้เล่น 1 คน = แขน 1 ข้าง
+            // เผื่อไว้หา parent ด้วย เผื่อใครย้ายไปวางโครงสร้างอื่น
             if (inventory == null) inventory = GetComponent<PlayerInventory>();
+            if (inventory == null) inventory = GetComponentInParent<PlayerInventory>();
 
             if (inventory == null)
             {
-                Debug.LogError("[ItemPickupInteractor] หา PlayerInventory ไม่เจอ — เก็บของไม่ได้", this);
+                Debug.LogError("[ItemPickupInteractor] หา PlayerInventory ไม่เจอ (เช็คทั้งตัวเองและ parent แล้ว) — เก็บของไม่ได้", this);
                 enabled = false;
             }
         }
@@ -87,35 +90,33 @@ namespace NscUnity.Items
         private void RefreshFocus()
         {
             Transform origin = Origin;
-            int count = Physics.OverlapSphereNonAlloc(origin.position, pickupRange, OverlapBuffer, itemLayers, QueryTriggerInteraction.Collide);
+            Vector3 originPosition = origin.position;
 
             WorldItem best = null;
-            float bestDistance = float.MaxValue;
+            float bestSqrDistance = float.MaxValue;
+            float sqrRange = pickupRange * pickupRange;
             float cosLimit = Mathf.Cos(maxPickupAngle * Mathf.Deg2Rad);
 
-            for (int i = 0; i < count; i++)
+            // วนจากลิสต์ไอเทมที่ลงทะเบียนไว้ (มีไม่กี่ชิ้น) แทนการยิง Physics.OverlapSphere ทุกเฟรม
+            // — ในแมพใหญ่ๆ การยิง physics แล้ว GetComponentInParent กับ collider ทุกชิ้นทำให้เกมหน่วงหนักมาก
+            List<WorldItem> items = WorldItem.Active;
+            for (int i = 0; i < items.Count; i++)
             {
-                Collider hit = OverlapBuffer[i];
-                if (hit == null) continue;
-
-                WorldItem item = hit.GetComponentInParent<WorldItem>();
+                WorldItem item = items[i];
                 if (item == null || item.Definition == null) continue;
 
-                Vector3 toItem = item.transform.position - origin.position;
-                float distance = toItem.magnitude;
-                if (distance > pickupRange) continue;
+                Vector3 toItem = item.transform.position - originPosition;
+                float sqrDistance = toItem.sqrMagnitude;
+                if (sqrDistance > sqrRange || sqrDistance >= bestSqrDistance) continue;
 
-                if (maxPickupAngle < 180f && distance > 0.01f)
+                if (maxPickupAngle < 180f && sqrDistance > 0.0001f)
                 {
                     Vector3 flat = new Vector3(toItem.x, 0f, toItem.z).normalized;
                     if (Vector3.Dot(origin.forward, flat) < cosLimit) continue;
                 }
 
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    best = item;
-                }
+                bestSqrDistance = sqrDistance;
+                best = item;
             }
 
             if (best != Focused)
@@ -132,9 +133,19 @@ namespace NscUnity.Items
 
             if (!item.TryGetComponent(out NetworkObject netObj))
             {
-                Debug.LogError($"[ItemPickupInteractor] '{item.name}' ไม่มี NetworkObject — เก็บออนไลน์ไม่ได้ ต้องเพิ่ม NetworkObject ใน World Prefab ก่อน", item);
+                Debug.LogError($"[ItemPickup] '{item.name}' ไม่มี NetworkObject — เก็บออนไลน์ไม่ได้ ต้องเพิ่ม NetworkObject ใน World Prefab ก่อน", item);
                 return;
             }
+
+            if (!netObj.IsSpawned)
+            {
+                Debug.LogError($"[ItemPickup] '{item.name}' มี NetworkObject แต่ยังไม่ถูก Spawn — " +
+                               "ของที่วางไว้ในฉากตั้งแต่แรกต้องให้ Server สั่ง Spawn ก่อนถึงจะเก็บได้ " +
+                               "(ใช้ Tools ▸ NSC ▸ Item System ▸ Validate Setup ดูรายละเอียด)", item);
+                return;
+            }
+
+            if (debugLog) Debug.Log($"[ItemPickup] ส่งคำขอเก็บ '{item.PromptText}' ไปที่ Server...", this);
 
             PickupRpc(new NetworkObjectReference(netObj));
         }
@@ -143,15 +154,27 @@ namespace NscUnity.Items
         private void PickupRpc(NetworkObjectReference itemRef)
         {
             // ระหว่างที่ Rpc นี้เดินทางมา อาจมีอีกคนเก็บของชิ้นนี้ไปก่อนแล้ว (Despawn ไปแล้ว) — TryGet จะคืน false ให้เอง
-            if (!itemRef.TryGet(out NetworkObject netObj) || netObj == null) return;
+            if (!itemRef.TryGet(out NetworkObject netObj) || netObj == null)
+            {
+                if (debugLog) Debug.Log("[ItemPickup] ของชิ้นนี้ถูกคนอื่นเก็บไปก่อนแล้ว", this);
+                return;
+            }
 
             WorldItem item = netObj.GetComponent<WorldItem>();
-            if (item == null || item.Definition == null) return;
+            if (item == null || item.Definition == null)
+            {
+                Debug.LogWarning($"[ItemPickup] '{netObj.name}' ไม่มี WorldItem หรือยังไม่ได้ใส่ Item Definition — เก็บไม่ได้", netObj);
+                return;
+            }
 
             if (!inventory.TryAddServerSide(item.Definition, out int index))
             {
-                return; // กระเป๋าเต็ม — เงียบไว้ก่อน (เพิ่ม feedback ให้ผู้เล่นทีหลังได้ถ้าต้องการ)
+                // TryAddServerSide จะ log error เองถ้าไอเทมไม่ได้อยู่ใน Database — เหลือแค่เคสกระเป๋าเต็ม
+                Debug.LogWarning($"[ItemPickup] เก็บ '{item.Definition.DisplayName}' ไม่สำเร็จ — กระเป๋าเต็มหรือไอเทมไม่ได้อยู่ใน Item Database", this);
+                return;
             }
+
+            if (debugLog) Debug.Log($"[ItemPickup] ✅ เก็บ '{item.Definition.DisplayName}' ลงช่อง {index} เรียบร้อย", this);
 
             if (equipOnPickup) inventory.RequestEquip(index);
 

@@ -127,6 +127,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ChargeGunHeldItem
   muzzle: {fileID: 4763159297229637783}
+  fireDirectionOffset: {x: 0, y: 0, z: 0}
   chargeEffectPrefab: {fileID: 8045812871866564586, guid: 0aa3aaf3ec3261d49b0b8ed5e925b0d1, type: 3}
   chargeEffectRotationOffset: {x: 0, y: 0, z: 0}
   shotEffectPrefab: {fileID: 4675859547289440113, guid: 06ece42e59557f747a93b0b358d18231, type: 3}
@@ -173,7 +174,7 @@ Transform:
   m_GameObject: {fileID: 6554821603985976870}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 1.64}
+  m_LocalPosition: {x: 0, y: 0, z: 1.477}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

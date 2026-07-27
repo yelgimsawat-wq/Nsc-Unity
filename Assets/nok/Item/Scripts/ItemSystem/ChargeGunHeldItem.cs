@@ -22,6 +22,10 @@ namespace NscUnity.Items
         [Tooltip("Empty GameObject ที่ปลายกระบอก แกน Z ต้องชี้ออกไปทางที่ยิง ถ้าเว้นว่างจะใช้ตัวปืนเอง")]
         [SerializeField] private Transform muzzle;
 
+        [Tooltip("มุมแก้ทิศยิง ถ้ากระสุนพุ่งผิดทาง (เช่นยิงใส่ตัวเอง) — ลองใส่ Y = 180 ก่อน แล้วค่อยลอง X/Z\n" +
+                 "เลือกปืนใน Scene จะเห็นเส้นสีแดงบอกทิศยิงจริง ปรับจนเส้นชี้ออกไปข้างหน้าถูกทาง")]
+        [SerializeField] private Vector3 fireDirectionOffset;
+
         [Header("ภาพเอฟเฟกต์")]
         [Tooltip("เล่นที่ปากกระบอกตั้งแต่เริ่มชาร์จ โตขึ้นตามเวลาที่กดค้าง ทำลายทิ้งเองตอนจบ (ยิงหรือยกเลิกก็ตาม)")]
         [SerializeField] private GameObject chargeEffectPrefab;
@@ -66,6 +70,9 @@ namespace NscUnity.Items
         private GameObject activeCharge;
 
         private Transform Muzzle => muzzle != null ? muzzle : transform;
+
+        /// <summary>ทิศที่กระสุนจะพุ่งไปจริง = ทิศของ Muzzle บวกมุมแก้ที่ตั้งไว้ใน Inspector</summary>
+        private Vector3 FireDirection => Muzzle.rotation * Quaternion.Euler(fireDirectionOffset) * Vector3.forward;
 
         public override void OnUnequipped()
         {
@@ -136,7 +143,7 @@ namespace NscUnity.Items
             FireData data = new FireData
             {
                 origin = origin.position,
-                direction = origin.forward,
+                direction = FireDirection,
                 speed = speed,
                 damage = Mathf.Lerp(minDamage, maxDamage, chargePercent),
                 knockback = Mathf.Lerp(minKnockback, maxKnockback, chargePercent),
@@ -194,6 +201,17 @@ namespace NscUnity.Items
                 visual.transform.localRotation = Quaternion.Euler(shotEffectRotationOffset);
                 visual.transform.localScale = Vector3.one * data.visualSize;
             }
+        }
+
+        /// <summary>วาดเส้นบอกทิศยิงจริงใน Scene view — ใช้ปรับ Fire Direction Offset ให้ตรงโดยไม่ต้องเดา</summary>
+        private void OnDrawGizmosSelected()
+        {
+            Transform origin = Muzzle;
+            if (origin == null) return;
+
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(origin.position, FireDirection * 3f);
+            Gizmos.DrawWireSphere(origin.position, 0.05f);
         }
     }
 }

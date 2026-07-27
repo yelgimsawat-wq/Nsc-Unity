@@ -96,18 +96,7 @@ namespace NscUnity.Items
         {
             if (isInitialized) return;
 
-            if (inventory == null)
-            {
-                foreach (PlayerInventory candidate in FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None))
-                {
-                    if (candidate.IsOwner)
-                    {
-                        inventory = candidate;
-                        break;
-                    }
-                }
-            }
-
+            inventory = FindOwnedInventory();
             if (inventory == null) return;
 
             BuildUI();
@@ -120,6 +109,57 @@ namespace NscUnity.Items
             group.gameObject.SetActive(false);
 
             isInitialized = true;
+        }
+
+        /// <summary>
+        /// ฝั่ง Client ข้อมูลช่องเก็บของ (NetworkList) ซิงค์มาถึงช้ากว่าตอนที่ UI เริ่มทำงาน —
+        /// วงล้อที่สร้างไปตอนแรกเลยได้จำนวนช่องผิด (มักเป็น 0 หรือ 2 ช่อง) ต้องคอยเช็คแล้วสร้างใหม่เมื่อค่าจริงมาถึง
+        /// </summary>
+        private void RebuildIfSlotCountChanged()
+        {
+            if (views == null) return;
+
+            int actual = Mathf.Max(2, inventory.SlotCount);
+            if (actual == views.Length) return;
+
+            if (isOpen) Close(false);
+
+            if (canvas != null) Destroy(canvas.gameObject);
+
+            BuildUI();
+            RefreshSlots();
+
+            group.alpha = 0f;
+            group.gameObject.SetActive(false);
+            openAmount = 0f;
+        }
+
+        /// <summary>หากระเป๋าของ "แขนที่เราคุมอยู่จริง" — ดูรายละเอียดเรื่องกับดัก IsOwner ที่ LocalItemOwner</summary>
+        private PlayerInventory FindOwnedInventory() => LocalItemOwner.Find<PlayerInventory>();
+
+        /// <summary>
+        /// LobbyManager โอน ownership ของแขนให้ผู้เล่น "หลัง" กดเริ่มเกม และผู้เล่นเปลี่ยนชิ้นที่เลือกได้
+        /// ระหว่างอยู่ในลอบบี้ — ต้องคอยเช็คทุกเฟรมว่ายังผูกอยู่กับแขนที่เราคุมจริงหรือเปล่า
+        /// (แนวทางเดียวกับ LocalRobotBinder.NeedsRebind ที่โปรเจกต์นี้ใช้อยู่แล้ว)
+        /// </summary>
+        private void RebindIfOwnershipChanged()
+        {
+            PlayerInventory owned = FindOwnedInventory();
+            if (owned == null || owned == inventory) return;
+
+            if (isOpen) Close(false);
+
+            if (inventory != null)
+            {
+                inventory.OnSlotsChanged -= RefreshSlots;
+                inventory.OnEquippedChanged -= HandleEquippedChanged;
+            }
+
+            inventory = owned;
+            inventory.OnSlotsChanged += RefreshSlots;
+            inventory.OnEquippedChanged += HandleEquippedChanged;
+
+            RefreshSlots();
         }
 
         private void HandleEquippedChanged(int index) => RefreshSlots();
@@ -157,6 +197,9 @@ namespace NscUnity.Items
                 TryInitialize();
                 if (!isInitialized) return;
             }
+
+            RebindIfOwnershipChanged();
+            RebuildIfSlotCountChanged();
 
             HandleOpenCloseInput();
 

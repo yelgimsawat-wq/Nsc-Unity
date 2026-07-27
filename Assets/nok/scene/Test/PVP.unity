@@ -4342,6 +4342,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2045412990
@@ -4360,6 +4362,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2045412991
@@ -4378,6 +4382,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2045412992
@@ -4396,6 +4402,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2045412993
@@ -4498,7 +4506,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 16.2
+      value: 15.15
       objectReference: {fileID: 0}
     - target: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_LocalPosition.y
@@ -4506,7 +4514,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -747.6
+      value: -919.1
       objectReference: {fileID: 0}
     - target: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4773,6 +4781,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2065851751
@@ -4791,6 +4801,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2065851752
@@ -4809,6 +4821,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2065851753
@@ -4827,6 +4841,8 @@ MonoBehaviour:
   speedToDamage: 0.6
   forceToDamage: 0.01
   maxDamagePerHit: 60
+  limbDamageMultiplier: 1
+  bodyDamageMultiplier: 1
   friendlyFire: 0
   debugLog: 1
 --- !u!114 &2065851754

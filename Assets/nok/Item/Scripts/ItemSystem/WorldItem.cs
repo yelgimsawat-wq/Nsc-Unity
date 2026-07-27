@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -27,6 +28,13 @@ namespace NscUnity.Items
         private Vector3 startLocalPosition;
         private float bobOffset;
 
+        /// <summary>
+        /// ไอเทมทุกชิ้นที่ยัง active อยู่ในฉาก — ItemPickupInteractor วนเช็คจากลิสต์นี้แทนการยิง
+        /// Physics.OverlapSphere ทุกเฟรม (ในแมพใหญ่ๆ การยิง physics + GetComponentInParent
+        /// กับ collider ทุกชิ้นทุกเฟรมทำให้เกมหน่วงหนัก ทั้งที่ของในฉากมีไม่กี่ชิ้น)
+        /// </summary>
+        public static readonly List<WorldItem> Active = new List<WorldItem>();
+
         public ItemDefinition Definition => definition;
 
         public string PromptText => definition != null ? definition.DisplayName : name;
@@ -42,6 +50,10 @@ namespace NscUnity.Items
                 Debug.LogWarning($"[WorldItem] '{name}' ยังไม่ได้ใส่ Item Definition — เก็บขึ้นมือไม่ได้", this);
             }
         }
+
+        private void OnEnable() => Active.Add(this);
+
+        private void OnDisable() => Active.Remove(this);
 
         private void Update()
         {
@@ -72,7 +84,10 @@ namespace NscUnity.Items
 
             if (TryGetComponent(out NetworkObject networkObject) && networkObject.IsSpawned)
             {
-                networkObject.Despawn(true); // true = ทำลาย GameObject ไปด้วย ให้ทุกเครื่องเห็นของหายพร้อมกัน
+                // Netcode จะเตือนว่า "Destroying in-scene network objects..." ถ้าของชิ้นนี้วางไว้ในฉากตั้งแต่แรก
+                // — เป็นคำเตือนเชิงแนะนำเฉยๆ เพราะของแบบนั้น spawn กลับมาใหม่ไม่ได้
+                // สำหรับไอเทมที่เก็บแล้วหายถาวร นี่คือพฤติกรรมที่ต้องการอยู่แล้ว ปล่อยผ่านได้
+                networkObject.Despawn(true); // true = ทำลาย GameObject ให้ทุกเครื่องเห็นของหายพร้อมกัน
             }
             else
             {

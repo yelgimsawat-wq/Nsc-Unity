@@ -897,6 +897,8 @@ GameObject:
   - component: {fileID: 399108568}
   - component: {fileID: 399108570}
   - component: {fileID: 399108569}
+  - component: {fileID: 399108572}
+  - component: {fileID: 399108571}
   m_Layer: 0
   m_Name: 'ItemUI '
   m_TagString: Untagged
@@ -946,11 +948,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 099b7e9d723c2e3439d6b1736c3b2e51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemWheelUI
-  inventory: {fileID: 607221099}
+  inventory: {fileID: 607221100}
   wheelKey: 9
   holdToOpen: 1
   scrollWheelSwitching: 1
-  slowMotionScale: 0.15
+  slowMotionScale: 1
+  openDuration: 0.12
+  outerRadius: 270
+  innerRadiusRatio: 0.52
+  gapDegrees: 3
+  deadZoneRadius: 70
+  iconSize: 74
+  segmentColor: {r: 0.07, g: 0.09, b: 0.13, a: 0.8}
+  segmentEquippedColor: {r: 0.32, g: 0.37, b: 0.46, a: 0.88}
+  dimColor: {r: 0, g: 0, b: 0, a: 0.72}
+  emptySlotIconColor: {r: 1, g: 1, b: 1, a: 0.12}
+  labelFont: {fileID: 0}
+--- !u!114 &399108571
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 399108567}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06841ef18234304478879516134a3dde, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.PickupPromptUI
+  interactor: {fileID: 1012725394}
+  fadeDuration: 0.12
+  labelFont: {fileID: 0}
+--- !u!114 &399108572
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 399108567}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 099b7e9d723c2e3439d6b1736c3b2e51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemWheelUI
+  inventory: {fileID: 1012725396}
+  wheelKey: 9
+  holdToOpen: 1
+  scrollWheelSwitching: 1
+  slowMotionScale: 1
   openDuration: 0.12
   outerRadius: 270
   innerRadiusRatio: 0.52
@@ -1284,6 +1329,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: dc82b6a20c81aa64a99303dc7cba1831, type: 2}
+    - target: {fileID: 2833819731869978742, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: reconnectCooldown
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3119736156625893486, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_Name
       value: RobotContainer (1)
@@ -1364,6 +1413,10 @@ PrefabInstance:
       propertyPath: autoMeasureFootThickness
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6878942026341423915, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: reconnectCooldown
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7040322331119305267, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 122293189
@@ -1435,10 +1488,22 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 5835408215858725039, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 638646237}
     - targetCorrespondingSourceObject: {fileID: 6650069106351537768, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 826702487}
+      addedObject: {fileID: 1571251177}
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1012725396}
+    - targetCorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1012725395}
+    - targetCorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1012725394}
     - targetCorrespondingSourceObject: {fileID: 3527820515117252175, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
       addedObject: {fileID: 607221100}
@@ -1487,17 +1552,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemPickupInteractor
   ShowTopMostFoldoutHeaderGroup: 1
-  inventory: {fileID: 607221099}
-  detectionOrigin: {fileID: 826702487}
-  pickupRange: 12
-  itemLayers:
-    serializedVersion: 2
-    m_Bits: 256
+  inventory: {fileID: 607221100}
+  detectionOrigin: {fileID: 1571251177}
+  pickupRange: 5
   maxPickupAngle: 180
   pickupKey: 101
   dropKey: 103
   equipOnPickup: 1
+  debugLog: 1
 --- !u!114 &607221099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607221093}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
+  ShowTopMostFoldoutHeaderGroup: 1
+  holdPoint: {fileID: 1571251177}
+  handleUseInput: 1
+  useMouseButton: 0
+  disableWhileHolding: []
+--- !u!114 &607221100
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1513,25 +1593,8 @@ MonoBehaviour:
   slotCount: 6
   startingItems: []
   itemDatabase: {fileID: 11400000, guid: df090089e534e56489336b56ad7422f7, type: 2}
-  hand: {fileID: 607221100}
+  hand: {fileID: 607221099}
   equipFirstItemOnStart: 1
---- !u!114 &607221100
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 607221093}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
-  ShowTopMostFoldoutHeaderGroup: 1
-  holdPoint: {fileID: 826702487}
-  handleUseInput: 1
-  useMouseButton: 0
-  disableWhileHolding: []
 --- !u!1 &611808993
 GameObject:
   m_ObjectHideFlags: 0
@@ -1666,6 +1729,37 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &638646236
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 638646237}
+  m_Layer: 0
+  m_Name: HoldPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &638646237
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 638646236}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -2.4}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1012725393}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &661353983
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2653,37 +2747,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &826702486
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 826702487}
-  m_Layer: 3
-  m_Name: 'HoldPoint '
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &826702487
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 826702486}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 2.1}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 607221097}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &894026402
 GameObject:
   m_ObjectHideFlags: 0
@@ -2896,6 +2959,67 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!4 &1012725393 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5835408215858725039, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+  m_PrefabInstance: {fileID: 607221092}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1012725394
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607221094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b575c0172fd758419037f61af995e93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemPickupInteractor
+  ShowTopMostFoldoutHeaderGroup: 1
+  inventory: {fileID: 1012725396}
+  detectionOrigin: {fileID: 638646237}
+  pickupRange: 5
+  maxPickupAngle: 180
+  pickupKey: 101
+  dropKey: 103
+  equipOnPickup: 1
+  debugLog: 1
+--- !u!114 &1012725395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607221094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
+  ShowTopMostFoldoutHeaderGroup: 1
+  holdPoint: {fileID: 638646237}
+  handleUseInput: 1
+  useMouseButton: 0
+  disableWhileHolding: []
+--- !u!114 &1012725396
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607221094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea3fc4b6efb14a949b3b412cd060b399, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.PlayerInventory
+  ShowTopMostFoldoutHeaderGroup: 1
+  slotCount: 6
+  startingItems: []
+  itemDatabase: {fileID: 11400000, guid: df090089e534e56489336b56ad7422f7, type: 2}
+  hand: {fileID: 1012725395}
+  equipFirstItemOnStart: 1
 --- !u!1 &1026122168
 GameObject:
   m_ObjectHideFlags: 0
@@ -3657,6 +3781,37 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &1571251176
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1571251177}
+  m_Layer: 0
+  m_Name: HoldPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1571251177
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1571251176}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 2.34}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 607221097}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1684186508
 GameObject:
   m_ObjectHideFlags: 0
@@ -4168,6 +4323,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1140081394850244, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 3655389631
+      objectReference: {fileID: 0}
+    - target: {fileID: 1140081394850244, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 399663591161409234, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -4312,6 +4475,14 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 2842846665317728867, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 3655389631
+      objectReference: {fileID: 0}
+    - target: {fileID: 2842846665317728867, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 3233966565876073767, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 3655389631
@@ -4353,6 +4524,14 @@ PrefabInstance:
       value: 3655389631
       objectReference: {fileID: 0}
     - target: {fileID: 5639480530359652888, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6379680573887572532, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 3655389631
+      objectReference: {fileID: 0}
+    - target: {fileID: 6379680573887572532, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -4463,6 +4642,14 @@ PrefabInstance:
     - target: {fileID: 7863459675642944077, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7864507986045931412, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 3655389631
+      objectReference: {fileID: 0}
+    - target: {fileID: 7864507986045931412, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 8665191132031380742, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
       propertyPath: m_fontColor32.rgba

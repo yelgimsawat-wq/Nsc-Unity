@@ -33,23 +33,32 @@ namespace NscUnity.Items
         {
             if (isInitialized) return;
 
-            if (interactor == null)
-            {
-                foreach (ItemPickupInteractor candidate in FindObjectsByType<ItemPickupInteractor>(FindObjectsSortMode.None))
-                {
-                    if (candidate.IsOwner)
-                    {
-                        interactor = candidate;
-                        break;
-                    }
-                }
-            }
-
+            interactor = FindOwnedInteractor();
             if (interactor == null) return;
 
             BuildUI();
             interactor.OnFocusChanged += HandleFocusChanged;
             isInitialized = true;
+        }
+
+        /// <summary>หาตัวเก็บของของ "แขนที่เราคุมอยู่จริง" — ดูรายละเอียดเรื่องกับดัก IsOwner ที่ LocalItemOwner</summary>
+        private ItemPickupInteractor FindOwnedInteractor() => LocalItemOwner.Find<ItemPickupInteractor>();
+
+        /// <summary>
+        /// LobbyManager โอน ownership ของแขนให้ผู้เล่น "หลัง" กดเริ่มเกม และผู้เล่นเปลี่ยนชิ้นที่เลือกได้
+        /// ระหว่างอยู่ในลอบบี้ — ต้องคอยเช็คทุกเฟรมว่ายังผูกอยู่กับแขนที่เราคุมจริงหรือเปล่า
+        /// </summary>
+        private void RebindIfOwnershipChanged()
+        {
+            ItemPickupInteractor owned = FindOwnedInteractor();
+            if (owned == null || owned == interactor) return;
+
+            if (interactor != null) interactor.OnFocusChanged -= HandleFocusChanged;
+
+            interactor = owned;
+            interactor.OnFocusChanged += HandleFocusChanged;
+
+            focused = null;
         }
 
         private void OnDisable()
@@ -83,6 +92,8 @@ namespace NscUnity.Items
                 TryInitialize();
                 if (!isInitialized) return;
             }
+
+            RebindIfOwnershipChanged();
 
             bool show = focused != null && !ItemWheelUI.IsAnyOpen;
             float target = show ? 1f : 0f;
