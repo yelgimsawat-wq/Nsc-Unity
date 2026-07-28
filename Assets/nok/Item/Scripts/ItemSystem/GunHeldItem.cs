@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
 using NscGame.Enemy;
+using NscGame.Pvp;
 
 namespace NscUnity.Items
 {
@@ -100,8 +101,50 @@ namespace NscUnity.Items
                 return;
             }
 
+            // โหมด PVP: ยิงหุ่นผู้เล่นด้วยกัน — ต้องเช็คทีมก่อน ไม่งั้นยิงหุ่นตัวเอง/เพื่อนก็เข้า
+            // (นอกโหมด PVP FindByPart คืน null หมด → ตกไปใช้ทางเดิมเหมือนไม่มีอะไรเปลี่ยน)
+            PvpRobotTeam targetRobot = PvpRobotTeam.FindByPart(hit.collider.transform);
+            if (targetRobot != null)
+            {
+                // ช่วงเลือกทีม/จบแมตช์ยิงไม่เข้า — ตรงกับกติกาของหมัดและ Projectile
+                if (PvpTeamManager.Instance != null && !PvpTeamManager.Instance.IsFighting)
+                {
+                    Debug.Log($"[PVP] ⛔ ปืนยิงโดนหุ่นแต่แมตช์ยังไม่เริ่มสู้ " +
+                              $"(state = {PvpTeamManager.Instance.MatchState})", this);
+                    return;
+                }
+
+                PvpRobotTeam shooterRobot = PvpRobotTeam.FindByPart(transform);
+
+                if (shooterRobot != null &&
+                    (shooterRobot == targetRobot || shooterRobot.Team == targetRobot.Team))
+                {
+                    Debug.Log($"[PVP] ⛔ ปืนยิงโดน '{hit.collider.name}' แต่เป็นหุ่นตัวเอง/เพื่อนร่วมทีม — ไม่นับ", this);
+                    return;
+                }
+
+                if (targetRobot.IsDefeated) return;
+            }
+
             IHittable hittable = hit.collider.GetComponentInParent<IHittable>();
-            hittable?.ServerTakeDamage(damage, AttackType.LightPunch, direction);
+            if (hittable != null)
+            {
+                hittable.ServerTakeDamage(damage, AttackType.LightPunch, direction);
+                return;
+            }
+
+            // ยิงโดนลำตัว: ลำตัวไม่มี RobotHealth (ไม่มี joint ให้หลุด) จึงไม่มี IHittable
+            // เดิมโค้ดตรงนี้เป็น hittable?. → ยิงเข้ากลางตัวแล้ว "ไม่มีอะไรเกิดขึ้นเลย" แบบเงียบๆ
+            // ซึ่งเป็นจุดที่ผู้เล่นเล็งเป็นธรรมชาติที่สุด → ส่งต่อให้ชิ้นที่ใกล้จุดยิงสุดแทน
+            // (ตรรกะเดียวกับหมัดที่เข้าลำตัวใน PvpDamageSender)
+            if (targetRobot != null &&
+                targetRobot.ServerApplyBodyDamage(damage, AttackType.LightPunch, direction, hit.point))
+            {
+                return;
+            }
+
+            Debug.Log($"[PVP] ⛔ ปืนยิงโดน '{hit.collider.name}' แต่ชิ้นนั้นไม่มีระบบเลือด " +
+                      "และไม่ได้อยู่ในหุ่นที่ลงทะเบียนไว้", this);
         }
 
         /// <summary>แปลงจุดเล็ง (virtual cursor แบบ normalized) เป็นทิศยิงในโลกจริง</summary>

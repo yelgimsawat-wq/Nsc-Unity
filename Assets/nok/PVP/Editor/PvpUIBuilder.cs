@@ -50,11 +50,9 @@ namespace NscGame.Pvp
 
             PvpTeamSelectUI selectUI = root.AddComponent<PvpTeamSelectUI>();
             PvpResultUI resultUI = root.AddComponent<PvpResultUI>();
-            PvpTeamHullUI hullUI = root.AddComponent<PvpTeamHullUI>();
 
             BuildTeamSelectPanel(root.transform, selectUI, font);
             BuildResultBanner(root.transform, resultUI, font);
-            BuildTeamHullBar(root.transform, hullUI, font);
 
             EnsureEventSystem();
             EnsurePlayerHud();
@@ -196,52 +194,6 @@ namespace NscGame.Pvp
             ui.resultPanel = result;
             ui.resultText = resultText;
             result.SetActive(false);
-        }
-
-        /// <summary>
-        /// หลอดเลือดรวมของหุ่นทีมเราเอง (บนกลางจอ) — ไม่ใช่ของฝั่งตรงข้าม
-        /// จำเป็นเพราะ HullRingUI เดิมโชว์แค่ชิ้นที่ผู้เล่นถืออยู่ โดนต่อยที่อื่นแล้วไม่เห็น
-        /// </summary>
-        private static void BuildTeamHullBar(Transform parent, PvpTeamHullUI ui, TMP_FontAsset font)
-        {
-            GameObject holder = CreateUiObject(parent, "TeamHullBar");
-            Anchor(holder.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
-                new Vector2(0f, -46f), new Vector2(620f, 46f));
-
-            AddImage(holder, new Color(0.04f, 0.06f, 0.10f, 0.80f));
-
-            GameObject fillObj = CreateUiObject(holder.transform, "Fill");
-            RectTransform fillRect = fillObj.GetComponent<RectTransform>();
-            Stretch(fillRect);
-            fillRect.offsetMin = new Vector2(4f, 4f);
-            fillRect.offsetMax = new Vector2(-4f, -4f);
-
-            Image fill = AddImage(fillObj, new Color(0.35f, 0.85f, 0.45f, 1f));
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            fill.fillAmount = 1f;
-
-            TextMeshProUGUI header = CreateText(holder.transform, "Header", "YOUR ROBOT", font, 18, TextGrey);
-            Anchor(header.rectTransform, new Vector2(0f, 1f), new Vector2(72f, 16f), new Vector2(180f, 26f));
-            header.alignment = TextAlignmentOptions.Left;
-
-            TextMeshProUGUI value = CreateText(holder.transform, "Value", "0 / 0", font, 24, TextWhite);
-            Stretch(value.rectTransform);
-            value.alignment = TextAlignmentOptions.Center;
-
-            TextMeshProUGUI parts = CreateText(holder.transform, "PartCount", "PARTS 4/4", font, 18, TextGrey);
-            Anchor(parts.rectTransform, new Vector2(1f, 1f), new Vector2(-72f, 16f), new Vector2(180f, 26f));
-            parts.alignment = TextAlignmentOptions.Right;
-
-            SerializedObject so = new SerializedObject(ui);
-            so.FindProperty("root").objectReferenceValue = holder;
-            so.FindProperty("fillImage").objectReferenceValue = fill;
-            so.FindProperty("valueText").objectReferenceValue = value;
-            so.FindProperty("limbCountText").objectReferenceValue = parts;
-            so.ApplyModifiedProperties();
-
-            holder.SetActive(false); // โชว์ตอนเริ่มสู้
         }
 
         /// <summary>

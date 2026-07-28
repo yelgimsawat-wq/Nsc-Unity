@@ -57,7 +57,12 @@ namespace NscGame.Pvp
         public bool friendlyFire = false;
 
         [Header("Debug")]
+        [Tooltip("log ตอนดาเมจเข้า และตอนที่ควรเข้าแต่ไม่เข้า (บ่งบอกว่าตั้งค่าผิด)")]
         public bool debugLog = true;
+
+        [Tooltip("log ตอนต่อยพลาดโดนพื้น/กำแพงด้วย — ปกติปิดไว้เพราะเป็นเรื่องปกติของการเล่น\n" +
+                 "เปิดเมื่ออยากรู้ว่าหมัดไปโดนอะไรกันแน่")]
+        public bool logEnvironmentHits = false;
 
         #endregion
 
@@ -134,14 +139,21 @@ namespace NscGame.Pvp
 
             if (!validTarget)
             {
-                string why = targetRobot == null
-                    ? $"'{collision.collider.name}' ไม่ได้อยู่ในหุ่นที่ลงทะเบียนไว้ (กำแพง/พื้น/prop)"
-                    : targetRobot == ownRobot
+                // ต่อยพลาดโดนพื้น/กำแพง = เรื่องปกติของการเล่น ไม่ใช่การตั้งค่าผิด
+                // ถ้า log ทุกครั้งมันจะกลบเหตุผลอื่นที่บ่งบอกปัญหาจริงจนหาไม่เจอ
+                if (targetRobot == null)
+                {
+                    if (logEnvironmentHits)
+                        Reject(impactSpeed, $"'{collision.collider.name}' ไม่ใช่หุ่น (กำแพง/พื้น/prop)");
+                }
+                else
+                {
+                    Reject(impactSpeed, targetRobot == ownRobot
                         ? "ชนชิ้นส่วนของหุ่นตัวเอง"
                         : targetRobot.IsDefeated
                             ? $"หุ่นทีม {targetRobot.Team.DisplayName()} แพ้ไปแล้ว"
-                            : $"เป็นเพื่อนร่วมทีม {targetRobot.Team.DisplayName()} (friendlyFire ปิด)";
-                Reject(impactSpeed, why);
+                            : $"เป็นเพื่อนร่วมทีม {targetRobot.Team.DisplayName()} (friendlyFire ปิด)");
+                }
             }
 
             if (validTarget)
