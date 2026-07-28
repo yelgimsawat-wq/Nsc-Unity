@@ -71,7 +71,14 @@ namespace NscGame.Enemy
 
         private EnemyController controller;
         private NavMeshAgent agent;
+        private EnemyBodySway bodySway;
         private bool isDead = false;
+
+        // Knockback state — เก็บไว้นอก coroutine เพื่อให้หมัดที่เข้าซ้ำ "เติมแรง+ต่อเวลา"
+        // ในรอบเดิมได้ แทนที่จะ start coroutine ซ้อนกันหลายตัว (ดู ServerTakeHit)
+        private bool knockbackActive = false;
+        private Vector3 pendingKnockbackForce = Vector3.zero;
+        private float knockbackElapsed = 0f;
 
         #endregion
 
@@ -81,6 +88,7 @@ namespace NscGame.Enemy
         {
             controller = GetComponent<EnemyController>();
             agent = GetComponent<NavMeshAgent>();
+            bodySway = GetComponent<EnemyBodySway>(); // Optional — เอียงตัวตอนโดนตี ไม่มีก็แค่ข้าม
 
             // FIX: don't blindly overwrite an Inspector-assigned AudioSource.
             // Previously this line ran unconditionally and set audioSource to
@@ -130,6 +138,14 @@ namespace NscGame.Enemy
             // Apply damage
             CurrentHp.Value = Mathf.Max(0, CurrentHp.Value - damage);
 
+            // Calculate knockback with weakness bonus early so the same force
+            // value can drive both the body-sway hit-lean (client visual) and
+            // the actual position knockback below.
+            float hpRatio = CurrentHp.Value / maxHp;
+            float bonusForce = (hpRatio < weakKnockbackThreshold) ? weakKnockbackBonus : 0f;
+            float totalForce = knockbackForce * knockbackMultiplier + bonusForce;
+            Vector3 pushDir = hitDirection.normalized;
+
             // Broadcast hit effects to all clients.
             // FIX: this now runs BEFORE the death check so a killing blow
             // still plays its VFX/SFX. Previously ServerDie() returned early
@@ -140,7 +156,7 @@ namespace NscGame.Enemy
             // made the VFX spawn in the center of the model regardless of
             // where the punch landed.
             Vector3 impactPos = hitPoint ?? (transform.position + Vector3.up * 0.8f);
-            PlayHitEffectsClientRpc(impactPos);
+            PlayHitEffectsClientRpc(impactPos, pushDir, totalForce);
 
             // Check for death after effects have been broadcast
             if (CurrentHp.Value <= 0)
@@ -149,62 +165,98 @@ namespace NscGame.Enemy
                 return;
             }
 
-            // Calculate knockback with weakness bonus
-            float hpRatio = CurrentHp.Value / maxHp;
-            float bonusForce = (hpRatio < weakKnockbackThreshold) ? weakKnockbackBonus : 0f;
-            float totalForce = knockbackForce * knockbackMultiplier + bonusForce;
-
             // Calculate knockback direction (horizontal + slight upward)
-            Vector3 knockDir = hitDirection.normalized;
+            Vector3 knockDir = pushDir;
             knockDir.y = 0.15f;
             knockDir.Normalize();
 
-            // Apply knockback on server
-            StartCoroutine(ServerKnockbackRoutine(knockDir * totalForce));
+            // ✅ [Re-entrancy Fix] โดนซ้ำระหว่างยังปลิวอยู่ → เติมแรงเข้ารอบที่กำลังวิ่ง
+            // ไม่ startCoroutine ซ้อน เดิมต่อยรัวๆ จะเกิด knockback หลายตัวพร้อมกัน:
+            // ตัวที่สองสั่ง agent ที่ตัวแรกปิดไว้แล้ว → "Stop can only be called on an
+            // active agent..." และต่างคนต่างเรียก ServerEndKnockback ปลดล็อก AI เร็วเกินจริง
+            if (knockbackActive)
+            {
+                pendingKnockbackForce += knockDir * totalForce;
+                knockbackElapsed = 0f; // ต่อเวลาปลิวออกไปอีกรอบ
+            }
+            else
+            {
+                pendingKnockbackForce = knockDir * totalForce;
+                StartCoroutine(ServerKnockbackRoutine());
+            }
         }
 
-        private IEnumerator ServerKnockbackRoutine(Vector3 force)
+        /// <summary>
+        /// สั่งงาน NavMeshAgent ได้เฉพาะตอน enabled และยืนอยู่บน NavMesh จริง
+        /// ฉากที่ไม่ได้ bake NavMesh / agent หลุด mesh / agent ถูกปิดชั่วคราวตอน knockback
+        /// ถ้าสั่งตรงๆ Unity จะพ่น error ทุกครั้ง (แพทเทิร์นเดียวกับ EnemyController)
+        /// </summary>
+        private bool IsAgentUsable => agent != null && agent.enabled && agent.isOnNavMesh;
+
+        private IEnumerator ServerKnockbackRoutine()
         {
+            knockbackActive = true;
+
             // Notify controller to pause AI
             controller.ServerBeginKnockback();
 
-            // Disable NavMeshAgent temporarily
-            agent.isStopped = true;
-            agent.enabled = false;
+            bool agentWasEnabled = agent != null && agent.enabled;
 
-            float elapsed = 0f;
-            while (elapsed < knockbackDuration)
+            // Disable NavMeshAgent temporarily
+            if (IsAgentUsable) agent.isStopped = true;
+            if (agent != null) agent.enabled = false;
+
+            bool warnedOffNavMesh = false;
+            knockbackElapsed = 0f;
+
+            // ✅ [Floating Fix] NavMeshAgent วางตัวโมเดลไว้สูงจากผิว NavMesh เท่ากับ baseOffset
+            // (แพนด้าตั้งไว้ 1.67) แต่ SamplePosition คืนจุดบน "ผิว mesh" เปล่าๆ
+            // เดิม transform.position = hit.position ตรงๆ → ทุกครั้งที่โดนต่อยตัวจะจมลง 1.67
+            // แล้วเด้งกลับขึ้นตอน agent.Warp() ท้ายรูทีน = อาการกระเด้งแรงผิดปกติ
+            float baseOffset = agent != null ? agent.baseOffset : 0f;
+
+            while (knockbackElapsed < knockbackDuration)
             {
                 // Ease out knockback force over time
-                float t = elapsed / knockbackDuration;
+                float t = knockbackElapsed / knockbackDuration;
                 float eased = 1f - t * t; // Ease Out Quad
-                Vector3 movement = force * eased * Time.deltaTime;
+                Vector3 movement = pendingKnockbackForce * eased * Time.deltaTime;
 
                 Vector3 targetPos = transform.position + movement;
 
                 // Ensure new position stays on NavMesh
                 if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 2f, NavMesh.AllAreas))
                 {
-                    transform.position = hit.position;
+                    transform.position = hit.position + Vector3.up * baseOffset;
                 }
-                else
+                else if (!warnedOffNavMesh)
                 {
-                    Debug.LogWarning("[EnemyHealth] Knockback target position is off NavMesh, skipping movement.");
+                    // เตือนครั้งเดียวต่อ knockback — เดิมอยู่ในลูปพ่นทุกเฟรมจนอ่าน Console ไม่ได้
+                    warnedOffNavMesh = true;
+                    Debug.LogWarning("[EnemyHealth] Knockback target position is off NavMesh, skipping movement.", this);
                 }
 
-                elapsed += Time.deltaTime;
+                knockbackElapsed += Time.deltaTime;
                 yield return null;
             }
 
+            knockbackActive = false;
+
+            // ✅ ตายระหว่างปลิว (หมัดสุดท้ายเข้าตอน knockback ยังไม่จบ) → ห้ามคืนสภาพ
+            // ServerDie() ปิด agent + ตั้ง state = Dead ไว้แล้ว ถ้าเดินต่อจะเปิด agent กลับ
+            // และ ServerEndKnockback() จะตั้ง state = Idle = ศพลุกขึ้นมาเดินใหม่
+            if (isDead) yield break;
+
             // Re-enable NavMeshAgent and warp to final position
-            agent.enabled = true;
-
-            if (agent.enabled && NavMesh.SamplePosition(transform.position, out NavMeshHit finalHit, 2f, NavMesh.AllAreas))
+            if (agent != null && agentWasEnabled)
             {
-                agent.Warp(finalHit.position);
-            }
+                agent.enabled = true;
 
-            agent.isStopped = false;
+                if (NavMesh.SamplePosition(transform.position, out NavMeshHit finalHit, 2f, NavMesh.AllAreas))
+                    agent.Warp(finalHit.position);
+
+                if (IsAgentUsable) agent.isStopped = false;
+            }
 
             controller.ServerEndKnockback();
         }
@@ -226,7 +278,7 @@ namespace NscGame.Enemy
 
         /// <summary>Spawn VFX and play SFX on all clients when hit</summary>
         [ClientRpc]
-        private void PlayHitEffectsClientRpc(Vector3 impactPosition)
+        private void PlayHitEffectsClientRpc(Vector3 impactPosition, Vector3 pushDirection, float force)
         {
             // Spawn VFX
             if (hitVfxPrefab != null)
@@ -239,6 +291,10 @@ namespace NscGame.Enemy
             // Play SFX
             if (sfxHit != null && audioSource != null)
                 audioSource.PlayOneShot(sfxHit);
+
+            // เอียงตัวตามแรงชก แล้วปล่อยให้สปริงดึงกลับเอง — ทำเฉพาะฝั่ง client เป็น visual เท่านั้น
+            if (bodySway != null)
+                bodySway.ApplyHitImpulse(pushDirection, force);
         }
 
         #endregion

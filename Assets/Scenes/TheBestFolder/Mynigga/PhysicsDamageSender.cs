@@ -23,12 +23,22 @@ public class PhysicsDamageSender : MonoBehaviour
     [Tooltip("เพดานดาเมจต่อการชนหนึ่งครั้ง")]
     public float maxDamagePerHit = 60f;
 
-    [Header("Knockback Settings")]
-    [Tooltip("แรง Knockback พื้นฐาน")]
-    public float baseKnockbackForce = 5f;
+    [Header("Knockback Settings (ยิ่งต่อยแรงยิ่งเด้งแรง)")]
+    // สูตรเดิม: base(5) + speed × 0.3 → ต่อยแผ่ว 7.4 / ต่อยเต็มแรง 21.5
+    // ตัวคงที่ 5 กินสัดส่วนใหญ่ตอนต่อยเบา ทำให้ "เด้งแรงเท่ากันหมด" และแรงเกินโดยรวม
+    // สูตรใหม่: ไล่จาก min → max ตามสัดส่วนความเร็วจริง + ปรับความโค้งได้
+    [Tooltip("แรงเด้งตอนต่อยแผ่วสุดที่ยังคิดดาเมจ (ความเร็ว = Min Velocity Threshold)")]
+    public float minKnockbackForce = 2f;
 
-    [Tooltip("คูณความเร็วชนเป็นแรง Knockback เพิ่มเติม")]
-    public float knockbackVelocityMultiplier = 0.3f;
+    [Tooltip("แรงเด้งตอนต่อยเต็มแรง (ความเร็วถึง Knockback Reference Speed)")]
+    public float maxKnockbackForce = 12f;
+
+    [Tooltip("ความโค้งการไล่แรง\n1 = เชิงเส้น | >1 = ต่อยเบาแทบไม่เด้ง แต่ต่อยเต็มแรงยังเด้งสุด (แนะนำ 1.5-2.5)")]
+    [Range(0.5f, 4f)]
+    public float knockbackCurve = 2f;
+
+    [Tooltip("ความเร็วที่ถือว่า 'ต่อยเต็มแรง' (m/s) — ตั้งให้ตรงกับ Max Punch Speed ของ PlayerHandCombat")]
+    public float knockbackReferenceSpeed = 55f;
 
     [Header("VFX/SFX (Optional)")]
     [Tooltip("Particle effect เมื่อชนเกิดดาเมจ")]
@@ -56,6 +66,17 @@ public class PhysicsDamageSender : MonoBehaviour
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 1f; // 3D sound
         }
+    }
+
+    /// <summary>
+    /// แปลงความเร็วปะทะ → แรงเด้ง แบบไล่สัดส่วนจริง (ต่อยเบา = เด้งน้อย / ต่อยเต็มแรง = เด้งสุด)
+    /// knockbackCurve ยกกำลังทำให้ช่วงต้นแบนราบ — หมัดแผ่วๆ แทบไม่ขยับตัวบอส
+    /// </summary>
+    private float ComputeKnockback(float speed)
+    {
+        float top = Mathf.Max(knockbackReferenceSpeed, minVelocityThreshold + 0.01f);
+        float t = Mathf.InverseLerp(minVelocityThreshold, top, speed);
+        return Mathf.Lerp(minKnockbackForce, maxKnockbackForce, Mathf.Pow(t, knockbackCurve));
     }
 
     void OnCollisionEnter(Collision collision)
@@ -90,7 +111,7 @@ public class PhysicsDamageSender : MonoBehaviour
                 return;
 
             finalDamage = Mathf.Min(punchSpeed * speedToDamage, maxDamagePerHit);
-            finalKnockback = baseKnockbackForce + (punchSpeed * knockbackVelocityMultiplier);
+            finalKnockback = ComputeKnockback(punchSpeed);
         }
         else if (legCombat != null)
         {
@@ -103,7 +124,7 @@ public class PhysicsDamageSender : MonoBehaviour
                 return;
 
             finalDamage = Mathf.Min(kickSpeed * kickSpeedToDamage, maxDamagePerHit);
-            finalKnockback = baseKnockbackForce + (kickSpeed * knockbackVelocityMultiplier);
+            finalKnockback = ComputeKnockback(kickSpeed);
         }
         else
         {
@@ -113,7 +134,7 @@ public class PhysicsDamageSender : MonoBehaviour
 
             float impactForce = collision.impulse.magnitude / Time.fixedDeltaTime;
             finalDamage = Mathf.Min(impactForce * forceToDamage, maxDamagePerHit);
-            finalKnockback = baseKnockbackForce + (impactSpeed * knockbackVelocityMultiplier);
+            finalKnockback = ComputeKnockback(impactSpeed);
         }
 
         // ทิศทางการชน (จากจุดชนแรก)
