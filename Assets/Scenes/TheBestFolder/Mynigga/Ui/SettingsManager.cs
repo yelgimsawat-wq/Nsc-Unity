@@ -91,8 +91,8 @@ public class SettingsManager : MonoBehaviour
     [Tooltip("เกณฑ์ความดังที่ถือว่า 'กำลังพูด' (ใช้เฉพาะโหมด Open Mic)")]
     [SerializeField] private Slider vadThresholdSlider;
 
-    [Tooltip("หลอดวัดระดับเสียงเข้าไมค์แบบเรียลไทม์ ตอนเปิดหน้าตั้งค่า")]
-    [SerializeField] private Slider micLevelMeter;
+    [Tooltip("หลอดวัดระดับเสียงเข้าไมค์แบบขีดๆ อัปเดตเรียลไทม์ตอนเปิดหน้าตั้งค่า")]
+    [SerializeField] private VoiceLevelMeter micLevelMeter;
 
     [SerializeField] private Toggle micEnabledToggle;
     [SerializeField] private Toggle voiceSpeakerToggle;
@@ -226,6 +226,9 @@ public class SettingsManager : MonoBehaviour
         RebuildMicDeviceOptions();
         RefreshVoiceUI();
 
+        // เปิดไมค์เพื่อวัดระดับ แม้ยังไม่ได้เข้าห้อง — ไม่งั้นหลอด Mic Level ไม่มีทางขยับ
+        VoiceChat.Instance?.SetMicTestActive(true);
+
         settingsPopupPanel.SetActive(true);
 
         if (popupCanvasGroup == null)
@@ -262,6 +265,10 @@ public class SettingsManager : MonoBehaviour
 
         isPopupOpen = false;
         KillPopupTween();
+
+        // ปิดหน้าตั้งค่าแล้วเลิกจับไมค์ (ถ้าอยู่ในห้องอยู่ VoiceChat จะเปิดต่อเอง)
+        VoiceChat.Instance?.SetMicTestActive(false);
+        smoothedMicLevel = 0f;
 
         if (popupCanvasGroup == null)
             popupCanvasGroup = settingsPopupPanel.GetComponent<CanvasGroup>();
@@ -561,16 +568,13 @@ public class SettingsManager : MonoBehaviour
             talkModeDropdown.onValueChanged.AddListener(OnTalkModeChanged);
         }
 
-        BindVoiceSlider(micVolumeSlider, 0f, 2f, voice != null ? voice.MicVolume : 1f, OnMicVolumeChanged);
+        BindVoiceSlider(micVolumeSlider, 0f, 4f, voice != null ? voice.MicVolume : 1f, OnMicVolumeChanged);
         BindVoiceSlider(voiceVolumeSlider, 0f, 2f, voice != null ? voice.SpeakerVolume : 1f, OnVoiceVolumeChanged);
-        BindVoiceSlider(vadThresholdSlider, 0.001f, 0.2f, voice != null ? voice.VadThreshold : 0.02f, OnVadThresholdChanged);
 
-        if (micLevelMeter != null)
-        {
-            micLevelMeter.minValue = 0f;
-            micLevelMeter.maxValue = 1f;
-            micLevelMeter.interactable = false;
-        }
+        // ⚠️ สไลเดอร์เกณฑ์เสียงต้องเป็นสเกล dB ไม่ใช่ค่าดิบ —
+        // ของเดิม 0.001-0.2 เชิงเส้น ทำให้ช่วงที่ใช้งานได้จริงกินแค่ 3.5% ของราง ที่เหลือคือ "ปิดไมค์"
+        BindVoiceSlider(vadThresholdSlider, 0f, 1f,
+            AmpToSlider(voice != null ? voice.VadThreshold : 0.005f), OnVadThresholdChanged);
 
         if (micEnabledToggle != null)
         {
@@ -674,7 +678,21 @@ public class SettingsManager : MonoBehaviour
             voiceVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
     }
 
-    private void OnVadThresholdChanged(float value) => VoiceChat.Instance?.SetVadThreshold(value);
+    // สเกล dB ให้ทั้งรางสไลเดอร์ใช้งานได้จริง และเทียบกับหลอดวัดระดับได้ตรงๆ
+    private const float VadMinDb = -60f, VadMaxDb = -20f;
+
+    private static float SliderToAmp(float t) =>
+        Mathf.Pow(10f, Mathf.Lerp(VadMinDb, VadMaxDb, Mathf.Clamp01(t)) / 20f);
+
+    private static float AmpToSlider(float amp) =>
+        Mathf.InverseLerp(VadMinDb, VadMaxDb, 20f * Mathf.Log10(Mathf.Max(amp, 1e-5f)));
+
+    private void OnVadThresholdChanged(float t)
+    {
+        VoiceChat.Instance?.SetVadThreshold(SliderToAmp(t));
+        // ลากเกณฑ์เอง = ตั้งใจคุมเอง ปิดโหมดอัตโนมัติให้เลย ไม่งั้นค่าที่ลากจะไม่มีผล
+        VoiceChat.Instance?.SetVadAutoCalibrate(false);
+    }
     private void OnMicEnabledChanged(bool value) => VoiceChat.Instance?.SetMicEnabled(value);
     private void OnVoiceSpeakerChanged(bool value) => VoiceChat.Instance?.SetSpeakerEnabled(value);
 
@@ -697,9 +715,16 @@ public class SettingsManager : MonoBehaviour
         if (voiceVolumeLabel != null)
             voiceVolumeLabel.text = $"{Mathf.RoundToInt(voice.SpeakerVolume * 100)}%";
 
-        // เกณฑ์ VAD ใช้เฉพาะโหมด Open Mic — โหมดกดพูดไม่มีความหมาย ปิดไปเลยจะได้ไม่งง
+        // เกณฑ์ VAD ใช้เฉพาะโหมด Open Mic และเฉพาะตอนปิดโหมดอัตโนมัติ
         if (vadThresholdSlider != null)
-            vadThresholdSlider.interactable = voice.CurrentTalkMode == VoiceChat.TalkMode.OpenMic;
+        {
+            vadThresholdSlider.interactable =
+                voice.CurrentTalkMode == VoiceChat.TalkMode.OpenMic;
+
+            // โหมดอัตโนมัติปรับเกณฑ์เองตามเสียงรบกวนห้อง — สะท้อนกลับมาที่สไลเดอร์ให้เห็น
+            if (voice.VadAutoCalibrate)
+                vadThresholdSlider.SetValueWithoutNotify(AmpToSlider(voice.CurrentVadOpenThreshold));
+        }
 
         if (voiceStatusLabel != null)
         {
@@ -709,16 +734,21 @@ public class SettingsManager : MonoBehaviour
             }
             else
             {
-                string mode = voice.CurrentTalkMode == VoiceChat.TalkMode.PushToTalk
-                    ? $"Push-to-Talk ({voice.PushToTalkKey})"
-                    : "Open Mic";
-
+                // rich text — ON เขียว OFF แดง อ่านสถานะได้จากหางตา ไม่ต้องอ่านคำ
+                // ⚠️ <alpha> เป็นแท็กเดี่ยว ไม่มี </alpha> — ใส่แท็กปิดแล้วมันจะโผล่เป็นตัวอักษร
                 voiceStatusLabel.text =
-                    $"Mic: {(voice.MicEnabled ? "ON" : "OFF")} [{voice.ToggleMicKey}]   " +
-                    $"Voice: {(voice.SpeakerEnabled ? "ON" : "OFF")} [{voice.ToggleSpeakerKey}]   |   {mode}";
+                    $"Mic: {StatusTag(voice.MicEnabled)}" +
+                    $"<color=#FFFFFF44>   |   </color>" +
+                    $"Voice: {StatusTag(voice.SpeakerEnabled)}";
             }
         }
     }
+
+    /// <summary>ON เขียว / OFF แดง สำหรับป้ายสถานะเสียงพูด</summary>
+    private static string StatusTag(bool on) =>
+        on ? "<color=#4ADE80>ON</color>" : "<color=#F87171>OFF</color>";
+
+    private float smoothedMicLevel;
 
     private void UpdateVoiceMeter()
     {
@@ -727,10 +757,22 @@ public class SettingsManager : MonoBehaviour
         VoiceChat voice = VoiceChat.Instance;
         if (voice == null) return;
 
-        // RMS ดิบต่ำมาก (พูดปกติ ~0.05) คูณขึ้นให้หลอดขยับพอเห็น
-        float display = Mathf.Clamp01(voice.CurrentMicLevel * 5f);
-        micLevelMeter.SetValueWithoutNotify(
-            Mathf.Lerp(micLevelMeter.value, display, Time.unscaledDeltaTime * 12f));
+        // ⚠️ ห้ามใช้สเกลเชิงเส้น — วัดจริงแล้วพูดปกติได้ RMS ~0.014 คูณ 5 ติดแค่ 2/28 ขีด
+        // เสียงมีช่วงไดนามิกกว้างมาก ต้องแปลงเป็น dB แบบเดียวกับ VU meter จริง
+        const float MinDb = -60f, MaxDb = -6f;
+        float rms = Mathf.Max(voice.CurrentMicLevel, 1e-5f);
+        float db = 20f * Mathf.Log10(rms);
+        float target = Mathf.Clamp01((db - MinDb) / (MaxDb - MinDb));
+        float speed = target > smoothedMicLevel ? 25f : 8f;
+        smoothedMicLevel = Mathf.Lerp(smoothedMicLevel, target, Time.unscaledDeltaTime * speed);
+
+        micLevelMeter.SetLevel(smoothedMicLevel);
+
+        // วาดเส้นเกณฑ์บนหลอดเดียวกัน — ผู้เล่นเห็นทันทีว่าต้องพูดให้ดังเกินเส้นไหน
+        // ก่อนหน้านี้เส้นนี้มองไม่เห็น คนเลยเห็นหลอดขึ้น 43% แล้วนึกว่าไมค์ปกติ ทั้งที่ถูกตัดอยู่
+        float thrDb = 20f * Mathf.Log10(Mathf.Max(voice.CurrentVadOpenThreshold, 1e-5f));
+        micLevelMeter.SetThresholdMarker(Mathf.Clamp01((thrDb - MinDb) / (MaxDb - MinDb)));
+        micLevelMeter.SetTransmitting(voice.IsTransmitting);
     }
 
     // ================================================================

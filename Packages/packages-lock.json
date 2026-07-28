@@ -1,5 +1,37 @@
 {
   "dependencies": {
+    "com.adrenak.brw": {
+      "version": "1.2.0",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://registry.npmjs.org"
+    },
+    "com.adrenak.concentus-unity": {
+      "version": "1.0.1",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://registry.npmjs.org"
+    },
+    "com.adrenak.unimic": {
+      "version": "3.4.0",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://registry.npmjs.org"
+    },
+    "com.adrenak.univoice": {
+      "version": "4.12.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.adrenak.brw": "1.2.0",
+        "com.adrenak.unimic": "3.4.0",
+        "com.adrenak.concentus-unity": "1.0.1"
+      },
+      "url": "https://registry.npmjs.org"
+    },
     "com.autodesk.fbx": {
       "version": "5.1.3",
       "depth": 1,
