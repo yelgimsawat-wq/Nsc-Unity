@@ -32,13 +32,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Code Structure
 
-**Main Game Scripts** (`Assets/Scenes/TheBestFolder/Mynigga/`)
+**Main Game Scripts** (`Assets/Scenes/TheBestFolder/Mynigga/`) — grouped into subfolders by role:
+
+`Player/` - the robot limb control stack
+- `PlayerCam.cs` - Camera follow
+- `PlayerHandMovement.cs` - Arm IK/spring base class
+- `PlayerHandCombat.cs` - Punch (extends PlayerHandMovement)
+- `PlayerFootForRobot.cs` - Leg IK/spring, stepping, standing lock
+- `PlayerLegCombat.cs` - Charge Kick (wind-up → spring-driven strike)
+- `TorsoMovement.cs` - Balance, ragdoll, recovery
+
+`UI/` - menus and lobby
 - `OnlineNetworkUI.cs` - Main menu multiplayer flow (Create/Join room, waiting lobby)
 - `LobbyManager.cs` - In-game part selection lobby (robot anatomy selection)
 - `SettingsManager.cs` - Settings UI with tabbed layout (Graphics/Audio/Gameplay)
-- `RobotManager.cs` - Player robot part management
-- `PlayerCam.cs`, `PlayerHandMovement.cs`, `PlayerFootForRobot.cs`, `TorsoMovement.cs` - Player control
-- `ClientNetworkTransform.cs` - Custom network transform for player movement
+
+`Combat/` - `PhysicsDamageSender.cs` (speed→damage), `RobotTeam.cs`, `RobotManager.cs`
+`Networking/` - `ClientNetworkTransform.cs`, `AutoStartHost.cs`, `ReturnToMenuOnHostLost.cs`, `TestNetwork.cs`
+`Utils/` - `Vector3Extensions.cs`
+`Prefabs/` - `Canvas.prefab`, `player1.prefab`, `Red.mat`
+`OutDated/` - superseded prototypes, not referenced by live scenes
 
 **Enemy AI System** (`Assets/nok/Enemy/Scripts/EnemyAI/`)
 - `EnemyController.cs` - Main AI brain (State machine: Idle → Walk → Roll → Attack → Dead)
@@ -215,7 +228,7 @@ private void OnDestroy()
 
 - `Assets/nok/` - Core gameplay (Enemy, Rope, Particle, Robot, Weapon)
 - `Assets/map/` - Environment (city, buildings, shaders, materials)
-- `Assets/Scenes/TheBestFolder/Mynigga/` - Main C# scripts
+- `Assets/Scenes/TheBestFolder/Mynigga/` - Main C# scripts (see Code Structure above for the subfolder layout)
 - `Assets/MenuUI/` - Menu-specific UI prefabs
 - `Assets/Plugins/Demigiant/` - DOTween library
 - `Assets/Something/` - Shared resources (TMP, shaders, tutorials)

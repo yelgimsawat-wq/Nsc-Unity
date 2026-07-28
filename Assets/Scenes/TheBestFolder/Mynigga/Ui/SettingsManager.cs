@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -72,6 +74,29 @@ public class SettingsManager : MonoBehaviour
     [Header("--- Audio Settings ---")]
     [SerializeField] private Slider masterVolumeSlider;
     [SerializeField] private TextMeshProUGUI masterVolumeLabel;
+
+    [Header("--- Voice Chat (แท็บ Audio) ---")]
+    [Tooltip("ทุกช่องปล่อยว่างได้ — ระบบเสียงพูดยังทำงานปกติ แค่ตั้งค่าจากหน้านี้ไม่ได้\n" +
+             "ตัว VoiceChat เกิดเองอัตโนมัติทุกฉาก ไม่ต้องลากใส่ scene")]
+    [SerializeField] private TMP_Dropdown micDeviceDropdown;
+
+    [Tooltip("โหมดพูด: Open Mic / Push-to-Talk")]
+    [SerializeField] private TMP_Dropdown talkModeDropdown;
+
+    [SerializeField] private Slider micVolumeSlider;
+    [SerializeField] private TextMeshProUGUI micVolumeLabel;
+    [SerializeField] private Slider voiceVolumeSlider;
+    [SerializeField] private TextMeshProUGUI voiceVolumeLabel;
+
+    [Tooltip("เกณฑ์ความดังที่ถือว่า 'กำลังพูด' (ใช้เฉพาะโหมด Open Mic)")]
+    [SerializeField] private Slider vadThresholdSlider;
+
+    [Tooltip("หลอดวัดระดับเสียงเข้าไมค์แบบเรียลไทม์ ตอนเปิดหน้าตั้งค่า")]
+    [SerializeField] private Slider micLevelMeter;
+
+    [SerializeField] private Toggle micEnabledToggle;
+    [SerializeField] private Toggle voiceSpeakerToggle;
+    [SerializeField] private TextMeshProUGUI voiceStatusLabel;
 
     // ================================================================
     //  GAMEPLAY TAB UI
@@ -174,6 +199,8 @@ public class SettingsManager : MonoBehaviour
         {
             UpdateFpsCounter();
         }
+
+        UpdateVoiceMeter();
     }
 
     private void OnDestroy()
@@ -194,6 +221,10 @@ public class SettingsManager : MonoBehaviour
 
         isPopupOpen = true;
         KillPopupTween();
+
+        // ไมค์อาจถูกเสียบ/ถอดไปตั้งแต่เปิดเกม — รีเฟรชรายชื่อทุกครั้งที่เปิดหน้าตั้งค่า
+        RebuildMicDeviceOptions();
+        RefreshVoiceUI();
 
         settingsPopupPanel.SetActive(true);
 
@@ -372,6 +403,8 @@ public class SettingsManager : MonoBehaviour
         if (masterVolumeSlider != null)
             masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
 
+        BindVoiceControls();
+
         // Gameplay settings
         if (playerNameInputField != null)
             playerNameInputField.onValueChanged.AddListener(OnPlayerNameChanged);
@@ -415,6 +448,8 @@ public class SettingsManager : MonoBehaviour
         // Audio settings
         if (masterVolumeSlider != null)
             masterVolumeSlider.onValueChanged.RemoveListener(OnMasterVolumeChanged);
+
+        UnbindVoiceControls();
 
         // Gameplay settings
         if (playerNameInputField != null)
@@ -501,6 +536,201 @@ public class SettingsManager : MonoBehaviour
 
         if (masterVolumeLabel != null)
             masterVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
+    }
+
+    // ================================================================
+    //  VOICE CHAT (แท็บ Audio)
+    // ================================================================
+
+    /// <summary>
+    /// ผูกคอนโทรลเสียงพูดทั้งหมด — ทุกช่องปล่อยว่างใน Inspector ได้
+    /// VoiceChat เกิดเองอยู่แล้ว หน้านี้เป็นแค่ที่ปรับค่า ไม่ใช่ตัวเปิดระบบ
+    /// </summary>
+    private void BindVoiceControls()
+    {
+        VoiceChat voice = VoiceChat.Instance;
+
+        RebuildMicDeviceOptions();
+
+        if (talkModeDropdown != null)
+        {
+            talkModeDropdown.ClearOptions();
+            talkModeDropdown.AddOptions(new List<string> { "Open Mic", "Push-to-Talk" });
+            talkModeDropdown.SetValueWithoutNotify(voice != null ? (int)voice.CurrentTalkMode : 0);
+            talkModeDropdown.onValueChanged.RemoveListener(OnTalkModeChanged);
+            talkModeDropdown.onValueChanged.AddListener(OnTalkModeChanged);
+        }
+
+        BindVoiceSlider(micVolumeSlider, 0f, 2f, voice != null ? voice.MicVolume : 1f, OnMicVolumeChanged);
+        BindVoiceSlider(voiceVolumeSlider, 0f, 2f, voice != null ? voice.SpeakerVolume : 1f, OnVoiceVolumeChanged);
+        BindVoiceSlider(vadThresholdSlider, 0.001f, 0.2f, voice != null ? voice.VadThreshold : 0.02f, OnVadThresholdChanged);
+
+        if (micLevelMeter != null)
+        {
+            micLevelMeter.minValue = 0f;
+            micLevelMeter.maxValue = 1f;
+            micLevelMeter.interactable = false;
+        }
+
+        if (micEnabledToggle != null)
+        {
+            micEnabledToggle.SetIsOnWithoutNotify(voice == null || voice.MicEnabled);
+            micEnabledToggle.onValueChanged.RemoveListener(OnMicEnabledChanged);
+            micEnabledToggle.onValueChanged.AddListener(OnMicEnabledChanged);
+        }
+
+        if (voiceSpeakerToggle != null)
+        {
+            voiceSpeakerToggle.SetIsOnWithoutNotify(voice == null || voice.SpeakerEnabled);
+            voiceSpeakerToggle.onValueChanged.RemoveListener(OnVoiceSpeakerChanged);
+            voiceSpeakerToggle.onValueChanged.AddListener(OnVoiceSpeakerChanged);
+        }
+
+        if (voice != null)
+        {
+            voice.OnVoiceStateChanged -= RefreshVoiceUI;
+            voice.OnVoiceStateChanged += RefreshVoiceUI;
+        }
+
+        RefreshVoiceUI();
+    }
+
+    private void BindVoiceSlider(Slider slider, float min, float max, float value, UnityAction<float> callback)
+    {
+        if (slider == null) return;
+
+        slider.minValue = min;
+        slider.maxValue = max;
+        slider.SetValueWithoutNotify(Mathf.Clamp(value, min, max));
+        slider.onValueChanged.RemoveListener(callback);
+        slider.onValueChanged.AddListener(callback);
+    }
+
+    private void UnbindVoiceControls()
+    {
+        if (micDeviceDropdown != null) micDeviceDropdown.onValueChanged.RemoveListener(OnMicDeviceChanged);
+        if (talkModeDropdown != null) talkModeDropdown.onValueChanged.RemoveListener(OnTalkModeChanged);
+        if (micVolumeSlider != null) micVolumeSlider.onValueChanged.RemoveListener(OnMicVolumeChanged);
+        if (voiceVolumeSlider != null) voiceVolumeSlider.onValueChanged.RemoveListener(OnVoiceVolumeChanged);
+        if (vadThresholdSlider != null) vadThresholdSlider.onValueChanged.RemoveListener(OnVadThresholdChanged);
+        if (micEnabledToggle != null) micEnabledToggle.onValueChanged.RemoveListener(OnMicEnabledChanged);
+        if (voiceSpeakerToggle != null) voiceSpeakerToggle.onValueChanged.RemoveListener(OnVoiceSpeakerChanged);
+
+        if (VoiceChat.Instance != null)
+            VoiceChat.Instance.OnVoiceStateChanged -= RefreshVoiceUI;
+    }
+
+    /// <summary>รายชื่อไมค์เปลี่ยนได้ระหว่างเล่น (เสียบ/ถอดหูฟัง) — สร้างใหม่ทุกครั้งที่เปิดหน้าตั้งค่า</summary>
+    private void RebuildMicDeviceOptions()
+    {
+        if (micDeviceDropdown == null) return;
+
+        VoiceChat voice = VoiceChat.Instance;
+        string[] options = VoiceChat.GetMicDeviceOptions();
+
+        // ถอด listener ก่อนเสมอ ไม่งั้น ClearOptions/AddOptions จะยิง callback แล้วเซฟค่าผิด
+        micDeviceDropdown.onValueChanged.RemoveListener(OnMicDeviceChanged);
+        micDeviceDropdown.ClearOptions();
+        micDeviceDropdown.AddOptions(new List<string>(options));
+
+        int selected = 0; // ช่อง 0 = Default ของระบบ
+        if (voice != null && !string.IsNullOrEmpty(voice.MicDevice))
+        {
+            int found = Array.IndexOf(options, voice.MicDevice);
+            if (found > 0) selected = found;
+        }
+
+        micDeviceDropdown.SetValueWithoutNotify(selected);
+        micDeviceDropdown.onValueChanged.AddListener(OnMicDeviceChanged);
+    }
+
+    private void OnMicDeviceChanged(int index)
+    {
+        if (VoiceChat.Instance == null) return;
+
+        string[] options = VoiceChat.GetMicDeviceOptions();
+        // index 0 = "Default" -> ส่งค่าว่างให้ VoiceChat ใช้ไมค์ default ของเครื่อง
+        string device = (index > 0 && index < options.Length) ? options[index] : string.Empty;
+        VoiceChat.Instance.SetMicDevice(device);
+    }
+
+    private void OnTalkModeChanged(int index)
+    {
+        VoiceChat.Instance?.SetTalkMode((VoiceChat.TalkMode)index);
+        RefreshVoiceUI();
+    }
+
+    private void OnMicVolumeChanged(float value)
+    {
+        VoiceChat.Instance?.SetMicVolume(value);
+        if (micVolumeLabel != null)
+            micVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
+    }
+
+    private void OnVoiceVolumeChanged(float value)
+    {
+        VoiceChat.Instance?.SetSpeakerVolume(value);
+        if (voiceVolumeLabel != null)
+            voiceVolumeLabel.text = $"{Mathf.RoundToInt(value * 100)}%";
+    }
+
+    private void OnVadThresholdChanged(float value) => VoiceChat.Instance?.SetVadThreshold(value);
+    private void OnMicEnabledChanged(bool value) => VoiceChat.Instance?.SetMicEnabled(value);
+    private void OnVoiceSpeakerChanged(bool value) => VoiceChat.Instance?.SetSpeakerEnabled(value);
+
+    private void RefreshVoiceUI()
+    {
+        VoiceChat voice = VoiceChat.Instance;
+
+        if (voice == null)
+        {
+            if (voiceStatusLabel != null)
+                voiceStatusLabel.text = "Voice system not ready.";
+            return;
+        }
+
+        if (micEnabledToggle != null) micEnabledToggle.SetIsOnWithoutNotify(voice.MicEnabled);
+        if (voiceSpeakerToggle != null) voiceSpeakerToggle.SetIsOnWithoutNotify(voice.SpeakerEnabled);
+
+        if (micVolumeLabel != null)
+            micVolumeLabel.text = $"{Mathf.RoundToInt(voice.MicVolume * 100)}%";
+        if (voiceVolumeLabel != null)
+            voiceVolumeLabel.text = $"{Mathf.RoundToInt(voice.SpeakerVolume * 100)}%";
+
+        // เกณฑ์ VAD ใช้เฉพาะโหมด Open Mic — โหมดกดพูดไม่มีความหมาย ปิดไปเลยจะได้ไม่งง
+        if (vadThresholdSlider != null)
+            vadThresholdSlider.interactable = voice.CurrentTalkMode == VoiceChat.TalkMode.OpenMic;
+
+        if (voiceStatusLabel != null)
+        {
+            if (Microphone.devices.Length == 0)
+            {
+                voiceStatusLabel.text = "No microphone detected.";
+            }
+            else
+            {
+                string mode = voice.CurrentTalkMode == VoiceChat.TalkMode.PushToTalk
+                    ? $"Push-to-Talk ({voice.PushToTalkKey})"
+                    : "Open Mic";
+
+                voiceStatusLabel.text =
+                    $"Mic: {(voice.MicEnabled ? "ON" : "OFF")} [{voice.ToggleMicKey}]   " +
+                    $"Voice: {(voice.SpeakerEnabled ? "ON" : "OFF")} [{voice.ToggleSpeakerKey}]   |   {mode}";
+            }
+        }
+    }
+
+    private void UpdateVoiceMeter()
+    {
+        if (micLevelMeter == null || !isPopupOpen) return;
+
+        VoiceChat voice = VoiceChat.Instance;
+        if (voice == null) return;
+
+        // RMS ดิบต่ำมาก (พูดปกติ ~0.05) คูณขึ้นให้หลอดขยับพอเห็น
+        float display = Mathf.Clamp01(voice.CurrentMicLevel * 5f);
+        micLevelMeter.SetValueWithoutNotify(
+            Mathf.Lerp(micLevelMeter.value, display, Time.unscaledDeltaTime * 12f));
     }
 
     // ================================================================

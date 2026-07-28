@@ -7,7 +7,10 @@ using UnityEngine.UI;
 /// <summary>
 /// สร้าง Player HUD prefab ทั้งชุดด้วยการกดเมนูครั้งเดียว: Tools/NSC/Build Player HUD
 /// กดซ้ำได้เสมอ — จะลบ HUD เก่าใน scene แล้ว regenerate ใหม่ทับ prefab เดิม
-/// (สเต็ปถัดไปจะขยาย builder นี้: Punch Force → Status Prompt → Limb Status Cards)
+///
+/// ชิ้นส่วน: HULL ring → Punch Force → Kick Charge → Status Prompt → Limb Status Cards
+/// หมายเหตุ: Punch Force กับ Kick Charge วางตำแหน่งทับกัน โดยตั้งใจ —
+/// ผู้เล่นหนึ่งคนคุมได้แค่แขนหรือขา อีกอันจะซ่อนตัวเองเสมอ
 /// </summary>
 public static class PlayerHudBuilder
 {
@@ -21,6 +24,47 @@ public static class PlayerHudBuilder
     private static readonly Color LabelGrey = new Color(0.75f, 0.82f, 0.88f, 0.85f);
     private static readonly Color PunchAmber = new Color(1f, 0.72f, 0.2f, 1f);
     private static readonly Color SegmentEmpty = new Color(1f, 1f, 1f, 0.16f);
+
+    /// <summary>
+    /// เพิ่มเฉพาะหลอด PUNCH FORCE เข้า prefab เดิม — ไม่ลบ ไม่สร้างอย่างอื่นใหม่
+    /// ใช้ตอนที่ HUD มีของอยู่แล้วและไม่อยาก regenerate ทั้งชุด (กดซ้ำได้ ไม่เพิ่มซ้อน)
+    /// </summary>
+    [MenuItem("Tools/NSC/Add Punch Force Bar (ไม่ลบของเดิม)")]
+    public static void AddPunchForceBarOnly()
+    {
+        GameObject root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        if (root == null)
+        {
+            Debug.LogError($"[PlayerHUD] เปิด prefab ไม่ได้: {PrefabPath}");
+            return;
+        }
+
+        try
+        {
+            if (root.transform.Find("PunchForce") != null)
+            {
+                Debug.Log("[PlayerHUD] มีหลอด PUNCH FORCE อยู่แล้ว — ไม่ต้องเพิ่มซ้ำ");
+                return;
+            }
+
+            LocalRobotBinder binder = root.GetComponent<LocalRobotBinder>();
+            if (binder == null)
+            {
+                Debug.LogError("[PlayerHUD] ไม่พบ LocalRobotBinder บน prefab — หยุดก่อน กันสร้างหลอดที่ผูกอะไรไม่ได้");
+                return;
+            }
+
+            BuildPunchForce(root.transform, binder);
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+
+            Debug.Log("[PlayerHUD] ✅ เพิ่มหลอด PUNCH FORCE เข้า prefab แล้ว " +
+                      "(โชว์เฉพาะผู้เล่นที่คุมแขน — คนคุมขาจะเห็นหลอด KICK CHARGE แทนที่ตำแหน่งเดียวกัน)");
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
 
     [MenuItem("Tools/NSC/Build Player HUD")]
     public static void Build()
@@ -61,6 +105,7 @@ public static class PlayerHudBuilder
         debugSo.ApplyModifiedPropertiesWithoutUndo();
 
         BuildHullRing(root.transform, binder);
+        BuildPunchForce(root.transform, binder);
         BuildKickCharge(root.transform, binder);
         BuildStatusPrompt(root.transform, binder);
         BuildLimbStatusPanel(root.transform, binder);
@@ -138,6 +183,67 @@ public static class PlayerHudBuilder
     // ================================================================
 
     private const int PunchSegmentCount = 8;
+
+    /// <summary>
+    /// หลอดพลังหมัด — วางทับตำแหน่งเดียวกับหลอดเตะได้เลย เพราะทั้งคู่ไม่มีทางโผล่พร้อมกัน:
+    /// PunchForceUI ซ่อนตัวเองเมื่อผู้เล่นไม่ได้คุมมือ / KickChargeUI ซ่อนเมื่อไม่ได้คุมขา
+    /// (เดิมหลอดนี้ถูก rename ทับกลายเป็น KickChargeUI ไปทั้งอัน หมัดเลยไม่เหลือหลอด)
+    /// </summary>
+    private static void BuildPunchForce(Transform canvasRoot, LocalRobotBinder binder)
+    {
+        RectTransform group = CreateRect(canvasRoot, "PunchForce");
+        group.anchorMin = Vector2.zero;
+        group.anchorMax = Vector2.zero;
+        group.pivot = Vector2.zero;
+        group.anchoredPosition = new Vector2(310f, 95f);
+        group.sizeDelta = new Vector2(360f, 70f);
+
+        RectTransform content = CreateRect(group, "Content");
+        Stretch(content);
+
+        TMP_FontAsset font = FindHudFont();
+
+        TextMeshProUGUI label = CreateText(content, "Label", "PUNCH FORCE", font, 22f, LabelGrey);
+        label.rectTransform.anchorMin = new Vector2(0f, 1f);
+        label.rectTransform.anchorMax = new Vector2(0f, 1f);
+        label.rectTransform.pivot = new Vector2(0f, 1f);
+        label.rectTransform.anchoredPosition = Vector2.zero;
+        label.rectTransform.sizeDelta = new Vector2(300f, 26f);
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.characterSpacing = 4f;
+
+        Sprite uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+
+        Image[] segments = new Image[PunchSegmentCount];
+        for (int i = 0; i < PunchSegmentCount; i++)
+        {
+            Image segment = CreateImage(content, $"Segment{i}", uiSprite, SegmentEmpty);
+            segment.type = Image.Type.Sliced;
+
+            RectTransform segmentRect = segment.rectTransform;
+            segmentRect.anchorMin = Vector2.zero;
+            segmentRect.anchorMax = Vector2.zero;
+            segmentRect.pivot = Vector2.zero;
+            segmentRect.anchoredPosition = new Vector2(i * 42f, 0f);
+            segmentRect.sizeDelta = new Vector2(36f, 28f);
+
+            segments[i] = segment;
+        }
+
+        PunchForceUI punchForceUI = group.gameObject.AddComponent<PunchForceUI>();
+        SerializedObject so = new SerializedObject(punchForceUI);
+        so.FindProperty("binder").objectReferenceValue = binder;
+        so.FindProperty("content").objectReferenceValue = content.gameObject;
+        so.FindProperty("filledColor").colorValue = PunchAmber;
+        so.FindProperty("emptyColor").colorValue = SegmentEmpty;
+
+        SerializedProperty segmentsProp = so.FindProperty("segments");
+        segmentsProp.arraySize = segments.Length;
+        for (int i = 0; i < segments.Length; i++)
+            segmentsProp.GetArrayElementAtIndex(i).objectReferenceValue = segments[i];
+
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
 
     private static void BuildKickCharge(Transform canvasRoot, LocalRobotBinder binder)
     {
