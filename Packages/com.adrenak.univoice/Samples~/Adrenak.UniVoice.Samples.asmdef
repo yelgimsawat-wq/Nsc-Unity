@@ -1,0 +1,23 @@
+{
+    "name": "Adrenak.UniVoice.Samples",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6b289bb677194eb40b60db3a566aab7b",
+        "GUID:f87ecb857e752164ab814a3de8eb0262"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.netcode.gameobjects",
+            "expression": "[1.0.0,100.0.0]",
+            "define": "UNITY_NETCODE_GAMEOBJECTS"
+        }
+    ],
+    "noEngineReferences": false
+}

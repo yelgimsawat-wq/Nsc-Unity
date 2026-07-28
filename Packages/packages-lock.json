@@ -1,11 +1,10 @@
 {
   "dependencies": {
     "com.adrenak.brw": {
-      "version": "1.2.0",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://registry.npmjs.org"
+      "version": "file:com.adrenak.brw",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.adrenak.concentus-unity": {
       "version": "1.0.1",
@@ -22,15 +21,14 @@
       "url": "https://registry.npmjs.org"
     },
     "com.adrenak.univoice": {
-      "version": "4.12.0",
+      "version": "file:com.adrenak.univoice",
       "depth": 0,
-      "source": "registry",
+      "source": "embedded",
       "dependencies": {
         "com.adrenak.brw": "1.2.0",
         "com.adrenak.unimic": "3.4.0",
         "com.adrenak.concentus-unity": "1.0.1"
-      },
-      "url": "https://registry.npmjs.org"
+      }
     },
     "com.autodesk.fbx": {
       "version": "5.1.3",
