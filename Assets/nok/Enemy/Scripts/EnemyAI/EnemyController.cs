@@ -98,6 +98,11 @@ namespace NscGame.Enemy
         [Tooltip("ความเร็วในการหมุนหาเพลเยอร์ตอนกลิ้ง (หลบ/แดช)")]
         [SerializeField] private float rollTurnSpeed = 540f;
 
+        [Header("Pacing (เดินวนระหว่างพักคอมโบ)")]
+        [Tooltip("ระยะถอยสูงสุดตอนเดินวน = Attack Range × ค่านี้\nยิ่งมากยิ่งถอยห่าง (1.5 = ถอยได้ไม่เกิน 1.5 เท่าของระยะตี)")]
+        [Range(1.05f, 3f)]
+        [SerializeField] private float pacingRangeMultiplier = 1.5f;
+
         #endregion
 
         #region Network Variables
@@ -128,9 +133,19 @@ namespace NscGame.Enemy
         private Transform playerTarget;
 
         private float attackDecTimer = 0f;
-        private bool isActing = false;
         private float pacingTimer = 0f;
         private Vector3 pacingDestination;
+
+        // ✅ [Combo Overlap Fix] เดิมใช้ isActing ตัวเดียวคุมทั้ง "กำลังตี" และ "กำลังปลิว"
+        // ผู้เล่นต่อยโดนกลางคอมโบ → knockback จบแล้วสั่ง isActing = false
+        // ทั้งที่คอมโบยังวิ่งอยู่ → cooldown หมดแล้วเริ่มคอมโบตัวที่ 2 ซ้อน = ดาเมจ 2 เท่า
+        // แยกเป็นคนละตัวแปร knockback จึงปลดล็อกเฉพาะสถานะของตัวเองได้
+        private bool isAttacking = false;
+        private bool isKnockedBack = false;
+        private bool isDeadLocked = false;
+
+        /// <summary>AI หยุดคิดเมื่อกำลังตี / ปลิว / ตายแล้ว</summary>
+        private bool IsBusy => isAttacking || isKnockedBack || isDeadLocked;
 
         #endregion
 
@@ -258,7 +273,7 @@ namespace NscGame.Enemy
                         continue;
                 }
 
-                if (isActing)
+                if (IsBusy)
                 {
                     // Reset pacing timer when acting so we pick a new point when we start pacing again
                     pacingTimer = 0f;
@@ -291,7 +306,12 @@ namespace NscGame.Enemy
                         if (dirToEnemy == Vector3.zero) dirToEnemy = transform.forward;
 
                         Vector3 rotatedDir = Quaternion.Euler(0f, randomAngle, 0f) * dirToEnemy;
-                        float desiredDist = Random.Range(attackRange + 0.3f, stopDistance);
+
+                        // ✅ [Pacing Fix] เดิมสุ่มถึง stopDistance (33.3) ทั้งที่ระยะตีแค่ 13.14
+                        // บอสถอยไปไกลกว่าระยะตี 2.5 เท่าแล้วต้องเดินกลับ ดูเหมือนลังเล/หนี
+                        // จำกัดเพดานไว้ที่ attackRange × pacingRangeMultiplier แทน
+                        float pacingMaxDist = Mathf.Min(stopDistance, attackRange * pacingRangeMultiplier);
+                        float desiredDist = Random.Range(attackRange + 0.3f, Mathf.Max(attackRange + 0.5f, pacingMaxDist));
 
                         pacingDestination = playerTarget.position + rotatedDir * desiredDist;
 
@@ -356,7 +376,7 @@ namespace NscGame.Enemy
 
         private void ChooseAndExecuteAttack()
         {
-            if (isActing) return;
+            if (IsBusy) return;
 
             // Set the attack cooldown timer to a randomized range
             attackDecTimer = Random.Range(minAttackInterval, maxAttackInterval);
@@ -401,7 +421,7 @@ namespace NscGame.Enemy
 
         private IEnumerator ExecuteAttackComboCoroutine(AttackType type, int repeatCount)
         {
-            isActing = true;
+            isAttacking = true;
 
             for (int i = 0; i < repeatCount; i++)
             {
@@ -410,6 +430,9 @@ namespace NscGame.Enemy
 
                 float dist = HorizontalDistanceTo(playerTarget.position); // แนวราบ เหตุผลเดียวกับ decision loop
                 if (dist > attackRange) break;
+
+                // ตายกลางคอมโบ (ผู้เล่นต่อยตายทัน) → หยุดทันที ศพห้ามตีต่อ
+                if (netState.Value == EnemyState.Dead) break;
 
                 bool isLastHit = (i == repeatCount - 1);
                 float duration = combat.ServerExecuteAttack(type);
@@ -422,12 +445,14 @@ namespace NscGame.Enemy
             // Immediately stop combat effects and animations when combo finishes or is aborted
             combat.ServerStopAllCombatEffects();
 
-            SetState(EnemyState.Idle);
+            // ตายระหว่างคอมโบ → ห้ามเขียนทับ state Dead ด้วย Idle (ศพจะลุกขึ้นมายืน)
+            if (netState.Value != EnemyState.Dead)
+                SetState(EnemyState.Idle);
 
             if (postAttackCooldown > 0f)
                 yield return new WaitForSeconds(postAttackCooldown);
 
-            isActing = false;
+            isAttacking = false;
         }
 
         private void SetState(EnemyState newState)
@@ -502,7 +527,7 @@ namespace NscGame.Enemy
             if (agent != null && agent.enabled && agent.isOnNavMesh)
                 agent.isStopped = true;
             if (agent != null) agent.enabled = false;
-            isActing = true;
+            isDeadLocked = true;
             SetState(EnemyState.Dead);
 
             TriggerRagdollClientRpc(Vector3.zero);
@@ -524,13 +549,20 @@ namespace NscGame.Enemy
         public void ServerBeginKnockback()
         {
             if (!IsServer) return;
-            isActing = true;
+            isKnockedBack = true;
         }
 
         public void ServerEndKnockback()
         {
             if (!IsServer) return;
-            isActing = false;
+            isKnockedBack = false;
+
+            // ✅ [Combo Overlap Fix] ปลดล็อกเฉพาะสถานะ knockback ของตัวเอง
+            // ถ้าคอมโบยังวิ่งอยู่ ห้ามแตะ state เด็ดขาด — เดิมสั่ง Idle ทับ
+            // ทำให้ OnStateChanged ลบ VFX คอมโบทิ้งกลางคัน และ AI คิดว่าว่างแล้ว
+            // จนเริ่มคอมโบตัวที่ 2 ซ้อนกับตัวเดิม
+            if (isAttacking || netState.Value == EnemyState.Dead) return;
+
             SetState(EnemyState.Idle);
         }
 

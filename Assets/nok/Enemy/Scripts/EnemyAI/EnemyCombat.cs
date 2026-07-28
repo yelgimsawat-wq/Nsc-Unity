@@ -49,6 +49,10 @@ namespace NscGame.Enemy
         [Tooltip("เพดานระยะที่หมัดถือว่า 'เอื้อมถึง' ผู้เล่น — วิ่งหนีพ้นระยะนี้ก่อนจังหวะกระแทก = หลบได้\nตั้งให้ ≈ Attack Range ของ EnemyController + เผื่อเล็กน้อย")]
         [SerializeField] private float maxStrikeReach = 16f;
 
+        [Tooltip("เปิด = อยู่ในระยะเอื้อมแล้วโดนแน่นอน (ตีชิ้นที่ใกล้จุดกระแทกสุด) — บอสไม่มีวันวืด\n" +
+                 "ปิด = ต้องมีชิ้นส่วนอยู่ในรัศมีท่านั้นจริงถึงจะโดน — การวางตำแหน่งมีความหมาย หลบได้จริง")]
+        [SerializeField] private bool guaranteeHitInReach = true;
+
         [Header("Hit Timing (วินาทีหลังเริ่มท่า → จังหวะคิดดาเมจ)")]
         [Tooltip("จูนให้ตรงเฟรมที่หมัดกระแทกในอนิเมชัน LightPunch")]
         [SerializeField] private float lightPunchHitDelay = 0.5f;
@@ -60,9 +64,15 @@ namespace NscGame.Enemy
 
         [Header("Damage Values")]
         [SerializeField] private float lightPunchDamage = 10f;
-        [SerializeField] private float barragePunchDamage = 5f;
-        [SerializeField] private int barragePunchHitCount = 6;
         [SerializeField] private float kickDamage = 25f;
+
+        [Header("Barrage - ดาเมจต่อเนื่อง")]
+        [Tooltip("ดาเมจ 'รวมทั้งท่า' ของต่อยรัวหนึ่งครั้ง\nระบบจะหารเฉลี่ยลงทุก tick ให้เอง — ปรับ interval ไม่ทำให้ดาเมจรวมเปลี่ยน")]
+        [SerializeField] private float barrageTotalDamage = 48f;
+
+        [Tooltip("ถี่แค่ไหนถึงจะคิดดาเมจหนึ่งครั้ง (วินาที)\nยิ่งน้อยยิ่งรู้สึกต่อเนื่อง (0.1 = 10 ครั้ง/วินาที) แต่ดาเมจรวมเท่าเดิม")]
+        [Range(0.02f, 0.5f)]
+        [SerializeField] private float barrageHitInterval = 0.1f;
 
         [Header("Barrage Timing")]
         [Tooltip("ความยาวอนิเมชันต่อยรัว (วินาที) — ดาเมจทุกดอกกระจายเต็มช่วงนี้ และ VFX เล่นยาวจนจบท่า")]
@@ -280,11 +290,23 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.BarragePunch, origin.position, GetVfxRotation(AttackType.BarragePunch));
 
-            // กระจายดาเมจทุกดอกให้เต็มความยาวอนิเมชัน — เดิมตีครบใน 0.6 วิแรก
-            // แล้วช่วงท้ายท่าเป็นช่วงตาย ดาเมจ/ฟีลไม่ตรงกับภาพที่ยังต่อยรัวอยู่
-            float interval = barrageDuration / Mathf.Max(1, barragePunchHitCount);
+            // ✅ [ดาเมจต่อเนื่อง] เดิมยิงดาเมจเป็นดอกๆ 6 ครั้ง (ทุก 0.25 วิ) รู้สึกเป็นจังหวะกระตุก
+            // ใหม่: tick ถี่ตาม barrageHitInterval (0.1 = 10 ครั้ง/วินาที) ตลอดความยาวท่า
+            // ดาเมจต่อ tick หารจากยอดรวม → ปรับ interval ให้ลื่นขึ้นได้โดยดาเมจรวมไม่บวม
+            int tickCount = Mathf.Max(1, Mathf.RoundToInt(barrageDuration / Mathf.Max(0.02f, barrageHitInterval)));
+            float damagePerTick = barrageTotalDamage / tickCount;
+            float interval = barrageDuration / tickCount;
 
-            for (int i = 0; i < barragePunchHitCount; i++)
+            Debug.Log($"[EnemyCombat] 🌀 เริ่มต่อยรัว — ดาเมจรวม {barrageTotalDamage} ÷ {tickCount} ครั้ง " +
+                      $"= {damagePerTick:F2}/ครั้ง (ทุก {interval:F2} วิ)");
+
+            if (barrageTotalDamage <= 0f)
+            {
+                Debug.LogWarning("[EnemyCombat] ⚠️ Barrage Total Damage = 0 → ต่อยรัวจะไม่ทำดาเมจเลย! " +
+                                 "ไปตั้งค่าที่ Inspector ของ EnemyCombat บน prefab แพนด้า", this);
+            }
+
+            for (int i = 0; i < tickCount; i++)
             {
                 yield return new WaitForSeconds(interval);
 
@@ -295,7 +317,7 @@ namespace NscGame.Enemy
                     yield break;
                 }
 
-                ProcessHitDetection(origin.position, barragePunchRadius, barragePunchDamage, AttackType.BarragePunch);
+                ProcessHitDetection(origin.position, barragePunchRadius, damagePerTick, AttackType.BarragePunch);
             }
 
             // ดาเมจครบทุกดอกแล้ว → ตัดอนิเมชันกลับท่าเริ่มต้น (คลิปต่อยรัวเป็น loop ปล่อยไว้จะรัวไม่หยุด)
@@ -372,37 +394,45 @@ namespace NscGame.Enemy
             // (VFX หลักถูก spawn ตอนเริ่มท่าแล้ว ให้เล่นยาวจนจบเอง)
             bool spawnHitVfx = attackType != AttackType.BarragePunch;
 
-            int hitCount = 0;
+            // ✅ [Damage Stacking Fix] เดิมวนตีทุกชิ้นที่อยู่ในรัศมี "ชิ้นละเต็มจำนวน"
+            // → ดาเมจจริง = damage × จำนวนชิ้นที่บังเอิญอยู่ใกล้ ซึ่งผู้เล่นคุมไม่ได้เลย
+            // ต่อยรัวเคยพุ่งได้ถึง 432 (8 × 3 ชิ้น × 6 ดอก × 3 รอบ) จากที่ตั้งใจไว้ 48
+            // ใหม่: หนึ่งครั้งที่ตี = ดาเมจลงชิ้นเดียว (ชิ้นที่ใกล้จุดกระแทกที่สุด)
+            // ดาเมจต่อท่าจึงเท่ากับตัวเลขใน Inspector เป๊ะๆ คาดเดาได้และจูนง่าย
+            IHittable target = null;
+            float closestDist = float.MaxValue;
 
             foreach (IHittable part in parts)
             {
-                Transform partT = ((Component)part).transform;
-                float dist = Vector3.Distance(origin, partT.position);
-
-                if (dist <= radius)
+                float dist = Vector3.Distance(origin, ((Component)part).transform.position);
+                if (dist < closestDist)
                 {
-                    part.ServerTakeDamage(damage, attackType, transform.forward);
-                    if (spawnHitVfx)
-                        SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
-                    hitCount++;
+                    closestDist = dist;
+                    target = part;
                 }
             }
 
-            // ไม่มีชิ้นไหนอยู่ในรัศมี แต่ผู้เล่นยังอยู่ในระยะเอื้อม → โดน 1 ชิ้น
-            // สุ่มจาก "ทุกชิ้น" เท่าๆ กัน — ถ้าเลือกตามระยะ เท้าซึ่งอยู่ระดับพื้น
-            // เดียวกับจุดกระแทกบอสจะใกล้สุดตลอด → ขาโดนล้วนๆ มือไม่เคยโดนเลย
-            if (hitCount == 0)
-            {
-                IHittable picked = parts[Random.Range(0, parts.Length)];
+            bool insideRadius = closestDist <= radius;
 
-                Transform partT = ((Component)picked).transform;
-                picked.ServerTakeDamage(damage, attackType, transform.forward);
-                if (spawnHitVfx)
-                    SpawnHitConfirmClientRpc(attackType, partT.position, GetVfxRotation(attackType));
-                hitCount = 1;
+            // นอกรัศมีท่า: ตีติดไหมขึ้นกับสวิตช์ guaranteeHitInReach
+            // เปิด = บอสไม่มีวันวืดถ้าผู้เล่นยังอยู่ในระยะเอื้อม (ฟีลเดิม)
+            // ปิด = ต้องเข้ารัศมีจริงถึงโดน → ผู้เล่นหลบด้วยการวางตำแหน่งได้
+            if (!insideRadius && !guaranteeHitInReach)
+            {
+                Debug.Log($"[EnemyCombat] 💨 {attackType} วืด — ไม่มีชิ้นไหนอยู่ในรัศมี {radius:F1} (ใกล้สุด {closestDist:F1})");
+                return;
             }
 
-            Debug.Log($"[EnemyCombat] 👊 {attackType} โดน {hitCount} ชิ้น (dmg {damage}/ชิ้น)");
+            if (target == null) return;
+
+            Transform targetT = ((Component)target).transform;
+            target.ServerTakeDamage(damage, attackType, transform.forward);
+
+            if (spawnHitVfx)
+                SpawnHitConfirmClientRpc(attackType, targetT.position, GetVfxRotation(attackType));
+
+            Debug.Log($"[EnemyCombat] 👊 {attackType} โดน {targetT.name} " +
+                      $"(dmg {damage:F1} | ระยะ {closestDist:F1}/{radius:F1}{(insideRadius ? "" : " ← นอกรัศมี ตีติดเพราะ guaranteeHitInReach")})");
         }
 
         #endregion
@@ -467,6 +497,13 @@ namespace NscGame.Enemy
         private void ResetAttackLayerClientRpc()
         {
             if (animator == null) return;
+
+            // ✅ [Stuck Trigger Fix] trigger ใน Unity ค้างอยู่จนกว่าจะมี transition มากิน
+            // เราตัดกลับท่าว่างด้วย CrossFade ก่อน transition จะได้ใช้ → trigger ค้างในคิว
+            // แล้วเด้งท่าโจมตีขึ้นมาเองแบบไม่มีสาเหตุตอนหลัง ต้องล้างทิ้งทุกครั้ง
+            animator.ResetTrigger(EnemyAnimParam.LightPunch);
+            animator.ResetTrigger(EnemyAnimParam.BarragePunch);
+            animator.ResetTrigger(EnemyAnimParam.Kick);
 
             int layer = animator.GetLayerIndex(AttackLayerName);
             if (layer < 0) layer = 2; // fallback: layer โจมตีคือ index 2 ใน controller ปัจจุบัน

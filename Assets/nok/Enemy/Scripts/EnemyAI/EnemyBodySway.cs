@@ -141,10 +141,17 @@ namespace NscGame.Enemy
 
             Vector3 localDir = transform.InverseTransformDirection(worldPushDirection.normalized);
 
-            // โดนดันไปข้างหน้า (local.z > 0) → ลำตัวแหงนไปด้านหลัง (pitch ลบ)
-            // โดนดันไปด้านข้าง (local.x) → ลำตัวเอียงข้าง (roll)
-            float pitchKick = -localDir.z * force * hitImpulseMultiplier;
-            float rollKick = localDir.x * force * hitImpulseMultiplier;
+            // เป้าหมาย: "ยอดตัว" (transform.up) ต้องเอนไปตามทิศที่หมัดผลัก
+            //
+            // หมุนรอบแกน a ด้วยมุมเล็กๆ θ → ยอดตัวขยับ ≈ θ × (a × up)
+            //   right   × up = +forward  → มุมบวกรอบ right   ทำให้เอนไป "หน้า"
+            //   forward × up = -right    → มุมบวกรอบ forward ทำให้เอนไป "ซ้าย"
+            //
+            // จึงต้องจับคู่แบบนี้ (เดิมใส่กลับด้านทั้งคู่ → โยกสวนทางหมัดทุกทิศ):
+            //   องค์ประกอบหน้า-หลังของแรง (localDir.z) → มุมรอบ right   = +localDir.z
+            //   องค์ประกอบซ้าย-ขวาของแรง  (localDir.x) → มุมรอบ forward = -localDir.x
+            float pitchKick = localDir.z * force * hitImpulseMultiplier;
+            float rollKick = -localDir.x * force * hitImpulseMultiplier;
 
             chestAngularVel += new Vector3(pitchKick, 0f, rollKick);
         }
@@ -182,16 +189,34 @@ namespace NscGame.Enemy
             euler.z = Mathf.Clamp(euler.z, -maxAngle, maxAngle);
         }
 
+        /// <summary>
+        /// หมุนกระดูกโดยอ้างอิง "แกนของตัวละคร" ไม่ใช่แกนของกระดูกเอง
+        ///
+        /// ⚠️ จุดที่เคยพลาด: แกน local ของกระดูกในโมเดล 3D แทบไม่เคยตรงกับแกนตัวละคร
+        /// (ปกติแกน Y ของกระดูกชี้ไปตามความยาวกระดูก ส่วน X/Z แล้วแต่คนทำโมเดล)
+        /// การเขียน bone.localRotation *= Quaternion.Euler(pitch, 0, roll) ตรงๆ
+        /// จึงยัดค่าเอียงลงแกนที่ไม่เกี่ยวกัน → บิดไปทางเดียวคงที่ทุกครั้งที่โดนต่อย
+        ///
+        /// วิธีที่ถูก: สร้าง delta rotation รอบแกนจริงของตัวละคร (right = ก้ม/แหงน,
+        /// forward = เอียงซ้าย/ขวา) แล้วคูณเข้ากับ world rotation ของกระดูก
+        /// ได้ผลตรงกันทุกโมเดลไม่ว่ากระดูกจะหันแกนไปทางไหน
+        /// </summary>
+        private void ApplyBoneRotation(Transform bone, Vector3 euler, float share = 1f)
+        {
+            if (bone == null) return;
+
+            Quaternion delta =
+                Quaternion.AngleAxis(euler.x * share, transform.right) *   // ก้ม/แหงน
+                Quaternion.AngleAxis(euler.z * share, transform.forward);  // เอียงซ้าย/ขวา
+
+            bone.rotation = delta * bone.rotation;
+        }
+
         private void ApplyBoneOffsets()
         {
-            if (spineBone != null)
-                spineBone.localRotation *= Quaternion.Euler(chestOffsetEuler * spineFollowShare);
-
-            if (chestBone != null)
-                chestBone.localRotation *= Quaternion.Euler(chestOffsetEuler);
-
-            if (headBone != null)
-                headBone.localRotation *= Quaternion.Euler(headOffsetEuler);
+            ApplyBoneRotation(spineBone, chestOffsetEuler, spineFollowShare);
+            ApplyBoneRotation(chestBone, chestOffsetEuler);
+            ApplyBoneRotation(headBone, headOffsetEuler);
 
             if (leftUpperArmBone == null && rightUpperArmBone == null) return;
 
@@ -199,11 +224,9 @@ namespace NscGame.Enemy
             float speedFactor = Mathf.InverseLerp(0f, 0.5f, speed);
             float armAngle = Mathf.Sin(Time.time * armSwayFrequency) * armSwayAmplitude * speedFactor;
 
-            if (leftUpperArmBone != null)
-                leftUpperArmBone.localRotation *= Quaternion.Euler(0f, 0f, armAngle);
-
-            if (rightUpperArmBone != null)
-                rightUpperArmBone.localRotation *= Quaternion.Euler(0f, 0f, -armAngle);
+            // แขนแกว่งสวนทางกันรอบแกน forward ของตัวละคร (เหตุผลเดียวกับด้านบน)
+            ApplyBoneRotation(leftUpperArmBone, new Vector3(0f, 0f, armAngle));
+            ApplyBoneRotation(rightUpperArmBone, new Vector3(0f, 0f, -armAngle));
         }
 
         #endregion
