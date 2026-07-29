@@ -1058,18 +1058,18 @@ MonoBehaviour:
   minimumCharge: 0.12
   minimumKickSpeed: 30
   maximumKickSpeed: 70
-  kickAcceleration: 600
+  kickAcceleration: 1100
   kickDuration: 0.3
   kickReach: 6
   maxTorsoUpwardSpeedDuringKick: 0.75
   kickMoveSpeed: 25
-  kickDamper: 8
+  kickDamper: 10
   kickTargetReach: 18
   enableWindup: 1
-  windupPullBack: 4.5
-  windupMoveSpeed: 6
-  windupDamper: 6
-  maxWindupSpeed: 12
+  windupPullBack: 8
+  windupMoveSpeed: 9
+  windupDamper: 8
+  maxWindupSpeed: 18
   recoveryDuration: 0.18
   recoveryDamping: 14
   minimumPowerAtZeroHealth: 0.3
@@ -1091,8 +1091,10 @@ MonoBehaviour:
   speedToDamage: 0.6
   kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
-  baseKnockbackForce: 5
-  knockbackVelocityMultiplier: 0.3
+  minKnockbackForce: 2
+  maxKnockbackForce: 12
+  knockbackCurve: 2
+  knockbackReferenceSpeed: 55
   impactVfxPrefab: {fileID: 0}
   impactSfx: {fileID: 0}
 --- !u!1 &1092308282534952556
@@ -1451,18 +1453,18 @@ MonoBehaviour:
   minimumCharge: 0.12
   minimumKickSpeed: 30
   maximumKickSpeed: 70
-  kickAcceleration: 600
+  kickAcceleration: 1100
   kickDuration: 0.3
   kickReach: 6
   maxTorsoUpwardSpeedDuringKick: 0.75
   kickMoveSpeed: 25
-  kickDamper: 8
+  kickDamper: 10
   kickTargetReach: 18
   enableWindup: 1
-  windupPullBack: 4.5
-  windupMoveSpeed: 6
-  windupDamper: 6
-  maxWindupSpeed: 12
+  windupPullBack: 8
+  windupMoveSpeed: 9
+  windupDamper: 8
+  maxWindupSpeed: 18
   recoveryDuration: 0.18
   recoveryDamping: 14
   minimumPowerAtZeroHealth: 0.3
@@ -1484,8 +1486,10 @@ MonoBehaviour:
   speedToDamage: 0.6
   kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
-  baseKnockbackForce: 5
-  knockbackVelocityMultiplier: 0.3
+  minKnockbackForce: 2
+  maxKnockbackForce: 12
+  knockbackCurve: 2
+  knockbackReferenceSpeed: 55
   impactVfxPrefab: {fileID: 0}
   impactSfx: {fileID: 0}
 --- !u!1 &1528576265982772549
@@ -2467,8 +2471,10 @@ MonoBehaviour:
   speedToDamage: 0.6
   kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
-  baseKnockbackForce: 5
-  knockbackVelocityMultiplier: 0.3
+  minKnockbackForce: 2
+  maxKnockbackForce: 12
+  knockbackCurve: 2
+  knockbackReferenceSpeed: 55
   impactVfxPrefab: {fileID: 0}
   impactSfx: {fileID: 0}
 --- !u!1 &5298494434422377912
@@ -2882,8 +2888,10 @@ MonoBehaviour:
   speedToDamage: 0.6
   kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
-  baseKnockbackForce: 5
-  knockbackVelocityMultiplier: 0.3
+  minKnockbackForce: 2
+  maxKnockbackForce: 12
+  knockbackCurve: 2
+  knockbackReferenceSpeed: 55
   impactVfxPrefab: {fileID: 0}
   impactSfx: {fileID: 0}
 --- !u!1 &5425980770421451331

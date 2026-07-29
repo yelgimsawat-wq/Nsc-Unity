@@ -78,6 +78,18 @@ public class OnlineNetworkUI : NetworkBehaviour
     [Tooltip("ความจุห้อง PVP — 2 ทีม × 4 ชิ้นส่วน = 8")]
     [Min(2)] [SerializeField] private int maxPlayersPvp = 8;
 
+    [Header("--- Reconnect ---")]
+    [Tooltip("แผงที่ขึ้นตอนหลุดแล้วกำลังพยายามต่อกลับ — ปล่อยว่างได้ ระบบยังต่อกลับให้อยู่ แค่ไม่มี UI บอก")]
+    [SerializeField] private GameObject reconnectPanel;
+    [SerializeField] private TextMeshProUGUI reconnectStatusLabel;
+    [SerializeField] private Button cancelReconnectButton;
+
+    [Tooltip("พยายามต่อกลับกี่ครั้งก่อนยอมแพ้")]
+    [Min(1)] [SerializeField] private int reconnectMaxAttempts = 5;
+
+    [Tooltip("รอกี่วินาทีก่อนลองครั้งแรก (ครั้งถัดไปจะเพิ่มเป็นเท่าตัว สูงสุด 8 วิ)")]
+    [Min(0.5f)] [SerializeField] private float reconnectFirstDelay = 2f;
+
     [Header("--- References ---")]
     [SerializeField] private Camera lobbyCam;
 
@@ -171,12 +183,16 @@ public class OnlineNetworkUI : NetworkBehaviour
         SetVisibleInstant(waitingPanel, false);
         SetVisibleInstant(mapSelectPanel, false);
         SetVisibleInstant(roomSizePanel, false);
+        SetVisibleInstant(reconnectPanel, false);
         SetVisibleInstant(connectPanel, true);
         CaptureMenuFeelBasePose();
 
         BindConnectPanelButtons();
         BindWaitingPanelButtons();
         ApplyButtonHoverColors();
+
+        ReturnToMenuOnHostLost.OnReconnectStateChanged -= OnReconnectStateChanged;
+        ReturnToMenuOnHostLost.OnReconnectStateChanged += OnReconnectStateChanged;
         SetConnectState(ConnectState.MainMenu);
         SetStatus("Connecting...");
         SetButtons(false);
@@ -208,6 +224,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (NetworkManager.Singleton != null)
             NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
+
+        ReturnToMenuOnHostLost.OnReconnectStateChanged -= OnReconnectStateChanged;
 
         UnbindConnectPanelButtons();
         UnbindWaitingPanelButtons();
@@ -489,6 +507,11 @@ public class OnlineNetworkUI : NetworkBehaviour
         HideConnectFlowControlsForWaiting();
         SetVisibleAnimated(waitingPanel, true);
         currentRoomCode = roomCode;
+
+        // ✅ [Reconnect] ฝากข้อมูลห้องไว้กับตัวที่อยู่ข้ามฉาก — ตัว UI นี้จะหายไปตอนเข้าเกม
+        // session.Id สำคัญกว่า Code เพราะ ReconnectToSessionAsync ใช้ Id เท่านั้น
+        ReturnToMenuOnHostLost.LastRoomCode = roomCode;
+        if (session != null) ReturnToMenuOnHostLost.LastSessionId = session.Id;
 
         if (codeDisplay != null)
         {
@@ -1066,6 +1089,11 @@ public class OnlineNetworkUI : NetworkBehaviour
             cancelMapSelectButton.onClick.AddListener(OnCancelMapSelectClicked);
         }
 
+        if (cancelReconnectButton != null)
+        {
+            cancelReconnectButton.onClick.RemoveListener(OnCancelReconnectClicked);
+            cancelReconnectButton.onClick.AddListener(OnCancelReconnectClicked);
+        }
     }
 
     private void UnbindConnectPanelButtons()
@@ -1088,6 +1116,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (bossMapButton != null) bossMapButton.onClick.RemoveListener(OnBossMapClicked);
         if (parkourMapButton != null) parkourMapButton.onClick.RemoveListener(OnParkourMapClicked);
         if (cancelMapSelectButton != null) cancelMapSelectButton.onClick.RemoveListener(OnCancelMapSelectClicked);
+        if (cancelReconnectButton != null) cancelReconnectButton.onClick.RemoveListener(OnCancelReconnectClicked);
     }
 
     private void OnPlayClicked()
@@ -1214,6 +1243,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         // บอก OnNetworkStopped ว่านี่คือการออกโดยตั้งใจ จะได้ไม่จัดการ UI ซ้ำ
         intentionalLeave = true;
+        ReturnToMenuOnHostLost.LeavingIntentionally = true;   // กัน service ไปพยายามต่อกลับ
 
         // Host: Shutdown ตัดการเชื่อมต่อ → Client ทุกเครื่องจะได้ event OnClientStopped
         // ของฝั่งตัวเองแล้วเด้งกลับเมนูอัตโนมัติ (ดู OnNetworkStopped)
@@ -1240,9 +1270,59 @@ public class OnlineNetworkUI : NetworkBehaviour
             return; // OnLeaveRoomClicked จัดการ UI เองแล้ว
         }
 
+        // ✅ [Reconnect] ตัวจัดการอยู่ที่ ReturnToMenuOnHostLost (DontDestroyOnLoad)
+        // เพราะ OnlineNetworkUI ตายไปพร้อมฉากเมนูตอนเข้าเกม จะคุม reconnect กลางเกมไม่ได้
+        // ตรงนี้แค่ปล่อยให้มันทำงาน แล้วรอฟังสถานะผ่าน OnReconnectStateChanged
+        if (!wasHost && !string.IsNullOrWhiteSpace(currentRoomCode))
+            return;
+
         // โดนตัดจากอีกฝั่ง — เคลียร์ session บน Services แล้วกลับเมนู
         _ = LeaveSessionAsync();
         ReturnToMainMenu(wasHost ? "Room closed." : "Disconnected: Host closed the room.");
+    }
+
+    // ================================================================
+    //  RECONNECT — แสดงผลอย่างเดียว ลอจิกอยู่ที่ ReturnToMenuOnHostLost
+    // ================================================================
+
+    public bool IsReconnecting => ReturnToMenuOnHostLost.IsReconnecting;
+
+    private void OnReconnectStateChanged(bool reconnecting, int attempt, int total, string message)
+    {
+        if (reconnecting)
+        {
+            SetVisibleAnimated(waitingPanel, false);
+            SetVisibleInstant(mapSelectPanel, false);
+        }
+
+        if (reconnectPanel != null) SetVisibleAnimated(reconnectPanel, reconnecting);
+        if (cancelReconnectButton != null) cancelReconnectButton.interactable = reconnecting;
+
+        if (reconnectStatusLabel != null) reconnectStatusLabel.text = message;
+        else SetStatus(message);
+
+        if (reconnecting) return;
+
+        bool connected = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+
+        if (connected && !string.IsNullOrWhiteSpace(currentRoomCode))
+        {
+            // ต่อกลับสำเร็จตอนยังอยู่หน้า lobby → กลับไปโชว์แผงรอห้องตามเดิม
+            ShowWaitingPanel(currentRoomCode);
+            return;
+        }
+
+        // ⚠️ ต่อกลับไม่สำเร็จ "ตอนอยู่ฉากเมนูอยู่แล้ว" — service โหลดฉากเมนูซ้ำไม่ได้
+        // (GoToMenu จะ return ทันทีเพราะอยู่ฉากนั้นแล้ว) ถ้าไม่จัดการตรงนี้ UI จะค้างที่แผง reconnect
+        _ = LeaveSessionAsync();
+        currentRoomCode = string.Empty;
+        ReturnToMainMenu(message);
+    }
+
+    private void OnCancelReconnectClicked()
+    {
+        ReturnToMenuOnHostLost.CancelReconnect();
+        if (reconnectStatusLabel != null) reconnectStatusLabel.text = "Cancelling...";
     }
 
     /// <summary>
@@ -1283,6 +1363,7 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         // Shutdown ที่นี่เป็นการล้างของเราเอง — อย่าให้ OnNetworkStopped พา UI กลับเมนูซ้ำ
         intentionalLeave = true;
+        ReturnToMenuOnHostLost.LeavingIntentionally = true;   // กัน service ไปพยายามต่อกลับ
 
         if (!nm.ShutdownInProgress) nm.Shutdown();
 

@@ -28,9 +28,10 @@ public class PlayerLegCombat : NetworkBehaviour
     [SerializeField] private float minimumKickSpeed = 30f;
     [Min(0f)]
     [SerializeField] private float maximumKickSpeed = 70f;
-    // 600 = ค่าเดียวกับ punchAcceleration บน prefab เป๊ะ (หมัดกับเตะแรงเท่ากัน)
+    // 1100 = แรงกว่าหมัด (600) เกือบเท่าตัว เพื่อให้ "ดีดออก" ไวหลังง้าง
+    // เท้าถึงความเร็วสูงสุดใน ~0.08 วิ แทน ~0.14 วิ = จังหวะสะบัดคมขึ้นชัดเจน
     [Min(0f)]
-    [SerializeField] private float kickAcceleration = 600f;
+    [SerializeField] private float kickAcceleration = 1100f;
     [Min(0.05f)]
     [SerializeField] private float kickDuration = 0.3f;
     // เท้าเร่งถึงความเร็วสูงสุดที่ระยะ ~5.25 m (คำนวณที่ dt 0.02 มวลประสิทธิผล 1.625 kg)
@@ -46,10 +47,10 @@ public class PlayerLegCombat : NetworkBehaviour
     [Min(0.1f)]
     [SerializeField] private float kickMoveSpeed = 25f;
     [Tooltip("ตัวหลักที่คุมความ 'แข็งเป็นหุ่นยนต์' — ยิ่งสูงยิ่งสปริงสู้ข้อต่อแรง\n" +
-             "8 = สัดส่วนเดียวกับหมัด (punchDamper 5 / handDamper 15 = 0.33 → legDamper 25 × 0.33)\n" +
-             "ถ้ายังดูแข็งอยู่ ลดตัวนี้เป็น 6 ก่อนไปแตะค่าอื่น")]
+             "10 = ดีดคมขึ้นกว่า 8 เล็กน้อยแต่ยังไม่แข็งจนดูเป็นหุ่นยนต์\n" +
+             "ถ้ารู้สึกแข็งไป ลดเป็น 8 หรือ 6 ก่อนไปแตะค่าอื่น")]
     [Min(0.1f)]
-    [SerializeField] private float kickDamper = 8f;
+    [SerializeField] private float kickDamper = 10f;
     [Tooltip("ระยะจากสะโพกถึงเป้าที่สปริงวิ่งไล่ ต้องไกลกว่าความยาวขา (14) สปริงจะได้ไม่ผ่อนแรงกลางทาง\n" +
              "หลักเดียวกับหมัดที่ปักเป้าไว้ที่ maxArmLength + 2")]
     [Min(1f)]
@@ -59,16 +60,16 @@ public class PlayerLegCombat : NetworkBehaviour
     [Tooltip("ดึงเท้าถอยหลังระหว่างกด Shift ค้าง — ยิ่งค้างนานยิ่งง้างลึก\n" +
              "ได้ทั้งท่าที่อ่านออกว่ากำลังจะเตะ และเป็น feedback บอกระดับพลังไปในตัว")]
     [SerializeField] private bool enableWindup = true;
-    [Tooltip("ระยะถอยหลังสูงสุดตอนชาร์จเต็ม (เมตร)")]
+    [Tooltip("ระยะถอยหลังสูงสุดตอนชาร์จเต็ม (เมตร) — ยิ่งมากยิ่งง้างลึก เห็นท่าชัด")]
     [Min(0f)]
-    [SerializeField] private float windupPullBack = 4.5f;
+    [SerializeField] private float windupPullBack = 8f;
     [Min(0.1f)]
-    [SerializeField] private float windupMoveSpeed = 6f;
+    [SerializeField] private float windupMoveSpeed = 9f;
     [Min(0.1f)]
-    [SerializeField] private float windupDamper = 6f;
-    [Tooltip("เพดานความเร็วตอนง้าง — ช้าๆ ให้ผู้เล่นอีกฝ่ายอ่านท่าออก")]
+    [SerializeField] private float windupDamper = 8f;
+    [Tooltip("เพดานความเร็วตอนง้าง — ช้ากว่าตอนเตะมาก ให้อีกฝ่ายอ่านท่าออกทัน")]
     [Min(0.1f)]
-    [SerializeField] private float maxWindupSpeed = 12f;
+    [SerializeField] private float maxWindupSpeed = 18f;
 
     [Header("Return To Movement")]
     [Min(0f)]
@@ -214,31 +215,13 @@ public class PlayerLegCombat : NetworkBehaviour
             return;
         }
 
-        bool holdingLift = Input.GetMouseButton(0);
-        if (!holdingLift)
-        {
-            if (localCharging)
-                CancelLocalCharge();
-
-            localLiftArmed = false;
-            kickNeedsMouseRelease = false;
-            return;
-        }
-
-        // Left Mouse must be pressed first. The first frame only starts the normal
-        // foot lift/step; Shift becomes valid from a following frame onward.
-        if (Input.GetMouseButtonDown(0))
-        {
-            localLiftArmed = false;
-            return;
-        }
-
-        if (footController.isStepping)
-            localLiftArmed = true;
-
-        if (kickNeedsMouseRelease || !localLiftArmed)
-            return;
-
+        // ✅ เตะได้เลยโดยไม่ต้องกดยกเท้าก่อน — กด Shift อย่างเดียวพอ
+        // เดิมบังคับให้คลิกซ้ายค้าง + เท้าต้องกำลังก้าวอยู่ ทำให้ลำดับปุ่มจุกจิกมาก
+        // (ท่าง้างดึงเท้าขึ้นจากพื้นให้เองอยู่แล้ว จึงไม่ต้องพึ่งการยกเท้าด้วยมือ)
+        //
+        // ⚠️ ไม่ต้องใช้ธงกันกดรัวแล้ว — วงจร GetKeyDown → ชาร์จ → GetKeyUp → เตะ
+        //    บังคับให้ต้องปล่อย Shift ก่อนเตะครั้งใหม่อยู่แล้ว และฝั่ง server ยังกันซ้ำอีกชั้น
+        //    ด้วยเงื่อนไข currentAction ต้องเป็น Idle (ดู CanUseKickInputLocally)
         bool canUseKickInput = CanUseKickInputLocally();
 
         if (!localCharging && canUseKickInput && Input.GetKeyDown(kickKey))
@@ -263,7 +246,6 @@ public class PlayerLegCombat : NetworkBehaviour
         {
             Vector3 aimDirection = footController.GetKickAimDirection();
             localCharging = false;
-            kickNeedsMouseRelease = true;
             ReleaseKickRpc(aimDirection);
         }
     }
@@ -438,7 +420,9 @@ public class PlayerLegCombat : NetworkBehaviour
         if (footController.torso != null &&
             footController.torso.currentState.Value != TorsoMovement.TorsoState.Standing)
             return false;
-        if (!Input.GetMouseButton(0) || !footController.isStepping || footController.isJumping)
+        // ไม่บังคับให้กดยกเท้าหรือกำลังก้าวอยู่แล้ว — เตะยืนอยู่กับที่ได้เลย
+        // เหลือแค่ห้ามเตะตอนลอยกลางอากาศ
+        if (footController.isJumping)
             return false;
         if (reconnect != null && !reconnect.IsConnected)
             return false;

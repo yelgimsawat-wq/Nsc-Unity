@@ -112,15 +112,37 @@ public class LobbyManager : NetworkBehaviour
         public ulong clientId;
         public FixedString64Bytes playerName;
 
+        // ✅ [Reconnect] ตัวระบุตัวตนที่ "ไม่เปลี่ยน" ข้ามการต่อใหม่
+        // NGO แจก clientId ใหม่ทุกครั้งที่ต่อ ใช้เป็นตัวจำคนไม่ได้
+        // ตัวนี้มาจาก AuthenticationService.Instance.PlayerId ซึ่งผูกกับบัญชี anonymous ของเครื่อง
+        public FixedString64Bytes playerId;
+
+        // false = หลุดไปแล้วแต่ยังกันที่ไว้ให้ รอกลับเข้ามา
+        public bool connected;
+
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref clientId);
             serializer.SerializeValue(ref playerName);
+            serializer.SerializeValue(ref playerId);
+            serializer.SerializeValue(ref connected);
         }
 
         public bool Equals(LobbyPlayer other) =>
-            clientId == other.clientId && playerName.Equals(other.playerName);
+            clientId == other.clientId &&
+            playerName.Equals(other.playerName) &&
+            playerId.Equals(other.playerId) &&
+            connected == other.connected;
     }
+
+    // ✅ [Reconnect] กันที่ไว้ให้คนที่หลุด — ครบเวลาแล้วค่อยปล่อยให้คนอื่นเลือก
+    [Header("--- Reconnect ---")]
+    [Tooltip("กันชิ้นส่วนไว้ให้คนที่หลุดนานกี่วินาที ก่อนปล่อยให้คนอื่นเลือกได้")]
+    [Min(0f)]
+    [SerializeField] private float seatHoldSeconds = 90f;
+
+    // server เท่านั้น: playerId -> เวลาที่ที่นั่งจะหมดอายุ (ไม่ต้อง sync ให้ client)
+    private readonly Dictionary<string, float> seatExpiry = new Dictionary<string, float>();
 
     // เก็บรายชื่อผู้เล่นที่ต่อเข้ามา (id + ชื่อ) เพื่อเอาไปแมปกับ Slot P1, P2, P3, P4
     // ชื่อมาจาก PlayerPrefs ของแต่ละเครื่อง ส่งขึ้น server ผ่าน SubmitPlayerNameServerRpc
@@ -223,6 +245,7 @@ public class LobbyManager : NetworkBehaviour
     void Update()
     {
         UpdateMenuFeel();
+        SweepExpiredSeats();   // server เท่านั้น — ปล่อยที่นั่งที่รอเกินเวลาแล้ว
     }
 
     public override void OnDestroy()
@@ -274,7 +297,7 @@ public class LobbyManager : NetworkBehaviour
 
     // ✅ [Name Sync] ทุกเครื่อง (รวม Host) ส่งชื่อจาก Settings ขึ้น server
     // → server อัปเดต NetworkList → ทุกคนเห็นชื่อจริงของกันและกัน
-    SubmitPlayerNameServerRpc(PlayerPrefs.GetString("PlayerName", "Player"));
+    SubmitPlayerNameServerRpc(PlayerPrefs.GetString("PlayerName", "Player"), LocalPlayerId);
 
     // Subscribe NetworkList → อัปเดต UI ปุ่มทุกครั้งที่มีคนจอง
     limbOwners.OnListChanged += OnLimbOwnersChanged;
@@ -311,24 +334,100 @@ public class LobbyManager : NetworkBehaviour
 
     private void OnClientConnected(ulong clientId)
     {
+        // ยังไม่รู้ playerId ตอนนี้ — client จะส่งตามมาใน SubmitPlayerNameServerRpc
+        // ตรงนั้นคือจุดที่เช็คว่าเป็นคนเดิมที่หลุดไปหรือเปล่า แล้วคืนชิ้นส่วนให้
         if (IsServer && FindPlayerIndex(clientId) < 0)
-            connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player" });
+            connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player", connected = true });
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
-        if (IsServer)
+        if (!IsServer) return;
+
+        int index = FindPlayerIndex(clientId);
+        if (index < 0) return;
+
+        LobbyPlayer entry = connectedClients[index];
+
+        // ✅ [Reconnect] ไม่รู้ว่าเป็นใคร (ยังไม่ทันส่ง playerId มา) → เอาออกแบบเดิม
+        if (entry.playerId.Length == 0)
         {
-            int index = FindPlayerIndex(clientId);
-            if (index >= 0) connectedClients.RemoveAt(index);
-            // ถ้าคนนั้นจอง limb ไว้ ให้เอาออกด้วย
+            connectedClients.RemoveAt(index);
             for (int i = 0; i < limbOwners.Count; i++)
+                if (limbOwners[i] == clientId) limbOwners[i] = ulong.MaxValue;
+            return;
+        }
+
+        // รู้ว่าเป็นใคร → กันที่ไว้ ไม่ปล่อยชิ้นส่วนทันที
+        // limbOwners ยังชี้ clientId เดิมอยู่ ทำให้ UI ยังโชว์ว่าถูกจอง คนอื่นแย่งไม่ได้
+        entry.connected = false;
+        connectedClients[index] = entry;
+
+        seatExpiry[entry.playerId.ToString()] = Time.unscaledTime + seatHoldSeconds;
+        Debug.Log($"[Lobby] Client {clientId} หลุด — กันที่ไว้ {seatHoldSeconds:F0} วินาที (playerId {entry.playerId})");
+    }
+
+    /// <summary>[SERVER] ปล่อยที่นั่งที่หมดเวลารอแล้ว</summary>
+    private void SweepExpiredSeats()
+    {
+        if (!IsServer || seatExpiry.Count == 0) return;
+
+        List<string> expired = null;
+        foreach (var kv in seatExpiry)
+        {
+            if (Time.unscaledTime < kv.Value) continue;
+            (expired ??= new List<string>()).Add(kv.Key);
+        }
+        if (expired == null) return;
+
+        foreach (string playerId in expired)
+        {
+            seatExpiry.Remove(playerId);
+
+            int index = FindPlayerIndexByPlayerId(playerId);
+            if (index < 0) continue;
+
+            ulong staleClientId = connectedClients[index].clientId;
+            connectedClients.RemoveAt(index);
+
+            for (int i = 0; i < limbOwners.Count; i++)
+                if (limbOwners[i] == staleClientId) limbOwners[i] = ulong.MaxValue;
+
+            Debug.Log($"[Lobby] หมดเวลารอ playerId {playerId} — ปล่อยชิ้นส่วนให้คนอื่นเลือกได้แล้ว");
+        }
+    }
+
+    private int FindPlayerIndexByPlayerId(string playerId)
+    {
+        if (string.IsNullOrEmpty(playerId)) return -1;
+        for (int i = 0; i < connectedClients.Count; i++)
+            if (connectedClients[i].playerId.ToString() == playerId) return i;
+        return -1;
+    }
+
+    /// <summary>ตัวตนถาวรของเครื่องนี้ — คงเดิมข้ามการต่อใหม่ ต่างจาก clientId</summary>
+    public static string LocalPlayerId
+    {
+        get
+        {
+            try
             {
-                if (limbOwners[i] == clientId)
-                {
-                    limbOwners[i] = ulong.MaxValue;
-                }
+                var auth = Unity.Services.Authentication.AuthenticationService.Instance;
+                if (auth != null && auth.IsSignedIn && !string.IsNullOrEmpty(auth.PlayerId))
+                    return auth.PlayerId;
             }
+            catch { /* Services ยังไม่พร้อม */ }
+
+            // ตกกลับไปใช้ id ที่ปั่นเองแล้วเก็บไว้ในเครื่อง — ยังกลับเข้าห้องเดิมได้
+            const string key = "Lobby_LocalPlayerId";
+            string saved = PlayerPrefs.GetString(key, string.Empty);
+            if (string.IsNullOrEmpty(saved))
+            {
+                saved = System.Guid.NewGuid().ToString("N");
+                PlayerPrefs.SetString(key, saved);
+                PlayerPrefs.Save();
+            }
+            return saved;
         }
     }
 
@@ -729,7 +828,7 @@ public class LobbyManager : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void SubmitPlayerNameServerRpc(string playerName, ServerRpcParams rpcParams = default)
+    private void SubmitPlayerNameServerRpc(string playerName, string playerId, ServerRpcParams rpcParams = default)
     {
         ulong senderId = rpcParams.Receive.SenderClientId;
 
@@ -738,16 +837,54 @@ public class LobbyManager : NetworkBehaviour
         playerName = playerName.Trim();
         if (playerName.Length > 20) playerName = playerName.Substring(0, 20);
 
+        if (playerId == null) playerId = string.Empty;
+        if (playerId.Length > 60) playerId = playerId.Substring(0, 60);
+
+        // ── [Reconnect] คนนี้เคยอยู่ในห้องแล้วหลุดไปหรือเปล่า ──
+        int previous = FindPlayerIndexByPlayerId(playerId);
+        if (!string.IsNullOrEmpty(playerId) && previous >= 0 &&
+            connectedClients[previous].clientId != senderId)
+        {
+            LobbyPlayer old = connectedClients[previous];
+
+            // ย้ายชิ้นส่วนที่กันไว้มาผูกกับ clientId ใหม่
+            for (int i = 0; i < limbOwners.Count; i++)
+                if (limbOwners[i] == old.clientId) limbOwners[i] = senderId;
+
+            old.clientId = senderId;
+            old.playerName = playerName;
+            old.connected = true;
+            connectedClients[previous] = old;
+
+            seatExpiry.Remove(playerId);
+
+            // ลบ entry ซ้ำที่ OnClientConnected เพิ่งใส่ไว้ให้ clientId ใหม่
+            for (int i = connectedClients.Count - 1; i >= 0; i--)
+                if (i != previous && connectedClients[i].clientId == senderId)
+                    connectedClients.RemoveAt(i);
+
+            Debug.Log($"[Lobby] ✅ playerId {playerId} กลับเข้าห้องแล้ว — คืนชิ้นส่วนเดิมให้ Client {senderId}");
+            return;
+        }
+
         int index = FindPlayerIndex(senderId);
         if (index < 0)
         {
             // RPC มาถึงก่อน callback connect (กันเหนียว) — เพิ่มเข้าลิสต์เลย
-            connectedClients.Add(new LobbyPlayer { clientId = senderId, playerName = playerName });
+            connectedClients.Add(new LobbyPlayer
+            {
+                clientId = senderId,
+                playerName = playerName,
+                playerId = playerId,
+                connected = true
+            });
             return;
         }
 
         LobbyPlayer entry = connectedClients[index];
         entry.playerName = playerName;
+        entry.playerId = playerId;
+        entry.connected = true;
         connectedClients[index] = entry; // เขียนทับ index เดิม → OnListChanged ยิง → UI refresh ทุกเครื่อง
     }
 
@@ -1292,6 +1429,14 @@ public class LobbyManager : NetworkBehaviour
     /// in the lobby. Network ownership alone is not enough because the Host owns
     /// every unassigned limb by default.
     /// </summary>
+    /// <summary>ชิ้นส่วน index นี้เป็นของเครื่องเราอยู่ไหม — ใช้ตรวจว่า reconnect คืนของถูกคน</summary>
+    public bool IsLimbIndexOwnedByLocal(int index)
+    {
+        if (index < 0 || index >= limbOwners.Count) return false;
+        if (NetworkManager.Singleton == null) return false;
+        return limbOwners[index] == NetworkManager.Singleton.LocalClientId;
+    }
+
     public bool IsLimbSelectedByClient(GameObject limb, ulong clientId)
     {
         if (limb == null)
