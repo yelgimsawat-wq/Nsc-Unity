@@ -244,9 +244,33 @@ private void OnDestroy()
 
 ## MCP Integration
 
-This project has MCP (Model Context Protocol) configured in `.mcp.json`:
-- **filesystem** - Access project files
-- **github** - Integration with repository (requires `GITHUB_TOKEN` env var)
+`.mcp.json` is **committed and shared by the whole team**, so it must never contain
+machine-specific values (absolute paths, ports, tokens):
+
+- **filesystem** - Project files. Path uses `${CLAUDE_PROJECT_DIR:-.}` so it resolves on any machine
+- **github** - Repository integration. Each dev sets their own `GITHUB_TOKEN` env var
 - **memory** - Context persistence across sessions
 
-Settings in `.claude/settings.json` enable all project MCP servers.
+`.claude/settings.json` allowlists these servers for the project.
+
+### Unity MCP is NOT in `.mcp.json` — do not add it
+
+MCP For Unity registers itself **per-machine at `local` scope** via the Claude CLI, never in the
+shared file. Before every (re)configure its configurator runs
+`claude mcp remove --scope local|user|project UnityMCP`
+(`McpClientConfiguratorBase.cs` → `RemoveFromAllScopes`), so any `unityMCP` entry hand-added to
+`.mcp.json` gets **silently deleted** the next time anyone opens the MCP For Unity window. That
+deletion then rides along in the next commit and breaks everyone else's connection.
+
+Each dev registers it once on their own machine:
+
+```bash
+claude mcp add --scope local --transport http UnityMCP http://127.0.0.1:8080/mcp
+```
+
+Or in Unity: **Window > MCP For Unity > Local Setup Window** → Configure. Note the button toggles —
+when it reads "Unregister" it will remove the config, not add it.
+
+Ports live outside the repo and differ per machine: the HTTP endpoint defaults to `127.0.0.1:8080`
+(`HttpEndpointUtility.cs`), and the Unity bridge port defaults to `6400` but auto-increments if that
+port is taken (`PortManager.cs`). Never commit either value.

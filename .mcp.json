@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "C:\\Users\\User\\OneDrive\\เอกสาร\\GitHub\\Nsc-Unity"
+        "${CLAUDE_PROJECT_DIR:-.}"
       ]
     },
     "github": {
@@ -24,10 +24,6 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ]
-    },
-    "unityMCP": {
-      "type": "http",
-      "url": "http://127.0.0.1:8080/mcp"
     }
   }
 }
