@@ -124,6 +124,25 @@ public class RobotHealth : NetworkBehaviour, IHittable
         }
     }
 
+    /// <summary>
+    /// [SERVER] บังคับให้ชิ้นนี้หลุดทันทีโดยไม่สนเลือดที่เหลือ — ใช้กับท่าไม้ตายของบอส
+    /// ที่กำหนดว่า "โดนแล้วหลุดเลย"
+    ///
+    /// เดินผ่าน Break() ตัวเดิมโดยตั้งใจ เพื่อให้เพดานเลือด (currentMaxHp) ถูกหัก
+    /// ตามกติกาเดียวกับการหลุดจากดาเมจปกติ ถ้าเรียก Jpar.ForceBreakJoint() ตรงๆ
+    /// ชิ้นจะหลุดแต่เพดานไม่ลด = ต่อกลับมาแล้วแข็งแรงเท่าเดิม ผู้เล่นไม่เปราะขึ้นเลย
+    /// </summary>
+    public void ServerBreakPart()
+    {
+        if (!IsServer) return;
+
+        // หลุดไปแล้วไม่ต้องหักเพดานซ้ำ
+        if (Jpar != null && !Jpar.IsConnected) return;
+
+        currentHp.Value = 0;
+        Break();
+    }
+
     void Break()
     {
         // ทุกครั้งที่หลุด เพดานเลือดของชิ้นนี้ลดถาวร (ต่อกลับก็ได้แค่เพดานใหม่)

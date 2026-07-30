@@ -143,9 +143,10 @@ namespace NscGame.Enemy
         private bool isAttacking = false;
         private bool isKnockedBack = false;
         private bool isDeadLocked = false;
+        private bool isUltimateActive = false;
 
-        /// <summary>AI หยุดคิดเมื่อกำลังตี / ปลิว / ตายแล้ว</summary>
-        private bool IsBusy => isAttacking || isKnockedBack || isDeadLocked;
+        /// <summary>AI หยุดคิดเมื่อกำลังตี / ปลิว / ออกท่าไม้ตาย / ตายแล้ว</summary>
+        private bool IsBusy => isAttacking || isKnockedBack || isDeadLocked || isUltimateActive;
 
         #endregion
 
@@ -224,6 +225,11 @@ namespace NscGame.Enemy
         private void RotateTowardsTarget()
         {
             if (playerTarget == null || netState.Value == EnemyState.Dead) return;
+
+            // ✅ [Ultimate Aim Lock] ท่าไม้ตายล็อกทิศตอนเริ่มชาจแล้วห้ามหมุนตามอีก
+            // ถ้าปล่อยให้หมุนต่อ ตัวบอสจะหันตามผู้เล่นทั้งที่ลูกกระสุนพุ่งไปทางเดิม
+            // = ผู้เล่นอ่านแนวยิงไม่ได้ และท่านี้จะกลายเป็นล็อกเป้ากลายๆ
+            if (ServerRotationLocked) return;
 
             Vector3 direction = playerTarget.position - transform.position;
             direction.y = 0f; // Keep rotation strictly on the Y axis (no tilting up/down)
@@ -497,6 +503,13 @@ namespace NscGame.Enemy
                     if (combat != null) combat.StopAllCombatEffectsLocal();
                     break;
 
+                case EnemyState.Ultimate:
+                    // ท่าไม้ตายเล่นบน Attack layer เหมือนท่าปกติ — ต้องออกจากท่ากลิ้งก่อน
+                    // ไม่งั้น Roll layer (Override) จะทับอนิเมชันชาจ/ยิงทั้งท่า
+                    animator.SetBool(EnemyAnimParam.IsRolling, false);
+                    if (combat != null) combat.StopAllCombatEffectsLocal();
+                    break;
+
                 case EnemyState.Idle:
                 case EnemyState.Walk:
                     animator.SetBool(EnemyAnimParam.IsRolling, false);
@@ -545,6 +558,54 @@ namespace NscGame.Enemy
 
         /// <summary>สถานะปัจจุบัน — EnemyCombat ใช้เช็คว่าตายแล้วห้ามคิดดาเมจต่อ</summary>
         public EnemyState CurrentState => netState.Value;
+
+        /// <summary>ระยะตรวจจับไกลสุด — EnemyUltimate ใช้เป็นเพดานตอนกระโดดถอย
+        /// ถอยเกินค่านี้บอสจะหลุดระยะแล้วยืน Idle แทนที่จะกลับมาสู้</summary>
+        public float WalkThreshold => walkThreshold;
+
+        /// <summary>ระยะที่เริ่มกลิ้งเข้าหาเป้า — EnemyUltimate ใช้จำกัดจุดลงพื้น
+        /// ให้อยู่ในระยะกลิ้ง บอสจะแดชกลับเข้ามาสู้ทันทีหลังยิงจบ</summary>
+        public float RollTriggerDistance => rollTriggerDistance;
+
+        /// <summary>EnemyUltimate รอจังหวะที่ไม่ได้กำลังปลิวก่อนเริ่มกระโดดถอย</summary>
+        public bool ServerIsKnockedBack => isKnockedBack;
+
+        /// <summary>ตั้งเป็น true ตอนล็อกทิศยิงท่าไม้ตาย — หยุดหมุนหาผู้เล่นชั่วคราว</summary>
+        public bool ServerRotationLocked { get; set; }
+
+        /// <summary>[SERVER] หยุด AI + agent ตลอดท่าไม้ตาย</summary>
+        public void ServerBeginUltimate()
+        {
+            if (!IsServer) return;
+
+            isUltimateActive = true;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+
+            netSpeed.Value = 0f;
+            if (combat != null) combat.ServerStopAllCombatEffects();
+            SetState(EnemyState.Ultimate);
+        }
+
+        /// <summary>[SERVER] คืน AI ให้เดิน/ตีต่อหลังจบท่าไม้ตาย</summary>
+        public void ServerEndUltimate()
+        {
+            if (!IsServer) return;
+
+            isUltimateActive = false;
+            ServerRotationLocked = false;
+
+            // ตายกลางท่าไม้ตาย → ห้ามเขียนทับ state Dead ด้วย Idle (ศพจะลุกขึ้นยืน)
+            if (netState.Value == EnemyState.Dead) return;
+
+            // ให้เว้นจังหวะก่อนคอมโบถัดไป ไม่ให้ตีทันทีที่ยิงจบ
+            attackDecTimer = Mathf.Max(attackDecTimer, minAttackInterval);
+            SetState(EnemyState.Idle);
+        }
 
         public void ServerBeginKnockback()
         {

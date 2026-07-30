@@ -72,7 +72,9 @@ namespace NscGame.Enemy
         private EnemyController controller;
         private NavMeshAgent agent;
         private EnemyBodySway bodySway;
+        private EnemyUltimate ultimate;
         private bool isDead = false;
+        private bool ultimateCueSent = false;
 
         // Knockback state — เก็บไว้นอก coroutine เพื่อให้หมัดที่เข้าซ้ำ "เติมแรง+ต่อเวลา"
         // ในรอบเดิมได้ แทนที่จะ start coroutine ซ้อนกันหลายตัว (ดู ServerTakeHit)
@@ -89,6 +91,7 @@ namespace NscGame.Enemy
             controller = GetComponent<EnemyController>();
             agent = GetComponent<NavMeshAgent>();
             bodySway = GetComponent<EnemyBodySway>(); // Optional — เอียงตัวตอนโดนตี ไม่มีก็แค่ข้าม
+            ultimate = GetComponent<EnemyUltimate>(); // Optional — ไม่มีก็แค่ไม่มีท่าไม้ตาย
 
             // FIX: don't blindly overwrite an Inspector-assigned AudioSource.
             // Previously this line ran unconditionally and set audioSource to
@@ -163,6 +166,15 @@ namespace NscGame.Enemy
             {
                 ServerDie();
                 return;
+            }
+
+            // 🕳️ [Ultimate Cue] เลือดร่วงถึงเกณฑ์ → คิวท่าไม้ตายไว้
+            // แค่ "คิว" ไม่ใช่เริ่มทันที เพราะหมัดที่ทำให้เลือดถึง 50% ก็เป็นหมัดที่ทำให้ปลิว
+            // EnemyUltimate จะรอให้ knockback จบและ agent กลับขึ้น NavMesh ก่อนค่อยกระโดดถอย
+            if (!ultimateCueSent && ultimate != null && hpRatio <= ultimate.TriggerHpPercent)
+            {
+                ultimateCueSent = true;
+                ultimate.ServerRequestUltimate();
             }
 
             // Calculate knockback direction (horizontal + slight upward)

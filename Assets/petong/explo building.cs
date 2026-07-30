@@ -260,5 +260,15 @@ public class explobuilding : NetworkBehaviour, IHittable
         {
             col.enabled = false;
         }
+
+        // ✅ [NavMesh] ตึกเจาะรูบน NavMesh ด้วย NavMeshObstacle (carving) ตอน runtime
+        // ต้องปิดพร้อมกับ collider ทันทีที่เริ่มพัง ไม่ใช่รอ Despawn ท้ายอนิเมชัน
+        // ไม่งั้นรูจะจมตามตัวตึกลงไป 5 หน่วยแล้ว re-carve ทุกเฟรม = พื้นตรงนั้นยังเดินไม่ได้
+        // ทั้งที่ตึกพังแล้ว และเสีย perf ฟรีตลอดช่วง shake
+        foreach (UnityEngine.AI.NavMeshObstacle obstacle in GetComponentsInChildren<UnityEngine.AI.NavMeshObstacle>())
+        {
+            obstacle.carving = false;
+            obstacle.enabled = false;
+        }
     }
 }

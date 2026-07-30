@@ -17,11 +17,12 @@ namespace NscGame.Enemy
     /// </summary>
     public enum EnemyState : byte
     {
-        Idle   = 0,
-        Walk   = 1,
-        Roll   = 2,
-        Attack = 3,
-        Dead   = 4
+        Idle     = 0,
+        Walk     = 1,
+        Roll     = 2,
+        Attack   = 3,
+        Dead     = 4,
+        Ultimate = 5
     }
 
     /// <summary>
@@ -32,7 +33,20 @@ namespace NscGame.Enemy
         None         = 0,
         LightPunch   = 1,
         BarragePunch = 2,
-        Kick         = 3
+        Kick         = 3,
+        BlackHole    = 4
+    }
+
+    /// <summary>
+    /// Phases of the BlackHole ultimate — synced so late-joining clients
+    /// (and clients that miss an RPC) still land on the right animation.
+    /// </summary>
+    public enum UltimatePhase : byte
+    {
+        None    = 0,
+        Backjump = 1,
+        Charging = 2,
+        Firing   = 3
     }
 
     /// <summary>
@@ -53,6 +67,12 @@ namespace NscGame.Enemy
         public static readonly int LightPunch   = Animator.StringToHash("LightPunch");
         public static readonly int BarragePunch = Animator.StringToHash("BarragePunch");
         public static readonly int Kick         = Animator.StringToHash("Kick");
+
+        // Ultimate: BlackHole triggers (Attack layer, same as the melee triggers)
+        public const string BlackHoleChargeName = "BlackHoleCharge";
+        public const string BlackHoleShotName   = "BlackHoleShot";
+        public static readonly int BlackHoleCharge = Animator.StringToHash(BlackHoleChargeName);
+        public static readonly int BlackHoleShot   = Animator.StringToHash(BlackHoleShotName);
 
         // Death state
         public static readonly int IsDead       = Animator.StringToHash("IsDead");
