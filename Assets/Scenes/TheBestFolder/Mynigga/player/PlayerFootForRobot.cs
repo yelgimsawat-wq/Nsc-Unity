@@ -738,6 +738,9 @@ public class PlayerFootForRobot : NetworkBehaviour
         // 🏁 เกมจบแล้ว (Win/GameOver panel ขึ้น) — ห้ามล็อกเมาส์กลับ ผู้เล่นต้องคลิกปุ่มบน panel
         if (GameFlowManager.GameEnded) return;
 
+        // 🖱️ มี UI เปิดอยู่ (วงล้อไอเทม/เมนู) — ห้ามแย่งเมาส์กลับ (ดู UiFocus)
+        if (UiFocus.IsCaptured) return;
+
         // Esc = ปลดล็อก เมาส์โผล่ (ไปกดเมนู)
         if (Input.GetKeyDown(KeyCode.Escape))
         {

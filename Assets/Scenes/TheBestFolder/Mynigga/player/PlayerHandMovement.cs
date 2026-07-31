@@ -286,6 +286,10 @@ public class PlayerHandMovement : NetworkBehaviour
         // 🏁 เกมจบแล้ว (Win/GameOver panel ขึ้น) — ห้ามล็อกเมาส์กลับ ผู้เล่นต้องคลิกปุ่มบน panel
         if (GameFlowManager.GameEnded) return;
 
+        // 🖱️ มี UI เปิดอยู่ (วงล้อไอเทม/เมนู) — ห้ามแย่งเมาส์กลับ
+        // ไม่มีบรรทัดนี้ พอกดปุ่มแรกบน UI เคอร์เซอร์จะหายทันทีเพราะเข้าเงื่อนไข "คลิกซ้าย = ล็อกกลับ" ข้างล่าง
+        if (UiFocus.IsCaptured) return;
+
         // Esc = ปลดล็อกชั่วคราว (ไปกดเมนู) / คลิกซ้ายกลับเข้าเกม = ล็อกต่อ
         if (Input.GetKeyDown(KeyCode.Escape))
         {

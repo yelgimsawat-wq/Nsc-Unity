@@ -158,12 +158,14 @@ public class VoiceChat : MonoBehaviour
             {
                 var output = StreamedAudioSourceOutput.New();
                 output.gameObject.name = "VoicePeerOutput";
-                // เสียงพูดต้องไม่ถูกกลืนด้วยเสียงเกม และไม่ตาม Master Volume
+                // เสียงพูดข้ามเอฟเฟกต์/reverb ของฉากทั้งหมด จะได้ชัดเหมือนคุยผ่านวิทยุ
+                // แต่ "ตาม" Master Volume (ignoreListenerVolume = false) เพื่อให้สไลเดอร์ Master
+                // เป็นตัวหรี่รวมจริงๆ ส่วนใครอยากหรี่เฉพาะเสียงเพื่อนก็มีสไลเดอร์ Voice แยกให้แล้ว
                 var src = output.Stream != null ? output.Stream.UnityAudioSource : null;
                 if (src != null)
                 {
                     src.priority = 0;
-                    src.ignoreListenerVolume = true;
+                    src.ignoreListenerVolume = false;
                     src.ignoreListenerPause = true;
                     src.bypassEffects = true;
                     src.bypassListenerEffects = true;
@@ -293,10 +295,51 @@ public class VoiceChat : MonoBehaviour
             if (kv.Value is StreamedAudioSourceOutput sso && sso.Stream != null)
             {
                 var src = sso.Stream.UnityAudioSource;
-                if (src != null) src.volume = v;
+                if (src == null) continue;
+
+                // ย้ำค่านี้ทุกครั้ง เผื่อ source ถูกสร้างไว้ก่อนที่จะเปลี่ยนพฤติกรรมให้ตาม Master
+                src.ignoreListenerVolume = false;
+
+                // ปิดเสียงรายคน = หรี่เฉพาะ AudioSource ของ peer นั้น (UniVoice แยก source ให้คนละตัวอยู่แล้ว)
+                src.volume = mutedPeers.Contains(kv.Key) ? 0f : v;
             }
         }
     }
+
+    // ==========================================================
+    //  ปิดเสียงเพื่อนรายคน — เป็นของฝั่งเราคนเดียว ไม่ sync ข้ามเครื่อง
+    //  (เราปิดหูตัวเอง ไม่ได้ปิดปากเขา) และไม่เก็บลง PlayerPrefs เพราะ id เปลี่ยนทุกห้อง
+    // ==========================================================
+
+    private readonly HashSet<int> mutedPeers = new HashSet<int>();
+
+    /// <summary>จำนวนคนอื่นในห้องที่เสียงเข้ามาถึงเราแล้ว</summary>
+    public int PeerCount => session?.PeerOutputs?.Count ?? 0;
+
+    /// <summary>เติม id ของเพื่อนทุกคนลง buffer — id ตัวนี้คือ (int) ของ clientId ฝั่ง Netcode</summary>
+    public void GetPeerIds(List<int> buffer)
+    {
+        if (buffer == null) return;
+
+        buffer.Clear();
+        if (session == null) return;
+
+        foreach (var kv in session.PeerOutputs)
+            buffer.Add(kv.Key);
+    }
+
+    public bool IsPeerMuted(int peerId) => mutedPeers.Contains(peerId);
+
+    public void SetPeerMuted(int peerId, bool muted)
+    {
+        bool changed = muted ? mutedPeers.Add(peerId) : mutedPeers.Remove(peerId);
+        if (!changed) return;
+
+        ApplySpeakerVolume();
+        OnVoiceStateChanged?.Invoke();
+    }
+
+    public void TogglePeerMuted(int peerId) => SetPeerMuted(peerId, !IsPeerMuted(peerId));
 
     private void RebuildInput()
     {

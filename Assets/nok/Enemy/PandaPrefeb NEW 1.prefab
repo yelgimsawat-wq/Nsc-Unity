@@ -184,6 +184,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2516178802854483658}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 149172118867047908}
     - targetCorrespondingSourceObject: {fileID: -4327563896902650748, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8648020980692214411}
@@ -1185,7 +1188,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3227742048
+  GlobalObjectIdHash: 3236273089
   InScenePlacedSourceGlobalObjectIdHash: 1939429606
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1586,11 +1589,6 @@ MonoBehaviour:
   shotVfxPrefab: {fileID: 5244900642459055369, guid: a024b8784f71f9343aec84fd199bbae2, type: 3}
   chargeVfxScale: 4
   shotVfxScale: 5
-  shotVfxRotationOffset: {x: 0, y: 0, z: 0}
-  chargeVfxRotationOffset: {x: 0, y: 0, z: 0}
-  shotStreakSpeedMultiplier: 0.25
-  shotTrailsWorldSpace: 1
-  shotVfxWorldSpace: 0
   projectileSpeed: 55
   projectileGravity: 0
   projectileLifetime: 4.5
@@ -1604,6 +1602,19 @@ MonoBehaviour:
   sfxCharge: {fileID: 0}
   sfxFire: {fileID: 0}
   audioSource: {fileID: 5192687024544509630}
+--- !u!114 &149172118867047908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8573786741725986091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d89b1503f7514a4d86d3852642b1123, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioCategory
+  bus: 0
 --- !u!1 &8722074818446084846 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -8991906586715682156, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}

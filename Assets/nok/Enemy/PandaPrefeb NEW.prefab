@@ -141,6 +141,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8591612553759821166}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4010453894116832569}
     - targetCorrespondingSourceObject: {fileID: -4327563896902650748, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4410405413518849027}
@@ -1059,6 +1062,7 @@ MonoBehaviour:
   turnSpeed: 720
   attackTurnSpeed: 360
   rollTurnSpeed: 540
+  pacingRangeMultiplier: 1.5
 --- !u!82 &9120055594866858778
 AudioSource:
   m_ObjectHideFlags: 0
@@ -1180,12 +1184,13 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   maxStrikeReach: 16
+  guaranteeHitInReach: 1
   lightPunchHitDelay: 0.5
   kickHitDelay: 0.8
   lightPunchDamage: 20
-  barragePunchDamage: 8
-  barragePunchHitCount: 6
   kickDamage: 40
+  barrageTotalDamage: 48
+  barrageHitInterval: 0.1
   barrageDuration: 1.5
   attackRecoverDelay: 0.25
   attackResetFade: 0.15
@@ -1222,6 +1227,19 @@ CapsuleCollider:
   m_Height: 2.5427275
   m_Direction: 1
   m_Center: {x: 0, y: -0.39758804, z: 0}
+--- !u!114 &4010453894116832569
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6951130012994583449}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d89b1503f7514a4d86d3852642b1123, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioCategory
+  bus: 0
 --- !u!1 &7352025261339900284 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -8452814225616076876, guid: 3b62428867b553f469ee9f8ba759cf72, type: 3}

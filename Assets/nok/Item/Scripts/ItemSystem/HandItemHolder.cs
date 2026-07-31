@@ -164,7 +164,7 @@ namespace NscUnity.Items
             if (!handleUseInput || Current == null) return;
 
             // ตอนวงล้อเลือกไอเทมเปิดอยู่ ห้ามยิง/ใช้ไอเทม
-            if (ItemWheelUI.IsAnyOpen) return;
+            if (UiFocus.IsCaptured) return; // วงล้อ/เมนูเปิดอยู่ — ห้ามใช้ไอเทมในมือ
 
             if (InputCompat.GetMouseButtonDown(useMouseButton)) Current.OnUseStart();
             if (InputCompat.GetMouseButton(useMouseButton)) Current.OnUseHold(Time.deltaTime);

@@ -95,7 +95,7 @@ namespace NscUnity.Items
 
             RebindIfOwnershipChanged();
 
-            bool show = focused != null && !ItemWheelUI.IsAnyOpen;
+            bool show = focused != null && !UiFocus.IsCaptured; // มี UI เปิดอยู่ก็ไม่ต้องโชว์ป้าย "กด E"
             float target = show ? 1f : 0f;
             group.alpha = Mathf.MoveTowards(group.alpha, target, Time.unscaledDeltaTime / Mathf.Max(0.01f, fadeDuration));
         }

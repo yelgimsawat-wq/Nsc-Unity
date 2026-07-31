@@ -50,6 +50,41 @@ public class ReturnToMenuOnHostLost : MonoBehaviour
     /// <summary>ให้ UI สั่งยกเลิกการต่อกลับได้</summary>
     public static void CancelReconnect() => cancelRequested = true;
 
+    /// <summary>
+    /// ออกจากแมตช์เอง แล้วกลับเมนูหลัก — ใช้จากปุ่ม LEAVE MATCH ในเมนูระหว่างเล่น
+    ///
+    /// ตั้ง LeavingIntentionally ก่อนตัด เพื่อไม่ให้ระบบต่อกลับอัตโนมัติทำงาน
+    /// (ไม่งั้นกดออกเองแล้วมันจะพยายามลากกลับเข้าห้องเดิมให้)
+    ///
+    /// ⚠️ ถ้าเครื่องนี้เป็น Host การตัดนี้ทำให้ห้องสลาย ทุกคนใน้องจะถูกเด้งกลับเมนูตาม
+    ///    ผู้เรียกต้องถามยืนยันก่อนเสมอ
+    /// </summary>
+    public static async Task LeaveMatchAsync()
+    {
+        LeavingIntentionally = true;
+        cancelRequested = true;
+
+        NetworkManager nm = NetworkManager.Singleton;
+        if (nm != null && nm.IsListening && !nm.ShutdownInProgress)
+            nm.Shutdown();
+
+        for (int i = 0; i < 300 && nm != null && (nm.IsListening || nm.ShutdownInProgress); i++)
+            await Task.Yield();
+
+        await LeaveStaleSessionsAsync();
+
+        LastRoomCode = string.Empty;
+        LastSessionId = string.Empty;
+        LeavingIntentionally = false;
+
+        UiFocus.Clear();
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (SceneManager.GetActiveScene().name != MenuSceneName)
+            SceneManager.LoadScene(MenuSceneName, LoadSceneMode.Single);
+    }
+
     private const int MaxAttempts = 5;
     private const float FirstDelaySeconds = 2f;
 

@@ -179,6 +179,8 @@ namespace NscUnity.Items
                 openCount = Mathf.Max(0, openCount - 1);
                 RestoreWorldState();
             }
+
+            UiFocus.Pop(this); // กันค้างใน stack ถ้าโดนทำลายตอนเปิดอยู่
         }
 
         private void OnDisable()
@@ -278,6 +280,7 @@ namespace NscUnity.Items
 
             isOpen = true;
             openCount++;
+            UiFocus.Push(this); // บอกสคริปต์ผู้เล่นว่าอย่าแย่งเมาส์กลับตอนคลิกเลือกไอเทม
 
             hoveredIndex = inventory.EquippedIndex;
 
@@ -296,6 +299,7 @@ namespace NscUnity.Items
 
             isOpen = false;
             openCount = Mathf.Max(0, openCount - 1);
+            UiFocus.Pop(this);
 
             if (applySelection && hoveredIndex >= 0)
             {

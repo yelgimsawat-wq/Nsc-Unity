@@ -140,6 +140,9 @@ public class SettingsManager : MonoBehaviour
     private Resolution[] availableResolutions;
     private bool isPopupOpen = false;
 
+    /// <summary>แผงตั้งค่าเปิดอยู่ไหม — InMatchMenu ใช้ตัดสินว่า ESC ควรปิดแผงนี้ก่อน</summary>
+    public bool IsOpen => isPopupOpen;
+
     // FPS Tracking
     private float fpsUpdateInterval = 0.5f;
     private float fpsAccumulator = 0f;

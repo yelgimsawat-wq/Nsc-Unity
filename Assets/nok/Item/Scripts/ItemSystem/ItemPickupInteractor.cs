@@ -70,7 +70,7 @@ namespace NscUnity.Items
             if (!IsOwner) return;
 
             // ตอนวงล้อเลือกไอเทมเปิดอยู่ ไม่ต้องรับปุ่มเก็บ/ทิ้งของ
-            if (ItemWheelUI.IsAnyOpen) return;
+            if (UiFocus.IsCaptured) return; // วงล้อ/เมนูเปิดอยู่ — ปุ่มเก็บของต้องไม่ทำงาน
 
             RefreshFocus();
 
