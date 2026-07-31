@@ -3078,7 +3078,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1684748696
+  GlobalObjectIdHash: 2325667932
   InScenePlacedSourceGlobalObjectIdHash: 2607819533
   DeferredDespawnTick: 0
   Ownership: 1
@@ -3165,6 +3165,8 @@ MonoBehaviour:
   menuIdleSpeed: 1.6
   buttonClickScale: 1.06
   buttonClickDuration: 0.12
+  seatHoldSeconds: 90
+  autoDisableExtraRobots: 1
 --- !u!1 &9087983997282482791
 GameObject:
   m_ObjectHideFlags: 0
