@@ -185,6 +185,9 @@ public class SettingsManager : MonoBehaviour
         // Setup resolutions
         SetupResolutions();
 
+        // สไลเดอร์ภาพต้องเป็น 5 ขั้นตรงกับ GraphicsQualityManager
+        SetupQualitySlider();
+
         // Bind all UI listeners
         BindAllListeners();
 
@@ -517,22 +520,43 @@ public class SettingsManager : MonoBehaviour
         Debug.Log($"[Settings] VSync {(enabled ? "enabled" : "disabled")}");
     }
 
+    /// <summary>
+    /// ⚠️ ห้ามกลับไปใช้ QualitySettings.SetQualityLevel() — โปรเจกต์นี้มี Quality Level
+    /// แค่ Mobile กับ PC และ Mobile ถูก exclude จาก Standalone พอบิลด์เป็น PC แล้ว
+    /// เหลือระดับเดียว สไลเดอร์เลยขยับได้แต่ภาพไม่เปลี่ยนเลย
+    /// GraphicsQualityManager ยัดค่าจริงลง URP asset + กล้องแทน
+    /// </summary>
     private void OnQualityPresetSliderChanged(float value)
     {
-        int qualityLevel = Mathf.RoundToInt(value / 25f); // 0-100 mapped to 0-4
-        qualityLevel = Mathf.Clamp(qualityLevel, 0, QualitySettings.names.Length - 1);
+        int index = QualitySliderToPresetIndex(value);
 
-        // ✅ ตั้งค่า Quality Level พร้อมบังคับ Apply ทันที
-        QualitySettings.SetQualityLevel(qualityLevel, true);
+        if (GraphicsQualityManager.Instance != null)
+            GraphicsQualityManager.Instance.Apply((GraphicsPreset)index);
 
-        // ✅ แสดงชื่อระดับ Quality จริง (Low, Medium, High, Ultra)
         if (qualityPresetValueLabel != null)
-            qualityPresetValueLabel.text = QualitySettings.names[qualityLevel];
+            qualityPresetValueLabel.text = GraphicsQualityManager.PresetNames[index];
 
-        PlayerPrefs.SetInt("GraphicsQuality", qualityLevel);
-        PlayerPrefs.SetFloat("QualitySliderValue", value);
-        Debug.Log($"[Settings] Quality Preset changed to {QualitySettings.names[qualityLevel]} (Level {qualityLevel})");
-        Debug.Log($"[Settings]   → Shadows: {QualitySettings.shadows}, Distance: {QualitySettings.shadowDistance}");
+        PlayerPrefs.SetInt(GraphicsQualityManager.PrefsKey, index);
+    }
+
+    /// <summary>แปลงค่าสไลเดอร์เป็น index ของ preset — รองรับสไลเดอร์ช่วงไหนก็ได้ (0-1, 0-4, 0-100)</summary>
+    private int QualitySliderToPresetIndex(float value)
+    {
+        if (qualityPresetSlider == null)
+            return Mathf.Clamp(Mathf.RoundToInt(value), 0, GraphicsQualityManager.PresetCount - 1);
+
+        float t = Mathf.InverseLerp(qualityPresetSlider.minValue, qualityPresetSlider.maxValue, value);
+        return Mathf.RoundToInt(t * (GraphicsQualityManager.PresetCount - 1));
+    }
+
+    /// <summary>บังคับสไลเดอร์ให้เป็น 5 ขั้นพอดี ผู้เล่นจะได้ไม่ลากไปค้างระหว่างระดับ</summary>
+    private void SetupQualitySlider()
+    {
+        if (qualityPresetSlider == null) return;
+
+        qualityPresetSlider.minValue = 0f;
+        qualityPresetSlider.maxValue = GraphicsQualityManager.PresetCount - 1;
+        qualityPresetSlider.wholeNumbers = true;
     }
 
     // ================================================================
@@ -877,9 +901,21 @@ public class SettingsManager : MonoBehaviour
 
         if (qualityPresetSlider != null)
         {
-            float qualityValue = PlayerPrefs.GetFloat("QualitySliderValue", 70f);
-            qualityPresetSlider.value = qualityValue;
-            OnQualityPresetSliderChanged(qualityValue);
+            // GraphicsQualityManager โหลดและ apply ค่าไปแล้วตั้งแต่ก่อนเข้าฉากแรก
+            // ตรงนี้แค่ดึงระดับปัจจุบันมาโชว์ ไม่ต้อง apply ซ้ำ (จะ apply ซ้ำตอนเปลี่ยนฉากพอดี)
+            int index = GraphicsQualityManager.Instance != null
+                ? (int)GraphicsQualityManager.Instance.CurrentPreset
+                : PlayerPrefs.GetInt(GraphicsQualityManager.PrefsKey, (int)GraphicsPreset.High);
+
+            index = Mathf.Clamp(index, 0, GraphicsQualityManager.PresetCount - 1);
+
+            float sliderValue = Mathf.Lerp(qualityPresetSlider.minValue, qualityPresetSlider.maxValue,
+                index / (float)(GraphicsQualityManager.PresetCount - 1));
+
+            qualityPresetSlider.SetValueWithoutNotify(sliderValue);
+
+            if (qualityPresetValueLabel != null)
+                qualityPresetValueLabel.text = GraphicsQualityManager.PresetNames[index];
         }
 
         // Audio
