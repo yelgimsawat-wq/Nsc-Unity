@@ -25,6 +25,13 @@ public class TorsoMovement : NetworkBehaviour
     public float bothFeetUnbalancedGrace = 0.15f;
     private float _bothUnbalancedTimer = 0f;
 
+    [Header("Walk Fall Rule (กติกาหลักของเกม)")]
+    [Tooltip("⭐ กติกา: 'หุ่นล้มเพราะสองคนเผลอก้าวพร้อมกัน' เท่านั้น\n" +
+             "ต้องเห็นทั้งสองเท้าอยู่ในสถานะก้าวเดินพร้อมกันนานกว่าค่านี้ ถึงจะล้มจริง\n" +
+             "มีไว้กัน state ซ้อนกันชั่วขณะจากดีเลย์เครือข่าย — overlap แค่ 1 เฟรมห้ามล้มเด็ดขาด")]
+    public float bothFeetSteppingGrace = 0.15f;
+    private float _bothSteppingTimer = 0f;
+
     [Header("Ragdoll Recovery")]
     [Tooltip("แรงดึงลำตัวให้ตั้งตรงขณะกดลุก (ช่วยให้ไม่ลอยขึ้นแล้วยังล้มอยู่)")]
     public float recoveryUprightTorque = 600f;
@@ -181,11 +188,19 @@ public class TorsoMovement : NetworkBehaviour
         // นับสถานะเท้าก่อน — ใช้ทั้งเงื่อนไขเอียงและเงื่อนไขล้มจากเท้าด้านล่าง
         int groundedCount = 0;
         int balancedCount = 0;
+        int walkSteppingCount = 0; // เท้าที่ "กำลังก้าวเดิน" จริงๆ (ไม่นับกระโดด/เตะ/ยันตัวลุก)
+        bool hasSupportFoot = false;
+        bool kickInProgress = false;
         Vector3 avgFootPos = Vector3.zero;
 
         foreach (var foot in _attachedFeet)
         {
             if (foot == null) continue;
+            if (foot.IsWalkStepping) walkSteppingCount++;
+            // เฉพาะช่วงเตะจริง (Kicking/Recovering) ซึ่งจบเองใน ~0.5 วิ
+            // จงใจไม่รวมช่วงง้าง (Charging) เพราะผู้เล่นกด Shift ค้างได้ไม่จำกัดเวลา
+            // ถ้ารวมเข้าไปจะกลายเป็นเกราะกันล้มถาวรที่เปิดได้ด้วยการกดปุ่มค้าง
+            if (foot.IsKickMotionActive) kickInProgress = true;
             if (foot.IsBalanced) balancedCount++;
             if (!foot.IsGrounded()) continue;
             // ✅ [Bug Fix] เท้าที่ footRb หายห้ามนับ — เดิมบวก Vector3.zero เข้า average
@@ -193,14 +208,24 @@ public class TorsoMovement : NetworkBehaviour
             if (foot.footRb == null) continue;
             groundedCount++;
             avgFootPos += foot.footRb.position;
+            // ⭐ Support Foot = เท้าที่ยันพื้นอยู่และไม่ได้กำลังก้าว/กระโดด/ลุก
+            if (foot.CanActAsSupport) hasSupportFoot = true;
         }
 
-        // ✅ [Design Rule] "การล้มเกิดจากเผลอก้าวสองขาพร้อมกันเท่านั้น"
-        // เช็กเอียงเกินองศาจึงทำงานเฉพาะตอน 'ไม่มีเท้าแตะพื้นเลย' (เช่นคะมำกลางอากาศ)
-        // — ตราบใดที่มีเท้าปักพื้นอยู่ ระบบ Tether ในขา (legStretchSpring) เป็นคนรั้ง
-        // ลำตัวไม่ให้ถูกลากจนเสียท่า แทนการจับล้มทิ้ง
+        // 🦘 [Jump Grace] ช่วงกระโดด/เพิ่งลงพื้น: พักการตัดสินล้มจาก "สถานะเท้า" ไว้ก่อน
+        // (เท้าลอยเพราะกระโดด ≠ กำลังล้ม)
+        bool jumpProtected = _jumpGraceTimer > 0f || _landingAssistTimer > 0f;
+
+        // ⭐⭐ [Core Design Rule] "มี Support Foot อยู่ = ห้ามล้มจากระบบสมดุล เด็ดขาด"
+        // ต่อให้ตัวเอียง / CoM ออกนอกฐาน / ขาก้าวไกล / Torso ถูกดึง / ตัวโยกแรง —
+        // ตราบใดที่ขาอีกข้างยันพื้นอยู่ ระบบ Plant + Tether (legStretchSpring ในไฟล์ขา)
+        // เป็นคนรั้งลำตัวไว้ ไม่ใช่การจับล้มทิ้ง
+        // ความยากของเกมต้องมาจาก "สองคนต้องไม่ก้าวพร้อมกัน" ไม่ใช่จากการทรงตัวรายเฟรม
+        bool balanceProtected = supportedByHand || jumpProtected || kickInProgress || hasSupportFoot;
+
+        // เช็กเอียงเกินองศาทำงานเฉพาะตอนไม่มีอะไรพยุงเลย (เช่นคะมำกลางอากาศ)
         float tiltAngle = Vector3.Angle(torsoRb.transform.up, Vector3.up);
-        if (!supportedByHand && groundedCount == 0 && tiltAngle > maxBalanceAngle)
+        if (!balanceProtected && groundedCount == 0 && tiltAngle > maxBalanceAngle)
         {
             _tiltTimer += Time.fixedDeltaTime;
             if (_tiltTimer >= fallGracePeriod * TILT_FALL_GRACE_RATIO)
@@ -215,18 +240,34 @@ public class TorsoMovement : NetworkBehaviour
             _tiltTimer = Mathf.Max(0f, _tiltTimer - Time.fixedDeltaTime * 2f);
         }
 
-        // 🦘 [Jump Grace] ช่วงกระโดด/เพิ่งลงพื้น: พักการตัดสินล้มจาก "สถานะเท้า" ไว้ก่อน
-        // (เท้าลอยเพราะกระโดด ≠ กำลังล้ม)
-        bool jumpProtected = _jumpGraceTimer > 0f || _landingAssistTimer > 0f;
-
         int footCount = _attachedFeet.Count;
+
+        // ⭐ [Walk Fall Rule] สาเหตุหลักที่ทำให้ล้มจากการเดิน: สองขาก้าวพร้อมกัน
+        // ไม่ผูกกับ groundedCount/IsBalanced เลย — ผู้เล่นสองคนเผลอกดคลิกซ้ายพร้อมกัน
+        // ค้างเกิน grace = ไม่มีขายัน = ล้ม (นี่คือความยากที่ตั้งใจให้เป็นหัวใจของเกม)
+        // IsWalkStepping ตัดกระโดด/เตะออกไปแล้วในฝั่ง PlayerFootForRobot
+        if (!supportedByHand && !jumpProtected && footCount >= 2 && walkSteppingCount >= 2)
+        {
+            _bothSteppingTimer += Time.fixedDeltaTime;
+            if (_bothSteppingTimer >= bothFeetSteppingGrace)
+            {
+                _bothSteppingTimer = 0f;
+                currentState.Value = TorsoState.Falling;
+                return;
+            }
+        }
+        else
+        {
+            _bothSteppingTimer = Mathf.Max(0f, _bothSteppingTimer - Time.fixedDeltaTime * 2f);
+        }
+
         // ✅ [Multiplayer Debounce] เดิมเช็คนี้ล้มทันทีไม่มี grace เลย (ต่างจากเงื่อนไขอื่นด้านล่าง)
         // ในโหมดหลายผู้เล่น (ขาซ้าย-ขวาคุมคนละคน) จังหวะ isStepping ของสองคนมีโอกาสซ้อนกันแค่เฟรมเดียว
         // จากดีเลย์เครือข่าย ทำให้ตัวล้มทั้งที่จริงๆยังยืนอยู่ได้ (ร่วมกับ fix IsBalanced ในไฟล์ขา)
         // ✅ [Tighter Fix] เพิ่ม groundedCount == 0 เข้าไปด้วย — เดิม balancedCount==0 ทริกเกอร์ได้จาก
         // flag ล้วนๆ (เช่น isJumping ตั้งไปแล้วแต่เท้ายังไม่ทันลอยจริง) ตอนนี้ต้อง "เท้าทั้งคู่ลอยจริง"
         // เท่านั้นถึงจะนับ ตัดโอกาส false-positive จาก flag ที่ไม่ตรงกับสถานะฟิสิกส์จริงทิ้งไปเลย
-        if (!supportedByHand && !jumpProtected && footCount >= 2 && balancedCount == 0 && groundedCount == 0)
+        if (!balanceProtected && footCount >= 2 && balancedCount == 0 && groundedCount == 0)
         {
             _bothUnbalancedTimer += Time.fixedDeltaTime;
             if (_bothUnbalancedTimer >= bothFeetUnbalancedGrace)
@@ -241,7 +282,9 @@ public class TorsoMovement : NetworkBehaviour
             _bothUnbalancedTimer = Mathf.Max(0f, _bothUnbalancedTimer - Time.fixedDeltaTime * 2f);
         }
 
-        if (!supportedByHand && !jumpProtected && footCount > 0 && groundedCount == 0)
+        // ตาข่ายรับสุดท้าย: ลอยทั้งตัวจริงๆ (ไม่มีเท้าแตะพื้นเลย) นานเกิน fallGracePeriod
+        // ไม่ใช่กติกาการเดิน แต่เป็นฟิสิกส์ล้วน — ถ้าตัดทิ้งหุ่นจะไม่มีวันล้มจากการตกที่สูง
+        if (!balanceProtected && footCount > 0 && groundedCount == 0)
         {
             _balanceLossTimer += Time.fixedDeltaTime;
             if (_balanceLossTimer >= fallGracePeriod)
@@ -253,12 +296,16 @@ public class TorsoMovement : NetworkBehaviour
         else
         {
             _balanceLossTimer = Mathf.Max(0f, _balanceLossTimer - Time.fixedDeltaTime * 2f);
-            if (groundedCount > 0)
-            {
-                avgFootPos /= groundedCount;
-                Vector3 flatError = new Vector3(avgFootPos.x - torsoRb.position.x, 0f, avgFootPos.z - torsoRb.position.z);
-                torsoRb.AddForce(flatError * (autoCenterGravityForce * Mathf.Lerp(1f, minCenterForceMultiplier, armPullIntensity)), ForceMode.Acceleration);
-            }
+        }
+
+        // ⚖️ ดึงลำตัวให้อยู่เหนือฐานเท้า — ต้องทำงานทุกครั้งที่มีเท้าแตะพื้น
+        // (แยกออกมาจาก else ด้านบนแล้ว: สาขานั้นเข้าได้ก็ต่อเมื่อ groundedCount == 0 อยู่ดี
+        //  ถ้าคาไว้ในนั้น พอเพิ่ม balanceProtected แรงจัดศูนย์จะหายไปเงียบๆ ตอนมีขายัน)
+        if (groundedCount > 0)
+        {
+            avgFootPos /= groundedCount;
+            Vector3 flatError = new Vector3(avgFootPos.x - torsoRb.position.x, 0f, avgFootPos.z - torsoRb.position.z);
+            torsoRb.AddForce(flatError * (autoCenterGravityForce * Mathf.Lerp(1f, minCenterForceMultiplier, armPullIntensity)), ForceMode.Acceleration);
         }
 
         // ✅ [Fly-away Fix] ชดเชยแรงโน้มถ่วง "เฉพาะตอนมีพื้นในระยะ" เท่านั้น
@@ -330,6 +377,7 @@ public class TorsoMovement : NetworkBehaviour
                 _balanceLossTimer    = 0f;
                 _tiltTimer           = 0f; // กันลุกปุ๊บโดนตัดสินว่าเอียงค้างแล้วล้มซ้ำ
                 _bothUnbalancedTimer = 0f; // reset ให้ครบชุดเดียวกับ timer ล้มตัวอื่น
+                _bothSteppingTimer   = 0f;
                 currentState.Value = TorsoState.Standing;
             }
         }
@@ -400,6 +448,7 @@ public class TorsoMovement : NetworkBehaviour
         _balanceLossTimer    = 0f;
         _tiltTimer           = 0f;
         _bothUnbalancedTimer = 0f;
+        _bothSteppingTimer   = 0f;
         _jumpGraceTimer      = 0f;
         _landingAssistTimer  = 0f;
         _pendingJumpFoot     = null;

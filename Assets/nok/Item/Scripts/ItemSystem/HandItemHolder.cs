@@ -62,8 +62,8 @@ namespace NscUnity.Items
         [Header("ปุ่มใช้งานไอเทม")]
         [SerializeField] private bool handleUseInput = true;
         [Tooltip("0 = คลิกซ้าย, 1 = คลิกขวา, 2 = คลิกกลาง\n" +
-                 "โปรเจกต์นี้คลิกซ้ายค้าง = เดิน (PlayerFootForRobot) และคลิกขวาค้าง = หมุนกล้อง " +
-                 "ทั้งสองปุ่มชนแน่ๆ ห้ามใช้ — ค่าเริ่มต้นเลยเป็นคลิกกลาง (2)")]
+                 "โปรเจกต์นี้คลิกซ้าย = ก้าวเดิน (PlayerFootForRobot) / ต่อย (PlayerHandCombat) " +
+                 "และคลิกขวาค้าง = หมุนกล้อง ทั้งสองปุ่มชนแน่ๆ ห้ามใช้ — ค่าเริ่มต้นเลยเป็นคลิกกลาง (2)")]
         [SerializeField] private int useMouseButton = 2;
 
         [Header("สคริปต์ที่ต้องปิดตอนถือไอเทม")]

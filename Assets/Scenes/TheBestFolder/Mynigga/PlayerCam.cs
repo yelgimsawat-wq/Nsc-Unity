@@ -94,8 +94,13 @@ public class PlayerCam : NetworkBehaviour
         }
 
         // Zoom with scroll wheel
+        // 🖱️ [Scroll Ownership] ล้อเมาส์ถูก limb ที่ผู้เล่นคุมจองไว้ (ดู MouseWheelFocus):
+        //   ขา → ปรับระยะก้าว | แขน → ปรับความลึกมือเข้า/ออกจากตัว
+        // ล้อกลับมาเป็นของกล้องทันทีที่กดคลิกขวาค้าง = โหมดกล้องเต็มตัว (หมุน + ซูม)
+        // ลำดับเวลาปลอดภัย: limb อ่าน input ใน Update ซึ่งจบก่อน LateUpdate ของกล้องเสมอ
+        bool scrollOwnedByLimb = MouseWheelFocus.IsClaimed && !Input.GetMouseButton(1);
         float scroll = Input.GetAxis("Mouse ScrollWheel");
-        if (Mathf.Abs(scroll) > 0.01f)
+        if (!scrollOwnedByLimb && Mathf.Abs(scroll) > 0.01f)
         {
             distance -= scroll * zoomSpeed;
             distance  = Mathf.Clamp(distance, minDistance, maxDistance);

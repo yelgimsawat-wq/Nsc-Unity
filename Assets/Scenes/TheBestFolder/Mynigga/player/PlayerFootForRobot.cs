@@ -14,6 +14,22 @@ public class PlayerFootForRobot : NetworkBehaviour
     public bool isPushingRecovery  = false;
     public bool isJumping          = false;
 
+    // ✅ [Walk Fall Rule] "ก้าวเดิน" ในความหมายของกฎการล้มเท่านั้น
+    // isStepping ดิบๆ ใช้ตัดสินล้มไม่ได้ เพราะมันถูกเซ็ตจากหลายระบบที่ "ไม่ใช่การเดิน":
+    //   - กระโดด (isJumping)      → ลอยเพราะตั้งใจ ไม่ใช่พลาดท่า
+    //   - เตะ (IsKickControllingFoot) → ท่าต่อสู้ ขาข้างนี้เป็นของ PlayerLegCombat อยู่
+    //   - ยันตัวลุก (isPushingRecovery)
+    // TorsoMovement ใช้ตัวนี้นับ "สองขาก้าวพร้อมกัน" — ดูกฎล้มในไฟล์นั้น
+    public bool IsWalkStepping =>
+        isStepping && !isJumping && !isPushingRecovery && !IsKickControllingFoot;
+
+    // ✅ [Support Foot] เท้าข้างนี้มีสิทธิ์ทำหน้าที่ "ขายัน" ไหม
+    // ⚠️ จงใจไม่รวมการเช็ค IsGrounded() ไว้ในนี้ — ผู้เรียก (TorsoMovement) วน loop นับเท้าอยู่แล้ว
+    // และเช็คพื้นด้วย Physics.CheckCapsule ซึ่งไม่ควรยิงซ้ำสองรอบต่อเท้าต่อ tick
+    public bool CanActAsSupport =>
+        currentState.Value == FootState.Attached &&
+        !IsWalkStepping && !isJumping && !isPushingRecovery && !_releasedForClimb;
+
     // ✅ [Multiplayer Balance Fix] เดิม isStepping ตัดสิทธิ์ "สมดุล" ทันที แม้เท้ายังแตะพื้นอยู่จริง
     // ปัญหา: ขาซ้าย-ขวาคุมคนละผู้เล่น เดินพร้อมกันมีโอกาสสูงที่จังหวะ isStepping จะซ้อนกันแค่เฟรมเดียว
     // (ยิ่งซ้ำเติมด้วยดีเลย์เครือข่าย) → เข้าเงื่อนไข "ทั้งสองเท้าไม่สมดุล" ทั้งที่เท้ายังอยู่บนพื้น
@@ -35,8 +51,13 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float detachedMoveSpeed = 20f;
     [Tooltip("เพดานความเร็วเท้าตอนหลุด (m/s) — กันเท้าปลิวหายจากสปริงไล่เป้าเมาส์")]
     public float maxDetachedSpeed = 8f;
-    public float heightAdjustSpeed = 3f;
-    [Tooltip("How high the foot lifts automatically while Left Mouse is held. Releasing Left Mouse still plants the foot normally.")]
+    [Tooltip("ความเร็วยกเท้าตอนเริ่มก้าว คิดเป็น 'กี่เท่าของ clickLiftHeight ต่อวินาที'\n" +
+             "8 = ยกจนสุดใน ~0.125 วิ เท่ากันทุกสเกลหุ่น (ไม่ใช่ m/s ตรงๆ ไม่งั้นหุ่นตัวใหญ่จะยกอืด)\n" +
+             "ระบบยกให้อัตโนมัติแล้ว — ไม่ต้องกด W/S คุมแกน Y เองอีกต่อไป")]
+    [Min(0.1f)]
+    public float stepLiftSpeed = 8f;
+    [Tooltip("ความสูงที่เท้าลอยพ้นพื้นระหว่างกดคลิกซ้ายค้าง (ก้าวเดิน)\n" +
+             "ปล่อยคลิกซ้าย = เป้าหมายกลับลงระดับพื้นจริงแล้วปักเท้าตามระบบ Standing Foot Lock เดิม")]
     [Min(0f)]
     public float clickLiftHeight = 0.35f;
     public float legDamper = 30f;
@@ -71,15 +92,62 @@ public class PlayerFootForRobot : NetworkBehaviour
     public float upwardRecoveryBoost = 500f;
     // ลบพวกตัวแปร Threshold และ Multiplier ที่เกี่ยวกับระยะห่างทิ้งไปหมดแล้ว
 
-    [Header("Mouse Range")]
+    [Header("Mouse Range (ความไวทิศทาง + รัศมีการถ่ายน้ำหนัก)")]
+    [Tooltip("ใช้เป็นรัศมีสูงสุดของจุดถ่ายน้ำหนัก (balance shift) และเพดาน validate ฝั่ง Server\n" +
+             "⚠️ ไม่ได้เป็นตัวกำหนด 'ระยะก้าว' อีกต่อไป — ระยะก้าวอยู่ที่ min/maxFootReach ด้านล่าง")]
     public float mouseReachX = 2f;
     public float mouseReachY = 2f;
-    private float _currentYOffset = 0f;
 
-    [Header("Auto Height Settings")]
-    public float autoHeightDelay = 0.5f;
-    private float _holdTimer = 0f;
-    private bool  _autoHeightEnabled = false;
+    // ── Foot Reach (ระยะก้าว) ──────────────────────────────────────────
+    // 🎯 [Direction / Distance Split] เมาส์ = "ไปทางไหน" | ล้อเมาส์ = "ไปไกลแค่ไหน"
+    // สองอย่างนี้อิสระจากกันสนิท: หมุนเมาส์รอบตัวไม่ทำให้ระยะเปลี่ยน และเลื่อนล้อไม่ทำให้ทิศเปลี่ยน
+    [Header("Foot Reach (ล้อเมาส์ = ระยะใกล้/ไกล)")]
+    [Tooltip("คำนวณ min/maxFootReach ให้อัตโนมัติจาก minLegLength/maxLegLength ตอน spawn\n" +
+             "เปิดไว้ = เปลี่ยนสเกลหุ่นแล้วไม่ต้องมาจูนระยะก้าวใหม่ | ปิด = คุมตัวเลขเองใน Inspector")]
+    public bool autoFootReachFromLegLength = true;
+    [Tooltip("ระยะแนวราบใกล้ที่สุดจากสะโพกถึงเท้า (เมตร) = สเกล 0%")]
+    [Min(0.01f)]
+    public float minFootReach = 0.4f;
+    [Tooltip("ระยะแนวราบไกลที่สุดจากสะโพกถึงเท้า (เมตร) = สเกล 100%")]
+    [Min(0.02f)]
+    public float maxFootReach = 1.35f;
+    [Tooltip("ระยะเริ่มต้น เป็นสัดส่วนของช่วง min→max (0 = ใกล้สุด, 0.5 = ระยะปกติ, 1 = ยืดขาไกลสุด)")]
+    [Range(0f, 1f)]
+    public float defaultFootReach = 0.5f;
+    [Tooltip("สัดส่วนของช่วง min→max ที่เปลี่ยนต่อการหมุนล้อ 1 คลิก\n" +
+             "0.12 = หมุนล้อราว 8 คลิกจากใกล้สุดถึงไกลสุด (ค่าต่อเนื่อง ไม่ใช่ 3 ระดับตายตัว)\n" +
+             "คิดเป็นสัดส่วนเพื่อให้ความรู้สึกเท่ากันทั้งหุ่นขาสั้นและขายาว")]
+    [Min(0.001f)]
+    public float footReachScrollSpeed = 0.12f;
+    [Tooltip("ตัวคูณระยะเอื้อมตอนเท้าหลุด (Detached) — เท้าที่หลุดแล้วเอื้อมได้ไกลกว่าปกติ")]
+    [Min(1f)]
+    public float detachedReachMultiplier = 2.5f;
+
+    // ระยะแนวราบจริงที่ผู้เล่นเลือกอยู่ตอนนี้ (เมตร) — เปลี่ยนด้วยล้อเมาส์เท่านั้น
+    private float _currentFootDistance;
+    // ทิศทางเท้าบนระนาบ XZ (normalized, แกนโลก) — เปลี่ยนด้วยการขยับเมาส์เท่านั้น
+    private Vector3 _footDirection = Vector3.forward;
+    // ก้านเล็ง: สะสม delta เมาส์แล้ว clamp |v| ≤ 1 — ใช้แค่ "ทิศ" ของมัน ความยาวไม่มีผลกับระยะก้าว
+    private Vector3 _footAimStick = Vector3.zero;
+    private float _currentLiftOffset = 0f;
+
+    // GetAxis("Mouse ScrollWheel") คืนราว ±0.1 ต่อการหมุนล้อ 1 คลิก
+    // หารกลับให้เป็น "จำนวนคลิก" ก่อน ระยะที่ได้ต่อคลิกจะได้เท่ากันทุกเครื่อง
+    private const float SCROLL_NOTCH = 0.1f;
+    private const float AIM_STICK_DEADZONE_SQR = 0.0025f; // 0.05²
+    // จุดปักเท้าถูกดึงเข้ามาอยู่ในระยะ 90% ของรัศมีที่ขาเอื้อม (ดู ClampPlantWithinReach)
+    // maxFootReach แบบ auto จึงใช้ค่าเดียวกัน — ผู้เล่นจะเลื่อนล้อไปยังระยะที่โดน clamp ทิ้งไม่ได้เลย
+    private const float PLANT_REACH_SAFETY = 0.9f;
+
+    /// <summary>ระยะแนวราบที่ผู้เล่นเลือกอยู่ (เมตร) — สำหรับ HUD/ดีบัก</summary>
+    public float CurrentFootDistance => _currentFootDistance;
+    /// <summary>ระยะที่เลือกอยู่ในสเกล 0..1 ของช่วง min→max — สำหรับ HUD</summary>
+    public float NormalizedFootReach =>
+        maxFootReach > minFootReach
+            ? Mathf.Clamp01((_currentFootDistance - minFootReach) / (maxFootReach - minFootReach))
+            : 0f;
+    /// <summary>ทิศทางที่เท้าจะไปบนระนาบ XZ (แกนโลก) — Kick อ่านค่านี้ผ่าน GetKickAimDirection()</summary>
+    public Vector3 FootDirection => _footDirection;
 
     [Header("Physics Safety")]
     public float maxFootVelocity = 25f;
@@ -129,12 +197,11 @@ public class PlayerFootForRobot : NetworkBehaviour
     [Tooltip("วาด marker ที่จุดเล็งเท้า")]
     public bool showCrosshair = false;
 
-    // จุดเล็งแนวราบ (offset จาก pivot ในแกนโลก) — เปลี่ยนด้วย delta เมาส์เท่านั้น ไม่ตามกล้อง
-    private Vector3 _footPlanarAim = Vector3.zero;
     private bool _footEverLocked = false;
     private bool _ignoreStepUntilRelease = false; // กันคลิกที่ใช้ดึงเมาส์กลับไปเริ่มก้าวเดิน
     private Vector3 _footMarkerWorld;
     private static GUIStyle _footCrosshairStyle;
+    private static GUIStyle _footReachStyle;
     private PlayerLegCombat _legCombat;
 
     public bool IsKickMotionActive =>
@@ -156,6 +223,10 @@ public class PlayerFootForRobot : NetworkBehaviour
         // 📏 [Auto Thickness] วัดระยะจากจุดกำเนิด Rigidbody ถึง "จุดต่ำสุดของ collider เท้า"
         // = ความหนาที่ต้องยกจริง — รันทุกเครื่อง (ฝั่ง owner ใช้คำนวณเป้าตอนก้าวด้วย)
         if (autoMeasureFootThickness) MeasureFootThickness();
+
+        // 🎯 ตั้งช่วงระยะก้าว + ค่าเริ่มต้นของทิศทาง/ระยะ ก่อนเฟรมแรกของ input
+        ApplyAutoFootReach();
+        ResetFootAim();
 
         // ✅ [Rest Pose] กันเป้าเท้าเริ่มที่ (0,0,0) — บั๊กตระกูลเดียวกับที่แขนเคยเป็น
         // ถ้าหุ่นล้มก่อน RPC แรกมาถึง เท้าจะพุ่งไปหาจุดกำเนิดโลก
@@ -189,6 +260,29 @@ public class PlayerFootForRobot : NetworkBehaviour
             footThicknessOffset = measured;
             Debug.Log($"[Foot] 📏 Auto-measured footThicknessOffset = {measured:F3}m ({name})");
         }
+    }
+
+    // 🎯 ผูกช่วงระยะก้าวเข้ากับความยาวขาจริง — หุ่นสเกล 1.5 หรือสเกล 14 ก็ใช้ค่าเดียวกันได้
+    // ปลายไกลใช้ตัวคูณเดียวกับ ClampPlantWithinReach เพื่อไม่ให้ผู้เล่นเลื่อนล้อไปยังระยะ
+    // ที่พอปล่อยคลิกแล้วจุดปักโดนดึงกลับเข้ามา (ระยะที่เลือกได้ = ระยะที่ปักได้จริงเสมอ)
+    private void ApplyAutoFootReach()
+    {
+        if (!autoFootReachFromLegLength) return;
+
+        minFootReach = Mathf.Max(0.05f, minLegLength);
+        maxFootReach = Mathf.Max(minFootReach + 0.05f, MaxHorizontalReach() * PLANT_REACH_SAFETY);
+    }
+
+    /// <summary>ตั้งทิศทาง/ระยะกลับเป็นค่าเริ่มต้น (ตอน spawn และหลัง respawn)</summary>
+    private void ResetFootAim()
+    {
+        _currentFootDistance = Mathf.Lerp(minFootReach, maxFootReach, defaultFootReach);
+        _currentLiftOffset = 0f;
+
+        Vector3 forward = pivotPoint != null ? pivotPoint.forward : transform.forward;
+        forward.y = 0f;
+        _footDirection = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+        _footAimStick = _footDirection;
     }
 
     // เก็บ Collider ทั้งโซ่ขา (เท้า → ท่อนขา จนถึงก่อนถึงลำตัว)
@@ -543,7 +637,9 @@ public class PlayerFootForRobot : NetworkBehaviour
     {
         Vector3 delta = groundPos - pivotPoint.position;
         Vector2 flat = new Vector2(delta.x, delta.z);
-        float maxHorizontal = MaxHorizontalReach() * 0.9f; // ปักลึกกว่าเกณฑ์รั้งเล็กน้อย
+        // ปักลึกกว่าเกณฑ์รั้งเล็กน้อย — ตัวคูณเดียวกับที่ ApplyAutoFootReach ใช้กำหนด maxFootReach
+        // จะได้ไม่มีวันหลุดเป็นคนละค่าจนผู้เล่นเลื่อนล้อไปยังระยะที่ปักจริงไม่ได้
+        float maxHorizontal = MaxHorizontalReach() * PLANT_REACH_SAFETY;
 
         if (flat.magnitude <= maxHorizontal) return groundPos;
 
@@ -615,7 +711,7 @@ public class PlayerFootForRobot : NetworkBehaviour
             {
                 isStepping = false;
                 SetSteppingStateRpc(false);
-                _currentYOffset = 0f;
+                _currentLiftOffset = 0f;
             }
             if (isPushingRecovery)
             {
@@ -625,17 +721,24 @@ public class PlayerFootForRobot : NetworkBehaviour
             return;
         }
 
+        // 🎯 อ่านทิศทาง (เมาส์) + ระยะ (ล้อ) ครั้งเดียวต่อเฟรม แล้วรวมเป็น offset แนวราบ
+        UpdateFootAim();
+        Vector3 aimOffset = PlanarAimOffset();
+
         if (currentState.Value == FootState.Attached)
         {
             bool isRagdoll = torso != null && (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll || torso.currentState.Value == TorsoMovement.TorsoState.Falling);
-            Vector3 mouseOffset = ComputeFootAimOffset();
             // marker: ยิงลงพื้นให้ไปเกาะพื้นจริง (default = ระดับสะโพกถ้าไม่เจอพื้น)
-            _footMarkerWorld = Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f,
+            _footMarkerWorld = Physics.Raycast(pivotPoint.position + aimOffset + Vector3.up * 5f,
                     Vector3.down, out RaycastHit markerHit, 60f, groundLayer)
                 ? markerHit.point
-                : pivotPoint.position + mouseOffset;
+                : pivotPoint.position + aimOffset;
 
-            Vector3 newBalance = pivotPoint.position + mouseOffset;
+            // ⚖️ จุดถ่ายน้ำหนักตามทิศที่เล็ง แต่ยังคุมด้วยรัศมี mouseReach เดิม
+            // ระยะก้าวไกลขึ้นได้ถึง maxFootReach แต่แรงเอนลำตัวต้องไม่โตตามไปด้วย
+            // (ค่านี้ถูกคูณเป็นแรงดันลำตัวใน PerformStandingPhysics — โตขึ้นเมื่อไหร่ท่ายืนเพี้ยนทันที)
+            Vector3 balanceOffset = Vector3.ClampMagnitude(aimOffset, Mathf.Max(mouseReachX, mouseReachY));
+            Vector3 newBalance = pivotPoint.position + balanceOffset;
             if ((newBalance - _lastSentBalance).sqrMagnitude > RPC_SEND_THRESHOLD_SQR)
             {
                 _lastSentBalance = newBalance;
@@ -658,28 +761,34 @@ public class PlayerFootForRobot : NetworkBehaviour
                     if (!holdingClick) _ignoreStepUntilRelease = false;
                     holdingClick = false;
                 }
+                // 🖱️ คลิกซ้ายค้าง = ยกขาแล้วเคลื่อนเท้าไปยังเป้า | ปล่อย = ปักเท้าลง
                 if (holdingClick && !isStepping)
                 {
                     isStepping = true;
                     SetSteppingStateRpc(true);
-                    _currentYOffset = Mathf.Clamp(clickLiftHeight, 0f, maxLegLength);
+                    // เริ่มจากความสูงปัจจุบัน (0 = ระดับพื้น) แล้วไต่ขึ้นเอง — ไม่ snap ทันที
+                    _currentLiftOffset = 0f;
                 }
-                else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentYOffset = 0f; }
+                else if (!holdingClick && isStepping) { isStepping = false; SetSteppingStateRpc(false); _currentLiftOffset = 0f; }
 
                 if (isStepping)
                 {
-                    // 🎮 คุมความสูงเท้าด้วยมือตรงๆ: W ยกขึ้น / S กดลง
-                    if (Input.GetKey(KeyCode.W)) _currentYOffset += heightAdjustSpeed * Time.deltaTime;
-                    if (Input.GetKey(KeyCode.S)) _currentYOffset -= heightAdjustSpeed * Time.deltaTime;
-                    // ⬆️ ยกเท้าพ้นพื้นได้ (ค่าบวก) สูงสุดเท่ากับ maxLegLength
-                    _currentYOffset = Mathf.Clamp(_currentYOffset, 0f, maxLegLength);
+                    // ⬆️ [Auto Lift] ยกเท้าให้เองระหว่างก้าว — ตัด W/S ทิ้งแล้ว
+                    // ผู้เล่นเลือกแค่ "ทิศ" กับ "ระยะ" ส่วนแกน Y เป็นหน้าที่ของระบบ:
+                    // พื้น → ยกขึ้น clickLiftHeight → เคลื่อนไปเป้า → ปล่อยคลิกแล้วค่อยลงพื้นจริง
+                    float liftTarget = Mathf.Clamp(clickLiftHeight, 0f, maxLegLength);
+                    // อัตราคิดเป็นสัดส่วนของความสูงเป้า → เวลายกเท่ากันทั้งหุ่นเล็กและหุ่นสเกลยักษ์
+                    _currentLiftOffset = Mathf.MoveTowards(
+                        _currentLiftOffset, liftTarget, liftTarget * stepLiftSpeed * Time.deltaTime);
 
+                    Vector3 planarTarget = pivotPoint.position + aimOffset;
                     Vector3 newTarget;
-                    // 🦿 ยิง Raycast หาพื้น (50m เผื่อหุ่นสเกลยักษ์สะโพกสูง) แล้วยกเป้าหมายเท้าตามค่าที่กด W/S + ชดเชยความหนาเท้ากันจมดิน
-                    if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 50f, groundLayer))
-                        newTarget = hit.point + Vector3.up * (_currentYOffset + footThicknessOffset);
+                    // 🦿 ยิง Raycast หาระดับพื้น ณ จุดที่เลือก (50m เผื่อหุ่นสเกลยักษ์สะโพกสูง)
+                    // แล้วยกเป้าขึ้นตามระยะยกอัตโนมัติ + ชดเชยความหนาเท้ากันจมดิน
+                    if (Physics.Raycast(planarTarget + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 50f, groundLayer))
+                        newTarget = new Vector3(planarTarget.x, hit.point.y + _currentLiftOffset + footThicknessOffset, planarTarget.z);
                     else
-                        newTarget = pivotPoint.position + mouseOffset + Vector3.down * maxLegLength;
+                        newTarget = planarTarget + Vector3.down * maxLegLength;
 
                     if ((newTarget - _lastSentTarget).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
                 }
@@ -688,19 +797,17 @@ public class PlayerFootForRobot : NetworkBehaviour
             }
             else
             {
-                if (isStepping) 
-                { 
-                    isStepping = false; 
-                    SetSteppingStateRpc(false); 
-                    _currentYOffset = 0f; 
-                    _holdTimer = 0f; 
-                    _autoHeightEnabled = false; 
+                if (isStepping)
+                {
+                    isStepping = false;
+                    SetSteppingStateRpc(false);
+                    _currentLiftOffset = 0f;
                 }
 
                 Vector3 newTarget;
                 // + footThicknessOffset ด้วย — เดิมโหมด Ragdoll ใช้ hit.point ดิบๆ เท้าเลยมุดพื้น
-                if (Physics.Raycast(pivotPoint.position + mouseOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer)) newTarget = hit.point + Vector3.up * footThicknessOffset;
-                else newTarget = pivotPoint.position + mouseOffset;
+                if (Physics.Raycast(pivotPoint.position + aimOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, groundLayer)) newTarget = hit.point + Vector3.up * footThicknessOffset;
+                else newTarget = pivotPoint.position + aimOffset;
 
                 if ((newTarget - _lastSentTarget).sqrMagnitude > RPC_SEND_THRESHOLD_SQR) { _lastSentTarget = newTarget; UpdateFootTargetRpc(newTarget); }
 
@@ -714,11 +821,11 @@ public class PlayerFootForRobot : NetworkBehaviour
         }
         else
         {
-            // เท้าหลุด (Detached): ใช้จุดเล็งแกนโลกเดียวกัน ขยายระยะเอื้อมออก
+            // เท้าหลุด (Detached): ใช้ทิศ/ระยะชุดเดียวกัน แค่ขยายระยะเอื้อมออก
             // ⚠️ ฐานจุดเล็งต้องเป็นสะโพก (จุดอ้างอิงนิ่ง) ห้ามใช้ตำแหน่งเท้าเอง —
             // เดิมเป้า = เท้า + offset ทำให้เป้าวิ่งหนีตามเท้าไปเรื่อยๆ (feedback loop)
             // ขยับเมาส์นิดเดียวเท้าเลยไล่เป้าด้วยความเร็วคงที่ไม่มีวันถึง = ปลิวหาย
-            Vector3 offset = ComputeFootAimOffset() * 2.5f;
+            Vector3 offset = aimOffset * detachedReachMultiplier;
             Vector3 aimBase = pivotPoint != null ? pivotPoint.position : footRb.position;
             if (Physics.Raycast(aimBase + offset + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
             {
@@ -762,56 +869,100 @@ public class PlayerFootForRobot : NetworkBehaviour
 
     private void LockFootCursor()
     {
-        // เริ่มจุดเล็งจากตำแหน่งเท้าจริง ณ ตอนล็อก — เท้าไม่กระโดด
+        // เริ่มทิศ+ระยะจากท่าเท้าจริง ณ ตอนล็อก — เท้าไม่กระโดดตำแหน่ง
         Vector3 footOffset = footRb.position - pivotPoint.position;
-        _footPlanarAim = new Vector3(footOffset.x, 0f, footOffset.z);
-        float maxR = Mathf.Max(mouseReachX, mouseReachY);
-        if (_footPlanarAim.sqrMagnitude > maxR * maxR) _footPlanarAim = _footPlanarAim.normalized * maxR;
+        Vector3 planar = new Vector3(footOffset.x, 0f, footOffset.z);
+        if (planar.sqrMagnitude > 0.0001f)
+        {
+            _footDirection = planar.normalized;
+            _footAimStick  = _footDirection; // ก้านชี้ทิศเดิม เมาส์ครั้งต่อไป = หมุนทิศต่อจากนี้
+            _currentFootDistance = Mathf.Clamp(planar.magnitude, minFootReach, maxFootReach);
+        }
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         _footEverLocked = true;
     }
 
-    // จุดเล็งเท้า = offset แกนโลกจาก pivot | เปลี่ยนด้วย delta เมาส์ (ตีความตามกล้องปัจจุบัน)
-    // หันกล้อง = ไม่มี delta = จุดเล็งอยู่ที่เดิม | คลิกขวา = หมุนกล้อง จุดเล็งนิ่ง
-    private Vector3 ComputeFootAimOffset()
+    // ── Direction (เมาส์) + Distance (ล้อ) ─────────────────────────────
+    //
+    // 🎯 หลักการ: เมาส์เลือก "ไปทางไหน" ล้อเลือก "ไปไกลแค่ไหน" — อิสระจากกันสนิท
+    //
+    // ทิศทางเก็บเป็นเวกเตอร์ในแกนโลก ไม่ใช่แกนกล้อง (World-Anchored Aim ของเดิม)
+    // → หันกล้องแล้วเท้าไม่กวาดตาม | คลิกขวาค้าง = เมาส์และล้อเป็นของกล้องล้วน
+    //   ทิศ/ระยะค้างไว้เป๊ะ ปล่อยคลิกขวาแล้วคุมต่อจากค่าเดิมทันที ไม่มี reset ไม่มีกระโดด
+    private void UpdateFootAim()
     {
-        Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0f; camFwd.Normalize();
-        Vector3 camRight = playerCamera.transform.right;  camRight.y = 0f; camRight.Normalize();
+        Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0f;
+        Vector3 camRight = playerCamera.transform.right;   camRight.y = 0f;
+        // กล้องก้มดิ่ง 90° → forward แบนราบเหลือ ~0 ใช้ up มาแทนทิศ "หน้าจอด้านบน"
+        if (camFwd.sqrMagnitude < 0.0001f)
+        {
+            camFwd = playerCamera.transform.up; camFwd.y = 0f;
+            if (camFwd.sqrMagnitude < 0.0001f) camFwd = Vector3.forward;
+        }
+        camFwd.Normalize();
+        camRight.Normalize();
 
+        bool cameraMode = Input.GetMouseButton(1); // คลิกขวาค้าง = โหมดกล้อง
+
+        // ── ทิศทาง ──────────────────────────────────────────────────
         if (useVirtualCursor && Cursor.lockState == CursorLockMode.Locked)
         {
-            if (!Input.GetMouseButton(1))
+            if (!cameraMode)
             {
                 Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
-                _footPlanarAim += camRight * (md.x * mouseReachX) + camFwd * (md.y * mouseReachY);
-                _footPlanarAim.y = 0f;
-                float maxR = Mathf.Max(mouseReachX, mouseReachY);
-                if (_footPlanarAim.sqrMagnitude > maxR * maxR)
-                    _footPlanarAim = _footPlanarAim.normalized * maxR;
+                _footAimStick += camRight * md.x + camFwd * md.y;
+                _footAimStick.y = 0f;
+                // ก้านถูก clamp ที่รัศมี 1 — ความยาวไม่มีผลกับระยะก้าวเลย ใช้แค่ทิศของมัน
+                // ผลคือพอดันเมาส์จนสุดขอบก้าน การขยับต่อ = "หมุนทิศรอบตัว" ซึ่งคือสิ่งที่ต้องการ
+                if (_footAimStick.sqrMagnitude > 1f) _footAimStick.Normalize();
             }
-            return _footPlanarAim;
+        }
+        else
+        {
+            // fallback: ไม่ได้ใช้ virtual cursor → ตำแหน่งเมาส์บนจอทำหน้าที่เป็นก้านทิศทาง
+            Vector2 mouseNorm = GetNormalizedMousePosition();
+            Vector3 stick = camRight * mouseNorm.x + camFwd * mouseNorm.y;
+            stick.y = 0f;
+            _footAimStick = stick.sqrMagnitude > 1f ? stick.normalized : stick;
         }
 
-        // fallback: เคอร์เซอร์ยังไม่ล็อก (กด Esc อยู่) → ใช้ตำแหน่งเมาส์จริง
-        Vector2 mouseNorm = GetNormalizedMousePosition();
-        return camRight * (mouseNorm.x * mouseReachX) + camFwd * (mouseNorm.y * mouseReachY);
+        // ก้านอยู่กลาง (แทบไม่มีทิศ) = คงทิศเดิมไว้ ห้ามให้ทิศสะบัดมั่วตอนผู้เล่นหยุดมือ
+        if (_footAimStick.sqrMagnitude > AIM_STICK_DEADZONE_SQR)
+            _footDirection = _footAimStick.normalized;
+
+        // ── ระยะ ────────────────────────────────────────────────────
+        if (!cameraMode)
+        {
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(scroll) > 0.0001f)
+            {
+                float notches = scroll / SCROLL_NOTCH;
+                _currentFootDistance += notches * footReachScrollSpeed * (maxFootReach - minFootReach);
+            }
+
+            // จองล้อทุกเฟรมที่ขาถือสิทธิ์อยู่ (ไม่ใช่เฉพาะเฟรมที่หมุนจริง) — ธงจะได้นิ่ง
+            // ไม่กะพริบจนกล้องแอบซูมแทรกระหว่างคลิกล้อสองครั้ง
+            MouseWheelFocus.Claim();
+        }
+
+        _currentFootDistance = Mathf.Clamp(_currentFootDistance, minFootReach, maxFootReach);
     }
+
+    /// <summary>เป้าหมายแนวราบ = ทิศทาง × ระยะ (offset จากสะโพก)</summary>
+    private Vector3 PlanarAimOffset() => _footDirection * _currentFootDistance;
 
     public Vector3 GetKickAimDirection()
     {
-        // Aim from the hip/pivot instead of from the foot. While the foot is
-        // already hovering over the marker both points share the same X/Z, so
-        // foot-to-marker aiming collapses to zero and loses the chosen direction.
-        Vector3 origin = pivotPoint != null ? pivotPoint.position : transform.position;
-        Vector3 direction = _footMarkerWorld - origin;
-        direction.y = 0f;
+        // ทิศเตะ = ทิศที่ผู้เล่นเล็งไว้ตรงๆ ไม่ต้องคำนวณย้อนจากจุด marker อีกแล้ว
+        // (ระบบเก่าอนุมานทิศจาก marker ลบสะโพก ซึ่งยุบเป็นศูนย์เวลาเท้าลอยอยู่เหนือ marker พอดี)
+        if (_footDirection.sqrMagnitude > 0.001f)
+            return _footDirection.normalized;
 
-        if (direction.sqrMagnitude < 0.001f)
-        {
-            direction = pivotPoint != null ? pivotPoint.forward : transform.forward;
-            direction.y = 0f;
-        }
+        Vector3 direction = pivotPoint != null ? pivotPoint.forward : transform.forward;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f) direction = Vector3.forward;
 
         // A push kick travels horizontally. Upward bias made the whole robot hop
         // and read visually as a jump instead of a thrust.
@@ -836,6 +987,17 @@ public class PlayerFootForRobot : NetworkBehaviour
         GUI.Label(new Rect(sx - 13f, sy - 13f, 30f, 30f), "◈", _footCrosshairStyle);
         GUI.color = new Color(0.5f, 0.85f, 1f);
         GUI.Label(new Rect(sx - 14f, sy - 14f, 30f, 30f), "◈", _footCrosshairStyle);
+
+        // ระยะที่เลือกด้วยล้อเมาส์ — ไม่มีตัวเลขนี้ผู้เล่นจะไม่รู้เลยว่าหมุนล้อไปถึงไหนแล้ว
+        if (_footReachStyle == null)
+            _footReachStyle = new GUIStyle(GUI.skin.label)
+            { fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+
+        string reachText = $"{Mathf.RoundToInt(NormalizedFootReach * 100f)}%";
+        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        GUI.Label(new Rect(sx - 29f, sy + 13f, 60f, 20f), reachText, _footReachStyle);
+        GUI.color = new Color(0.5f, 0.85f, 1f);
+        GUI.Label(new Rect(sx - 30f, sy + 12f, 60f, 20f), reachText, _footReachStyle);
     }
 
     // ✅ [Reliability Fix] เปลี่ยน footTarget/balanceShift จาก Unreliable → Reliable
@@ -874,9 +1036,21 @@ public class PlayerFootForRobot : NetworkBehaviour
         if (!target.IsValid()) return;
         if (pivotPoint != null)
         {
+            // 🛡️ [Server Validation] สองชั้น — client ส่ง "จุดเป้าหมาย" มา ไม่ใช่ทิศ+ระยะดิบ
+            // จึงต้องเช็คทั้งรัศมีทรงกลม (ขาเอื้อมถึงจริงไหม) และรัศมีแนวราบ (ก้าวไกลเกินระยะ
+            // ที่ล้อเมาส์เลื่อนได้สูงสุดไหม) — เดิมมีแค่ชั้นแรก client จึงยิงเป้าไกลผิดปกติ
+            // ในแนวราบเข้ามาได้ตราบใดที่ยังอยู่ในทรงกลม
             Vector3 dir = target - pivotPoint.position;
             float limit = maxLegLength * SERVER_REACH_MARGIN;
             if (dir.magnitude > limit) target = pivotPoint.position + dir.normalized * limit;
+
+            Vector3 flat = new Vector3(target.x - pivotPoint.position.x, 0f, target.z - pivotPoint.position.z);
+            float flatLimit = maxFootReach * SERVER_REACH_MARGIN;
+            if (flat.magnitude > flatLimit)
+            {
+                Vector3 clampedFlat = flat.normalized * flatLimit;
+                target = new Vector3(pivotPoint.position.x + clampedFlat.x, target.y, pivotPoint.position.z + clampedFlat.z);
+            }
         }
         _targetFootPos = target;
     }
@@ -930,5 +1104,24 @@ public class PlayerFootForRobot : NetworkBehaviour
             _detachedTargetPos = footRb.position;
             _balanceShiftPos   = pivotPoint != null ? pivotPoint.position : footRb.position;
         }
+
+        // Owner ถือทิศ/ระยะ/สถานะปุ่มไว้ในเครื่องตัวเอง — ถ้าไม่สั่งล้างด้วย มันจะไม่ตรงกับ server
+        // ที่เพิ่งถูกรีเซ็ตไป (โดยเฉพาะ isStepping: owner ที่ยังกดคลิกซ้ายค้างอยู่จะไม่ส่ง
+        // SetSteppingStateRpc ซ้ำ เพราะฝั่งมันไม่เห็นว่าค่าเปลี่ยน → เท้าค้างไม่ยอมก้าวอีกเลย)
+        if (IsSpawned) ResetAimOnOwnerRpc();
+    }
+
+    [Rpc(SendTo.Owner, Delivery = RpcDelivery.Reliable)]
+    private void ResetAimOnOwnerRpc()
+    {
+        isStepping = false;
+        isPushingRecovery = false;
+        _ignoreStepUntilRelease = true; // ต้องปล่อยคลิกซ้ายก่อน ถึงจะเริ่มก้าวใหม่ได้
+
+        ApplyAutoFootReach();
+        ResetFootAim();
+
+        // ล้างแคชกันส่งซ้ำ — เป้าใหม่หลัง teleport ต้องถูกส่งทันทีแม้จะบังเอิญใกล้ค่าเดิม
+        _lastSentTarget = _lastSentBalance = _lastSentDetached = Vector3.positiveInfinity;
     }
 }

@@ -302,7 +302,7 @@ public class PlayerLegCombat : NetworkBehaviour
 
                 // เป้าไกลเกินความยาวขา (18 > maxLegLength 14) สปริงจึงไม่มีวันผ่อนแรงกลางทาง
                 // หลักการเดียวกับหมัดที่ปักเป้าไว้ PivotPosition + punchDir * (maxArmLength + 2)
-                // แกน Y ล็อกไว้ที่ระดับเท้าตอนปล่อย = รักษาความสูงที่ผู้เล่นเล็งไว้ด้วย W/S
+                // แกน Y ล็อกไว้ที่ระดับเท้าตอนปล่อย = เตะออกจากความสูงที่ขาอยู่จริงตอนนั้น
                 Vector3 kickTarget = hip + kickDirection * kickTargetReach;
                 kickTarget.y = hip.y - kickReleaseFootDrop;
 
@@ -470,10 +470,13 @@ public class PlayerLegCombat : NetworkBehaviour
         if (currentAction.Value != LegActionState.Idle || !CanStartKickOnServer())
             return;
 
-        // Local input already requires Left Mouse + a raised stepping foot.
-        // Mark it raised server-side too so cross-component RPC ordering cannot
-        // reject a valid kick on a higher-latency client.
-        footController.isStepping = true;
+        // ⚠️ ห้ามเขียน footController.isStepping = true ที่นี่อีก (เคยมีอยู่ แล้วก่อบั๊ก 2 ตัว):
+        //  1) ไม่มีทางไหนเคลียร์กลับเลย — client ส่ง SetSteppingStateRpc(false) เฉพาะจังหวะ
+        //     "ปล่อยคลิกซ้ายที่เคยกด" เท่านั้น ใครเตะโดยไม่ได้กดคลิกซ้าย ขาข้างนั้นจะค้าง
+        //     สถานะก้าวถาวร → ไม่กลับเข้า Standing Foot Lock อีกเลยทั้งเกม
+        //  2) ทำให้ "เตะ" ถูกนับเป็น "ก้าวเดิน" ในกฎล้มสองขาพร้อมกันของ TorsoMovement
+        // และมันไม่จำเป็นตั้งแต่แรก: HandleAttachedState เช็ค IsKickControllingFoot
+        // ก่อนถึงบรรทัดที่อ่าน isStepping อยู่แล้ว ท่าเตะจึงเป็นเจ้าของเท้าได้โดยไม่ต้องพึ่งธงนี้
         currentAction.Value = LegActionState.Charging;
         serverChargeStartedAt = Time.time;
         PeakKickSpeed = 0f;
@@ -541,7 +544,7 @@ public class PlayerLegCombat : NetworkBehaviour
         CaptureKickHipAnchor();
 
         // ระยะที่เท้าห้อยต่ำกว่าสะโพกตอนปล่อย → เป้าของสปริงเริ่มที่ระดับเท้าพอดี
-        // ผู้เล่นเล็งความสูงไว้แค่ไหนด้วย W/S ท่าเตะก็ออกจากระดับนั้น
+        // ยืนอยู่ก็เตะระดับพื้น / ค้างกลางก้าว (เท้าลอยตาม clickLiftHeight) ก็เตะสูงขึ้นตามนั้น
         kickReleaseFootDrop = CurrentKickHipAnchor().y - footRb.position.y;
 
         // 70 m/s × 0.02 s = 1.40 m ต่อ step — Discrete ทะลุ collider ที่บางกว่านั้นแบบเงียบๆ

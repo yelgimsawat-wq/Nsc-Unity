@@ -26,7 +26,6 @@ public class PlayerHandMovement : NetworkBehaviour
     public float maxArmLength = 1.8f;
     public float handMoveSpeed = 25f;
     public float handDamper = 15f;
-    public float planeYOffsetSpeed = 3f;
     public float grabRadius = 0.5f;
     public float grabBreakForce = 10000f; // แรงฉีกขาดเมื่อดึงของหนักเกิน
     [Tooltip("ทำให้ Grab FixedJoint และข้อต่อทั้งโซ่แขนไม่มีวันแตกจากแรงฟิสิกส์ (ยังปล่อย Grab ด้วยปุ่ม F ได้)")]
@@ -84,10 +83,49 @@ public class PlayerHandMovement : NetworkBehaviour
              "ถ้าตัววิ่งเร็วกว่านี้แล้ว แรงดึงแนวราบจะ = 0 กันสะสม momentum")]
     public float maxAllowedHorizontalBoost = 3f;
 
-    [Header("Mouse Range (World Space)")]
+    [Header("Mouse Sensitivity (ระนาบหน้าจอ)")]
+    [Tooltip("ความไวการลากมือในแนวนอนของหน้าจอ (Mouse X → ซ้าย/ขวา)")]
     public float mouseReachX = 3f;
+    [Tooltip("ความไวการลากมือในแนวตั้งของหน้าจอ (Mouse Y → ขึ้น/ลง)\n" +
+             "⚠️ เดิมค่านี้เป็น 'ลิมิตความสูงจาก W/S' — ตอนนี้เป็นความไวแนวตั้ง\n" +
+             "ตั้งให้เท่ากับ mouseReachX ถ้าอยากได้ความรู้สึกสมมาตรบนหน้าจอ")]
     public float mouseReachY = 3f;
-    public float mouseReachDepth = 3f;
+
+    // ── Hand Depth (ล้อเมาส์ = เข้า/ออกจากตัว) ─────────────────────────
+    // 🎯 ล้อเมาส์ขยับมือตามแนว "ไหล่ → มือ" ซึ่งเป็นแกนที่ไม่ขึ้นกับกล้องเลย
+    // (ถ้าใช้ camera forward ตรงๆ พอหมุนกล้องแล้วมือจะกวาดตาม = ผิดข้อกำหนด World-Anchored)
+    [Header("Hand Depth (ล้อเมาส์ = ยื่นออก/ดึงเข้า)")]
+    [Tooltip("คำนวณ min/maxHandDepth ให้อัตโนมัติจาก maxArmLength ตอน spawn\n" +
+             "เปิดไว้ = เปลี่ยนสเกลหุ่น/ความยาวแขนแล้วไม่ต้องมาจูนใหม่ | ปิด = คุมตัวเลขเองใน Inspector")]
+    public bool autoHandDepthFromArmLength = true;
+    [Tooltip("ระยะใกล้ที่สุดจากไหล่ถึงมือ (เมตร) = สเกล 0% — มือชิดตัว")]
+    [Min(0.01f)]
+    public float minHandDepth = 0.3f;
+    [Tooltip("ระยะไกลที่สุดจากไหล่ถึงมือ (เมตร) = สเกล 100% — ยื่นสุดระยะที่แขนเอื้อมถึง")]
+    [Min(0.02f)]
+    public float maxHandDepth = 1.7f;
+    [Tooltip("ความลึกเริ่มต้น เป็นสัดส่วนของช่วง min→max (0 = ชิดตัว, 0.5 = ระยะปกติ, 1 = ยื่นสุด)")]
+    [Range(0f, 1f)]
+    public float defaultHandDepth = 0.5f;
+    [Tooltip("สัดส่วนของช่วง min→max ที่เปลี่ยนต่อการหมุนล้อ 1 คลิก\n" +
+             "0.12 = หมุนล้อราว 8 คลิกจากชิดตัวถึงยื่นสุด (ค่าต่อเนื่อง ไม่ใช่ Near/Medium/Far เป็นขั้น)\n" +
+             "คิดเป็นสัดส่วนเพื่อให้ความรู้สึกเท่ากันทั้งแขนสั้นและแขนยาว")]
+    [Min(0.001f)]
+    public float handDepthScrollSpeed = 0.12f;
+
+    // GetAxis("Mouse ScrollWheel") คืนราว ±0.1 ต่อการหมุนล้อ 1 คลิก — หารกลับเป็น "จำนวนคลิก"
+    private const float SCROLL_NOTCH = 0.1f;
+    // maxHandDepth แบบ auto กันไว้ต่ำกว่า maxArmLength เล็กน้อย เป้าจะได้ไม่ไปนั่งอยู่บนผิว
+    // soft-clamp ของ PerformArmMovement ตลอดเวลา (สปริงจะออกแรงสู้ลิมิตค้างแทนที่จะนิ่ง)
+    private const float ARM_DEPTH_SAFETY = 0.95f;
+
+    /// <summary>ระยะจากไหล่ถึงเป้ามือตอนนี้ (เมตร) — สำหรับ HUD/ดีบัก</summary>
+    public float CurrentHandDepth => sharedAimOffsetWorld.magnitude;
+    /// <summary>ความลึกในสเกล 0..1 ของช่วง min→max — สำหรับ HUD</summary>
+    public float NormalizedHandDepth =>
+        maxHandDepth > minHandDepth
+            ? Mathf.Clamp01((CurrentHandDepth - minHandDepth) / (maxHandDepth - minHandDepth))
+            : 0f;
 
     [Header("Virtual Cursor (แก้ปัญหาขอบจอ)")]
     [Tooltip("ล็อกเคอร์เซอร์จริงไว้กลางจอ แล้วใช้ mouse delta ขยับ 'จุดเล็งเสมือน' แทน\n" +
@@ -99,19 +137,22 @@ public class PlayerHandMovement : NetworkBehaviour
     public bool showCrosshair = true;
 
     // จุดเล็งเสมือน normalized [-1,1] — static เพื่อให้มือสองข้างแชร์จุดเดียวกัน
+    // ⚠️ ยังต้องอัปเดตต่อไปแม้ระบบมือจะเลิกใช้แล้ว — GunHeldItem (เล็งปืน) และ
+    //    PlayerFootForRobot (โหมด fallback ตอนไม่ได้ล็อกเคอร์เซอร์) อ่านผ่าน AimNormalized
     protected static Vector2 sharedVirtualCursor = Vector2.zero;
-    // ✅ จุดเล็งแนวราบสะสมใน "แกนโลก" — หันกล้องแล้วมือไม่หันตาม (เปลี่ยนด้วย delta เมาส์เท่านั้น)
-    protected static Vector3 sharedPlanarAimWorld = Vector3.zero;
     private static int _aimUpdateFrame = -1;
-    // ✅ จุดเล็งเก็บเป็น offset จากหัวไหล่ใน "แกนโลก" — หันกล้องแล้วมือไม่กวาดตาม
+    // ✅ [World-Anchored 3D Aim] จุดเล็งมือ = offset "3 แกนเต็ม" จากหัวไหล่ ในแกนโลก
+    // เก็บเป็นแกนโลกเพราะ: หมุนกล้อง = ไม่มี delta = offset ไม่ขยับ = มือค้างอยู่จุดเดิมในโลก
+    // ส่วน input ของเมาส์ถูก "ตีความ" ด้วยแกนกล้อง ณ วินาทีที่ขยับ — ปล่อยคลิกขวาแล้ว
+    // เมาส์ครั้งถัดไปจึงคุมต่อจาก offset เดิมด้วยมุมกล้องใหม่ ไม่มี snap/reset/กระชาก
     protected static Vector3 sharedAimOffsetWorld = Vector3.down;
     private static int _cursorUpdateFrame = -1;   // กันมือสองข้างบวก delta ซ้ำในเฟรมเดียว
     private static int _crosshairDrawFrame = -1;  // กันวาด crosshair ซ้อนสองอัน
     private static bool _everLocked = false;
     private static GUIStyle _crosshairStyle;
+    // คลิกซ้ายที่ใช้ดึงเคอร์เซอร์กลับเข้าเกม ห้ามถูกตีความเป็นหมัด (ดู HandleCursorLock)
+    protected bool ignoreClickUntilRelease = false;
 
-    protected float currentDepthOffset = 0f; // ระยะเข้า-ออกตามแนวกล้อง (โหมดเก่า)
-    protected float currentHeightOffset = 0f; // ✅ ความสูงมือ (W/S) — โหมด Leg-Style
     protected bool isGrabbing = false;
     protected Rigidbody grabbedObject;
     protected FixedJoint grabJoint;
@@ -132,7 +173,17 @@ public class PlayerHandMovement : NetworkBehaviour
     protected bool smoothedHandInitialized = false;
     protected Vector3 _smoothVelocityRef = Vector3.zero; // ความเร็วสำหรับ SmoothDamp
 
-    protected bool localGrabToggle = false;
+    // ── Grab (Hold F) ──────────────────────────────────────────────────
+    // 🤝 เดิมเป็น toggle (กด F ติด / กด F อีกทีปล่อย) ผู้เล่นต้องจำสถานะเอง
+    // ใหม่: "ยังกด F อยู่ = ยังจับอยู่" ตรงไปตรงมา ไม่ต้องจำอะไร
+    private bool grabHeld = false;     // ผู้เล่นกด F ค้างอยู่ไหม (input ล้วน)
+    private bool grabActive = false;   // server ยืนยันว่าจับติดแล้วไหม
+    private float nextGrabRetryTime = 0f;
+    [Header("Grab Input")]
+    [Tooltip("กด F ค้างแล้วยังไม่มีอะไรให้จับ → ลองใหม่ทุกๆ กี่วินาที\n" +
+             "มีไว้ให้ 'ค้าง F ไว้แล้วขยับมือเข้าไปหาวัตถุ' จับติดเองได้ โดยไม่สแปม RPC ทุกเฟรม")]
+    [Min(0.05f)]
+    public float grabRetryInterval = 0.2f;
 
     protected Vector3 lastSentTarget;
     protected const float RPC_SEND_THRESHOLD = 0.05f;
@@ -147,6 +198,10 @@ public class PlayerHandMovement : NetworkBehaviour
         Vector3 restPose = handRb != null
             ? handRb.position
             : PivotPosition + Vector3.down * (maxArmLength * 0.5f);
+
+        // 🎯 ตั้งช่วงความลึก + จุดเล็ง 3D เริ่มต้นจากท่ามือจริงตอน spawn
+        ApplyAutoHandDepth();
+        if (IsOwner) SeedAimFromCurrentHandPose();
 
         targetHandPosition = restPose;
         smoothedHandTarget = restPose;
@@ -269,13 +324,35 @@ public class PlayerHandMovement : NetworkBehaviour
         return GetAbsoluteMouseNormalized();
     }
 
+    /// <summary>ตั้งช่วงความลึกมือให้สัมพันธ์กับความยาวแขนจริง</summary>
+    private void ApplyAutoHandDepth()
+    {
+        if (!autoHandDepthFromArmLength) return;
+
+        maxHandDepth = Mathf.Max(0.1f, maxArmLength * ARM_DEPTH_SAFETY);
+        minHandDepth = Mathf.Clamp(maxArmLength * 0.12f, 0.05f, maxHandDepth - 0.05f);
+    }
+
+    /// <summary>
+    /// ตั้งจุดเล็งจากท่ามือจริง ณ วินาทีที่เรียก — ใช้ตอน spawn / ล็อกเคอร์เซอร์ / respawn
+    /// มือจึงไม่เคยกระโดดตำแหน่งเวลาสลับเข้า-ออกโหมดควบคุม
+    /// </summary>
+    private void SeedAimFromCurrentHandPose()
+    {
+        Vector3 handOffset = (handRb != null ? handRb.position : PivotPosition) - PivotPosition;
+
+        if (handOffset.sqrMagnitude < 0.0001f)
+            handOffset = Vector3.down * Mathf.Lerp(minHandDepth, maxHandDepth, defaultHandDepth);
+
+        float depth = Mathf.Clamp(handOffset.magnitude, minHandDepth, maxHandDepth);
+        sharedAimOffsetWorld = handOffset.normalized * depth;
+    }
+
     private void LockVirtualCursor()
     {
         // เริ่มจุดเล็งจากตำแหน่งมือจริง ณ ตอนล็อก — มือไม่กระโดด
         sharedVirtualCursor = GetAbsoluteMouseNormalized();
-        Vector3 handOffset = (handRb != null ? handRb.position : PivotPosition) - PivotPosition;
-        sharedPlanarAimWorld = new Vector3(handOffset.x, 0f, handOffset.z);
-        currentHeightOffset = Mathf.Clamp(handOffset.y, -mouseReachY, mouseReachY);
+        SeedAimFromCurrentHandPose();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         _everLocked = true;
@@ -300,6 +377,9 @@ public class PlayerHandMovement : NetworkBehaviour
                  (!_everLocked || Input.GetMouseButtonDown(0)))
         {
             LockVirtualCursor();
+            // ⚠️ คลิกนี้ใช้ "ดึงเมาส์กลับเข้าเกม" ห้ามไปนับเป็นหมัด (LMB = Punch แล้ว)
+            // ต้องปล่อยคลิกซ้ายก่อน ถึงจะต่อยครั้งใหม่ได้ — คลาสลูกอ่านธงนี้
+            ignoreClickUntilRelease = true;
         }
     }
 
@@ -337,42 +417,30 @@ public class PlayerHandMovement : NetworkBehaviour
         if (useVirtualCursor) HandleCursorLock();
 
         // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → หยุดรับ input มือทั้งหมด
-        // แบบเดียวกับฝั่งเท้า — กัน W/S ขยับมือ, F จับของ ระหว่างผู้เล่นคลิกเมนูอยู่
+        // ✅ [Stuck-State Fix] ต้องปล่อย grab ที่ค้างอยู่ก่อนหยุดรับ input ด้วย
+        // ระบบ Hold F อาศัยการเห็น GetKeyUp เป็นตัวปล่อย — ถ้าผู้เล่นกด Esc ค้าง F ไว้
+        // แล้วปล่อยนิ้วตอนอยู่ในเมนู เราจะไม่มีวันเห็น KeyUp นั้น = มือจับค้างถาวร
+        // จนกว่าจะกด F ลง-ขึ้นใหม่อีกรอบ
         if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
-            return;
-
-        // ✅ [World-Anchored Aim — ระบบเดียว]
-        // จุดเล็งมือเปลี่ยนได้ทางเดียว: delta ของเมาส์ (ตีความตามกล้องปัจจุบัน) + W/S = ความสูง
-        // ตัด "โหมดตามตำแหน่งเมาส์สัมบูรณ์" ทิ้งแล้ว — เดิมสองระบบทับกัน มือกระโดดตอนสลับล็อกเคอร์เซอร์
-        GetNormalizedMousePosition(); // อัปเดต virtual cursor ให้ระบบขาใช้ผ่าน AimNormalized เท่านั้น
-
-        Vector3 camFwd   = playerCamera.transform.forward; camFwd.y = 0f; camFwd.Normalize();
-        Vector3 camRight = playerCamera.transform.right;  camRight.y = 0f; camRight.Normalize();
-
-        // W ยกมือขึ้น / S กดมือลง (สะสมเหมือนความสูงเท้าตอนก้าว)
-        if (Input.GetKey(KeyCode.W)) currentHeightOffset += planeYOffsetSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.S)) currentHeightOffset -= planeYOffsetSpeed * Time.deltaTime;
-        currentHeightOffset = Mathf.Clamp(currentHeightOffset, -mouseReachY, mouseReachY);
-
-        // สะสม delta ครั้งเดียวต่อเฟรม | คลิกขวาค้าง = เมาส์เป็นของกล้อง จุดเล็งนิ่งสนิท
-        if (Cursor.lockState == CursorLockMode.Locked &&
-            Time.frameCount != _aimUpdateFrame && !Input.GetMouseButton(1))
         {
-            _aimUpdateFrame = Time.frameCount;
-            Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
-            sharedPlanarAimWorld += camRight * (md.x * mouseReachX) + camFwd * (md.y * mouseReachDepth);
-            sharedPlanarAimWorld.y = 0f;
-
-            float maxR = Mathf.Max(mouseReachX, mouseReachDepth);
-            if (sharedPlanarAimWorld.sqrMagnitude > maxR * maxR)
-                sharedPlanarAimWorld = sharedPlanarAimWorld.normalized * maxR;
+            if (grabHeld)
+            {
+                grabHeld = false;
+                grabActive = false;
+                ReleaseGrabRpc();
+            }
+            return;
         }
 
-        // เคอร์เซอร์ปลดล็อกอยู่ (กด Esc) = จุดเล็งค้างที่เดิม ไม่วิ่งตามเมาส์
-        Vector3 newTarget = PivotPosition + sharedPlanarAimWorld + Vector3.up * currentHeightOffset;
+        // ✅ [World-Anchored 3D Aim — ระบบเดียว]
+        // เมาส์ = ลากมือบนระนาบหน้าจอ (X → ซ้าย/ขวา, Y → ขึ้น/ลง)
+        // ล้อเมาส์ = ยื่นออก/ดึงเข้าตามแนวไหล่→มือ
+        // ทั้งหมดสะสมลง sharedAimOffsetWorld ซึ่งเป็น "แกนโลก" → หมุนกล้องแล้วมือไม่กวาดตาม
+        GetNormalizedMousePosition(); // อัปเดต virtual cursor ให้ GunHeldItem/ระบบขาใช้ผ่าน AimNormalized
 
-        // เก็บ offset ให้ crosshair ฉายตำแหน่งจุดเล็งบนจอ
-        sharedAimOffsetWorld = newTarget - PivotPosition;
+        UpdateHandAim();
+
+        Vector3 newTarget = PivotPosition + sharedAimOffsetWorld;
 
         // ✅ กันมือทะลุพื้น (คงไว้เหมือนเดิม)
         if (Physics.Raycast(newTarget + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer))
@@ -381,27 +449,105 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Vector3.Distance(lastSentTarget, newTarget) > RPC_SEND_THRESHOLD)
         { lastSentTarget = newTarget; UpdateHandTargetRpc(newTarget); }
 
-        // ✅ กด F ครั้งเดียวเพื่อจับ / กดอีกครั้งเพื่อปล่อย (Toggle)
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            bool torsoDown = torso != null &&
-                (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
-                 torso.currentState.Value == TorsoMovement.TorsoState.Falling);
-
-            // While down, an existing grab may be released but a new grab cannot begin.
-            if (torsoDown && !localGrabToggle)
-                return;
-
-            localGrabToggle = !localGrabToggle;
-
-            if (localGrabToggle) 
-                TryGrabRpc();
-            else 
-                ReleaseGrabRpc();
-        }
+        HandleGrabInput();
 
         if (torso != null && torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll && Input.GetKeyDown(KeyCode.Q))
             ApplyHandRecoveryRpc();
+    }
+
+    /// <summary>
+    /// เมาส์ = ระนาบหน้าจอ (2 แกน) | ล้อ = ความลึกไหล่→มือ (แกนที่ 3)
+    ///
+    /// ⚠️ จุดสำคัญ: delta ของเมาส์ถูก "ตีความ" ด้วยแกนกล้อง ณ เฟรมนั้น แล้วบวกสะสมลง
+    /// เวกเตอร์แกนโลก — ไม่ได้เก็บเป็นพิกัดกล้อง ผลคือ
+    ///   • หมุนกล้อง (ไม่มี delta) → offset ไม่เปลี่ยน → มือค้างที่ world position เดิมเป๊ะ
+    ///   • ปล่อยคลิกขวาแล้วขยับเมาส์ต่อ → คุมต่อจาก offset เดิม ด้วยมุมกล้องใหม่ ไม่มีกระชาก
+    /// </summary>
+    private void UpdateHandAim()
+    {
+        // มือสองข้างแชร์จุดเล็งเดียวกัน — กันบวก delta ซ้ำสองรอบในเฟรมเดียว
+        if (Cursor.lockState != CursorLockMode.Locked || Time.frameCount == _aimUpdateFrame)
+            return;
+        _aimUpdateFrame = Time.frameCount;
+
+        // 🎥 คลิกขวาค้าง = โหมดกล้องเต็มตัว: เมาส์และล้อเป็นของกล้องล้วน
+        // ห้ามแตะ offset แนวนอน/แนวตั้ง/ความลึก และห้ามจอง MouseWheelFocus
+        if (Input.GetMouseButton(1)) return;
+
+        Transform camT = playerCamera.transform;
+
+        // ── ระนาบหน้าจอ: ใช้แกน right/up ของกล้องตรงๆ (ไม่แบนลงพื้น)
+        // มือจึงขยับตรงกับสิ่งที่ตาเห็นบนจอจริงๆ แม้กล้องจะก้ม/เงย
+        Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
+        sharedAimOffsetWorld += camT.right * (md.x * mouseReachX) + camT.up * (md.y * mouseReachY);
+
+        // ── ล้อเมาส์: ยื่นออก/ดึงเข้าตามแนวไหล่→มือ
+        // จงใจไม่ใช้ camera forward — ไม่งั้นพอหมุนกล้อง "ความลึก" จะชี้ไปคนละทิศ
+        // แล้วมือจะเหวี่ยงตามกล้อง = ผิดกฎ World-Anchored ข้อ 3
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (Mathf.Abs(scroll) > 0.0001f && sharedAimOffsetWorld.sqrMagnitude > 0.0001f)
+        {
+            float notches = scroll / SCROLL_NOTCH;
+            float step = notches * handDepthScrollSpeed * (maxHandDepth - minHandDepth);
+            sharedAimOffsetWorld += sharedAimOffsetWorld.normalized * step;
+        }
+
+        // จองล้อทุกเฟรมที่มือถือสิทธิ์อยู่ (ไม่ใช่เฉพาะเฟรมที่หมุนจริง) — ธงจะได้นิ่ง
+        // ไม่กะพริบจนกล้องแอบซูมแทรกระหว่างคลิกล้อสองครั้ง
+        MouseWheelFocus.Claim();
+
+        // ── Clamp ก้อนเดียวจบ ──
+        // เมาส์ระนาบหน้าจอ + ล้อความลึก รวมกันแล้วอาจเลยระยะที่แขนเอื้อมถึง
+        // ดึงทั้งเวกเตอร์กลับเข้าช่วง [minHandDepth, maxHandDepth] โดยคงทิศเดิมไว้
+        float depth = sharedAimOffsetWorld.magnitude;
+        if (depth < 0.0001f)
+        {
+            // เป้าทับหัวไหล่พอดี — ทิศหายไปแล้ว ดันกลับลงล่างเป็นท่าพัก
+            sharedAimOffsetWorld = Vector3.down * minHandDepth;
+            return;
+        }
+
+        float clampedDepth = Mathf.Clamp(depth, minHandDepth, maxHandDepth);
+        if (!Mathf.Approximately(depth, clampedDepth))
+            sharedAimOffsetWorld *= clampedDepth / depth;
+    }
+
+    /// <summary>
+    /// 🤝 [Hold F = Grab] "ยังกด F อยู่ = ยังจับอยู่" — ปล่อย F = ปล่อยทันที
+    /// ถ้ากดแล้วยังไม่มีอะไรให้จับ จะลองใหม่เป็นระยะ (grabRetryInterval) ไม่ใช่ทุกเฟรม
+    /// ผู้เล่นจึงค้าง F ไว้แล้วขยับมือเข้าไปหาวัตถุให้มันจับติดเองได้ โดยไม่สแปม RPC
+    /// </summary>
+    private void HandleGrabInput()
+    {
+        bool torsoDown = torso != null &&
+            (torso.currentState.Value == TorsoMovement.TorsoState.Ragdoll ||
+             torso.currentState.Value == TorsoMovement.TorsoState.Falling);
+
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            grabHeld = true;
+            nextGrabRetryTime = 0f; // ขอทันทีในเฟรมนี้เลย
+        }
+
+        if (Input.GetKeyUp(KeyCode.F) && grabHeld)
+        {
+            grabHeld = false;
+            grabActive = false;
+            // ส่งเสมอ (ไม่ใช่เฉพาะตอน grabActive) — กันเคสที่ RPC ตอบกลับยังไม่ถึงเรา
+            // แต่ server จับติดไปแล้ว | ServerReleaseGrab ปลอดภัยแม้ไม่มีอะไรถูกจับอยู่
+            ReleaseGrabRpc();
+            return;
+        }
+
+        if (!grabHeld || grabActive) return;
+
+        // ตัวล้มอยู่ = เริ่มจับใหม่ไม่ได้ (กฎเดิมของ TryGrabRpc ฝั่ง server)
+        // เช็คซ้ำฝั่ง client เพื่อไม่ให้ยิง RPC ที่รู้ผลอยู่แล้วว่าถูกปฏิเสธ
+        if (torsoDown) return;
+
+        if (Time.time < nextGrabRetryTime) return;
+        nextGrabRetryTime = Time.time + grabRetryInterval;
+        TryGrabRpc();
     }
     
     [Rpc(SendTo.Server)] private void UpdateHandTargetRpc(Vector3 target) { ValidateAndSetHandTarget(target); }
@@ -414,9 +560,13 @@ public class PlayerHandMovement : NetworkBehaviour
     {
         if (!target.IsValid()) return;
 
+        // 🛡️ เพดานอิงระยะที่แขนเอื้อมถึงจริง ไม่ใช่ค่าความไวเมาส์อีกต่อไป
+        // (เดิมใช้ max ของ mouseReachX/Y/Depth ซึ่งเป็นสเกลความไว ไม่ได้แปลว่าระยะแขน
+        //  ปรับความไวขึ้นเมื่อไหร่เพดาน validate ก็หลวมตามไปด้วยโดยไม่มีใครตั้งใจ)
+        float limit = Mathf.Max(maxHandDepth, maxArmLength) * SERVER_REACH_MARGIN;
+
         Vector3 pivot = PivotPosition;
         Vector3 dir = target - pivot;
-        float limit = Mathf.Max(mouseReachX, Mathf.Max(mouseReachY, mouseReachDepth)) * SERVER_REACH_MARGIN;
         if (dir.magnitude > limit) target = pivot + dir.normalized * limit;
 
         targetHandPosition = target;
@@ -464,10 +614,18 @@ public class PlayerHandMovement : NetworkBehaviour
             break;
         }
 
-        // จับพลาด (ไม่มีอะไรในรัศมี) → บอก owner ให้รีเซ็ต toggle
-        // ไม่งั้นฝั่ง client คิดว่ากำลังจับอยู่ ต้องกด F สองทีถึงจะจับใหม่ได้
-        if (!grabbedSomething)
+        // แจ้งผล owner เสมอ — สำเร็จ = หยุด retry / พลาด = ปล่อยให้ retry ต่อขณะยังกด F ค้าง
+        // (เดิมแจ้งเฉพาะตอนพลาด เพราะระบบ toggle ไม่ต้องรู้ว่าสำเร็จเมื่อไหร่)
+        if (grabbedSomething)
+            GrabSucceededClientRpc();
+        else
             ForceReleaseGrabClientRpc();
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void GrabSucceededClientRpc()
+    {
+        grabActive = true;
     }
 
     [Rpc(SendTo.Server)]
@@ -511,6 +669,24 @@ public class PlayerHandMovement : NetworkBehaviour
         targetHandPosition = rest;
         smoothedHandTarget = rest;
         _smoothVelocityRef = Vector3.zero;
+
+        // Owner ถือจุดเล็ง/สถานะปุ่มไว้ในเครื่องตัวเอง ต้องสั่งล้างด้วย ไม่งั้นเป้าเก่า
+        // (ที่จุดตกเหว) จะถูกส่งกลับมาทับทันทีในเฟรมถัดไป
+        if (IsSpawned) ResetAimOnOwnerRpc();
+    }
+
+    [Rpc(SendTo.Owner, Delivery = RpcDelivery.Reliable)]
+    private void ResetAimOnOwnerRpc()
+    {
+        grabHeld = false;
+        grabActive = false;
+        ignoreClickUntilRelease = true; // ต้องปล่อยคลิกซ้ายก่อน ถึงจะต่อยครั้งใหม่ได้
+
+        ApplyAutoHandDepth();
+        SeedAimFromCurrentHandPose();
+
+        // ล้างแคชกันส่งซ้ำ — เป้าใหม่หลัง teleport ต้องถูกส่งทันทีแม้บังเอิญใกล้ค่าเดิม
+        lastSentTarget = Vector3.positiveInfinity;
     }
 
     private void IgnoreCollisionWithTorso(Rigidbody targetRb, bool ignore)
@@ -547,7 +723,9 @@ public class PlayerHandMovement : NetworkBehaviour
     [Rpc(SendTo.Owner)]
     private void ForceReleaseGrabClientRpc()
     {
-        localGrabToggle = false;
+        // จับไม่ติด / ถูกสั่งปล่อยจากฝั่ง server (respawn, joint แตก, ล้ม)
+        // ⚠️ ไม่แตะ grabHeld — ผู้เล่นยังกด F ค้างอยู่ก็ให้ retry ต่อได้ตามข้อกำหนด
+        grabActive = false;
     }
 
     protected virtual void PerformArmMovement()

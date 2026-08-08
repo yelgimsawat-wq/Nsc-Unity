@@ -9,13 +9,14 @@ public class PlayerHandCombat : PlayerHandMovement
     [Header("Combat Settings")]
     public NetworkVariable<CombatState> currentCombatState = new NetworkVariable<CombatState>(CombatState.Idle);
 
-    [Header("Punch Acceleration (Shift = คันเร่งของหมัด)")]
-    [Tooltip("ความเร่งที่อัดเข้ากำปั้นขณะกด Shift ค้าง (m/s²) — ที่มาของ F = ma\n" +
-             "เมาส์ + W/S ยังคุมทิศได้ตลอดเวลา = หมัดนำวิถี")]
+    [Header("Punch Acceleration (คลิกซ้าย = คันเร่งของหมัด)")]
+    [Tooltip("ความเร่งที่อัดเข้ากำปั้นขณะกดคลิกซ้ายค้าง (m/s²) — ที่มาของ F = ma\n" +
+             "เมาส์ + ล้อเมาส์ยังคุมเป้ามือได้ตลอดเวลาแม้กำลังต่อย = หมัดนำวิถี\n" +
+             "(เล็งขึ้น = อัปเปอร์คัต / เล็งลง = หมัดทุบ / เล็งข้าง = หมัดเหวี่ยง — ไม่ต้องมี animation แยก)")]
     public float punchAcceleration = 400f;
     [Tooltip("ความเร็วหมัดสูงสุด — กันทะลุ collider และเป็นเพดานดาเมจไปในตัว")]
     public float maxPunchSpeed = 55f;
-    [Tooltip("เวลาบูสต์สูงสุดต่อการกดหนึ่งครั้ง กันกด Shift ค้างลากตัวบินไปเรื่อยๆ")]
+    [Tooltip("เวลาบูสต์สูงสุดต่อการกดหนึ่งครั้ง กันกดคลิกซ้ายค้างลากตัวบินไปเรื่อยๆ")]
     public float maxPunchDuration = 0.75f;
     [Tooltip("เวลาง้างหมัด (วินาที) — ดึงมือกลับเข้าไหล่ก่อนปล่อย\n" +
              "ให้ทุกหมัดมีระยะเร่งเต็มๆ แม้แขนกำลังเหยียดค้างอยู่ (ไม่มีระยะ = ไม่มีความเร็ว = ไม่มีดาเมจ)")]
@@ -33,7 +34,7 @@ public class PlayerHandCombat : PlayerHandMovement
     public float recoveryBlendDuration = 0.25f;
 
     [Tooltip("ช่วงผ่อนผันหลังหมัดจบ (วินาที) ที่การชนยังนับดาเมจได้\n" +
-             "กันเคสหมัดถึงเป้าช้ากว่าจังหวะปล่อย Shift/หมดเวลาแค่เสี้ยววินาทีแล้วดาเมจหาย")]
+             "กันเคสหมัดถึงเป้าช้ากว่าจังหวะปล่อยคลิกซ้าย/หมดเวลาแค่เสี้ยววินาทีแล้วดาเมจหาย")]
     public float damageGraceTime = 0.2f;
 
     private float punchTimer = 0f;
@@ -126,7 +127,9 @@ public class PlayerHandCombat : PlayerHandMovement
 
     protected override void Update()
     {
-        base.Update(); // ให้คลาสแม่ทำงานปกติ (รวมถึงการเล็งด้วยเมาส์ + W/S ระหว่างต่อย)
+        // คลาสแม่รันก่อนเสมอ → เป้ามือถูกอัปเดตจากเมาส์/ล้อทุกเฟรม "รวมถึงระหว่างกำลังต่อย"
+        // นี่คือสิ่งที่ทำให้ผู้เล่นสร้างท่าหมัดเองได้จากการเล็งจริง โดยไม่ต้องมี animation แยก
+        base.Update();
 
         if (!IsOwner || currentState.Value != HandState.Attached) return;
 
@@ -171,30 +174,69 @@ public class PlayerHandCombat : PlayerHandMovement
 
     private LobbyManager limbSelectionLobby;
     private bool punchHeld = false;
+    // "การกดครั้งนี้ยังไม่ได้กลายเป็นหมัด" — ใช้บังคับกฎ 1 คลิก = 1 หมัด
+    private bool punchRequestPending = false;
+    private float punchRequestExpireTime = 0f;
     private float nextPunchRequestTime = 0f;
+
+    [Header("Punch Input (Left Mouse)")]
+    [Tooltip("ช่วงเวลาที่ยังพยายามส่งคำขอต่อยซ้ำ ถ้าคลิกไปตอน server ยังอยู่ใน Recovering ของหมัดก่อน\n" +
+             "มีไว้กัน 'คลิกแล้วหมัดหาย' เพราะกดเร็วไปเสี้ยววินาที — ไม่ใช่ระบบต่อยรัวอัตโนมัติ\n" +
+             "หมดเวลาแล้วคำขอถูกทิ้ง ต้องปล่อยคลิกซ้ายแล้วกดใหม่เท่านั้น")]
+    [Min(0f)]
+    [SerializeField] private float punchRequestWindow = 0.35f;
 
     private void HandleCombatInput()
     {
         // เคอร์เซอร์ปลดอยู่ (กด Esc ไปเมนู) → ปล่อยหมัดที่ค้างแล้วหยุดรับ input ต่อย
-        // ไม่งั้น Shift ค้างจะต่อยรัวต่อระหว่างผู้เล่นคลิกเมนูอยู่
+        // ไม่งั้นคลิกซ้ายค้างจะต่อยต่อระหว่างผู้เล่นคลิกเมนูอยู่
         if (useVirtualCursor && Cursor.lockState != CursorLockMode.Locked)
         {
             if (punchHeld) { punchHeld = false; SetPunchingRpc(false); }
+            punchRequestPending = false;
             return;
         }
 
-        // ⚡ กด Shift ค้าง = อัดความเร่งเข้าหมัด / ปล่อย = หยุดบูสต์
-        if (Input.GetKeyDown(KeyCode.LeftShift)) punchHeld = true;
-        if (Input.GetKeyUp(KeyCode.LeftShift)) { punchHeld = false; SetPunchingRpc(false); }
-
-        // ✅ [Punch Buffer] ค้าง Shift ไว้ = ต่อยรัวอัตโนมัติ
-        // พอ Recovery จบ (state กลับ Idle) หมัดถัดไปออกเองทันที ไม่ต้องปล่อยแล้วกดใหม่
-        // (throttle 0.1s กันสแปม RPC ระหว่างรอ state sync กลับมา)
-        if (punchHeld && currentCombatState.Value == CombatState.Idle && Time.time >= nextPunchRequestTime)
+        // 🖱️ คลิกซ้ายที่ใช้ "ดึงเคอร์เซอร์กลับเข้าเกม" ห้ามนับเป็นหมัด (ดู HandleCursorLock ในคลาสแม่)
+        // ต้องปล่อยคลิกก่อน ถึงจะเริ่มต่อยได้ — ไม่งั้นทุกครั้งที่กลับจากเมนูจะต่อยฟรีหนึ่งหมัด
+        if (ignoreClickUntilRelease)
         {
-            nextPunchRequestTime = Time.time + 0.1f;
-            SetPunchingRpc(true);
+            if (!Input.GetMouseButton(0)) ignoreClickUntilRelease = false;
+            return;
         }
+
+        // ⚡ กดคลิกซ้าย = เริ่มหมัด / ค้างไว้ = อัดความเร่งต่อ / ปล่อย = หยุดบูสต์แล้วเข้า Recovery
+        if (Input.GetMouseButtonDown(0))
+        {
+            punchHeld = true;
+            punchRequestPending = true;
+            punchRequestExpireTime = Time.time + punchRequestWindow;
+            nextPunchRequestTime = 0f; // ขอทันทีในเฟรมนี้เลย
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            punchHeld = false;
+            punchRequestPending = false;
+            SetPunchingRpc(false);
+        }
+
+        // ⭐ [1 คลิก = 1 หมัด] คำขอถูก "ใช้ไปแล้ว" ทันทีที่หมัดออก
+        // ค้างคลิกซ้ายต่อไม่ทำให้ต่อยรัว — ต้องปล่อยแล้วกดใหม่เท่านั้น (ต่างจากระบบ Shift เดิม)
+        if (!punchRequestPending) return;
+
+        if (currentCombatState.Value != CombatState.Idle)
+        {
+            // server ยังไม่ว่าง (Recovering ของหมัดก่อน) — ลองใหม่จนหมด window แล้วทิ้ง
+            if (Time.time > punchRequestExpireTime) punchRequestPending = false;
+            return;
+        }
+
+        if (Time.time < nextPunchRequestTime) return;
+
+        nextPunchRequestTime = Time.time + 0.1f; // throttle ระหว่างรอ state sync กลับมา
+        punchRequestPending = false;             // ⭐ กินคำขอทิ้งที่นี่ = ไม่มีทางต่อยซ้ำจากการกดครั้งเดียว
+        SetPunchingRpc(true);
     }
 
     [Rpc(SendTo.Server)]
