@@ -194,9 +194,11 @@ public static class InMatchMenuBuilder
 
         // ---------- ปุ่มล่าง ----------
         menu.backButton = CreateButton(card.transform, "BackButton", "BACK TO GAME",
-            new Vector2(-125f, -386f), new Vector2(240f, 64f), AccentSoft, Accent, TextWhite, font, 23, Frame.Full);
+            new Vector2(-235f, -386f), new Vector2(224f, 64f), AccentSoft, Accent, TextWhite, font, 21, Frame.Full);
+        menu.settingsButton = CreateButton(card.transform, "SettingsButton", "SETTINGS",
+            new Vector2(0f, -386f), new Vector2(224f, 64f), BoxFill, EdgeSoft, TextWhite, font, 21, Frame.Full);
         menu.leaveButton = CreateButton(card.transform, "LeaveButton", "LEAVE MATCH",
-            new Vector2(125f, -386f), new Vector2(240f, 64f), DangerSoft, Danger, Danger, font, 23, Frame.Full);
+            new Vector2(235f, -386f), new Vector2(224f, 64f), DangerSoft, Danger, Danger, font, 21, Frame.Full);
 
         TextMeshProUGUI hint = CreateText(panel.transform, "EscHint",
             "ESC  -  CLOSE MENU AND KEEP PLAYING", font, 21, TextDim);

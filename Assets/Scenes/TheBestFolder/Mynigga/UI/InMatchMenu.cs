@@ -85,6 +85,9 @@ public class InMatchMenu : MonoBehaviour
 
     [Header("Buttons")]
     public Button backButton;
+
+    [Tooltip("เปิดแผงตั้งค่าเต็ม (ตัวเดียวกับในเมนูหลัก) — ซ่อนเองถ้าหาแผงไม่เจอ")]
+    public Button settingsButton;
     public Button leaveButton;
 
     [Header("Confirm Leave")]
@@ -246,6 +249,7 @@ public class InMatchMenu : MonoBehaviour
     private void WireButtons()
     {
         if (backButton != null) backButton.onClick.AddListener(Close);
+        if (settingsButton != null) settingsButton.onClick.AddListener(OpenSettings);
         if (leaveButton != null) leaveButton.onClick.AddListener(OpenConfirm);
 
         if (confirmCancelButton != null) confirmCancelButton.onClick.AddListener(CloseConfirm);
@@ -321,6 +325,10 @@ public class InMatchMenu : MonoBehaviour
             if (voiceSlider != null) voiceSlider.SetValueWithoutNotify(voice.SpeakerVolume);
             UpdateSliderLabel(voiceValue, voice.SpeakerVolume, 2f);
         }
+
+        // ไม่มีแผงตั้งค่าในเครื่องนี้ (เช่นกด Play จากฉากเกมตรงๆ ไม่ผ่านเมนูหลัก) — ปุ่มกดไปก็ไม่มีอะไรขึ้น
+        if (settingsButton != null)
+            settingsButton.interactable = SettingsManager.Instance != null;
 
         RefreshPills();
         RefreshMicDevice();
@@ -569,6 +577,23 @@ public class InMatchMenu : MonoBehaviour
     {
         VoiceChat.Instance?.ToggleSpeaker();
         RefreshPills();
+    }
+
+    /// <summary>
+    /// เปิดแผงตั้งค่าเต็ม — ตัวเดียวกับที่ใช้ในเมนูหลัก (SettingsManager อยู่ข้ามฉากมาให้แล้ว)
+    /// เมนูนี้ไม่ปิดตาม เพราะกดปิดแผงตั้งค่าแล้วต้องเจอเมนูเดิมรออยู่ ไม่ใช่เด้งกลับเข้าเกมเลย
+    /// </summary>
+    private void OpenSettings()
+    {
+        SettingsManager settings = SettingsManager.Instance;
+        if (settings == null)
+        {
+            Debug.LogWarning("[InMatchMenu] ไม่เจอ SettingsManager — ต้องเข้าเกมผ่านเมนูหลักก่อน " +
+                             "แผงตั้งค่าถึงจะตามมาด้วย (ดู SettingsManager.MakePersistent)");
+            return;
+        }
+
+        settings.OpenSettings();
     }
 
     private void OnMuteRow(VoiceRow row)

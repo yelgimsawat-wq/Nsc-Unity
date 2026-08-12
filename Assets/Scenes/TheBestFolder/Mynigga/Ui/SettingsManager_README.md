@@ -186,6 +186,9 @@ Canvas
 ### Gameplay Settings
 - `Player Name Input Field`: TMP_InputField
 - `Show Network Stats Toggle`: Toggle
+- `Mouse Sensitivity Slider` / `Mouse Sensitivity Value Label`: **ไม่ต้องสร้างเอง** —
+  สั่ง `Tools ▸ NSC ▸ UI ▸ Add Mouse Sensitivity Row` มันจะก๊อปหน้าตาจากแถว MASTER VOLUME
+  มาวางในแท็บ Gameplay แล้วต่อสายให้เสร็จ (สั่งซ้ำได้ ของเดิมจะถูกแทนที่)
 
 ### Network Stats Display
 - `Network Stats Panel`: GameObject (ลอยมุมจอ)
@@ -216,6 +219,28 @@ SettingsManager.Instance.CloseSettings();
 ```csharp
 SettingsManager.Instance.SaveAndClose();
 ```
+
+### เปิดจากในเกม (ระหว่างแมตช์)
+กด **ESC** ระหว่างเล่น → เมนูระหว่างเล่น (`InMatchMenu`) → ปุ่ม **SETTINGS**
+
+แผงตั้งค่าเป็นตัวเดียวกับในเมนูหลัก ไม่ได้สร้างซ้ำ — ตอน `Awake()` มันจะสร้าง Canvas ของตัวเอง
+(`[SettingsUI]`, sortingOrder 100) แล้วย้ายตัวเองไปอยู่ใต้ Canvas นั้นพร้อม `DontDestroyOnLoad`
+
+> ⚠️ ห้ามเปลี่ยนกลับไปเรียก `DontDestroyOnLoad(gameObject)` ตรงๆ — แผงนี้เป็น **ลูก** ของ Canvas ในฉากเมนู
+> Unity ย้ายข้ามฉากให้เฉพาะ object ที่เป็น root เท่านั้น เรียกกับลูกจะแค่ขึ้น warning แล้วไม่ทำอะไร
+> ผลคือพอเข้าเกมแล้วแผงหายทั้งอัน (เป็นบั๊กเดิมก่อนแก้)
+
+### ความไวเมาส์ (Mouse Sensitivity)
+ค่าจริงเก็บที่ `MouseSettings` (static + PlayerPrefs) ไม่ได้เก็บใน `SettingsManager`
+เพราะสคริปต์มือ/เท้า/กล้อง ต้องอ่านค่าได้แม้แผงตั้งค่ายังไม่เกิด (เช่นกด Play จากฉากเกมตรงๆ)
+
+```csharp
+// ฝั่งที่รับอินพุตเมาส์
+delta * (mouseSensitivity * MouseSettings.Multiplier * 0.1f);
+```
+
+ตอนนี้ผูกไว้แล้วที่ `PlayerHandMovement`, `PlayerFootForRobot`, `PlayerCam` —
+ค่าใน Inspector ของแต่ละตัวยังเป็น "ความไวพื้นฐาน" เหมือนเดิม สไลเดอร์เป็นแค่ตัวคูณทับ (0.2x - 3.0x)
 
 ---
 

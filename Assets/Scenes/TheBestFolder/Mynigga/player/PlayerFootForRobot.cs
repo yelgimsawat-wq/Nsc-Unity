@@ -911,7 +911,8 @@ public class PlayerFootForRobot : NetworkBehaviour
         {
             if (!cameraMode)
             {
-                Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
+                Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) *
+                             (mouseSensitivity * MouseSettings.Multiplier * 0.1f);
                 _footAimStick += camRight * md.x + camFwd * md.y;
                 _footAimStick.y = 0f;
                 // ก้านถูก clamp ที่รัศมี 1 — ความยาวไม่มีผลกับระยะก้าวเลย ใช้แค่ทิศของมัน

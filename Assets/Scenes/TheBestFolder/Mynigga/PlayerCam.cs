@@ -88,8 +88,10 @@ public class PlayerCam : NetworkBehaviour
         // Orbit with right mouse button held
         if (Input.GetMouseButton(1))
         {
-            yaw   += Input.GetAxis("Mouse X") * mouseSensitivity;
-            pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
+            // ตัวคูณจากหน้าตั้งค่า (MouseSettings) — ค่าใน Inspector คือความไวพื้นฐานของกล้องตัวนี้
+            float sens = mouseSensitivity * MouseSettings.Multiplier;
+            yaw   += Input.GetAxis("Mouse X") * sens;
+            pitch -= Input.GetAxis("Mouse Y") * sens;
             pitch  = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
         }
 

@@ -106,6 +106,12 @@ public class SettingsManager : MonoBehaviour
     [SerializeField] private TMP_InputField playerNameInputField;
     [SerializeField] private Toggle showNetworkStatsToggle;
 
+    [Header("--- Mouse ---")]
+    [Tooltip("ความไวเมาส์ — คูณกับค่าพื้นฐานของมือ/เท้า/กล้อง (ดู MouseSettings)\n" +
+             "สร้างแถวนี้อัตโนมัติได้ที่ Tools ▸ NSC ▸ UI ▸ Add Mouse Sensitivity Row")]
+    [SerializeField] private Slider mouseSensitivitySlider;
+    [SerializeField] private TextMeshProUGUI mouseSensitivityValueLabel;
+
     [Header("--- Network Stats Display ---")]
     [SerializeField] private GameObject networkStatsPanel;
     [SerializeField] private TextMeshProUGUI fpsLabel;
@@ -166,7 +172,56 @@ public class SettingsManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        MakePersistent();
+    }
+
+    /// <summary>
+    /// ทำให้แผงตั้งค่าอยู่ข้ามฉากได้ เพื่อให้กดเปิดจากในเกม (เมนู ESC) ได้ด้วย
+    ///
+    /// ⚠️ ห้ามเรียก DontDestroyOnLoad(gameObject) ตรงๆ — แผงนี้เป็น "ลูก" ของ Canvas ในฉากเมนู
+    ///    Unity ย้ายให้เฉพาะ object ที่เป็น root เท่านั้น เรียกกับลูกมันจะเตือนแล้วไม่ทำอะไรเลย
+    ///    (นี่คือสาเหตุที่ก่อนหน้านี้พอเข้าเกมแล้วแผงตั้งค่าหายไปทั้งอัน)
+    ///
+    /// จึงสร้าง Canvas ของตัวเองขึ้นมาใหม่ ก๊อป CanvasScaler จากอันเดิมมาให้เป๊ะ
+    /// (ไม่ก๊อป = ขนาด/สัดส่วนเพี้ยนทันทีที่เปลี่ยนความละเอียดจอ) แล้วย้ายแผงไปอยู่ใต้ตัวนั้น
+    /// </summary>
+    private void MakePersistent()
+    {
+        if (transform.parent == null)
+        {
+            DontDestroyOnLoad(gameObject);
+            return;
+        }
+
+        Canvas sourceCanvas = GetComponentInParent<Canvas>();
+
+        GameObject holder = new GameObject("[SettingsUI]", typeof(RectTransform));
+        Canvas canvas = holder.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 100; // ต้องสูงกว่าเมนูระหว่างเล่น (InMatchMenuUI = 40)
+
+        CanvasScaler scaler = holder.AddComponent<CanvasScaler>();
+        CanvasScaler source = sourceCanvas != null ? sourceCanvas.GetComponent<CanvasScaler>() : null;
+
+        if (source != null)
+        {
+            scaler.uiScaleMode = source.uiScaleMode;
+            scaler.referenceResolution = source.referenceResolution;
+            scaler.screenMatchMode = source.screenMatchMode;
+            scaler.matchWidthOrHeight = source.matchWidthOrHeight;
+            scaler.referencePixelsPerUnit = source.referencePixelsPerUnit;
+        }
+        else
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        holder.AddComponent<GraphicRaycaster>();
+
+        transform.SetParent(holder.transform, false);
+        DontDestroyOnLoad(holder);
     }
 
     private void Start()
@@ -213,6 +268,7 @@ public class SettingsManager : MonoBehaviour
     {
         // Cleanup
         UnbindAllListeners();
+        UiFocus.Pop(this);
         KillPopupTween();
     }
 
@@ -227,6 +283,11 @@ public class SettingsManager : MonoBehaviour
 
         isPopupOpen = true;
         KillPopupTween();
+
+        // เปิดจากในเกมได้ด้วย — ต้องบอก UiFocus ไม่งั้นสคริปต์มือ/เท้าจะล็อกเมาส์กลับทันทีที่คลิก
+        UiFocus.Push(this);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         // ไมค์อาจถูกเสียบ/ถอดไปตั้งแต่เปิดเกม — รีเฟรชรายชื่อทุกครั้งที่เปิดหน้าตั้งค่า
         RebuildMicDeviceOptions();
@@ -271,6 +332,9 @@ public class SettingsManager : MonoBehaviour
 
         isPopupOpen = false;
         KillPopupTween();
+
+        // ไม่ต้องคืนสถานะเมาส์เอง — ชั้นที่อยู่ข้างล่าง (เมนู ESC) เป็นคนคืนตอนมันปิด
+        UiFocus.Pop(this);
 
         // ปิดหน้าตั้งค่าแล้วเลิกจับไมค์ (ถ้าอยู่ในห้องอยู่ VoiceChat จะเปิดต่อเอง)
         VoiceChat.Instance?.SetMicTestActive(false);
@@ -424,6 +488,14 @@ public class SettingsManager : MonoBehaviour
 
         if (showNetworkStatsToggle != null)
             showNetworkStatsToggle.onValueChanged.AddListener(OnShowNetworkStatsChanged);
+
+        if (mouseSensitivitySlider != null)
+        {
+            mouseSensitivitySlider.minValue = MouseSettings.Min;
+            mouseSensitivitySlider.maxValue = MouseSettings.Max;
+            mouseSensitivitySlider.wholeNumbers = false;
+            mouseSensitivitySlider.onValueChanged.AddListener(OnMouseSensitivityChanged);
+        }
     }
 
     private void UnbindAllListeners()
@@ -470,6 +542,9 @@ public class SettingsManager : MonoBehaviour
 
         if (showNetworkStatsToggle != null)
             showNetworkStatsToggle.onValueChanged.RemoveListener(OnShowNetworkStatsChanged);
+
+        if (mouseSensitivitySlider != null)
+            mouseSensitivitySlider.onValueChanged.RemoveListener(OnMouseSensitivityChanged);
     }
 
     // ================================================================
@@ -812,6 +887,18 @@ public class SettingsManager : MonoBehaviour
         Debug.Log($"[Settings] Player Name changed to '{playerName}'");
     }
 
+    /// <summary>
+    /// ความไวเมาส์ — เก็บที่ MouseSettings (static) ไม่ใช่ที่นี่
+    /// เพราะมือ/เท้า/กล้อง ต้องอ่านค่าได้แม้แผงตั้งค่ายังไม่เกิด (เช่นตอนเทสฉากเกมตรงๆ)
+    /// </summary>
+    private void OnMouseSensitivityChanged(float value)
+    {
+        MouseSettings.Set(value);
+
+        if (mouseSensitivityValueLabel != null)
+            mouseSensitivityValueLabel.text = MouseSettings.Format(value);
+    }
+
     private void OnShowNetworkStatsChanged(bool enabled)
     {
         if (networkStatsPanel != null)
@@ -938,6 +1025,15 @@ public class SettingsManager : MonoBehaviour
             bool showStats = PlayerPrefs.GetInt("ShowNetworkStats", 0) == 1;
             showNetworkStatsToggle.isOn = showStats;
             OnShowNetworkStatsChanged(showStats);
+        }
+
+        if (mouseSensitivitySlider != null)
+        {
+            // MouseSettings อ่านจาก PlayerPrefs เองอยู่แล้ว — ตรงนี้แค่ดึงมาโชว์ ไม่ต้องเซฟซ้ำ
+            mouseSensitivitySlider.SetValueWithoutNotify(MouseSettings.Multiplier);
+
+            if (mouseSensitivityValueLabel != null)
+                mouseSensitivityValueLabel.text = MouseSettings.Format(MouseSettings.Multiplier);
         }
 
         Debug.Log("[Settings] Loaded settings from PlayerPrefs");

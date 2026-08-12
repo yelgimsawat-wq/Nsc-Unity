@@ -78,7 +78,7 @@ Tools ▸ NSC ▸ PVP ▸ Build PVP UI
 ```
 
 - หน้าจอเลือกทีม (ปุ่ม RED/BLUE + รายชื่อ + ปุ่มเลือกชิ้นส่วน + ปุ่ม START)
-- ป้ายประกาศผู้ชนะ
+- หน้าจอจบแมตช์ VICTORY/DEFEAT + ปุ่ม EXIT TO MENU และ REMATCH (ดูหัวข้อ "หน้าจอจบแมตช์")
 - วาง `PlayerHUD.prefab` เดิมลงฉากให้ พร้อมแปะ `PvpPlayerHudGate` (ซ่อน HUD ระหว่างเลือกทีม)
 
 ### ขั้นที่ 4 — สร้างแผงเลือกขนาดห้อง (ทำครั้งเดียว ที่ฉากเมนู)
@@ -252,6 +252,20 @@ Client กดปุ่ม → RequestTeamRpc → Server ตรวจ (ทีม�
 
 > cache รายชื่อชิ้นส่วนตั้งแต่ตอน spawn ไม่ไล่หาใหม่ เพราะชิ้นที่หลุดแล้วอาจถูกย้าย parent ออกนอกหุ่น ถ้าไล่หาใหม่จะ "หาไม่เจอ" แทนที่จะเห็นว่ามันหลุด
 
+### หน้าจอจบแมตช์
+`PvpResultUI` ฟัง `OnWinnerDecided` แล้วเทียบ `LocalTeam` กับผู้ชนะ — ทีมเราชนะขึ้น **VICTORY** ทีมเราแพ้ขึ้น **DEFEAT** (คนที่ไม่ได้เลือกทีมขึ้น MATCH OVER)
+
+| ปุ่ม | ใครกดได้ | ทำอะไร |
+|---|---|---|
+| `EXIT TO MENU` | ทุกคน | `ReturnToMenuOnHostLost.LeaveMatchAsync()` — ออกเฉพาะเครื่องตัวเอง (ตัวเดียวกับปุ่ม LEAVE MATCH ในเมนูระหว่างเล่น) |
+| `REMATCH` | Host | โหลดซีนเดิมซ้ำผ่าน NGO ทุกเครื่องตามมาพร้อมกัน ทุกระบบรีเซ็ตเอง |
+
+> ปุ่มออกให้ **ทุกคน** กดได้ ต่างจากโหมดบอสที่ให้เฉพาะ Host — เพราะ PVP ฝั่งที่แพ้ต้องออกได้เองทันที
+> ไม่ต้องนั่งรอ Host ส่วน Host กดออก = ห้องสลาย คนอื่นถูก `ReturnToMenuOnHostLost` เด้งกลับเมนูตามเอง
+
+> ตอน panel ขึ้นจะตั้ง `GameFlowManager.GameEnded = true` (flag กลางที่มือ/เท้าเช็ค) + `UiFocus.Push`
+> เพื่อกันสคริปต์ผู้เล่นแย่งล็อกเมาส์กลับ ไม่งั้นเมาส์จะหายทันทีที่คลิกและกดปุ่มไม่ได้
+
 ### ทำไม `PvpRobotTeam` อยู่บนลำตัว ไม่ใช่ root
 root ของหุ่นในโปรเจกต์นี้**ไม่มี** `NetworkObject` (แต่ละ limb มีของตัวเองแยกกัน) แต่ `NetworkVariable` ต้องอยู่บน `NetworkBehaviour` ที่มี `NetworkObject` → ลำตัวจึงเหมาะที่สุด
 
@@ -292,7 +306,7 @@ root ของหุ่นในโปรเจกต์นี้**ไม่ม�
 | `PvpRobotTeam.cs` | ป้ายบอกทีมของหุ่น + เฝ้าดูว่าชิ้นส่วนหลุดครบยัง (**ไม่มีเลือด**) |
 | `PvpDamageSender.cs` | วางบนมือ/เท้า — ชนหุ่นอีกทีมแล้วยิงดาเมจเข้า `RobotHealth` เดิม |
 | `PvpTeamSelectUI.cs` | หน้าจอเลือกทีม/ชิ้นส่วน |
-| `PvpResultUI.cs` | ป้ายประกาศผู้ชนะ |
+| `PvpResultUI.cs` | หน้าจอจบแมตช์ VICTORY/DEFEAT + ปุ่มออกกลับเมนู / เล่นใหม่ |
 | `PvpPlayerHudGate.cs` | ซ่อน PlayerHUD เดิมระหว่างเลือกทีม แล้ว fade ขึ้นตอนเริ่มสู้ |
 | `Editor/PvpSceneSetup.cs` | เมนูติดตั้งหุ่น/manager อัตโนมัติ |
 | `Editor/PvpUIBuilder.cs` | เมนูสร้าง UI + วาง PlayerHUD |

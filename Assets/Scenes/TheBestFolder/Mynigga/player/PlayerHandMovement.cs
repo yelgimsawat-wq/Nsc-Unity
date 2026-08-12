@@ -313,7 +313,7 @@ public class PlayerHandMovement : NetworkBehaviour
             {
                 _cursorUpdateFrame = Time.frameCount;
                 Vector2 delta = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-                sharedVirtualCursor += delta * (mouseSensitivity * 0.1f);
+                sharedVirtualCursor += delta * (mouseSensitivity * MouseSettings.Multiplier * 0.1f);
                 sharedVirtualCursor.x = Mathf.Clamp(sharedVirtualCursor.x, -1f, 1f);
                 sharedVirtualCursor.y = Mathf.Clamp(sharedVirtualCursor.y, -1f, 1f);
             }
@@ -478,7 +478,8 @@ public class PlayerHandMovement : NetworkBehaviour
 
         // ── ระนาบหน้าจอ: ใช้แกน right/up ของกล้องตรงๆ (ไม่แบนลงพื้น)
         // มือจึงขยับตรงกับสิ่งที่ตาเห็นบนจอจริงๆ แม้กล้องจะก้ม/เงย
-        Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * (mouseSensitivity * 0.1f);
+        Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) *
+                     (mouseSensitivity * MouseSettings.Multiplier * 0.1f);
         sharedAimOffsetWorld += camT.right * (md.x * mouseReachX) + camT.up * (md.y * mouseReachY);
 
         // ── ล้อเมาส์: ยื่นออก/ดึงเข้าตามแนวไหล่→มือ

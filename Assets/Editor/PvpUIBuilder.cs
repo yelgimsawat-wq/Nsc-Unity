@@ -509,21 +509,88 @@ namespace NscGame.Pvp
         #region HUD
 
         /// <summary>
-        /// ป้ายประกาศผู้ชนะอย่างเดียว — ไม่มีหลอดเลือดในนี้
-        /// เลือดใช้ PlayerHUD เดิม (HullRingUI/LimbStatusUI) ที่ผูกกับหุ่นของผู้เล่นเอง
+        /// หน้าจอจบแมตช์: VICTORY/DEFEAT + ปุ่มออกกลับเมนู (โครงเดียวกับหน้าจบของโหมดบอส)
+        ///
+        /// ⚠️ ไม่มีหลอดเลือดในนี้ — เลือดใช้ PlayerHUD เดิม (HullRingUI/LimbStatusUI)
+        ///    ที่ผูกกับหุ่นของผู้เล่นเอง
+        ///
+        /// ฉากมืดคลุมทั้งจอเป็นลูกของ panel แต่ตัวที่เด้ง (popTarget) คือ Content ข้างใน
+        /// ไม่งั้นตอนเด้งจาก 0.8 เท่า ฉากมืดจะย่อตามจนเห็นขอบจอโผล่
         /// </summary>
         private static void BuildResultBanner(Transform parent, PvpResultUI ui, TMP_FontAsset font)
         {
-            GameObject result = CreatePanelBox(parent, "ResultPanel", Vector2.zero, new Vector2(900f, 220f),
-                new Color(0.02f, 0.03f, 0.05f, 0.95f), EdgeSoft, Frame.Full);
+            GameObject result = CreateUiObject(parent, "ResultPanel");
+            Stretch(result.GetComponent<RectTransform>());
 
-            TextMeshProUGUI resultText = CreateText(result.transform, "ResultText", "WINNER", font, 72, TextWhite);
-            Stretch(resultText.rectTransform);
+            // ฉากมืด — กินคลิกด้วย กันกดทะลุไปโดน UI ข้างหลัง
+            AddImage(result, new Color(0.01f, 0.015f, 0.025f, 0.82f));
+            CanvasGroup group = result.AddComponent<CanvasGroup>();
+
+            GameObject content = CreateUiObject(result.transform, "Content");
+            Stretch(content.GetComponent<RectTransform>());
+
+            // ---------- กล่องผลการแข่ง ----------
+            GameObject box = CreatePanelBox(content.transform, "ResultBox", new Vector2(0f, 70f),
+                new Vector2(940f, 300f), new Color(0.02f, 0.03f, 0.05f, 0.95f), EdgeSoft, Frame.Full);
+
+            TextMeshProUGUI resultText = CreateText(box.transform, "ResultText", "VICTORY", font, 96, TextWhite);
+            Anchor(resultText.rectTransform, Center, new Vector2(0f, 52f), new Vector2(880f, 140f));
             resultText.fontStyle = FontStyles.Bold;
+            resultText.characterSpacing = 6f;
+
+            TextMeshProUGUI subtitle = CreateText(box.transform, "Subtitle", "RED TEAM WINS", font, 34, TextGrey);
+            Anchor(subtitle.rectTransform, Center, new Vector2(0f, -66f), new Vector2(880f, 52f));
+            subtitle.characterSpacing = 8f;
+
+            // ---------- ปุ่มล่างกล่อง ----------
+            Button exitButton = CreateActionButton(content.transform, "ExitButton", "EXIT TO MENU",
+                new Vector2(-180f, -175f), TextWhite, font);
+
+            Button rematchButton = CreateActionButton(content.transform, "RematchButton", "REMATCH",
+                new Vector2(180f, -175f), new Color(0.99f, 0.86f, 0.25f, 1f), font);
+
+            // client เห็นข้อความนี้แทนปุ่ม REMATCH (เล่นใหม่ได้เฉพาะ Host)
+            TextMeshProUGUI waiting = CreateText(content.transform, "WaitingForHostText",
+                "WAITING FOR HOST...", font, 24, TextDim);
+            Anchor(waiting.rectTransform, Center, new Vector2(180f, -175f), new Vector2(340f, 50f));
+            waiting.characterSpacing = 4f;
 
             ui.resultPanel = result;
+            ui.resultGroup = group;
+            ui.popTarget = content.transform;
             ui.resultText = resultText;
+            ui.subtitleText = subtitle;
+            ui.exitButton = exitButton;
+            ui.rematchButton = rematchButton;
+            ui.waitingForHostText = waiting.gameObject;
+
             result.SetActive(false);
+        }
+
+        /// <summary>ปุ่มสี่เหลี่ยมมุมตัดพร้อมป้ายข้อความ — ใช้กับปุ่มบนหน้าจบแมตช์</summary>
+        private static Button CreateActionButton(Transform parent, string name, string label,
+            Vector2 position, Color labelColor, TMP_FontAsset font)
+        {
+            GameObject go = CreateUiObject(parent, name);
+            Anchor(go.GetComponent<RectTransform>(), Center, position, new Vector2(340f, 96f));
+
+            Image fill = AddImage(go, new Color(0.055f, 0.071f, 0.098f, 0.95f));
+            fill.sprite = LoadHudSprite(PvpUiSpriteFactory.FillPath);
+            fill.type = Image.Type.Sliced;
+
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = fill;
+            button.transition = Selectable.Transition.ColorTint;
+            ApplyButtonColors(button);
+
+            AddFrame(go.transform, EdgeSoft, Frame.Full);
+
+            TextMeshProUGUI text = CreateText(go.transform, "Label", label, font, 30, labelColor);
+            Anchor(text.rectTransform, Center, Vector2.zero, new Vector2(320f, 60f));
+            text.fontStyle = FontStyles.Bold;
+            text.characterSpacing = 3f;
+
+            return button;
         }
 
         /// <summary>
