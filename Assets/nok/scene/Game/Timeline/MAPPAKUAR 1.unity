@@ -2737,20 +2737,44 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2100000, guid: 15c26ecc780d76840af46f9512d3fa7e, type: 2}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: handDamper
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachX
-      value: 12
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: mouseReachY
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maxArmLength
+      value: 15.735145
       objectReference: {fileID: 0}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: grabBreakForce
       value: 50000
       objectReference: {fileID: 0}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maxHandVelocity
+      value: 120
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachDepth
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: punchExtraReach
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: kinematicPullForce
       value: 80
+      objectReference: {fileID: 0}
+    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: handDepthScrollSpeed
+      value: 0.03
       objectReference: {fileID: 0}
     - target: {fileID: 1483107057343592160, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
@@ -2796,6 +2820,46 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 94277113
       objectReference: {fileID: 0}
+    - target: {fileID: 1992207540033442344, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularZMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_SlerpDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2472885603461196222, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYZDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2487817889022272104, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2756808108934423391, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3319422588224589804, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3481833401209976696, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3557252851
@@ -2828,6 +2892,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[4]'
       value: 
       objectReference: {fileID: 2100000, guid: 9b2df62ff2ec56a4a957bf71f1b4a6fb, type: 2}
+    - target: {fileID: 4371318364166063628, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_SlerpDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4371318364166063628, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4371318364166063628, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYZDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4714729722796991775, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1134185834
@@ -2848,9 +2924,37 @@ PrefabInstance:
       propertyPath: m_Name
       value: RobotContainer
       objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularZMotion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_SlerpDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5926271985827708046, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYZDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5962145731777525622, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 1977282750
+      objectReference: {fileID: 0}
+    - target: {fileID: 6084723681886900123, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: maxTorsoStress
@@ -2875,6 +2979,18 @@ PrefabInstance:
     - target: {fileID: 6308388643719817161, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3087355190
+      objectReference: {fileID: 0}
+    - target: {fileID: 6640856561921496833, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_SlerpDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6640856561921496833, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularXDrive.positionDamper
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6640856561921496833, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_AngularYZDrive.positionDamper
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6696804326391761074, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
@@ -2976,6 +3092,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[2]'
       value: 
       objectReference: {fileID: 2100000, guid: dc82b6a20c81aa64a99303dc7cba1831, type: 2}
+    - target: {fileID: 8565908951431584583, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: m_Interpolate
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8876509816856073725, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -2986,23 +3106,43 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handDamper
-      value: 20
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachX
-      value: 12
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: mouseReachY
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maxArmLength
+      value: 16.263567
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: grabBreakForce
       value: 10000
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: maxHandVelocity
+      value: 120
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachDepth
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: punchExtraReach
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: kinematicPullForce
       value: 80
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: handDepthScrollSpeed
+      value: 0.03
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: ragdollHandSpringScale
@@ -3055,10 +3195,10 @@ HingeJoint:
   m_Axis: {x: -1, y: 0, z: 0}
   m_AutoConfigureConnectedAnchor: 1
   m_ConnectedAnchor: {x: 0, y: 0, z: 0}
-  m_UseSpring: 1
+  m_UseSpring: 0
   m_Spring:
     spring: 0
-    damper: 5
+    damper: 0
     targetPosition: 0
   m_UseMotor: 0
   m_Motor:
@@ -12306,10 +12446,10 @@ HingeJoint:
   m_Axis: {x: -1, y: 0, z: 0}
   m_AutoConfigureConnectedAnchor: 1
   m_ConnectedAnchor: {x: 0, y: 0, z: 0}
-  m_UseSpring: 1
+  m_UseSpring: 0
   m_Spring:
     spring: 0
-    damper: 5
+    damper: 0
     targetPosition: 0
   m_UseMotor: 0
   m_Motor:

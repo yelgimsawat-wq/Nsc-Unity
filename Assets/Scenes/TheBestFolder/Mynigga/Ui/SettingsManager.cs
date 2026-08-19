@@ -830,7 +830,7 @@ public class SettingsManager : MonoBehaviour
 
         if (voiceStatusLabel != null)
         {
-            if (Microphone.devices.Length == 0)
+            if (VoiceChat.MicDeviceNames.Length == 0)
             {
                 voiceStatusLabel.text = "No microphone detected.";
             }

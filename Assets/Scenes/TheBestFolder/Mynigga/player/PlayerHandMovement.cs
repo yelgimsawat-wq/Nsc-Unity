@@ -91,6 +91,17 @@ public class PlayerHandMovement : NetworkBehaviour
              "ตั้งให้เท่ากับ mouseReachX ถ้าอยากได้ความรู้สึกสมมาตรบนหน้าจอ")]
     public float mouseReachY = 3f;
 
+    [Tooltip("สเกลความไวตามระยะกล้อง — ให้ 'มือขยับกี่พิกเซลบนจอ' คงที่ทุกระดับซูม\n" +
+             "ปิด = ความไวคิดเป็นเมตรในโลกตายตัว ซึ่งทำให้กล้องใกล้ไวเกินคุมไม่อยู่ " +
+             "แต่กล้องไกลกลับกำลังดี (มือขยับเท่ากันในโลก = กินพื้นที่จอไม่เท่ากัน)")]
+    public bool scaleAimWithCameraDistance = true;
+
+    [Tooltip("ระยะกล้าง (เมตร) ที่ถือว่าความไว = mouseReachX/Y เป๊ะๆ\n" +
+             "ตั้งให้ตรงกับระยะที่จูนความไวไว้ตอนแรก — ใกล้กว่านี้จะละเอียดขึ้น ไกลกว่าจะกว้างขึ้น\n" +
+             "แนะนำให้ตรงกับ PlayerCam.maxDistance")]
+    [Min(0.1f)]
+    public float aimReferenceCameraDistance = 20f;
+
     // ── Hand Depth (ล้อเมาส์ = เข้า/ออกจากตัว) ─────────────────────────
     // 🎯 ล้อเมาส์ขยับมือตามแนว "ไหล่ → มือ" ซึ่งเป็นแกนที่ไม่ขึ้นกับกล้องเลย
     // (ถ้าใช้ camera forward ตรงๆ พอหมุนกล้องแล้วมือจะกวาดตาม = ผิดข้อกำหนด World-Anchored)
@@ -463,6 +474,18 @@ public class PlayerHandMovement : NetworkBehaviour
     ///   • หมุนกล้อง (ไม่มี delta) → offset ไม่เปลี่ยน → มือค้างที่ world position เดิมเป๊ะ
     ///   • ปล่อยคลิกขวาแล้วขยับเมาส์ต่อ → คุมต่อจาก offset เดิม ด้วยมุมกล้องใหม่ ไม่มีกระชาก
     /// </summary>
+    /// <summary>
+    /// ตัวคูณความไวตามระยะกล้อง — 1.0 พอดีที่ aimReferenceCameraDistance
+    /// ใกล้กว่านั้น &lt; 1 (ละเอียดขึ้น) / ไกลกว่านั้น &gt; 1 (กวาดได้กว้างขึ้น)
+    /// เพื่อให้ระยะที่มือขยับ "บนจอ" เท่าเดิมเสมอไม่ว่าซูมเข้าออกแค่ไหน
+    /// </summary>
+    private float CameraDistanceGain()
+    {
+        if (!scaleAimWithCameraDistance || playerCamera == null) return 1f;
+        float camDist = Vector3.Distance(playerCamera.transform.position, PivotPosition);
+        return camDist / Mathf.Max(0.1f, aimReferenceCameraDistance);
+    }
+
     private void UpdateHandAim()
     {
         // มือสองข้างแชร์จุดเล็งเดียวกัน — กันบวก delta ซ้ำสองรอบในเฟรมเดียว
@@ -480,7 +503,14 @@ public class PlayerHandMovement : NetworkBehaviour
         // มือจึงขยับตรงกับสิ่งที่ตาเห็นบนจอจริงๆ แม้กล้องจะก้ม/เงย
         Vector2 md = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) *
                      (mouseSensitivity * MouseSettings.Multiplier * 0.1f);
-        sharedAimOffsetWorld += camT.right * (md.x * mouseReachX) + camT.up * (md.y * mouseReachY);
+
+        // ✅ [Screen-Constant Aim] ความไวเดิมคิดเป็น "เมตรในโลก" ตายตัว ไม่สนระยะกล้อง
+        // ผลคือกล้องใกล้ = มือกวาดข้ามจอด้วยการขยับเมาส์นิดเดียว (คุมไม่อยู่)
+        // แต่กล้องไกล = ระยะเท่ากันในโลกกินพื้นที่จอน้อยลง (กำลังดี)
+        // สเกลด้วยระยะกล้องจริง → "มือขยับกี่พิกเซลบนจอ" คงที่ทุกระดับซูม
+        float aimGain = CameraDistanceGain();
+        sharedAimOffsetWorld += (camT.right * (md.x * mouseReachX) +
+                                 camT.up    * (md.y * mouseReachY)) * aimGain;
 
         // ── ล้อเมาส์: ยื่นออก/ดึงเข้าตามแนวไหล่→มือ
         // จงใจไม่ใช้ camera forward — ไม่งั้นพอหมุนกล้อง "ความลึก" จะชี้ไปคนละทิศ
@@ -489,7 +519,8 @@ public class PlayerHandMovement : NetworkBehaviour
         if (Mathf.Abs(scroll) > 0.0001f && sharedAimOffsetWorld.sqrMagnitude > 0.0001f)
         {
             float notches = scroll / SCROLL_NOTCH;
-            float step = notches * handDepthScrollSpeed * (maxHandDepth - minHandDepth);
+            // สเกลตามระยะกล้องเหมือนแกนอื่น ไม่งั้นความลึกจะไวไม่เท่าแนวนอน/แนวตั้ง
+            float step = notches * handDepthScrollSpeed * (maxHandDepth - minHandDepth) * aimGain;
             sharedAimOffsetWorld += sharedAimOffsetWorld.normalized * step;
         }
 

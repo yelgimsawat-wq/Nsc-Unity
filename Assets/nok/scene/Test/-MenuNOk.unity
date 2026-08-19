@@ -18078,6 +18078,11 @@ MonoBehaviour:
   cancelRoomSizeButton: {fileID: 941028704}
   pvpSceneName: PVP
   maxPlayersPvp: 8
+  reconnectPanel: {fileID: 0}
+  reconnectStatusLabel: {fileID: 0}
+  cancelReconnectButton: {fileID: 0}
+  reconnectMaxAttempts: 5
+  reconnectFirstDelay: 2
   lobbyCam: {fileID: 1648259813}
   maxPlayers: 4
   minimumPlayersToStart: 1
@@ -19733,6 +19738,10 @@ PrefabInstance:
     - target: {fileID: 4826203162227063523, guid: 2ec8c94a146553f45b12639db80fe364, type: 3}
       propertyPath: m_Name
       value: NetworkManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 5181069032278505187, guid: 2ec8c94a146553f45b12639db80fe364, type: 3}
+      propertyPath: m_UseWebSockets
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -22103,6 +22112,8 @@ MonoBehaviour:
   voiceStatusLabel: {fileID: 1538844054}
   playerNameInputField: {fileID: 540403925}
   showNetworkStatsToggle: {fileID: 0}
+  mouseSensitivitySlider: {fileID: 0}
+  mouseSensitivityValueLabel: {fileID: 0}
   networkStatsPanel: {fileID: 0}
   fpsLabel: {fileID: 0}
   pingLabel: {fileID: 0}

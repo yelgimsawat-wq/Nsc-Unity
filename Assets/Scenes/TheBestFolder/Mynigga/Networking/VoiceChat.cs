@@ -117,13 +117,30 @@ public class VoiceChat : MonoBehaviour
         vadAutoCalibrate = PlayerPrefs.GetInt(PrefVadAuto, 1) == 1;
         CurrentVadOpenThreshold = vadThreshold;
 
-        if (!string.IsNullOrEmpty(micDevice) && Array.IndexOf(Microphone.devices, micDevice) < 0)
+        if (!string.IsNullOrEmpty(micDevice) && Array.IndexOf(MicDeviceNames, micDevice) < 0)
             micDevice = string.Empty;
+    }
+
+    /// <summary>
+    /// Capture devices visible to Unity. WebGL players ship without
+    /// UnityEngine.Microphone at all, so the list is simply empty there and the
+    /// rest of the voice UI degrades to "Default / no devices" on its own.
+    /// </summary>
+    public static string[] MicDeviceNames
+    {
+        get
+        {
+#if UNITY_WEBGL
+            return new string[0];
+#else
+            return Microphone.devices;
+#endif
+        }
     }
 
     public static string[] GetMicDeviceOptions()
     {
-        string[] devices = Microphone.devices;
+        string[] devices = MicDeviceNames;
         string[] options = new string[devices.Length + 1];
         options[0] = "Default";
         Array.Copy(devices, 0, options, 1, devices.Length);
@@ -424,7 +441,7 @@ public class VoiceChat : MonoBehaviour
 
     public void SetMicDevice(string device)
     {
-        if (!string.IsNullOrEmpty(device) && Array.IndexOf(Microphone.devices, device) < 0)
+        if (!string.IsNullOrEmpty(device) && Array.IndexOf(MicDeviceNames, device) < 0)
             device = string.Empty;
 
         micDevice = device ?? string.Empty;
