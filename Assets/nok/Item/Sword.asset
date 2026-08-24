@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e80c69504d6a6a488d2c9626c27b229, type: 3}
+  m_Name: Sword
+  m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.ItemDefinition
+  displayName: Gun
+  description: "\t\t\t\t\t\t\t"
+  icon: {fileID: -321038014, guid: 46c90585b3c0fa440a608dabbd4e177d, type: 3}
+  accentColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+  heldPrefab: {fileID: 4569852715850010622, guid: e3160ae8abe8d554f917eeff1f8ed626, type: 3}
+  worldPrefab: {fileID: 3184614491437472095, guid: 6d431c3b28438ae49b1cecaef310aa15, type: 3}
+  holdPositionOffset: {x: 0, y: 1.2, z: -5.8}
+  holdRotationOffset: {x: 0, y: 0, z: 0}
+  holdScale: {x: 1, y: 1, z: 1}

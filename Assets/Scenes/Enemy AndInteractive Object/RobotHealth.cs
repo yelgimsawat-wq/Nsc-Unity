@@ -26,8 +26,26 @@ public class RobotHealth : NetworkBehaviour, IHittable
     [Header("References")]
     public JointPullAndReconnect Jpar;
 
+    [Header("Hit Reaction VFX/SFX")]
+    [Tooltip("Particle ที่เกิดตรงจุดโดนต่อย — Server สั่งให้เกิดพร้อมกันทุกเครื่องผ่าน ClientRpc\n" +
+             "ถ้าเว้นว่างไว้จะไม่มีเอฟเฟค (ยังมีของฝั่งมือจาก PhysicsDamageSender อยู่)")]
+    [SerializeField] private GameObject hitVfxPrefab;
+
+    [Tooltip("เสียงตอนโดนต่อย")]
+    [SerializeField] private AudioClip sfxHit;
+
+    [Tooltip("เว้นว่างได้ — จะไปหา AudioSource บน GameObject นี้ให้เองตอน Awake")]
+    [SerializeField] private AudioSource audioSource;
+
     private float timer = 0;
     private bool regening = true;
+
+    private void Awake()
+    {
+        // ไม่เขียนทับตัวที่ลากใส่ใน Inspector ไว้แล้ว (AudioSource อาจอยู่บนลูก)
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+    }
 
     public override void OnNetworkSpawn()
     {
@@ -105,13 +123,67 @@ public class RobotHealth : NetworkBehaviour, IHittable
         }
     }
 
-    private void ApplyDamage(float amount)
+    /// <summary>
+    /// [SERVER] Overload ที่รับ "จุดปะทะจริง" เพิ่มมา — ใช้ตอนหุ่นอีกทีมต่อยโดน (PVP)
+    ///
+    /// ทำไมต้องมีตัวนี้: เดิม PhysicsDamageSender สร้างเอฟเฟคเองแบบ local
+    /// → คนที่เห็นมีแค่เครื่องที่ตรวจเจอการชน (ฝั่งคนต่อย) ส่วนคนโดนกับคนอื่นในห้อง
+    /// ไม่เห็นอะไรเลย ตัวนี้เลยยิง ClientRpc ให้เอฟเฟคขึ้นพร้อมกันทุกจอ
+    /// ตามแบบเดียวกับ EnemyHealth.ServerTakeHit ฝั่งบอส
+    /// </summary>
+    /// <param name="hitPoint">จุดที่หมัด/เท้าปะทะจริงในโลก (Collision.contacts[0].point)</param>
+    public void ServerTakeDamage(float amount, AttackType source, Vector3 direction, Vector3 hitPoint)
+    {
+        if (!IsServer) return;
+
+        // ยิงเอฟเฟคก่อนคิดดาเมจ เพื่อให้ "หมัดสุดท้ายที่ทำให้ชิ้นหลุด" ยังมีเอฟเฟคให้เห็น
+        // (ถ้ายิงทีหลัง ApplyDamage อาจ Break() ไปแล้วจน CanTakeDamage เป็น false)
+        if (CanTakeDamage())
+            PlayHitEffectsClientRpc(hitPoint, direction);
+
+        ServerTakeDamage(amount, source, direction);
+    }
+
+    /// <summary>สร้าง VFX + เล่นเสียงตรงจุดโดนต่อย — รันบนทุกเครื่อง</summary>
+    [ClientRpc]
+    private void PlayHitEffectsClientRpc(Vector3 impactPosition, Vector3 hitDirection)
+    {
+        if (hitVfxPrefab != null)
+        {
+            // หัน particle ตามทิศหมัด — ถ้าทิศเป็นศูนย์ (กันหาร 0) ใช้หมุนเปล่า
+            Quaternion rotation = hitDirection.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(hitDirection)
+                : Quaternion.identity;
+
+            GameObject vfx = Instantiate(hitVfxPrefab, impactPosition, rotation);
+
+            // เก็บกวาดเองหลังเล่นจบ — ไม่งั้นซากเอฟเฟคค้างในฉากเรื่อยๆ
+            ParticleSystem ps = vfx.GetComponentInChildren<ParticleSystem>();
+            Destroy(vfx, ps != null ? ps.main.duration + 1f : 2f);
+        }
+
+        if (sfxHit != null && audioSource != null)
+            audioSource.PlayOneShot(sfxHit);
+    }
+
+    /// <summary>
+    /// ชิ้นนี้ยังกินดาเมจได้อยู่ไหม — แยกออกมาเป็นฟังก์ชันเพื่อให้เอฟเฟคตอนโดนต่อย
+    /// ใช้เงื่อนไขชุดเดียวกับดาเมจเป๊ะๆ (ชิ้นที่หลุด/พังแล้วจะได้ไม่เด้งเอฟเฟคลอยๆ)
+    /// </summary>
+    private bool CanTakeDamage()
     {
         // ✅ ชิ้นที่หลุดไปแล้วไม่รับดาเมจ — ไม่งั้นเลือดที่ regen ระหว่างหลุด
         // จะโดนตีจนหมดซ้ำ → Break() ซ้ำ → เพดานเลือดโดนหักรัวๆ ทั้งที่หลุดไปแล้ว
-        if (Jpar != null && !Jpar.IsConnected) return;
+        if (Jpar != null && !Jpar.IsConnected) return false;
 
-        if (currentHp.Value <= 0) return; // พังไปแล้ว ไม่ต้องลบเลือดซ้ำ
+        if (currentHp.Value <= 0) return false; // พังไปแล้ว ไม่ต้องลบเลือดซ้ำ
+
+        return true;
+    }
+
+    private void ApplyDamage(float amount)
+    {
+        if (!CanTakeDamage()) return;
 
         currentHp.Value -= amount;
         regening = false;

@@ -185,11 +185,14 @@ public class PhysicsDamageSender : MonoBehaviour
             else
             {
                 // RobotHealth ปฏิเสธเองถ้าชิ้นนั้นหลุดไปแล้ว (เช็คใน ApplyDamage)
+                // ส่ง impactPoint ไปด้วย เพื่อให้ RobotHealth ยิง ClientRpc สร้างเอฟเฟค
+                // ตรงจุดที่โดนต่อยจริง ให้ทุกคนในห้องเห็นตรงกัน (ไม่ใช่แค่เครื่องคนต่อย)
                 if (isServer)
                     robotHealth.ServerTakeDamage(
                         finalDamage,
                         legCombat != null ? AttackType.Kick : AttackType.LightPunch,
-                        hitDirection);
+                        hitDirection,
+                        impactPoint);
 
                 hitDamageTarget = true;
                 float attackSpeed = combat != null
