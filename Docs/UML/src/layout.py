@@ -3,6 +3,8 @@ TITLE_AT = (60, 72)
 TITLE = "Nsc-Unity — Class Diagram"
 SUBTITLE = "โครงสร้างคลาสของเกม (ปรับจากโค้ดในเกม) · 61 คลาส ใน 7 แพ็กเกจ"
 LEGEND_AT = None
+SIMPLE_LINES = True     # one line style: solid line + filled arrowhead
+SHOW_LINE_TEXT = False  # no labels or multiplicities on lines
 LEGEND_SIZE = (1100, 290)
 
 PKG_PAD = {
@@ -138,20 +140,4 @@ EDGES = [
     E("dep", "ChargeGunHeldItem", "Projectile", ("b", 210), ("t", 210), label="ยิง", lpos=(210, 2302)),
 ]
 
-NOTES = [
-    dict(pkg="control", x=60, y=560, w=380, lines=[
-        "Rpc ทุกตัวเป็น owner-only: เจ้าของชิ้นส่งแค่คำสั่ง",
-        "server ตรวจค่า แล้วขับฟิสิกส์ใน FixedUpdate",
-        "ผลกลับไปทุกเครื่องผ่าน NetworkTransform",
-    ], conn=[(440, 594), (500, 594)]),
-    dict(pkg="combat", x=1270, y=1800, w=490, lines=[
-        "ดาเมจทุกชนิดผ่าน DamageRouter จุดเดียว",
-        "เช็คทีมและ GameplayGate.CanDamage ก่อน",
-        "แล้วค่อยเรียก ServerApplyDamage ของเป้าหมาย",
-    ], conn=[(1740, 1800), (1740, 1689)]),
-    dict(pkg="boss", x=3110, y=1428, w=360, lines=[
-        "เลือดบอสต่ำกว่า triggerHpPercent",
-        "→ กระโดดถอย ชาร์จ แล้วยิง Black Hole",
-        "โดนทั้งหุ่นและสิ่งก่อสร้างในแนวยิง",
-    ], conn=[(3110, 1460), (3050, 1460)]),
-]
+NOTES = []

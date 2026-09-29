@@ -181,6 +181,13 @@ def build_edges():
         k = e["k"]
         draw = list(pts)
         marks = []
+        if getattr(layout, "SIMPLE_LINES", False):
+            ux, uy = unit(pts[-2], pts[-1])
+            if not e.get("shared_tip"):
+                marks.append(("classic", pts[-1], (ux, uy)))
+            draw[-1] = (pts[-1][0] - ux * 8, pts[-1][1] - uy * 8)
+            built.append(dict(e=e, pts=pts, draw=draw, marks=marks))
+            continue
         if k in ("inh", "real"):
             ux, uy = unit(pts[-2], pts[-1])
             tip = pts[-1]
@@ -352,7 +359,14 @@ def draw_box(c, out):
 def draw_marker(m, out, dash):
     kind, tip, (ux, uy) = m[0], m[1], m[2]
     px, py = -uy, ux
-    if kind == "tri":
+    if kind == "classic":
+        b = (tip[0] - ux * 12, tip[1] - uy * 12)
+        notch = (tip[0] - ux * 8, tip[1] - uy * 8)
+        p1 = (b[0] + px * 5, b[1] + py * 5)
+        p2 = (b[0] - px * 5, b[1] - py * 5)
+        out.append('<polygon points="%s,%s %s,%s %s,%s %s,%s" fill="%s" stroke="%s" stroke-width="1"/>' % (
+            fmt(tip[0]), fmt(tip[1]), fmt(p1[0]), fmt(p1[1]), fmt(notch[0]), fmt(notch[1]), fmt(p2[0]), fmt(p2[1]), LINE, LINE))
+    elif kind == "tri":
         base = (tip[0] - ux * 14, tip[1] - uy * 14)
         p1 = (base[0] + px * 8, base[1] + py * 8)
         p2 = (base[0] - px * 8, base[1] - py * 8)
@@ -449,7 +463,7 @@ def render(path):
         b["hops"] = hops
     # edges
     for b in built:
-        dash = ' stroke-dasharray="7 5"' if EDGE_STYLE[b["e"]["k"]]["dash"] else ""
+        dash = ' stroke-dasharray="7 5"' if EDGE_STYLE[b["e"]["k"]]["dash"] and not getattr(layout, "SIMPLE_LINES", False) else ""
         out.append('<path d="%s" fill="none" stroke="%s" stroke-width="1.2"%s/>' % (hop_path(b["draw"], b["hops"]), LINE, dash))
     for b in built:
         for m in b["marks"]:
@@ -467,7 +481,7 @@ def render(path):
     for cid in ORDER:
         draw_box(CLASSES[cid], out)
     # labels and multiplicities
-    for b in built:
+    for b in (built if getattr(layout, "SHOW_LINE_TEXT", True) else []):
         e = b["e"]
         if e.get("label"):
             lx, ly = e["lpos"]
