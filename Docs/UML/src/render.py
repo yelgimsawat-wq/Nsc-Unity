@@ -477,8 +477,9 @@ def render(path):
                 t, dx, dy = e[key]
                 ex, ey = b["pts"][end]
                 out.append(svg_text(ex + dx, ey + dy, t, 12, "700", "middle", fill=LABEL))
-    # legend
-    draw_legend(out)
+    # legend (optional)
+    if LEGEND_AT:
+        draw_legend(out)
     out.append("</svg>")
     open(path, "w").write("\n".join(out))
     return problems

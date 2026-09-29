@@ -2,7 +2,7 @@ CANVAS = (3560, 2540)
 TITLE_AT = (60, 72)
 TITLE = "Nsc-Unity — Class Diagram"
 SUBTITLE = "โครงสร้างคลาสของเกม (ปรับจากโค้ดในเกม) · 61 คลาส ใน 7 แพ็กเกจ"
-LEGEND_AT = (60, 140)
+LEGEND_AT = None
 LEGEND_SIZE = (1100, 290)
 
 PKG_PAD = {
