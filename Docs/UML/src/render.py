@@ -182,10 +182,13 @@ def build_edges():
         draw = list(pts)
         marks = []
         if getattr(layout, "SIMPLE_LINES", False):
+            # solid lines only; hollow triangle = inherits / implements, filled arrow = everything else
             ux, uy = unit(pts[-2], pts[-1])
+            is_parent = k in ("inh", "real")
             if not e.get("shared_tip"):
-                marks.append(("classic", pts[-1], (ux, uy)))
-            draw[-1] = (pts[-1][0] - ux * 8, pts[-1][1] - uy * 8)
+                marks.append(("tri" if is_parent else "classic", pts[-1], (ux, uy)))
+            back = 14 if is_parent else 8
+            draw[-1] = (pts[-1][0] - ux * back, pts[-1][1] - uy * back)
             built.append(dict(e=e, pts=pts, draw=draw, marks=marks))
             continue
         if k in ("inh", "real"):
