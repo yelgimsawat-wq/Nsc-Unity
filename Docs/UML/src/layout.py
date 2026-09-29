@@ -3,7 +3,7 @@ TITLE_AT = (60, 72)
 TITLE = "Nsc-Unity — Class Diagram"
 SUBTITLE = "โครงสร้างคลาสของเกม (ปรับจากโค้ดในเกม) · 61 คลาส ใน 7 แพ็กเกจ"
 LEGEND_AT = None
-SIMPLE_LINES = True     # solid lines: hollow triangle for inherit/implement, filled arrow otherwise
+SIMPLE_LINES = False    # standard UML arrows (association, inheritance, realization, dependency, composition, aggregation)
 SHOW_LINE_TEXT = False  # no labels or multiplicities on lines
 LEGEND_SIZE = (1100, 290)
 
