@@ -1,0 +1,868 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3560 2540" width="3560" height="2540" font-family="'Liberation Sans', Arial, Helvetica, Loma, sans-serif" fill="#F2F2F2">
+<rect width="100%" height="100%" fill="#0C0C0C"/>
+<text x="60" y="72" font-size="30" font-weight="700">Nsc-Unity — Class Diagram</text>
+<text x="60" y="102" font-size="15" fill="#A9A9A9">โครงสร้างคลาสของเกม (ปรับจากโค้ดในเกม) · 61 คลาส ใน 7 แพ็กเกจ</text>
+<rect x="1242" y="450" width="68" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="1242" y="476" width="1136" height="803" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="1256" y="468" font-size="14" font-weight="700">Robot</text>
+<text x="1258" y="500" font-size="13" fill="#A9A9A9">หุ่นยนต์ แขนขา และการทรงตัว</text>
+<rect x="32" y="458" width="115" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="32" y="484" width="1156" height="802" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="46" y="476" font-size="14" font-weight="700">Limb Control</text>
+<text x="48" y="508" font-size="13" fill="#A9A9A9">ควบคุมแขนขา (input ฝั่งเจ้าของ → RPC → ฟิสิกส์บน server)</text>
+<rect x="1242" y="1344" width="80" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="1242" y="1370" width="1166" height="631" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="1256" y="1362" font-size="14" font-weight="700">Combat</text>
+<text x="1258" y="1394" font-size="13" fill="#A9A9A9">เส้นทางดาเมจ</text>
+<rect x="2502" y="1344" width="62" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="2502" y="1370" width="996" height="783" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="2516" y="1362" font-size="14" font-weight="700">Boss</text>
+<text x="2518" y="1394" font-size="13" fill="#A9A9A9">AI และท่าไม้ตายของบอส</text>
+<rect x="2472" y="150" width="140" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="2472" y="176" width="1026" height="990" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="2486" y="168" font-size="14" font-weight="700">Match &amp; Session</text>
+<text x="2488" y="200" font-size="13" fill="#A9A9A9">แมตช์ โหมดเกม ลอบบี้ และการเลือกแขนขา</text>
+<rect x="1242" y="150" width="89" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="1242" y="176" width="1066" height="230" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="1256" y="168" font-size="14" font-weight="700">Respawn</text>
+<text x="1258" y="200" font-size="13" fill="#A9A9A9">เช็คพอยต์และการเกิดใหม่</text>
+<rect x="32" y="1344" width="64" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="32" y="1370" width="1016" height="1109" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<text x="46" y="1362" font-size="14" font-weight="700">Items</text>
+<text x="48" y="1394" font-size="13" fill="#A9A9A9">ไอเทมและอาวุธ</text>
+<path d="M455,780 L455,740 L645,740 L645,714" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M830,780 L830,740 L645,740 L645,714" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M960,850 L1010,850" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M290,850 L240,850" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M110,1070 L110,936" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M190,1070 L190,1010 L320,1010 L320,952" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M220,1130 L290,1130" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M440,1070 L440,952" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M800,1070 L800,1000" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1040,1070 L1040,1035 L920,1035 L920,1000" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M990,1130 L870,1130" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M400,1258 L400,1328 L1355,1328 L1355,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M745,1258 L745,1328 L1355,1328 L1355,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M950,2170 L1110,2170 L1110,1328 L1355,1328 L1355,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1252,615 L790,615" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1500,270 L1680,270" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2050,254 L1920,254" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1800,378 L1800,522" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1642,600 L1540,600" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1805,744 L1805,800" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1400,731 L1400,800" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1558,680 L1600,680 L1600,1160 L1550,1160" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1958,880 L2030,880" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1950,580 L2190,580" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2100,972 L2100,1080" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2275,972 L2275,1080" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1940,990 L1995,990 L1995,1150 L2030,1150" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1660,1110 L1630,1110 L1630,760 L1700,760 L1700,726" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1680,1191 L1680,1262 L1520,1262 L1520,1236" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1400,1236 L1400,1310 L1760,1310 L1760,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1860,1191 L1860,1310 L1760,1310 L1760,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2240,1416 L2240,1310 L1935,1310 a5,5 0 0 0 -10,0 L1760,1310 L1760,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2530,1450 L2485,1450 L2485,1310 L1935,1310 a5,5 0 0 0 -10,0 L1760,1310 L1760,1402" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1355,1596 L1355,1525" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1540,1640 L1610,1640" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1700,1596 L1700,1509" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1880,1689 L1880,1800" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M1960,1850 L2010,1850" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1960,1960 L2285,1960 L2285,1915" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M1930,1596 L1930,1292 L2685,1292 a5,5 0 0 1 10,0 L2975,1292 L2975,893" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M310,2395 L1170,2395 L1170,1755 L1700,1755 L1700,1689" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M585,2225 L585,2370 L1140,2370 L1140,1735 L1650,1735 L1650,1689" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2530,1700 L2460,1700 L2460,1615 L1950,1615" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2530,1880 L2440,1880 L2440,1665 L1950,1665" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2810,1470 L2890,1470" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2970,1540 L2970,1600 L2680,1600 L2680,1650" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2890,1880 L2810,1880" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3120,1880 L3190,1880" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2605,1938 L2605,2010" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M3005,1986 L3005,2067 L2680,2067" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2690,1138 L2690,1416" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2500,660 L1950,660" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2500,870 L2420,870 L2420,706 L1950,706" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2760,522 L2760,300 L2840,300" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2780,600 L2860,600" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3000,378 L3000,522" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3178,270 L3230,270" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3140,560 L3230,560" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3140,680 L3230,680" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2960,694 L2960,800" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M2690,800 L2690,740 L2880,740 L2880,694" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2605,1030 L2605,952" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M2845,1030 L2845,985 L2605,985 L2605,952" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3105,1030 L3105,985 L2980,985 a5,5 0 0 0 -10,0 L2605,985 L2605,952" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3230,870 L3110,870 L3110,694" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M3340,941 L3340,1000" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M350,1470 L430,1470" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M150,1540 L150,1680" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M680,1470 L780,1470" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M555,1604 L555,1680" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M900,1542 L900,1680" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M210,1680 L210,1640 L550,1640 a5,5 0 0 1 10,0 L860,1640 L860,1680" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M555,1822 L555,1880" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M700,1920 L905,1920 L905,1805" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M235,2130 L235,2090 L555,2090 L555,2051" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M585,2130 L585,2090 L555,2090 L555,2051" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M855,2130 L855,2090 L555,2090 L555,2051" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M210,2257 L210,2340" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<polygon points="645,700 653,714 637,714" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="999,856 1010,850 999,844" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="251,844 240,850 251,856" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="116,947 110,936 104,947" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="326,963 320,952 314,963" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="279,1136 290,1130 279,1124" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="446,963 440,952 434,963" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="806,1011 800,1000 794,1011" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="926,1011 920,1000 914,1011" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="881,1124 870,1130 881,1136" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1355,1416 1347,1402 1363,1402" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1270,615 1261,621 1252,615 1261,609" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1669,276 1680,270 1669,264" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1931,248 1920,254 1931,260" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1794,511 1800,522 1806,511" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1660,600 1651,606 1642,600 1651,594" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1805,726 1811,735 1805,744 1799,735" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1400,713 1406,722 1400,731 1394,722" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1540,680 1549,674 1558,680 1549,686" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1940,880 1949,874 1958,880 1949,886" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2179,586 2190,580 2179,574" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2094,1069 2100,1080 2106,1069" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2269,1069 2275,1080 2281,1069" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2019,1156 2030,1150 2019,1144" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1706,737 1700,726 1694,737" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1526,1247 1520,1236 1514,1247" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="1760,1416 1752,1402 1768,1402" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1361,1536 1355,1525 1349,1536" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1599,1646 1610,1640 1599,1634" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1706,1520 1700,1509 1694,1520" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1874,1789 1880,1800 1886,1789" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1999,1856 2010,1850 1999,1844" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2291,1926 2285,1915 2279,1926" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2981,904 2975,893 2969,904" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1706,1700 1700,1689 1694,1700" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1656,1700 1650,1689 1644,1700" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1961,1609 1950,1615 1961,1621" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1961,1659 1950,1665 1961,1671" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2879,1476 2890,1470 2879,1464" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2674,1639 2680,1650 2686,1639" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2821,1874 2810,1880 2821,1886" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="3179,1886 3190,1880 3179,1874" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2599,1999 2605,2010 2611,1999" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2691,2061 2680,2067 2691,2073" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2684,1405 2690,1416 2696,1405" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1961,654 1950,660 1961,666" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="1961,700 1950,706 1961,712" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2829,306 2840,300 2829,294" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2849,606 2860,600 2849,594" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2994,511 3000,522 3006,511" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="3160,270 3169,264 3178,270 3169,276" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="3219,566 3230,560 3219,554" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="3219,686 3230,680 3219,674" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2954,789 2960,800 2966,789" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="2886,705 2880,694 2874,705" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="2605,938 2613,952 2597,952" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="3116,705 3110,694 3104,705" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="3334,989 3340,1000 3346,989" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="419,1476 430,1470 419,1464" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="144,1669 150,1680 156,1669" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="769,1476 780,1470 769,1464" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="549,1669 555,1680 561,1669" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="900,1524 906,1533 900,1542 894,1533" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="854,1669 860,1680 866,1669" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="555,1804 561,1813 555,1822 549,1813" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="911,1816 905,1805 899,1816" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="555,2037 563,2051 547,2051" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="204,2329 210,2340 216,2329" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<path d="M60,560 H428 L440,572 V628 H60 Z" fill="#1E1E1E" stroke="#8C8C8C"/>
+<path d="M428,560 V572 H440" fill="none" stroke="#8C8C8C"/>
+<text x="70" y="582" font-size="12.5" fill="#D4D4D4">Rpc ทุกตัวเป็น owner-only: เจ้าของชิ้นส่งแค่คำสั่ง</text>
+<text x="70" y="600" font-size="12.5" fill="#D4D4D4">server ตรวจค่า แล้วขับฟิสิกส์ใน FixedUpdate</text>
+<text x="70" y="618" font-size="12.5" fill="#D4D4D4">ผลกลับไปทุกเครื่องผ่าน NetworkTransform</text>
+<polyline points="440,594 500,594" fill="none" stroke="#8C8C8C" stroke-dasharray="4 4"/>
+<path d="M1270,1800 H1748 L1760,1812 V1868 H1270 Z" fill="#1E1E1E" stroke="#8C8C8C"/>
+<path d="M1748,1800 V1812 H1760" fill="none" stroke="#8C8C8C"/>
+<text x="1280" y="1822" font-size="12.5" fill="#D4D4D4">ดาเมจทุกชนิดผ่าน DamageRouter จุดเดียว</text>
+<text x="1280" y="1840" font-size="12.5" fill="#D4D4D4">เช็คทีมและ GameplayGate.CanDamage ก่อน</text>
+<text x="1280" y="1858" font-size="12.5" fill="#D4D4D4">แล้วค่อยเรียก ServerApplyDamage ของเป้าหมาย</text>
+<polyline points="1740,1800 1740,1689" fill="none" stroke="#8C8C8C" stroke-dasharray="4 4"/>
+<path d="M3110,1428 H3458 L3470,1440 V1496 H3110 Z" fill="#1E1E1E" stroke="#8C8C8C"/>
+<path d="M3458,1428 V1440 H3470" fill="none" stroke="#8C8C8C"/>
+<text x="3120" y="1450" font-size="12.5" fill="#D4D4D4">เลือดบอสต่ำกว่า triggerHpPercent</text>
+<text x="3120" y="1468" font-size="12.5" fill="#D4D4D4">→ กระโดดถอย ชาร์จ แล้วยิง Black Hole</text>
+<text x="3120" y="1486" font-size="12.5" fill="#D4D4D4">โดนทั้งหุ่นและสิ่งก่อสร้างในแนวยิง</text>
+<polyline points="3110,1460 3050,1460" fill="none" stroke="#8C8C8C" stroke-dasharray="4 4"/>
+<rect x="1660" y="522" width="290" height="204" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1805" y="539" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1805" y="555" font-size="13" font-weight="700" text-anchor="middle">Robot</text>
+<line x1="1660" y1="564" x2="1950" y2="564" stroke="#E3E3E3"/>
+<text x="1669" y="582" font-size="12">- team : NetworkVariable&lt;Team&gt;</text>
+<text x="1669" y="598" font-size="12">- torso : TorsoBalance</text>
+<text x="1669" y="614" font-size="12">- limbs : RobotLimb[4]</text>
+<text x="1669" y="630" font-size="12">+ LimbStateChanged : Action&lt;RobotLimb&gt; {event}</text>
+<line x1="1660" y1="637" x2="1950" y2="637" stroke="#E3E3E3"/>
+<text x="1669" y="655" font-size="12">+ GetLimb(slot : LimbSlot) : RobotLimb</text>
+<text x="1669" y="671" font-size="12">+ AttachedLimbs() : IEnumerable&lt;RobotLimb&gt;</text>
+<text x="1669" y="687" font-size="12">+ ServerResetForRespawn(spawn : Pose) : void</text>
+<text x="1669" y="703" font-size="12" text-decoration="underline">+ FromCollider(hit : Collider) : Robot</text>
+<text x="1669" y="719" font-size="12">- OnLimbStateChanged(limb : RobotLimb) : void</text>
+<rect x="1270" y="522" width="270" height="191" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1405" y="542" font-size="13" font-weight="700" text-anchor="middle">RobotLimb</text>
+<line x1="1270" y1="551" x2="1540" y2="551" stroke="#E3E3E3"/>
+<text x="1279" y="569" font-size="12">- slot : LimbSlot</text>
+<text x="1279" y="585" font-size="12">- owner : Robot</text>
+<text x="1279" y="601" font-size="12">- attachment : LimbAttachment</text>
+<text x="1279" y="617" font-size="12">- health : LimbHealth</text>
+<text x="1279" y="633" font-size="12">- controller : LimbController</text>
+<text x="1279" y="649" font-size="12">+ IsAttached : bool</text>
+<text x="1279" y="665" font-size="12">+ StateChanged : Action&lt;RobotLimb&gt; {event}</text>
+<line x1="1270" y1="672" x2="1540" y2="672" stroke="#E3E3E3"/>
+<text x="1279" y="690" font-size="12">- OnHealthDepleted() : void</text>
+<text x="1279" y="706" font-size="12">- OnAttachmentChanged(attached : bool) : void</text>
+<rect x="2190" y="522" width="150" height="115" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2265" y="539" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2265" y="555" font-size="13" font-weight="700" text-anchor="middle">LimbSlot</text>
+<line x1="2190" y1="564" x2="2340" y2="564" stroke="#E3E3E3"/>
+<text x="2199" y="582" font-size="12">LeftArm</text>
+<text x="2199" y="598" font-size="12">RightArm</text>
+<text x="2199" y="614" font-size="12">LeftLeg</text>
+<text x="2199" y="630" font-size="12">RightLeg</text>
+<rect x="1270" y="800" width="260" height="172" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1400" y="817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1400" y="833" font-size="13" font-weight="700" text-anchor="middle">LimbAttachment</text>
+<line x1="1270" y1="842" x2="1530" y2="842" stroke="#E3E3E3"/>
+<text x="1279" y="860" font-size="12">- isAttached : NetworkVariable&lt;bool&gt;</text>
+<text x="1279" y="876" font-size="12">- joint : ConfigurableJoint</text>
+<text x="1279" y="892" font-size="12">- socket : Rigidbody</text>
+<text x="1279" y="908" font-size="12">+ AttachmentChanged : Action&lt;bool&gt; {event}</text>
+<line x1="1270" y1="915" x2="1530" y2="915" stroke="#E3E3E3"/>
+<text x="1279" y="933" font-size="12">+ ServerDetach() : void</text>
+<text x="1279" y="949" font-size="12">+ RequestPullBackRpc(held : bool) : void</text>
+<text x="1279" y="965" font-size="12">- ServerReconnect() : void</text>
+<rect x="1270" y="1080" width="280" height="156" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1410" y="1097" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1410" y="1113" font-size="13" font-weight="700" text-anchor="middle">LimbHealth</text>
+<line x1="1270" y1="1122" x2="1550" y2="1122" stroke="#E3E3E3"/>
+<text x="1279" y="1140" font-size="12">- hp : NetworkVariable&lt;float&gt;</text>
+<text x="1279" y="1156" font-size="12">- maxHp : NetworkVariable&lt;float&gt;</text>
+<text x="1279" y="1172" font-size="12">+ Depleted : Action {event}</text>
+<line x1="1270" y1="1179" x2="1550" y2="1179" stroke="#E3E3E3"/>
+<text x="1279" y="1197" font-size="12">+ GetTeam() : Team</text>
+<text x="1279" y="1213" font-size="12">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="1279" y="1229" font-size="12">+ ServerRefill() : void</text>
+<rect x="1660" y="800" width="280" height="204" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1800" y="817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1800" y="833" font-size="13" font-weight="700" text-anchor="middle">TorsoBalance</text>
+<line x1="1660" y1="842" x2="1940" y2="842" stroke="#E3E3E3"/>
+<text x="1669" y="860" font-size="12">- isRagdoll : NetworkVariable&lt;bool&gt;</text>
+<text x="1669" y="876" font-size="12">- stress : float</text>
+<text x="1669" y="892" font-size="12">- robot : Robot</text>
+<text x="1669" y="908" font-size="12">- rules : FallRules</text>
+<line x1="1660" y1="915" x2="1940" y2="915" stroke="#E3E3E3"/>
+<text x="1669" y="933" font-size="12">+ ServerAddStress(amount : float) : void</text>
+<text x="1669" y="949" font-size="12">+ ServerApplyJump(from : LimbSlot) : void</text>
+<text x="1669" y="965" font-size="12">+ ServerKnockDown(reason : FallReason) : void</text>
+<text x="1669" y="981" font-size="12">+ ServerResetForRespawn() : void</text>
+<text x="1669" y="997" font-size="12">- ReadBalanceInput() : BalanceInput</text>
+<rect x="2030" y="800" width="310" height="172" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2185" y="817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Plain C#&gt;&gt;</text>
+<text x="2185" y="833" font-size="13" font-weight="700" text-anchor="middle">FallRules</text>
+<line x1="2030" y1="842" x2="2340" y2="842" stroke="#E3E3E3"/>
+<text x="2039" y="860" font-size="12">- maxStress : float</text>
+<text x="2039" y="876" font-size="12">- bothSteppingGrace : float</text>
+<text x="2039" y="892" font-size="12">- airborneGrace : float</text>
+<text x="2039" y="908" font-size="12">- steppingTimer : float</text>
+<text x="2039" y="924" font-size="12">- airborneTimer : float</text>
+<line x1="2030" y1="931" x2="2340" y2="931" stroke="#E3E3E3"/>
+<text x="2039" y="949" font-size="12">+ Evaluate(input : BalanceInput, dt : float) : FallReason</text>
+<text x="2039" y="965" font-size="12">+ Reset() : void</text>
+<rect x="2030" y="1080" width="150" height="157" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2105" y="1097" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Struct&gt;&gt;</text>
+<text x="2105" y="1113" font-size="13" font-weight="700" text-anchor="middle">BalanceInput</text>
+<line x1="2030" y1="1122" x2="2180" y2="1122" stroke="#E3E3E3"/>
+<text x="2039" y="1140" font-size="12">+ groundedFeet : int</text>
+<text x="2039" y="1156" font-size="12">+ walkSteppingFeet : int</text>
+<text x="2039" y="1172" font-size="12">+ handSupport : bool</text>
+<text x="2039" y="1188" font-size="12">+ jumpProtected : bool</text>
+<text x="2039" y="1204" font-size="12">+ stress : float</text>
+<text x="2039" y="1220" font-size="12">+ tiltAngle : float</text>
+<line x1="2030" y1="1227" x2="2180" y2="1227" stroke="#E3E3E3"/>
+<rect x="2200" y="1080" width="150" height="179" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2275" y="1097" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2275" y="1113" font-size="13" font-weight="700" text-anchor="middle">FallReason</text>
+<line x1="2200" y1="1122" x2="2350" y2="1122" stroke="#E3E3E3"/>
+<text x="2209" y="1140" font-size="12">None</text>
+<text x="2209" y="1156" font-size="12">StressOverload</text>
+<text x="2209" y="1172" font-size="12">BothFeetStepping</text>
+<text x="2209" y="1188" font-size="12">BothFeetOffBalance</text>
+<text x="2209" y="1204" font-size="12">AirborneTooLong</text>
+<text x="2209" y="1220" font-size="12">TiltedInAir</text>
+<text x="2209" y="1236" font-size="12">LegDetached</text>
+<text x="2209" y="1252" font-size="12">KnockedDown</text>
+<rect x="500" y="530" width="290" height="170" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="645" y="547" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="645" y="563" font-size="13" font-weight="700" text-anchor="middle" font-style="italic">LimbController</text>
+<text x="645" y="577" font-size="11" text-anchor="middle" fill="#A9A9A9">{abstract}</text>
+<line x1="500" y1="586" x2="790" y2="586" stroke="#E3E3E3"/>
+<text x="509" y="604" font-size="12"># limb : RobotLimb</text>
+<text x="509" y="620" font-size="12"># body : Rigidbody</text>
+<text x="509" y="636" font-size="12"># pivot : Transform</text>
+<line x1="500" y1="643" x2="790" y2="643" stroke="#E3E3E3"/>
+<text x="509" y="661" font-size="12" font-style="italic">+ ServerResetForRespawn() : void {abstract}</text>
+<text x="509" y="677" font-size="12"># DriveToward(target : Vector3, speed : float) : void</text>
+<text x="509" y="693" font-size="12"># ResetAimRpc() : void</text>
+<rect x="290" y="780" width="330" height="172" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="455" y="797" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="455" y="813" font-size="13" font-weight="700" text-anchor="middle">ArmController</text>
+<line x1="290" y1="822" x2="620" y2="822" stroke="#E3E3E3"/>
+<text x="299" y="840" font-size="12">- target : Vector3</text>
+<text x="299" y="856" font-size="12">- grip : ArmGrip</text>
+<text x="299" y="872" font-size="12">+ ClimbPull : float</text>
+<line x1="290" y1="879" x2="620" y2="879" stroke="#E3E3E3"/>
+<text x="299" y="897" font-size="12">+ SetHandTargetRpc(target : Vector3) : void</text>
+<text x="299" y="913" font-size="12">+ SetMotionOverride(target : Vector3, speed : float) : void</text>
+<text x="299" y="929" font-size="12">+ ServerResetForRespawn() : void {override}</text>
+<text x="299" y="945" font-size="12">- PullTorsoTowardGrip() : void</text>
+<rect x="700" y="780" width="260" height="220" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="830" y="797" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="830" y="813" font-size="13" font-weight="700" text-anchor="middle">LegController</text>
+<line x1="700" y1="822" x2="960" y2="822" stroke="#E3E3E3"/>
+<text x="709" y="840" font-size="12">- mode : LegMode</text>
+<text x="709" y="856" font-size="12">- target : Vector3</text>
+<text x="709" y="872" font-size="12">+ IsGrounded : bool</text>
+<text x="709" y="888" font-size="12">+ IsWalkStepping : bool</text>
+<line x1="700" y1="895" x2="960" y2="895" stroke="#E3E3E3"/>
+<text x="709" y="913" font-size="12">+ SetFootTargetRpc(target : Vector3) : void</text>
+<text x="709" y="929" font-size="12">+ SetSteppingRpc(on : bool) : void</text>
+<text x="709" y="945" font-size="12">+ JumpRpc() : void</text>
+<text x="709" y="961" font-size="12">+ SetKickDrive(on : bool) : void</text>
+<text x="709" y="977" font-size="12">+ ServerResetForRespawn() : void {override}</text>
+<text x="709" y="993" font-size="12">- ResolveMode() : LegMode</text>
+<rect x="1010" y="780" width="150" height="147" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1085" y="797" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="1085" y="813" font-size="13" font-weight="700" text-anchor="middle">LegMode</text>
+<line x1="1010" y1="822" x2="1160" y2="822" stroke="#E3E3E3"/>
+<text x="1019" y="840" font-size="12">Planted</text>
+<text x="1019" y="856" font-size="12">Stepping</text>
+<text x="1019" y="872" font-size="12">Kicking</text>
+<text x="1019" y="888" font-size="12">Limp</text>
+<text x="1019" y="904" font-size="12">PushingUp</text>
+<text x="1019" y="920" font-size="12">Detached</text>
+<rect x="60" y="780" width="180" height="156" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="150" y="797" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="150" y="813" font-size="13" font-weight="700" text-anchor="middle">ArmGrip</text>
+<line x1="60" y1="822" x2="240" y2="822" stroke="#E3E3E3"/>
+<text x="69" y="840" font-size="12">- joint : FixedJoint</text>
+<text x="69" y="856" font-size="12">- held : Rigidbody</text>
+<text x="69" y="872" font-size="12">+ IsSupporting : bool</text>
+<line x1="60" y1="879" x2="240" y2="879" stroke="#E3E3E3"/>
+<text x="69" y="897" font-size="12">+ RequestGrabRpc() : void</text>
+<text x="69" y="913" font-size="12">+ RequestReleaseRpc() : void</text>
+<text x="69" y="929" font-size="12">+ ServerRelease() : void</text>
+<rect x="60" y="1070" width="160" height="124" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="140" y="1087" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="140" y="1103" font-size="13" font-weight="700" text-anchor="middle">ArmInput</text>
+<line x1="60" y1="1112" x2="220" y2="1112" stroke="#E3E3E3"/>
+<text x="69" y="1130" font-size="12">- arm : ArmController</text>
+<text x="69" y="1146" font-size="12">- grip : ArmGrip</text>
+<text x="69" y="1162" font-size="12">- punch : PunchAbility</text>
+<line x1="60" y1="1169" x2="220" y2="1169" stroke="#E3E3E3"/>
+<text x="69" y="1187" font-size="12">- ReadOwnerInput() : void</text>
+<rect x="990" y="1070" width="160" height="108" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1070" y="1087" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1070" y="1103" font-size="13" font-weight="700" text-anchor="middle">LegInput</text>
+<line x1="990" y1="1112" x2="1150" y2="1112" stroke="#E3E3E3"/>
+<text x="999" y="1130" font-size="12">- leg : LegController</text>
+<text x="999" y="1146" font-size="12">- kick : KickAbility</text>
+<line x1="990" y1="1153" x2="1150" y2="1153" stroke="#E3E3E3"/>
+<text x="999" y="1171" font-size="12">- ReadOwnerInput() : void</text>
+<rect x="290" y="1070" width="220" height="188" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="400" y="1087" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="400" y="1103" font-size="13" font-weight="700" text-anchor="middle">PunchAbility</text>
+<line x1="290" y1="1112" x2="510" y2="1112" stroke="#E3E3E3"/>
+<text x="299" y="1130" font-size="12">- isPunching : NetworkVariable&lt;bool&gt;</text>
+<text x="299" y="1146" font-size="12">- arm : ArmController</text>
+<text x="299" y="1162" font-size="12">- peakSpeed : float</text>
+<line x1="290" y1="1169" x2="510" y2="1169" stroke="#E3E3E3"/>
+<text x="299" y="1187" font-size="12">+ RequestPunchStartRpc() : void</text>
+<text x="299" y="1203" font-size="12">+ RequestPunchReleaseRpc() : void</text>
+<text x="299" y="1219" font-size="12">+ CanDealDamage() : bool</text>
+<text x="299" y="1235" font-size="12">+ PeakSpeed() : float</text>
+<text x="299" y="1251" font-size="12">+ Source() : DamageSource</text>
+<rect x="620" y="1070" width="250" height="188" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="745" y="1087" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="745" y="1103" font-size="13" font-weight="700" text-anchor="middle">KickAbility</text>
+<line x1="620" y1="1112" x2="870" y2="1112" stroke="#E3E3E3"/>
+<text x="629" y="1130" font-size="12">- isKicking : NetworkVariable&lt;bool&gt;</text>
+<text x="629" y="1146" font-size="12">- leg : LegController</text>
+<text x="629" y="1162" font-size="12">- peakSpeed : float</text>
+<line x1="620" y1="1169" x2="870" y2="1169" stroke="#E3E3E3"/>
+<text x="629" y="1187" font-size="12">+ RequestChargeRpc() : void</text>
+<text x="629" y="1203" font-size="12">+ RequestReleaseRpc(aim : Vector3) : void</text>
+<text x="629" y="1219" font-size="12">+ CanDealDamage() : bool</text>
+<text x="629" y="1235" font-size="12">+ PeakSpeed() : float</text>
+<text x="629" y="1251" font-size="12">+ Source() : DamageSource</text>
+<rect x="1270" y="1416" width="170" height="109" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1355" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Interface&gt;&gt;</text>
+<text x="1355" y="1449" font-size="13" font-weight="700" text-anchor="middle">IStrikeSource</text>
+<line x1="1270" y1="1458" x2="1440" y2="1458" stroke="#E3E3E3"/>
+<line x1="1270" y1="1468" x2="1440" y2="1468" stroke="#E3E3E3"/>
+<text x="1279" y="1486" font-size="12">+ CanDealDamage() : bool</text>
+<text x="1279" y="1502" font-size="12">+ PeakSpeed() : float</text>
+<text x="1279" y="1518" font-size="12">+ Source() : DamageSource</text>
+<rect x="1270" y="1596" width="270" height="111" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1405" y="1616" font-size="13" font-weight="700" text-anchor="middle">LimbStrike</text>
+<line x1="1270" y1="1625" x2="1540" y2="1625" stroke="#E3E3E3"/>
+<text x="1279" y="1643" font-size="12">- source : IStrikeSource</text>
+<text x="1279" y="1659" font-size="12">- speedToDamage : float</text>
+<line x1="1270" y1="1666" x2="1540" y2="1666" stroke="#E3E3E3"/>
+<text x="1279" y="1684" font-size="12">- OnCollisionEnter(c : Collision) : void</text>
+<text x="1279" y="1700" font-size="12">- BuildDamageInfo(c : Collision) : DamageInfo</text>
+<rect x="1610" y="1596" width="340" height="93" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1780" y="1613" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Static&gt;&gt;</text>
+<text x="1780" y="1629" font-size="13" font-weight="700" text-anchor="middle">DamageRouter</text>
+<line x1="1610" y1="1638" x2="1950" y2="1638" stroke="#E3E3E3"/>
+<line x1="1610" y1="1648" x2="1950" y2="1648" stroke="#E3E3E3"/>
+<text x="1619" y="1666" font-size="12" text-decoration="underline">+ TryApply(hit : Collider, info : DamageInfo) : bool</text>
+<text x="1619" y="1682" font-size="12" text-decoration="underline">- IsAllowed(target : IDamageable, info : DamageInfo) : bool</text>
+<rect x="1800" y="1800" width="160" height="173" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1880" y="1817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Struct&gt;&gt;</text>
+<text x="1880" y="1833" font-size="13" font-weight="700" text-anchor="middle">DamageInfo</text>
+<line x1="1800" y1="1842" x2="1960" y2="1842" stroke="#E3E3E3"/>
+<text x="1809" y="1860" font-size="12">+ amount : float</text>
+<text x="1809" y="1876" font-size="12">+ knockback : float</text>
+<text x="1809" y="1892" font-size="12">+ point : Vector3</text>
+<text x="1809" y="1908" font-size="12">+ direction : Vector3</text>
+<text x="1809" y="1924" font-size="12">+ source : DamageSource</text>
+<text x="1809" y="1940" font-size="12">+ attackerTeam : Team</text>
+<text x="1809" y="1956" font-size="12">+ detachLimb : bool</text>
+<line x1="1800" y1="1963" x2="1960" y2="1963" stroke="#E3E3E3"/>
+<rect x="2010" y="1800" width="150" height="147" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2085" y="1817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2085" y="1833" font-size="13" font-weight="700" text-anchor="middle">DamageSource</text>
+<line x1="2010" y1="1842" x2="2160" y2="1842" stroke="#E3E3E3"/>
+<text x="2019" y="1860" font-size="12">Punch</text>
+<text x="2019" y="1876" font-size="12">Kick</text>
+<text x="2019" y="1892" font-size="12">MeleeWeapon</text>
+<text x="2019" y="1908" font-size="12">Projectile</text>
+<text x="2019" y="1924" font-size="12">EnemyMelee</text>
+<text x="2019" y="1940" font-size="12">EnemyUltimate</text>
+<rect x="2210" y="1800" width="150" height="115" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2285" y="1817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2285" y="1833" font-size="13" font-weight="700" text-anchor="middle">Team</text>
+<line x1="2210" y1="1842" x2="2360" y2="1842" stroke="#E3E3E3"/>
+<text x="2219" y="1860" font-size="12">None</text>
+<text x="2219" y="1876" font-size="12">Red</text>
+<text x="2219" y="1892" font-size="12">Blue</text>
+<text x="2219" y="1908" font-size="12">Enemy</text>
+<rect x="1560" y="1416" width="280" height="93" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1700" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Interface&gt;&gt;</text>
+<text x="1700" y="1449" font-size="13" font-weight="700" text-anchor="middle">IDamageable</text>
+<line x1="1560" y1="1458" x2="1840" y2="1458" stroke="#E3E3E3"/>
+<line x1="1560" y1="1468" x2="1840" y2="1468" stroke="#E3E3E3"/>
+<text x="1569" y="1486" font-size="12">+ GetTeam() : Team</text>
+<text x="1569" y="1502" font-size="12">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<rect x="1660" y="1080" width="300" height="111" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1810" y="1100" font-size="13" font-weight="700" text-anchor="middle">RobotBodyDamageRelay</text>
+<line x1="1660" y1="1109" x2="1960" y2="1109" stroke="#E3E3E3"/>
+<text x="1669" y="1127" font-size="12">- robot : Robot</text>
+<line x1="1660" y1="1134" x2="1960" y2="1134" stroke="#E3E3E3"/>
+<text x="1669" y="1152" font-size="12">+ GetTeam() : Team</text>
+<text x="1669" y="1168" font-size="12">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="1669" y="1184" font-size="12">- NearestAttachedLimb(point : Vector3) : LimbHealth</text>
+<rect x="2100" y="1416" width="280" height="124" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2240" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2240" y="1449" font-size="13" font-weight="700" text-anchor="middle">DestructibleBuilding</text>
+<line x1="2100" y1="1458" x2="2380" y2="1458" stroke="#E3E3E3"/>
+<text x="2109" y="1476" font-size="12">- health : NetworkVariable&lt;float&gt;</text>
+<line x1="2100" y1="1483" x2="2380" y2="1483" stroke="#E3E3E3"/>
+<text x="2109" y="1501" font-size="12">+ GetTeam() : Team</text>
+<text x="2109" y="1517" font-size="12">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="2109" y="1533" font-size="12">- Collapse() : void</text>
+<rect x="2890" y="1830" width="230" height="156" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3005" y="1847" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3005" y="1863" font-size="13" font-weight="700" text-anchor="middle">EnemyController</text>
+<line x1="2890" y1="1872" x2="3120" y2="1872" stroke="#E3E3E3"/>
+<text x="2899" y="1890" font-size="12">- state : NetworkVariable&lt;EnemyState&gt;</text>
+<text x="2899" y="1906" font-size="12">- agent : NavMeshAgent</text>
+<text x="2899" y="1922" font-size="12">- combat : EnemyCombat</text>
+<text x="2899" y="1938" font-size="12">- target : Transform</text>
+<line x1="2890" y1="1945" x2="3120" y2="1945" stroke="#E3E3E3"/>
+<text x="2899" y="1963" font-size="12">- UpdateState() : void</text>
+<text x="2899" y="1979" font-size="12">- ChooseAttack() : AttackType</text>
+<rect x="3190" y="1830" width="150" height="147" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3265" y="1847" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="3265" y="1863" font-size="13" font-weight="700" text-anchor="middle">EnemyState</text>
+<line x1="3190" y1="1872" x2="3340" y2="1872" stroke="#E3E3E3"/>
+<text x="3199" y="1890" font-size="12">Idle</text>
+<text x="3199" y="1906" font-size="12">Walk</text>
+<text x="3199" y="1922" font-size="12">Roll</text>
+<text x="3199" y="1938" font-size="12">Attack</text>
+<text x="3199" y="1954" font-size="12">Ultimate</text>
+<text x="3199" y="1970" font-size="12">Dead</text>
+<rect x="2530" y="1830" width="280" height="108" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2670" y="1847" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2670" y="1863" font-size="13" font-weight="700" text-anchor="middle">EnemyCombat</text>
+<line x1="2530" y1="1872" x2="2810" y2="1872" stroke="#E3E3E3"/>
+<text x="2539" y="1890" font-size="12">- attackRange : float</text>
+<line x1="2530" y1="1897" x2="2810" y2="1897" stroke="#E3E3E3"/>
+<text x="2539" y="1915" font-size="12">+ ServerExecuteAttack(type : AttackType) : float</text>
+<text x="2539" y="1931" font-size="12">- HitTargetsInRange(type : AttackType) : void</text>
+<rect x="2530" y="2010" width="150" height="115" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2605" y="2027" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2605" y="2043" font-size="13" font-weight="700" text-anchor="middle">AttackType</text>
+<line x1="2530" y1="2052" x2="2680" y2="2052" stroke="#E3E3E3"/>
+<text x="2539" y="2070" font-size="12">LightPunch</text>
+<text x="2539" y="2086" font-size="12">BarragePunch</text>
+<text x="2539" y="2102" font-size="12">Kick</text>
+<text x="2539" y="2118" font-size="12">BlackHole</text>
+<rect x="2530" y="1416" width="280" height="172" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2670" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2670" y="1449" font-size="13" font-weight="700" text-anchor="middle">EnemyHealth</text>
+<line x1="2530" y1="1458" x2="2810" y2="1458" stroke="#E3E3E3"/>
+<text x="2539" y="1476" font-size="12">- hp : NetworkVariable&lt;float&gt;</text>
+<text x="2539" y="1492" font-size="12">- maxHp : float</text>
+<text x="2539" y="1508" font-size="12">- ultimate : EnemyUltimate</text>
+<text x="2539" y="1524" font-size="12">+ Died : Action {event}</text>
+<line x1="2530" y1="1531" x2="2810" y2="1531" stroke="#E3E3E3"/>
+<text x="2539" y="1549" font-size="12">+ GetTeam() : Team</text>
+<text x="2539" y="1565" font-size="12">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="2539" y="1581" font-size="12">+ HpPercent() : float</text>
+<rect x="2890" y="1416" width="160" height="124" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2970" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2970" y="1449" font-size="13" font-weight="700" text-anchor="middle">EnemyUltimate</text>
+<line x1="2890" y1="1458" x2="3050" y2="1458" stroke="#E3E3E3"/>
+<text x="2899" y="1476" font-size="12">- triggerHpPercent : float</text>
+<text x="2899" y="1492" font-size="12">- usesLeft : int</text>
+<line x1="2890" y1="1499" x2="3050" y2="1499" stroke="#E3E3E3"/>
+<text x="2899" y="1517" font-size="12">+ ServerTryTrigger() : void</text>
+<text x="2899" y="1533" font-size="12">- FireBlackHole() : void</text>
+<rect x="2530" y="1650" width="290" height="95" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2675" y="1670" font-size="13" font-weight="700" text-anchor="middle">BlackHoleProjectile</text>
+<line x1="2530" y1="1679" x2="2820" y2="1679" stroke="#E3E3E3"/>
+<text x="2539" y="1697" font-size="12">- speed : float</text>
+<text x="2539" y="1713" font-size="12">- damageRadius : float</text>
+<line x1="2530" y1="1720" x2="2820" y2="1720" stroke="#E3E3E3"/>
+<text x="2539" y="1738" font-size="12">- DamageAlong(from : Vector3, to : Vector3) : void</text>
+<rect x="2860" y="522" width="280" height="172" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3000" y="539" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3000" y="555" font-size="13" font-weight="700" text-anchor="middle">MatchSession</text>
+<line x1="2860" y1="564" x2="3140" y2="564" stroke="#E3E3E3"/>
+<text x="2869" y="582" font-size="12">- phase : NetworkVariable&lt;MatchPhase&gt;</text>
+<text x="2869" y="598" font-size="12">- result : NetworkVariable&lt;MatchResult&gt;</text>
+<text x="2869" y="614" font-size="12">- startTime : float</text>
+<text x="2869" y="630" font-size="12">+ PhaseChanged : Action&lt;MatchPhase&gt; {event}</text>
+<line x1="2860" y1="637" x2="3140" y2="637" stroke="#E3E3E3"/>
+<text x="2869" y="655" font-size="12">+ ServerBeginPlaying() : void</text>
+<text x="2869" y="671" font-size="12">+ ServerEnd(result : MatchResult) : void</text>
+<text x="2869" y="687" font-size="12">+ ElapsedTime() : float</text>
+<rect x="3230" y="522" width="150" height="99" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3305" y="539" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="3305" y="555" font-size="13" font-weight="700" text-anchor="middle">MatchPhase</text>
+<line x1="3230" y1="564" x2="3380" y2="564" stroke="#E3E3E3"/>
+<text x="3239" y="582" font-size="12">Preparing</text>
+<text x="3239" y="598" font-size="12">Playing</text>
+<text x="3239" y="614" font-size="12">Ended</text>
+<rect x="3230" y="660" width="150" height="125" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3305" y="677" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Struct&gt;&gt;</text>
+<text x="3305" y="693" font-size="13" font-weight="700" text-anchor="middle">MatchResult</text>
+<line x1="3230" y1="702" x2="3380" y2="702" stroke="#E3E3E3"/>
+<text x="3239" y="720" font-size="12">+ victory : bool</text>
+<text x="3239" y="736" font-size="12">+ winningTeam : Team</text>
+<text x="3239" y="752" font-size="12">+ time : float</text>
+<text x="3239" y="768" font-size="12">+ height : float</text>
+<line x1="3230" y1="775" x2="3380" y2="775" stroke="#E3E3E3"/>
+<rect x="2930" y="800" width="150" height="93" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3005" y="817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Static&gt;&gt;</text>
+<text x="3005" y="833" font-size="13" font-weight="700" text-anchor="middle">GameplayGate</text>
+<line x1="2930" y1="842" x2="3080" y2="842" stroke="#E3E3E3"/>
+<text x="2939" y="860" font-size="12" text-decoration="underline">+ CanAct : bool</text>
+<text x="2939" y="876" font-size="12" text-decoration="underline">+ CanDamage : bool</text>
+<line x1="2930" y1="883" x2="3080" y2="883" stroke="#E3E3E3"/>
+<rect x="2500" y="800" width="210" height="138" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2605" y="817" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2605" y="833" font-size="13" font-weight="700" text-anchor="middle" font-style="italic">ModeRules</text>
+<text x="2605" y="847" font-size="11" text-anchor="middle" fill="#A9A9A9">{abstract}</text>
+<line x1="2500" y1="856" x2="2710" y2="856" stroke="#E3E3E3"/>
+<text x="2509" y="874" font-size="12"># session : MatchSession</text>
+<text x="2509" y="890" font-size="12"># robots : List&lt;Robot&gt;</text>
+<line x1="2500" y1="897" x2="2710" y2="897" stroke="#E3E3E3"/>
+<text x="2509" y="915" font-size="12" font-style="italic"># EvaluateDefeat() : void {abstract}</text>
+<text x="2509" y="931" font-size="12"># EndMatch(victory : bool) : void</text>
+<rect x="2500" y="1030" width="210" height="108" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2605" y="1047" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2605" y="1063" font-size="13" font-weight="700" text-anchor="middle">BossModeRules</text>
+<line x1="2500" y1="1072" x2="2710" y2="1072" stroke="#E3E3E3"/>
+<text x="2509" y="1090" font-size="12">- boss : EnemyHealth</text>
+<line x1="2500" y1="1097" x2="2710" y2="1097" stroke="#E3E3E3"/>
+<text x="2509" y="1115" font-size="12"># EvaluateDefeat() : void {override}</text>
+<text x="2509" y="1131" font-size="12">- OnBossDied() : void</text>
+<rect x="2740" y="1030" width="210" height="108" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2845" y="1047" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2845" y="1063" font-size="13" font-weight="700" text-anchor="middle">ParkourModeRules</text>
+<line x1="2740" y1="1072" x2="2950" y2="1072" stroke="#E3E3E3"/>
+<text x="2749" y="1090" font-size="12">- peakHeight : float</text>
+<line x1="2740" y1="1097" x2="2950" y2="1097" stroke="#E3E3E3"/>
+<text x="2749" y="1115" font-size="12"># EvaluateDefeat() : void {override}</text>
+<text x="2749" y="1131" font-size="12">+ ServerReachGoal() : void</text>
+<rect x="3000" y="1030" width="210" height="93" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3105" y="1047" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3105" y="1063" font-size="13" font-weight="700" text-anchor="middle">PvpModeRules</text>
+<line x1="3000" y1="1072" x2="3210" y2="1072" stroke="#E3E3E3"/>
+<line x1="3000" y1="1082" x2="3210" y2="1082" stroke="#E3E3E3"/>
+<text x="3009" y="1100" font-size="12"># EvaluateDefeat() : void {override}</text>
+<text x="3009" y="1116" font-size="12">- WinningTeam() : Team</text>
+<rect x="2840" y="222" width="320" height="156" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3000" y="239" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3000" y="255" font-size="13" font-weight="700" text-anchor="middle">LimbSelection</text>
+<line x1="2840" y1="264" x2="3160" y2="264" stroke="#E3E3E3"/>
+<text x="2849" y="282" font-size="12">- assignments : NetworkList&lt;LimbAssignment&gt;</text>
+<text x="2849" y="298" font-size="12">- session : MatchSession</text>
+<text x="2849" y="314" font-size="12">+ AssignmentsChanged : Action {event}</text>
+<line x1="2840" y1="321" x2="3160" y2="321" stroke="#E3E3E3"/>
+<text x="2849" y="339" font-size="12">+ RequestLimbRpc(robotId : ulong, slot : LimbSlot) : void</text>
+<text x="2849" y="355" font-size="12">+ RequestStartRpc() : void</text>
+<text x="2849" y="371" font-size="12">+ GetController(robotId : ulong, slot : LimbSlot) : ulong</text>
+<rect x="3230" y="222" width="150" height="109" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3305" y="239" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Struct&gt;&gt;</text>
+<text x="3305" y="255" font-size="13" font-weight="700" text-anchor="middle">LimbAssignment</text>
+<line x1="3230" y1="264" x2="3380" y2="264" stroke="#E3E3E3"/>
+<text x="3239" y="282" font-size="12">+ robotId : ulong</text>
+<text x="3239" y="298" font-size="12">+ slot : LimbSlot</text>
+<text x="3239" y="314" font-size="12">+ clientId : ulong</text>
+<line x1="3230" y1="321" x2="3380" y2="321" stroke="#E3E3E3"/>
+<rect x="2500" y="522" width="280" height="159" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2640" y="542" font-size="13" font-weight="700" text-anchor="middle">LimbControlBinder</text>
+<line x1="2500" y1="551" x2="2780" y2="551" stroke="#E3E3E3"/>
+<text x="2509" y="569" font-size="12">- selection : LimbSelection</text>
+<text x="2509" y="585" font-size="12">- session : MatchSession</text>
+<text x="2509" y="601" font-size="12">+ LocalRobot : Robot</text>
+<text x="2509" y="617" font-size="12">+ LocalSlot : LimbSlot</text>
+<text x="2509" y="633" font-size="12">+ Bound : Action&lt;Robot, LimbSlot&gt; {event}</text>
+<line x1="2500" y1="640" x2="2780" y2="640" stroke="#E3E3E3"/>
+<text x="2509" y="658" font-size="12">- OnPhaseChanged(phase : MatchPhase) : void</text>
+<text x="2509" y="674" font-size="12">- Bind(robot : Robot, slot : LimbSlot) : void</text>
+<rect x="3230" y="830" width="210" height="111" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3335" y="850" font-size="13" font-weight="700" text-anchor="middle">MatchResultPanel</text>
+<line x1="3230" y1="859" x2="3440" y2="859" stroke="#E3E3E3"/>
+<text x="3239" y="877" font-size="12">- session : MatchSession</text>
+<line x1="3230" y1="884" x2="3440" y2="884" stroke="#E3E3E3"/>
+<text x="3239" y="902" font-size="12">- Show(result : MatchResult) : void</text>
+<text x="3239" y="918" font-size="12">+ Retry() : void</text>
+<text x="3239" y="934" font-size="12">+ ExitToMenu() : void</text>
+<rect x="3250" y="1000" width="220" height="127" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="3360" y="1020" font-size="13" font-weight="700" text-anchor="middle">SessionService</text>
+<line x1="3250" y1="1029" x2="3470" y2="1029" stroke="#E3E3E3"/>
+<text x="3259" y="1047" font-size="12">- joinCode : string</text>
+<text x="3259" y="1063" font-size="12">+ StateChanged : Action {event}</text>
+<line x1="3250" y1="1070" x2="3470" y2="1070" stroke="#E3E3E3"/>
+<text x="3259" y="1088" font-size="12">+ HostAsync(maxPlayers : int) : Task</text>
+<text x="3259" y="1104" font-size="12">+ JoinAsync(code : string) : Task</text>
+<text x="3259" y="1120" font-size="12">+ LeaveAsync() : Task</text>
+<rect x="1680" y="222" width="240" height="156" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1800" y="239" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1800" y="255" font-size="13" font-weight="700" text-anchor="middle">RespawnManager</text>
+<line x1="1680" y1="264" x2="1920" y2="264" stroke="#E3E3E3"/>
+<text x="1689" y="282" font-size="12" text-decoration="underline">+ Instance : RespawnManager</text>
+<text x="1689" y="298" font-size="12">- checkpoint : NetworkVariable&lt;Vector3&gt;</text>
+<text x="1689" y="314" font-size="12">- robot : Robot</text>
+<text x="1689" y="330" font-size="12">- cooldown : float</text>
+<line x1="1680" y1="337" x2="1920" y2="337" stroke="#E3E3E3"/>
+<text x="1689" y="355" font-size="12">+ SetCheckpoint(point : Vector3) : void</text>
+<text x="1689" y="371" font-size="12">+ RespawnBody() : void</text>
+<rect x="1270" y="222" width="230" height="95" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="1385" y="242" font-size="13" font-weight="700" text-anchor="middle">CheckpointZone</text>
+<line x1="1270" y1="251" x2="1500" y2="251" stroke="#E3E3E3"/>
+<text x="1279" y="269" font-size="12">- respawnPoint : Transform</text>
+<text x="1279" y="285" font-size="12">- triggered : bool</text>
+<line x1="1270" y1="292" x2="1500" y2="292" stroke="#E3E3E3"/>
+<text x="1279" y="310" font-size="12">- OnTriggerEnter(other : Collider) : void</text>
+<rect x="2050" y="222" width="230" height="64" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="2165" y="242" font-size="13" font-weight="700" text-anchor="middle">FallDeathZone</text>
+<line x1="2050" y1="251" x2="2280" y2="251" stroke="#E3E3E3"/>
+<line x1="2050" y1="261" x2="2280" y2="261" stroke="#E3E3E3"/>
+<text x="2059" y="279" font-size="12">- OnTriggerEnter(other : Collider) : void</text>
+<rect x="60" y="1416" width="290" height="124" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="205" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="205" y="1449" font-size="13" font-weight="700" text-anchor="middle">ItemPickupInteractor</text>
+<line x1="60" y1="1458" x2="350" y2="1458" stroke="#E3E3E3"/>
+<text x="69" y="1476" font-size="12">- inventory : PlayerInventory</text>
+<text x="69" y="1492" font-size="12">+ Focused : WorldItem</text>
+<line x1="60" y1="1499" x2="350" y2="1499" stroke="#E3E3E3"/>
+<text x="69" y="1517" font-size="12">- RefreshFocus() : void</text>
+<text x="69" y="1533" font-size="12">- PickupRpc(item : NetworkObjectReference) : void</text>
+<rect x="430" y="1416" width="250" height="188" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="555" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="555" y="1449" font-size="13" font-weight="700" text-anchor="middle">PlayerInventory</text>
+<line x1="430" y1="1458" x2="680" y2="1458" stroke="#E3E3E3"/>
+<text x="439" y="1476" font-size="12">- slots : NetworkList&lt;int&gt;</text>
+<text x="439" y="1492" font-size="12">- equippedIndex : NetworkVariable&lt;int&gt;</text>
+<text x="439" y="1508" font-size="12">- database : ItemDatabase</text>
+<text x="439" y="1524" font-size="12">- hand : HandItemHolder</text>
+<text x="439" y="1540" font-size="12">+ SlotsChanged : Action {event}</text>
+<line x1="430" y1="1547" x2="680" y2="1547" stroke="#E3E3E3"/>
+<text x="439" y="1565" font-size="12">+ RequestEquip(index : int) : void</text>
+<text x="439" y="1581" font-size="12">+ RequestDrop() : void</text>
+<text x="439" y="1597" font-size="12">+ ServerTryAdd(item : ItemDefinition) : bool</text>
+<rect x="780" y="1416" width="240" height="108" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="900" y="1433" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="900" y="1449" font-size="13" font-weight="700" text-anchor="middle">ItemDatabase</text>
+<line x1="780" y1="1458" x2="1020" y2="1458" stroke="#E3E3E3"/>
+<text x="789" y="1476" font-size="12">- items : List&lt;ItemDefinition&gt;</text>
+<line x1="780" y1="1483" x2="1020" y2="1483" stroke="#E3E3E3"/>
+<text x="789" y="1501" font-size="12">+ GetIndex(item : ItemDefinition) : int</text>
+<text x="789" y="1517" font-size="12">+ GetByIndex(index : int) : ItemDefinition</text>
+<rect x="820" y="1680" width="170" height="125" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="905" y="1697" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="905" y="1713" font-size="13" font-weight="700" text-anchor="middle">ItemDefinition</text>
+<line x1="820" y1="1722" x2="990" y2="1722" stroke="#E3E3E3"/>
+<text x="829" y="1740" font-size="12">+ displayName : string</text>
+<text x="829" y="1756" font-size="12">+ icon : Sprite</text>
+<text x="829" y="1772" font-size="12">+ heldPrefab : GameObject</text>
+<text x="829" y="1788" font-size="12">+ worldPrefab : GameObject</text>
+<line x1="820" y1="1795" x2="990" y2="1795" stroke="#E3E3E3"/>
+<rect x="60" y="1680" width="180" height="95" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="150" y="1700" font-size="13" font-weight="700" text-anchor="middle">WorldItem</text>
+<line x1="60" y1="1709" x2="240" y2="1709" stroke="#E3E3E3"/>
+<text x="69" y="1727" font-size="12" text-decoration="underline">+ Active : List&lt;WorldItem&gt;</text>
+<text x="69" y="1743" font-size="12">- definition : ItemDefinition</text>
+<line x1="60" y1="1750" x2="240" y2="1750" stroke="#E3E3E3"/>
+<text x="69" y="1768" font-size="12">+ ConsumeFromWorld() : void</text>
+<rect x="440" y="1680" width="230" height="124" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="555" y="1697" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="555" y="1713" font-size="13" font-weight="700" text-anchor="middle">HandItemHolder</text>
+<line x1="440" y1="1722" x2="670" y2="1722" stroke="#E3E3E3"/>
+<text x="449" y="1740" font-size="12">- holdPoint : Transform</text>
+<text x="449" y="1756" font-size="12">+ Current : HeldItem</text>
+<line x1="440" y1="1763" x2="670" y2="1763" stroke="#E3E3E3"/>
+<text x="449" y="1781" font-size="12">+ Hold(definition : ItemDefinition) : void</text>
+<text x="449" y="1797" font-size="12">- ReadOwnerInput() : void</text>
+<rect x="410" y="1880" width="290" height="157" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="555" y="1900" font-size="13" font-weight="700" text-anchor="middle" font-style="italic">HeldItem</text>
+<text x="555" y="1914" font-size="11" text-anchor="middle" fill="#A9A9A9">{abstract}</text>
+<line x1="410" y1="1923" x2="700" y2="1923" stroke="#E3E3E3"/>
+<text x="419" y="1941" font-size="12">+ Definition : ItemDefinition</text>
+<text x="419" y="1957" font-size="12">+ Holder : HandItemHolder</text>
+<line x1="410" y1="1964" x2="700" y2="1964" stroke="#E3E3E3"/>
+<text x="419" y="1982" font-size="12">+ OnEquipped() : void</text>
+<text x="419" y="1998" font-size="12">+ OnUnequipped() : void</text>
+<text x="419" y="2014" font-size="12">+ ServerOnUseStart() : void</text>
+<text x="419" y="2030" font-size="12">+ ServerOnUseRelease(heldSeconds : float) : void</text>
+<rect x="60" y="2130" width="350" height="127" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="235" y="2150" font-size="13" font-weight="700" text-anchor="middle">ChargeGunHeldItem</text>
+<line x1="60" y1="2159" x2="410" y2="2159" stroke="#E3E3E3"/>
+<text x="69" y="2177" font-size="12">- maxChargeTime : float</text>
+<text x="69" y="2193" font-size="12">- minDamage : float</text>
+<text x="69" y="2209" font-size="12">- maxDamage : float</text>
+<line x1="60" y1="2216" x2="410" y2="2216" stroke="#E3E3E3"/>
+<text x="69" y="2234" font-size="12">+ ServerOnUseRelease(heldSeconds : float) : void {override}</text>
+<text x="69" y="2250" font-size="12">- SpawnProjectile(charge : float) : void</text>
+<rect x="760" y="2130" width="190" height="143" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="855" y="2150" font-size="13" font-weight="700" text-anchor="middle">SwordHeldItem</text>
+<line x1="760" y1="2159" x2="950" y2="2159" stroke="#E3E3E3"/>
+<text x="769" y="2177" font-size="12">- joint : FixedJoint</text>
+<text x="769" y="2193" font-size="12">- maxDamagePerHit : float</text>
+<line x1="760" y1="2200" x2="950" y2="2200" stroke="#E3E3E3"/>
+<text x="769" y="2218" font-size="12">+ OnEquipped() : void {override}</text>
+<text x="769" y="2234" font-size="12">+ CanDealDamage() : bool</text>
+<text x="769" y="2250" font-size="12">+ PeakSpeed() : float</text>
+<text x="769" y="2266" font-size="12">+ Source() : DamageSource</text>
+<rect x="470" y="2130" width="230" height="95" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="585" y="2150" font-size="13" font-weight="700" text-anchor="middle">GunHeldItem</text>
+<line x1="470" y1="2159" x2="700" y2="2159" stroke="#E3E3E3"/>
+<text x="479" y="2177" font-size="12">- damage : float</text>
+<text x="479" y="2193" font-size="12">- fireRate : float</text>
+<line x1="470" y1="2200" x2="700" y2="2200" stroke="#E3E3E3"/>
+<text x="479" y="2218" font-size="12">+ ServerOnUseStart() : void {override}</text>
+<rect x="110" y="2340" width="200" height="111" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="210" y="2360" font-size="13" font-weight="700" text-anchor="middle">Projectile</text>
+<line x1="110" y1="2369" x2="310" y2="2369" stroke="#E3E3E3"/>
+<text x="119" y="2387" font-size="12">- speed : float</text>
+<text x="119" y="2403" font-size="12">- damage : float</text>
+<text x="119" y="2419" font-size="12">- shooterTeam : Team</text>
+<line x1="110" y1="2426" x2="310" y2="2426" stroke="#E3E3E3"/>
+<text x="119" y="2444" font-size="12">- HandleHit(hit : RaycastHit) : void</text>
+<text x="804" y="607" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1</text>
+<rect x="1746.9" y="444" width="106.3" height="15" fill="#111111"/>
+<text x="1800" y="455" font-size="11" text-anchor="middle" fill="#C4C4C4">เกิดใหม่ที่เช็คพอยต์</text>
+<text x="1554" y="592" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">4</text>
+<text x="1817" y="792" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1</text>
+<text x="1412" y="792" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1</text>
+<text x="1564" y="1152" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1</text>
+<text x="2018" y="872" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1</text>
+<rect x="2255.6" y="1019" width="38.8" height="15" fill="#111111"/>
+<text x="2275" y="1030" font-size="11" text-anchor="middle" fill="#C4C4C4">คืนค่า</text>
+<rect x="1977.9" y="1049" width="34.2" height="15" fill="#111111"/>
+<text x="1995" y="1060" font-size="11" text-anchor="middle" fill="#C4C4C4">สร้าง</text>
+<rect x="1559" y="1255" width="82" height="15" fill="#111111"/>
+<text x="1600" y="1266" font-size="11" text-anchor="middle" fill="#C4C4C4">หาชิ้นที่ใกล้สุด</text>
+<rect x="2160.4" y="1285" width="79.3" height="15" fill="#111111"/>
+<text x="2200" y="1296" font-size="11" text-anchor="middle" fill="#C4C4C4">เช็คเฟสแมตช์</text>
+<rect x="2819.6" y="1593" width="20.8" height="15" fill="#111111"/>
+<text x="2830" y="1604" font-size="11" text-anchor="middle" fill="#C4C4C4">ยิง</text>
+<rect x="2675" y="1239" width="30" height="15" fill="#111111"/>
+<text x="2690" y="1250" font-size="11" text-anchor="middle" fill="#C4C4C4">บอส</text>
+<rect x="2159.4" y="653" width="111.2" height="15" fill="#111111"/>
+<text x="2215" y="664" font-size="11" text-anchor="middle" fill="#C4C4C4">หุ่นของผู้เล่นเครื่องนี้</text>
+<text x="1972" y="698" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">1..*</text>
+<rect x="2971.2" y="443" width="57.7" height="15" fill="#111111"/>
+<text x="3000" y="454" font-size="11" text-anchor="middle" fill="#C4C4C4">เริ่มแมตช์</text>
+<text x="3220" y="262" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">*</text>
+<rect x="2918" y="741" width="84" height="15" fill="#111111"/>
+<text x="2960" y="752" font-size="11" text-anchor="middle" fill="#C4C4C4">ผู้เขียนคนเดียว</text>
+<rect x="3304.4" y="963" width="71.3" height="15" fill="#111111"/>
+<text x="3340" y="974" font-size="11" text-anchor="middle" fill="#C4C4C4">ออกจากห้อง</text>
+<rect x="132.9" y="1635" width="34.3" height="15" fill="#111111"/>
+<text x="150" y="1646" font-size="11" text-anchor="middle" fill="#C4C4C4">focus</text>
+<text x="912" y="1672" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">*</text>
+<text x="577" y="1872" font-size="12" font-weight="700" text-anchor="middle" fill="#C4C4C4">0..1</text>
+<rect x="199.6" y="2291" width="20.8" height="15" fill="#111111"/>
+<text x="210" y="2302" font-size="11" text-anchor="middle" fill="#C4C4C4">ยิง</text>
+<rect x="60" y="140" width="1100" height="290" fill="#161616" stroke="#6A6A6A" stroke-width="1.2"/>
+<text x="78" y="168" font-size="15" font-weight="700">สัญลักษณ์ในแผนภาพ</text>
+<line x1="80" y1="198" x2="146" y2="198" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="160,198 146,206 146,190" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="202" font-size="13" font-weight="700">Inheritance</text>
+<text x="272" y="202" font-size="13" fill="#D0D0D0">สืบทอดคลาส</text>
+<line x1="80" y1="234" x2="146" y2="234" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<polygon points="160,234 146,242 146,226" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="238" font-size="13" font-weight="700">Realization</text>
+<text x="272" y="238" font-size="13" fill="#D0D0D0">implement อินเทอร์เฟซ</text>
+<line x1="80" y1="270" x2="160" y2="270" stroke="#E3E3E3" stroke-width="1.2"/>
+<polyline points="149,276 160,270 149,264" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="274" font-size="13" font-weight="700">Association</text>
+<text x="272" y="274" font-size="13" fill="#D0D0D0">ถือ reference ไว้เป็น field</text>
+<line x1="80" y1="306" x2="160" y2="306" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<polyline points="149,312 160,306 149,300" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="310" font-size="13" font-weight="700">Dependency</text>
+<text x="272" y="310" font-size="13" fill="#D0D0D0">ใช้ชั่วคราว: พารามิเตอร์ ค่าที่คืน static</text>
+<line x1="98" y1="342" x2="160" y2="342" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="80,342 89,336 98,342 89,348" fill="#E3E3E3" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="346" font-size="13" font-weight="700">Composition</text>
+<text x="272" y="346" font-size="13" fill="#D0D0D0">เป็นเจ้าของ หายไปพร้อมเจ้าของ</text>
+<line x1="98" y1="378" x2="160" y2="378" stroke="#E3E3E3" stroke-width="1.2"/>
+<polygon points="80,378 89,372 98,378 89,384" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="176" y="382" font-size="13" font-weight="700">Aggregation</text>
+<text x="272" y="382" font-size="13" fill="#D0D0D0">รวมไว้ แต่ละชิ้นมีอายุของตัวเอง</text>
+<line x1="560" y1="184" x2="560" y2="414" stroke="#3A3A3A"/>
+<text x="580" y="202" font-size="12.5" font-weight="700">+  -  #</text>
+<text x="760" y="202" font-size="13" fill="#D0D0D0">public / private / protected</text>
+<text x="580" y="226" font-size="12.5" font-weight="700" text-decoration="underline">ขีดเส้นใต้</text>
+<text x="760" y="226" font-size="13" fill="#D0D0D0">สมาชิกแบบ static</text>
+<text x="580" y="250" font-size="12.5" font-weight="700" font-style="italic">ตัวเอียง</text>
+<text x="760" y="250" font-size="13" fill="#D0D0D0">abstract ต้อง override ในคลาสลูก</text>
+<text x="580" y="274" font-size="12.5" font-weight="700">{override} {event}</text>
+<text x="760" y="274" font-size="13" fill="#D0D0D0">override คลาสแม่ / C# event</text>
+<text x="580" y="298" font-size="12.5" font-weight="700">ไม่มี stereotype</text>
+<text x="760" y="298" font-size="13" fill="#D0D0D0">MonoBehaviour</text>
+<text x="580" y="322" font-size="12.5" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="760" y="322" font-size="13" fill="#D0D0D0">คอมโพเนนต์ที่ sync ผ่านเน็ต (NGO)</text>
+<text x="580" y="346" font-size="12.5" font-weight="700">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="760" y="346" font-size="13" fill="#D0D0D0">ไฟล์ค่าตั้งเก็บใน Assets</text>
+<text x="580" y="370" font-size="12.5" font-weight="700">&lt;&lt;Plain C#&gt;&gt;</text>
+<text x="760" y="370" font-size="13" fill="#D0D0D0">คลาส C# ธรรมดา เทสได้ไม่ต้องเปิด Unity</text>
+<text x="580" y="394" font-size="12.5" font-weight="700">&lt;&lt;Static&gt;&gt;  &lt;&lt;Struct&gt;&gt;</text>
+<text x="760" y="394" font-size="13" fill="#D0D0D0">static class / ชนิดข้อมูลแบบค่า</text>
+</svg>
