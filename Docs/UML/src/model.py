@@ -107,23 +107,27 @@ C("LimbController", NB, [
 C("ArmController", NB, [
     "- target : Vector3",
     "- grip : ArmGrip",
+    "- punch : PunchSkill",
     "+ ClimbPull : float",
 ], [
     "+ SetHandTargetRpc(target : Vector3) : void",
-    "+ SetMotionOverride(target : Vector3, speed : float) : void",
+    "+ RequestPunchRpc(held : bool) : void",
     "+ ServerResetForRespawn() : void {override}",
+    "- DriveHand() : void",
     "- PullTorsoTowardGrip() : void",
 ], pkg=P)
 C("LegController", NB, [
     "- mode : LegMode",
     "- target : Vector3",
+    "- kick : KickSkill",
     "+ IsGrounded : bool",
     "+ IsWalkStepping : bool",
 ], [
     "+ SetFootTargetRpc(target : Vector3) : void",
     "+ SetSteppingRpc(on : bool) : void",
     "+ JumpRpc() : void",
-    "+ SetKickDrive(on : bool) : void",
+    "+ StartKickRpc() : void",
+    "+ ReleaseKickRpc(aim : Vector3) : void",
     "+ ServerResetForRespawn() : void {override}",
     "- ResolveMode() : LegMode",
 ], pkg=P)
@@ -140,34 +144,37 @@ C("ArmGrip", NB, [
 C("ArmInput", NB, [
     "- arm : ArmController",
     "- grip : ArmGrip",
-    "- punch : PunchAbility",
 ], [
     "- ReadOwnerInput() : void",
 ], pkg=P)
 C("LegInput", NB, [
     "- leg : LegController",
-    "- kick : KickAbility",
 ], [
     "- ReadOwnerInput() : void",
 ], pkg=P)
-C("PunchAbility", NB, [
+# Skills are modules the controller owns and calls; they never reference the controller.
+C("PunchSkill", NB, [
     "- isPunching : NetworkVariable<bool>",
-    "- arm : ArmController",
+    "- acceleration : float",
     "- peakSpeed : float",
+    "+ IsActive : bool",
 ], [
-    "+ RequestPunchStartRpc() : void",
-    "+ RequestPunchReleaseRpc() : void",
+    "+ ServerStart(aim : Vector3) : void",
+    "+ ServerRelease() : void",
+    "+ DriveTarget(current : Vector3) : Vector3",
     "+ CanDealDamage() : bool",
     "+ PeakSpeed() : float",
     "+ Source() : DamageSource",
 ], pkg=P)
-C("KickAbility", NB, [
+C("KickSkill", NB, [
     "- isKicking : NetworkVariable<bool>",
-    "- leg : LegController",
+    "- chargeTime : float",
     "- peakSpeed : float",
+    "+ IsActive : bool",
 ], [
-    "+ RequestChargeRpc() : void",
-    "+ RequestReleaseRpc(aim : Vector3) : void",
+    "+ ServerStartCharge() : void",
+    "+ ServerRelease(aim : Vector3) : void",
+    "+ DriveTarget(current : Vector3) : Vector3",
     "+ CanDealDamage() : bool",
     "+ PeakSpeed() : float",
     "+ Source() : DamageSource",
