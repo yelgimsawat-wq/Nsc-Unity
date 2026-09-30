@@ -152,28 +152,26 @@ C("LegInput", NB, [
 ], [
     "- ReadOwnerInput() : void",
 ], pkg=P)
-# Skills are modules the controller owns and calls; they never reference the controller.
-C("PunchSkill", NB, [
-    "- isPunching : NetworkVariable<bool>",
+# A skill is a small plain class the controller creates and calls; it never references the controller.
+C("PunchSkill", "Plain C#", [
     "- acceleration : float",
     "- peakSpeed : float",
     "+ IsActive : bool",
 ], [
-    "+ ServerStart(aim : Vector3) : void",
-    "+ ServerRelease() : void",
+    "+ Begin(aim : Vector3) : void",
+    "+ Release() : void",
     "+ DriveTarget(current : Vector3) : Vector3",
     "+ CanDealDamage() : bool",
     "+ PeakSpeed() : float",
     "+ Source() : DamageSource",
 ], pkg=P)
-C("KickSkill", NB, [
-    "- isKicking : NetworkVariable<bool>",
+C("KickSkill", "Plain C#", [
     "- chargeTime : float",
     "- peakSpeed : float",
     "+ IsActive : bool",
 ], [
-    "+ ServerStartCharge() : void",
-    "+ ServerRelease(aim : Vector3) : void",
+    "+ BeginCharge() : void",
+    "+ Release(aim : Vector3) : void",
     "+ DriveTarget(current : Vector3) : Vector3",
     "+ CanDealDamage() : bool",
     "+ PeakSpeed() : float",

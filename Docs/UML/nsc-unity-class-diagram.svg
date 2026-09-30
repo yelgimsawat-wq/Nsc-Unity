@@ -7,7 +7,7 @@
 <text x="1256" y="468" font-size="14" font-weight="700">Robot</text>
 <text x="1258" y="500" font-size="13" fill="#A9A9A9">หุ่นยนต์ แขนขา และการทรงตัว</text>
 <rect x="32" y="458" width="115" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
-<rect x="32" y="484" width="1156" height="854" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
+<rect x="32" y="484" width="1156" height="838" fill="#111111" stroke="#4A4A4A" stroke-width="1.2"/>
 <text x="46" y="476" font-size="14" font-weight="700">Limb Control</text>
 <text x="48" y="508" font-size="13" fill="#A9A9A9">ควบคุมแขนขา (input ฝั่งเจ้าของ → RPC → ฟิสิกส์บน server)</text>
 <rect x="1242" y="1404" width="80" height="26" fill="#1A1A1A" stroke="#4A4A4A" stroke-width="1.2"/>
@@ -39,8 +39,8 @@
 <path d="M440,1002 L440,1090" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
 <path d="M800,1050 L800,1090" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
 <path d="M1040,1090 L1040,1055 L920,1055 L920,1032" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
-<path d="M400,1310 L400,1388 L1355,1388 L1355,1462" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
-<path d="M745,1310 L745,1388 L1355,1388 L1355,1462" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M400,1294 L400,1388 L1355,1388 L1355,1462" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<path d="M745,1294 L745,1388 L1355,1388 L1355,1462" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
 <path d="M950,2230 L1110,2230 L1110,1388 L1355,1388 L1355,1462" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
 <path d="M1252,615 L790,615" fill="none" stroke="#E3E3E3" stroke-width="1.2"/>
 <path d="M1500,270 L1680,270" fill="none" stroke="#E3E3E3" stroke-width="1.2" stroke-dasharray="7 5"/>
@@ -358,36 +358,34 @@
 <text x="999" y="1150" font-size="12">- leg : LegController</text>
 <line x1="990" y1="1157" x2="1150" y2="1157" stroke="#E3E3E3"/>
 <text x="999" y="1175" font-size="12">- ReadOwnerInput() : void</text>
-<rect x="290" y="1090" width="240" height="220" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
-<text x="410" y="1107" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<rect x="290" y="1090" width="240" height="204" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="410" y="1107" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Plain C#&gt;&gt;</text>
 <text x="410" y="1123" font-size="13" font-weight="700" text-anchor="middle">PunchSkill</text>
 <line x1="290" y1="1132" x2="530" y2="1132" stroke="#E3E3E3"/>
-<text x="299" y="1150" font-size="12">- isPunching : NetworkVariable&lt;bool&gt;</text>
-<text x="299" y="1166" font-size="12">- acceleration : float</text>
-<text x="299" y="1182" font-size="12">- peakSpeed : float</text>
-<text x="299" y="1198" font-size="12">+ IsActive : bool</text>
-<line x1="290" y1="1205" x2="530" y2="1205" stroke="#E3E3E3"/>
-<text x="299" y="1223" font-size="12">+ ServerStart(aim : Vector3) : void</text>
-<text x="299" y="1239" font-size="12">+ ServerRelease() : void</text>
-<text x="299" y="1255" font-size="12">+ DriveTarget(current : Vector3) : Vector3</text>
-<text x="299" y="1271" font-size="12">+ CanDealDamage() : bool</text>
-<text x="299" y="1287" font-size="12">+ PeakSpeed() : float</text>
-<text x="299" y="1303" font-size="12">+ Source() : DamageSource</text>
-<rect x="620" y="1090" width="240" height="220" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
-<text x="740" y="1107" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="299" y="1150" font-size="12">- acceleration : float</text>
+<text x="299" y="1166" font-size="12">- peakSpeed : float</text>
+<text x="299" y="1182" font-size="12">+ IsActive : bool</text>
+<line x1="290" y1="1189" x2="530" y2="1189" stroke="#E3E3E3"/>
+<text x="299" y="1207" font-size="12">+ Begin(aim : Vector3) : void</text>
+<text x="299" y="1223" font-size="12">+ Release() : void</text>
+<text x="299" y="1239" font-size="12">+ DriveTarget(current : Vector3) : Vector3</text>
+<text x="299" y="1255" font-size="12">+ CanDealDamage() : bool</text>
+<text x="299" y="1271" font-size="12">+ PeakSpeed() : float</text>
+<text x="299" y="1287" font-size="12">+ Source() : DamageSource</text>
+<rect x="620" y="1090" width="240" height="204" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
+<text x="740" y="1107" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Plain C#&gt;&gt;</text>
 <text x="740" y="1123" font-size="13" font-weight="700" text-anchor="middle">KickSkill</text>
 <line x1="620" y1="1132" x2="860" y2="1132" stroke="#E3E3E3"/>
-<text x="629" y="1150" font-size="12">- isKicking : NetworkVariable&lt;bool&gt;</text>
-<text x="629" y="1166" font-size="12">- chargeTime : float</text>
-<text x="629" y="1182" font-size="12">- peakSpeed : float</text>
-<text x="629" y="1198" font-size="12">+ IsActive : bool</text>
-<line x1="620" y1="1205" x2="860" y2="1205" stroke="#E3E3E3"/>
-<text x="629" y="1223" font-size="12">+ ServerStartCharge() : void</text>
-<text x="629" y="1239" font-size="12">+ ServerRelease(aim : Vector3) : void</text>
-<text x="629" y="1255" font-size="12">+ DriveTarget(current : Vector3) : Vector3</text>
-<text x="629" y="1271" font-size="12">+ CanDealDamage() : bool</text>
-<text x="629" y="1287" font-size="12">+ PeakSpeed() : float</text>
-<text x="629" y="1303" font-size="12">+ Source() : DamageSource</text>
+<text x="629" y="1150" font-size="12">- chargeTime : float</text>
+<text x="629" y="1166" font-size="12">- peakSpeed : float</text>
+<text x="629" y="1182" font-size="12">+ IsActive : bool</text>
+<line x1="620" y1="1189" x2="860" y2="1189" stroke="#E3E3E3"/>
+<text x="629" y="1207" font-size="12">+ BeginCharge() : void</text>
+<text x="629" y="1223" font-size="12">+ Release(aim : Vector3) : void</text>
+<text x="629" y="1239" font-size="12">+ DriveTarget(current : Vector3) : Vector3</text>
+<text x="629" y="1255" font-size="12">+ CanDealDamage() : bool</text>
+<text x="629" y="1271" font-size="12">+ PeakSpeed() : float</text>
+<text x="629" y="1287" font-size="12">+ Source() : DamageSource</text>
 <rect x="1270" y="1476" width="170" height="109" fill="#161616" stroke="#E3E3E3" stroke-width="1.2"/>
 <text x="1355" y="1493" font-size="11" font-weight="700" text-anchor="middle">&lt;&lt;Interface&gt;&gt;</text>
 <text x="1355" y="1509" font-size="13" font-weight="700" text-anchor="middle">IStrikeSource</text>
