@@ -17,23 +17,23 @@ def C(cid, stereo=None, attrs=(), ops=(), abstract=False, enum=None, pkg=None):
 P = "robot"
 C("Robot", NB, [
     "- team : NetworkVariable<Team>",
-    "- torso : TorsoBalance",
+    "+ Torso : TorsoBalance {readOnly}",
     "- limbs : RobotLimb[4]",
     "+ LimbStateChanged : Action<RobotLimb> {event}",
 ], [
+    "+ GetTeam() : Team",
     "+ GetLimb(slot : LimbSlot) : RobotLimb",
     "+ AttachedLimbs() : IEnumerable<RobotLimb>",
     "+ ServerResetForRespawn(spawn : Pose) : void",
-    "_+ FromCollider(hit : Collider) : Robot",
     "- OnLimbStateChanged(limb : RobotLimb) : void",
 ], pkg=P)
 C("RobotLimb", None, [
     "- slot : LimbSlot",
-    "- owner : Robot",
+    "+ Owner : Robot {readOnly}",
     "- attachment : LimbAttachment",
     "- health : LimbHealth",
-    "- controller : LimbController",
-    "+ IsAttached : bool",
+    "+ Controller : LimbController {readOnly}",
+    "+ IsAttached : bool {readOnly}",
     "+ StateChanged : Action<RobotLimb> {event}",
 ], [
     "- OnHealthDepleted() : void",
@@ -108,7 +108,7 @@ C("ArmController", NB, [
     "- target : Vector3",
     "- grip : ArmGrip",
     "- punch : PunchSkill",
-    "+ ClimbPull : float",
+    "+ ClimbPull : float {readOnly}",
 ], [
     "+ SetHandTargetRpc(target : Vector3) : void",
     "+ RequestPunchRpc(held : bool) : void",
@@ -120,8 +120,8 @@ C("LegController", NB, [
     "- mode : LegMode",
     "- target : Vector3",
     "- kick : KickSkill",
-    "+ IsGrounded : bool",
-    "+ IsWalkStepping : bool",
+    "+ IsGrounded : bool {readOnly}",
+    "+ IsWalkStepping : bool {readOnly}",
 ], [
     "+ SetFootTargetRpc(target : Vector3) : void",
     "+ SetSteppingRpc(on : bool) : void",
@@ -135,7 +135,7 @@ C("LegMode", "Enumeration", enum=["Planted", "Stepping", "Kicking", "Limp", "Pus
 C("ArmGrip", NB, [
     "- joint : FixedJoint",
     "- held : Rigidbody",
-    "+ IsSupporting : bool",
+    "+ IsSupporting : bool {readOnly}",
 ], [
     "+ RequestGrabRpc() : void",
     "+ RequestReleaseRpc() : void",
@@ -156,7 +156,7 @@ C("LegInput", NB, [
 C("PunchSkill", "Plain C#", [
     "- acceleration : float",
     "- peakSpeed : float",
-    "+ IsActive : bool",
+    "+ IsActive : bool {readOnly}",
 ], [
     "+ Begin(aim : Vector3) : void",
     "+ Release() : void",
@@ -168,7 +168,7 @@ C("PunchSkill", "Plain C#", [
 C("KickSkill", "Plain C#", [
     "- chargeTime : float",
     "- peakSpeed : float",
-    "+ IsActive : bool",
+    "+ IsActive : bool {readOnly}",
 ], [
     "+ BeginCharge() : void",
     "+ Release(aim : Vector3) : void",
@@ -189,6 +189,7 @@ C("LimbStrike", None, [
     "- source : IStrikeSource",
     "- speedToDamage : float",
 ], [
+    "+ SetSource(source : IStrikeSource) : void",
     "- OnCollisionEnter(c : Collision) : void",
     "- BuildDamageInfo(c : Collision) : DamageInfo",
 ], pkg=P)
@@ -253,19 +254,20 @@ C("EnemyHealth", NB, [
 ], [
     "+ GetTeam() : Team",
     "+ ServerApplyDamage(info : DamageInfo) : bool",
-    "+ HpPercent() : float",
+    "- HpPercent() : float",
 ], pkg=P)
 C("EnemyUltimate", NB, [
     "- triggerHpPercent : float",
     "- usesLeft : int",
 ], [
-    "+ ServerTryTrigger() : void",
+    "+ ServerTryTrigger(hpPercent : float) : void",
     "- FireBlackHole() : void",
 ], pkg=P)
 C("BlackHoleProjectile", None, [
     "- speed : float",
     "- damageRadius : float",
 ], [
+    "+ Launch(direction : Vector3) : void",
     "- DamageAlong(from : Vector3, to : Vector3) : void",
 ], pkg=P)
 
@@ -275,11 +277,12 @@ C("MatchSession", NB, [
     "- phase : NetworkVariable<MatchPhase>",
     "- result : NetworkVariable<MatchResult>",
     "- startTime : float",
+    "+ Result : MatchResult {readOnly}",
     "+ PhaseChanged : Action<MatchPhase> {event}",
 ], [
     "+ ServerBeginPlaying() : void",
     "+ ServerEnd(result : MatchResult) : void",
-    "+ ElapsedTime() : float",
+    "- ElapsedTime() : float",
 ], pkg=P)
 C("MatchPhase", "Enumeration", enum=["Preparing", "Playing", "Ended"], pkg=P)
 C("MatchResult", "Struct", [
@@ -332,8 +335,8 @@ C("LimbAssignment", "Struct", [
 C("LimbControlBinder", None, [
     "- selection : LimbSelection",
     "- session : MatchSession",
-    "+ LocalRobot : Robot",
-    "+ LocalSlot : LimbSlot",
+    "- localRobot : Robot",
+    "- localSlot : LimbSlot",
     "+ Bound : Action<Robot, LimbSlot> {event}",
 ], [
     "- OnPhaseChanged(phase : MatchPhase) : void",
@@ -380,7 +383,7 @@ C("FallDeathZone", None, [], [
 P = "items"
 C("ItemPickupInteractor", NB, [
     "- inventory : PlayerInventory",
-    "+ Focused : WorldItem",
+    "- focused : WorldItem",
 ], [
     "- RefreshFocus() : void",
     "- PickupRpc(item : NetworkObjectReference) : void",
@@ -403,27 +406,27 @@ C("ItemDatabase", "ScriptableObject", [
     "+ GetByIndex(index : int) : ItemDefinition",
 ], pkg=P)
 C("ItemDefinition", "ScriptableObject", [
-    "+ displayName : string",
-    "+ icon : Sprite",
-    "+ heldPrefab : GameObject",
-    "+ worldPrefab : GameObject",
+    "+ DisplayName : string {readOnly}",
+    "+ Icon : Sprite {readOnly}",
+    "+ HeldPrefab : GameObject {readOnly}",
+    "+ WorldPrefab : GameObject {readOnly}",
 ], pkg=P)
 C("WorldItem", None, [
-    "_+ Active : List<WorldItem>",
-    "- definition : ItemDefinition",
+    "_+ Active : List<WorldItem> {readOnly}",
+    "+ Definition : ItemDefinition {readOnly}",
 ], [
     "+ ConsumeFromWorld() : void",
 ], pkg=P)
 C("HandItemHolder", NB, [
     "- holdPoint : Transform",
-    "+ Current : HeldItem",
+    "- current : HeldItem",
 ], [
     "+ Hold(definition : ItemDefinition) : void",
     "- ReadOwnerInput() : void",
 ], pkg=P)
 C("HeldItem", None, [
-    "+ Definition : ItemDefinition",
-    "+ Holder : HandItemHolder",
+    "# Definition : ItemDefinition",
+    "# Holder : HandItemHolder",
 ], [
     "+ OnEquipped() : void",
     "+ OnUnequipped() : void",
@@ -458,6 +461,7 @@ C("Projectile", None, [
     "- damage : float",
     "- shooterTeam : Team",
 ], [
+    "+ Launch(direction : Vector3, team : Team) : void",
     "- HandleHit(hit : RaycastHit) : void",
 ], pkg=P)
 
