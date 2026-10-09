@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-09 15:17 +07:00 · Q-20261009-game-design · files: Context/Game-Design.md, Context/README.md
+  - แก้: จดทิศทางเกมจาก chat: ฟีล Pacific Rim, ทำต่อบนระบบเดิม, 3 เรื่องที่ต้องพิสูจน์, ไอเดียความสนุกและทางไปขาย แยกตัดสินใจแล้ว/ยังเป็นไอเดีย
+  - ตรวจ: 2026-10-09: ลิงก์ relative ตรวจแล้วมีไฟล์จริง
 - 2026-10-09 15:09 +07:00 · Q-20261009-folder-cleanup · files: Assets/_Game/, Assets/Plugins/Demigiant/, Assets/TextMesh Pro/, Assets/Settings/, Assets/nok/, Assets/Yelmee/, Assets/petong/, Assets/Scenes/, ProjectSettings/EditorBuildSettings.asset, CLAUDE.md
   - แก้: ย้ายของที่เกมใช้จริงเข้า Assets/_Game ตามประเภท (คง GUID), ย้าย DOTween/TMP/URP settings ไปที่มาตรฐาน, ลบไฟล์ขยะ, ล้าง build list, แก้ path ใน Editor tools; แก้บรรทัดฉากเมนูใน CLAUDE.md
   - ตรวจ: 2026-10-09: compile ผ่าน, EditMode 101/101, prefab 55 ตัวไม่มี missing script, Play MAPBOSS ผ่าน; Parkour/PVP ยังไม่ได้เล่นหลังย้าย
