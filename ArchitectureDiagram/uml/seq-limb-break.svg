@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1785 782" width="1785" height="782" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>Sequence: เลือดหมด ขาหลุด หุ่นล้ม แล้วดึงกลับมาต่อ</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="161.3" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด</text></g>
+<g transform="translate(0,36)">
+<line x1="100" y1="82" x2="100" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="40" y="40" width="120" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="100" y="59" text-anchor="middle" font-size="12" font-weight="700">DamageRouter</text>
+<text x="100" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(static)</text>
+<line x1="266.45750000000004" y1="82" x2="266.45750000000004" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="221.45750000000004" y="40" width="90" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="266.45750000000004" y="59" text-anchor="middle" font-size="12" font-weight="700">RobotLimb</text>
+<text x="266.45750000000004" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(ทุกเครื่อง)</text>
+<line x1="501.40650000000016" y1="82" x2="501.40650000000016" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="451.40650000000016" y="40" width="100" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="501.40650000000016" y="59" text-anchor="middle" font-size="12" font-weight="700">LimbHealth</text>
+<text x="501.40650000000016" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="705.8615000000002" y1="82" x2="705.8615000000002" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="645.8615000000002" y="40" width="120" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="705.8615000000002" y="59" text-anchor="middle" font-size="12" font-weight="700">LimbAttachment</text>
+<text x="705.8615000000002" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="987.6280000000002" y1="82" x2="987.6280000000002" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="947.6280000000002" y="40" width="80" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="987.6280000000002" y="59" text-anchor="middle" font-size="12" font-weight="700">Robot</text>
+<text x="987.6280000000002" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(ทุกเครื่อง)</text>
+<line x1="1236.7100000000003" y1="82" x2="1236.7100000000003" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1181.7100000000003" y="40" width="110" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1236.7100000000003" y="59" text-anchor="middle" font-size="12" font-weight="700">TorsoBalance</text>
+<text x="1236.7100000000003" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1380.7100000000003" y1="82" x2="1380.7100000000003" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1325.7100000000003" y="40" width="110" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1380.7100000000003" y="59" text-anchor="middle" font-size="12" font-weight="700">LegController</text>
+<text x="1380.7100000000003" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1519.7100000000003" y1="82" x2="1519.7100000000003" y2="716" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1469.7100000000003" y="40" width="100" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1519.7100000000003" y="59" text-anchor="middle" font-size="12" font-weight="700">Mode rules</text>
+<text x="1519.7100000000003" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<polyline points="100,118 266.45750000000004,118" fill="none" stroke="#E3E3E3"/>
+<polygon points="266.5,118.0 253.5,125.0 253.5,111.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="114.0" y="101" width="138.5" height="14" fill="#141414"/>
+<text x="183.22875000000002" y="112" text-anchor="middle" font-size="10.5">1. ServerApplyDamage(info)</text>
+<polyline points="266.45750000000004,156 501.40650000000016,156" fill="none" stroke="#E3E3E3"/>
+<polygon points="501.4,156.0 488.4,163.0 488.4,149.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="280.5" y="139" width="206.9" height="14" fill="#141414"/>
+<text x="383.93200000000013" y="150" text-anchor="middle" font-size="10.5">2. ServerTakeDamage(amount) ถ้ายังต่ออยู่</text>
+<polyline points="501.40650000000016,194 533.4065000000002,194 533.4065000000002,212 502.40650000000016,212" fill="none" stroke="#E3E3E3"/>
+<polygon points="502.4,212.0 515.4,205.0 515.4,219.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="538.4" y="196" width="160.5" height="14" fill="#141414"/>
+<text x="541.4065000000002" y="207" font-size="10.5">3. Hp = 0 และเพดานเลือดลด 125</text>
+<polyline points="501.40650000000016,240 266.45750000000004,240" fill="none" stroke="#E3E3E3"/>
+<polyline points="276.5,235.0 266.45750000000004,240 276.5,245.0" fill="none" stroke="#E3E3E3"/>
+<rect x="354.1" y="223" width="59.7" height="14" fill="#141414"/>
+<text x="383.93200000000013" y="234" text-anchor="middle" font-size="10.5">4. Depleted</text>
+<polyline points="266.45750000000004,278 705.8615000000002,278" fill="none" stroke="#E3E3E3"/>
+<polygon points="705.9,278.0 692.9,285.0 692.9,271.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="441.7" y="261" width="88.9" height="14" fill="#141414"/>
+<text x="486.1595000000001" y="272" text-anchor="middle" font-size="10.5">5. ServerDetach()</text>
+<polyline points="705.8615000000002,316 266.45750000000004,316" fill="none" stroke="#E3E3E3"/>
+<polyline points="276.5,311.0 266.45750000000004,316 276.5,321.0" fill="none" stroke="#E3E3E3"/>
+<rect x="391.4" y="299" width="189.6" height="14" fill="#141414"/>
+<text x="486.1595000000001" y="310" text-anchor="middle" font-size="10.5">6. AttachmentChanged(false) ทุกเครื่อง</text>
+<polyline points="266.45750000000004,354 987.6280000000002,354" fill="none" stroke="#E3E3E3"/>
+<polyline points="977.6,359.0 987.6280000000002,354 977.6,349.0" fill="none" stroke="#E3E3E3"/>
+<rect x="571.5" y="337" width="111.0" height="14" fill="#141414"/>
+<text x="627.0427500000001" y="348" text-anchor="middle" font-size="10.5">7. StateChanged(limb)</text>
+<polyline points="987.6280000000002,392 1236.7100000000003,392" fill="none" stroke="#E3E3E3"/>
+<polygon points="1236.7,392.0 1223.7,399.0 1223.7,385.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="1001.6" y="375" width="221.1" height="14" fill="#141414"/>
+<text x="1112.1690000000003" y="386" text-anchor="middle" font-size="10.5">8. ServerKnockDown(LegDetached) ถ้าเป็นขา</text>
+<polyline points="987.6280000000002,430 1519.7100000000003,430" fill="none" stroke="#E3E3E3"/>
+<polyline points="1509.7,435.0 1519.7100000000003,430 1509.7,425.0" fill="none" stroke="#E3E3E3"/>
+<rect x="1186.8" y="413" width="133.8" height="14" fill="#141414"/>
+<text x="1253.6690000000003" y="424" text-anchor="middle" font-size="10.5">9. LimbStateChanged(limb)</text>
+<polyline points="1519.7100000000003,468 1551.7100000000003,468 1551.7100000000003,486 1520.7100000000003,486" fill="none" stroke="#E3E3E3"/>
+<polygon points="1520.7,486.0 1533.7,479.0 1533.7,493.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="1556.7" y="470" width="180.8" height="14" fill="#141414"/>
+<text x="1559.7100000000003" y="481" font-size="10.5">10. EvaluateDefeat() ในรอบเช็คถัดไป</text>
+<path d="M1301.2712500000002,500 H1452.1487500000003 L1460.1487500000003,508 V524 H1301.2712500000002 Z M1452.1487500000003,500 V508 H1460.1487500000003" fill="#141414" stroke="#E3E3E3"/>
+<text x="1380.7100000000003" y="516" text-anchor="middle" font-size="10.5">tick ถัดไป: mode = Detached</text>
+<path d="M554.2352500000002,538 H849.4877500000002 L857.4877500000002,546 V562 H554.2352500000002 Z M849.4877500000002,538 V546 H857.4877500000002" fill="#141414" stroke="#E3E3E3"/>
+<text x="705.8615000000002" y="554" text-anchor="middle" font-size="10.5">หลุดครบ 3 วิ แล้วผู้เล่นกด R ค้าง: RequestPullBackRpc(true)</text>
+<polyline points="705.8615000000002,590 737.8615000000002,590 737.8615000000002,608 706.8615000000002,608" fill="none" stroke="#E3E3E3"/>
+<polygon points="706.9,608.0 719.9,601.0 719.9,615.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="742.9" y="592" width="237.8" height="14" fill="#141414"/>
+<text x="745.8615000000002" y="603" font-size="10.5">11. ดึงเข้า socket (≤ 2 ม.) แล้ว ServerReconnect()</text>
+<polyline points="705.8615000000002,636 266.45750000000004,636" fill="none" stroke="#E3E3E3"/>
+<polyline points="276.5,631.0 266.45750000000004,636 276.5,641.0" fill="none" stroke="#E3E3E3"/>
+<rect x="414.0" y="619" width="144.3" height="14" fill="#141414"/>
+<text x="486.1595000000001" y="630" text-anchor="middle" font-size="10.5">12. AttachmentChanged(true)</text>
+<polyline points="266.45750000000004,674 501.40650000000016,674" fill="none" stroke="#E3E3E3"/>
+<polygon points="501.4,674.0 488.4,681.0 488.4,667.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="296.0" y="657" width="175.9" height="14" fill="#141414"/>
+<text x="383.93200000000013" y="668" text-anchor="middle" font-size="10.5">13. ServerRefill() เต็มตามเพดานใหม่</text>
+</g>
+</svg>

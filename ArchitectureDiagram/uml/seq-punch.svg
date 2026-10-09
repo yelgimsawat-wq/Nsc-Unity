@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 660" width="1440" height="660" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>Sequence: หมัดโดนบอส บอสตาย แมตช์จบ</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="161.3" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด</text></g>
+<g transform="translate(0,36)">
+<line x1="90" y1="82" x2="90" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="40" y="40" width="100" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="90" y="59" text-anchor="middle" font-size="12" font-weight="700">เจ้าของแขน</text>
+<text x="90" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(client)</text>
+<line x1="252.3835" y1="82" x2="252.3835" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="202.3835" y="40" width="100" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="252.3835" y="59" text-anchor="middle" font-size="12" font-weight="700">PunchAbility</text>
+<text x="252.3835" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="498.55500000000006" y1="82" x2="498.55500000000006" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="453.55500000000006" y="40" width="90" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="498.55500000000006" y="59" text-anchor="middle" font-size="12" font-weight="700">LimbStrike</text>
+<text x="498.55500000000006" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="648.6640000000001" y1="82" x2="648.6640000000001" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="588.6640000000001" y="40" width="120" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="648.6640000000001" y="59" text-anchor="middle" font-size="12" font-weight="700">DamageRouter</text>
+<text x="648.6640000000001" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(static)</text>
+<line x1="862.3905000000001" y1="82" x2="862.3905000000001" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="807.3905000000001" y="40" width="110" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="862.3905000000001" y="59" text-anchor="middle" font-size="12" font-weight="700">EnemyHealth</text>
+<text x="862.3905000000001" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1016.3905000000001" y1="82" x2="1016.3905000000001" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="951.3905000000001" y="40" width="130" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1016.3905000000001" y="59" text-anchor="middle" font-size="12" font-weight="700">BossModeRules</text>
+<text x="1016.3905000000001" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1170.3905" y1="82" x2="1170.3905" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1115.3905" y="40" width="110" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1170.3905" y="59" text-anchor="middle" font-size="12" font-weight="700">MatchSession</text>
+<text x="1170.3905" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1329.3905" y1="82" x2="1329.3905" y2="594" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1259.3905" y="40" width="140" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1329.3905" y="59" text-anchor="middle" font-size="12" font-weight="700">MatchResultPanel</text>
+<text x="1329.3905" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(ทุกเครื่อง)</text>
+<polyline points="90,118 252.3835,118" fill="none" stroke="#E3E3E3"/>
+<polygon points="252.4,118.0 239.4,125.0 239.4,111.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="104.0" y="101" width="134.4" height="14" fill="#141414"/>
+<text x="171.19175" y="112" text-anchor="middle" font-size="10.5">1. RequestPunchStartRpc()</text>
+<polyline points="252.3835,156 284.3835,156 284.3835,174 253.3835,174" fill="none" stroke="#E3E3E3"/>
+<polygon points="253.4,174.0 266.4,167.0 266.4,181.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="289.4" y="158" width="202.2" height="14" fill="#141414"/>
+<text x="292.3835" y="169" font-size="10.5">2. ตั้ง ArmMotionOverride ทุก FixedUpdate</text>
+<path d="M446.1695000000001,188 H542.9405 L550.9405,196 V212 H446.1695000000001 Z M542.9405,188 V196 H550.9405" fill="#141414" stroke="#E3E3E3"/>
+<text x="498.55500000000006" y="204" text-anchor="middle" font-size="10.5">OnCollisionEnter</text>
+<polyline points="498.55500000000006,240 252.3835,240" fill="none" stroke="#E3E3E3"/>
+<polygon points="252.4,240.0 265.4,233.0 265.4,247.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="296.3" y="223" width="158.3" height="14" fill="#141414"/>
+<text x="375.46925000000005" y="234" text-anchor="middle" font-size="10.5">3. CanDealDamage, PeakSpeed</text>
+<polyline points="498.55500000000006,278 648.6640000000001,278" fill="none" stroke="#E3E3E3"/>
+<polygon points="648.7,278.0 635.7,285.0 635.7,271.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="512.6" y="261" width="122.1" height="14" fill="#141414"/>
+<text x="573.6095" y="272" text-anchor="middle" font-size="10.5">4. TryApply(collider, info)</text>
+<polyline points="648.6640000000001,316 680.6640000000001,316 680.6640000000001,334 649.6640000000001,334" fill="none" stroke="#E3E3E3"/>
+<polygon points="649.7,334.0 662.7,327.0 662.7,341.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="685.7" y="318" width="169.7" height="14" fill="#141414"/>
+<text x="688.6640000000001" y="329" font-size="10.5">5. เช็ค GameplayGate และกติกาทีม</text>
+<polyline points="648.6640000000001,362 862.3905000000001,362" fill="none" stroke="#E3E3E3"/>
+<polygon points="862.4,362.0 849.4,369.0 849.4,355.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="686.3" y="345" width="138.5" height="14" fill="#141414"/>
+<text x="755.5272500000001" y="356" text-anchor="middle" font-size="10.5">6. ServerApplyDamage(info)</text>
+<polyline points="648.6640000000001,400 498.55500000000006,400" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="508.6,395.0 498.55500000000006,400 508.6,405.0" fill="none" stroke="#E3E3E3"/>
+<rect x="555.7" y="383" width="35.8" height="14" fill="#141414"/>
+<text x="573.6095" y="394" text-anchor="middle" font-size="10.5">7. true</text>
+<polyline points="498.55500000000006,438 252.3835,438" fill="none" stroke="#E3E3E3"/>
+<polygon points="252.4,438.0 265.4,431.0 265.4,445.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="325.2" y="421" width="100.5" height="14" fill="#141414"/>
+<text x="375.46925000000005" y="432" text-anchor="middle" font-size="10.5">8. OnStrikeLanded()</text>
+<polyline points="862.3905000000001,476 1016.3905000000001,476" fill="none" stroke="#E3E3E3"/>
+<polyline points="1006.4,481.0 1016.3905000000001,476 1006.4,471.0" fill="none" stroke="#E3E3E3"/>
+<rect x="919.8" y="459" width="39.3" height="14" fill="#141414"/>
+<text x="939.3905000000001" y="470" text-anchor="middle" font-size="10.5">9. Died</text>
+<polyline points="1016.3905000000001,514 1170.3905,514" fill="none" stroke="#E3E3E3"/>
+<polygon points="1170.4,514.0 1157.4,521.0 1157.4,507.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="1037.3" y="497" width="112.2" height="14" fill="#141414"/>
+<text x="1093.3905" y="508" text-anchor="middle" font-size="10.5">10. ServerEnd(Victory)</text>
+<polyline points="1170.3905,552 1329.3905,552" fill="none" stroke="#E3E3E3"/>
+<polyline points="1319.4,557.0 1329.3905,552 1319.4,547.0" fill="none" stroke="#E3E3E3"/>
+<rect x="1202.1" y="535" width="95.6" height="14" fill="#141414"/>
+<text x="1249.8905" y="546" text-anchor="middle" font-size="10.5">11. Phase = Ended</text>
+</g>
+</svg>

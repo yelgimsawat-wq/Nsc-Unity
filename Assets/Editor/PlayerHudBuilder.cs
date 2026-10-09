@@ -88,7 +88,7 @@ public static class PlayerHudBuilder
 
         LocalRobotBinder binder = root.AddComponent<LocalRobotBinder>();
 
-        // ซ่อน HUD ไว้จนกว่า Host จะกด Start ใน LobbyManager
+        // ซ่อน HUD ไว้จนกว่าแมตช์จะเริ่ม (MatchSession = Playing)
         CanvasGroup rootGroup = root.AddComponent<CanvasGroup>();
         rootGroup.alpha = 0f;
         rootGroup.interactable = false;

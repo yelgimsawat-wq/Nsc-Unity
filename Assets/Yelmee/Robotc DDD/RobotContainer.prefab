@@ -720,6 +720,7 @@ GameObject:
   - component: {fileID: 7310984040740239260}
   - component: {fileID: 8940036673481268773}
   - component: {fileID: 281823945385840059}
+  - component: {fileID: 7315189886292417092}
   m_Layer: 3
   m_Name: LeftFoot
   m_TagString: BodyParts
@@ -890,28 +891,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cb7bb5538b4306642a39b2689a1ec8df, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerFootForRobot
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.LegController
   ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  isStepping: 0
-  isPushingRecovery: 0
-  isJumping: 0
-  torso: {fileID: 6257009638769092180}
-  footRb: {fileID: 1421620812784873290}
-  pivotPoint: {fileID: 3572450706684315797}
-  playerCamera: {fileID: 0}
+  body: {fileID: 1421620812784873290}
+  pivot: {fileID: 3572450706684315797}
   maxLegLength: 14
   minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
   maxDetachedSpeed: 8
-  heightAdjustSpeed: 3
-  clickLiftHeight: 2.4
   legDamper: 25
   groundLayer:
     serializedVersion: 2
@@ -926,18 +915,34 @@ MonoBehaviour:
   upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
-  autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
   makeLegJointsUnbreakable: 1
-  plantedPosition: {x: 0, y: 0, z: 0}
   teleportOnPlant: 1
   ignoreSelfCollision: 1
-  useVirtualCursor: 1
-  mouseSensitivity: 1.5
-  showCrosshair: 0
   ragdollFootMoveSpeed: 3
   standingGroundRayLength: 50
+  kick:
+    chargeTime: 1
+    minimumCharge: 0.12
+    minSpeed: 30
+    maxSpeed: 70
+    acceleration: 1100
+    duration: 0.3
+    reach: 6
+    maxTorsoUpwardSpeed: 0.75
+    moveSpeed: 25
+    damper: 10
+    targetReach: 18
+    enableWindup: 1
+    windupPullBack: 8
+    windupMoveSpeed: 9
+    windupDamper: 8
+    maxWindupSpeed: 18
+    recoveryDuration: 0.18
+    recoveryDamping: 14
+    minimumPowerAtZeroHealth: 0.3
+    debugLog: 1
 --- !u!153 &7310984040740239260
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1051,29 +1056,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.LegInput
   ShowTopMostFoldoutHeaderGroup: 1
   kickKey: 304
-  fullChargeDuration: 1
-  minimumCharge: 0.12
-  minimumKickSpeed: 30
-  maximumKickSpeed: 70
-  kickAcceleration: 1100
-  kickDuration: 0.3
-  kickReach: 6
-  maxTorsoUpwardSpeedDuringKick: 0.75
-  kickMoveSpeed: 25
-  kickDamper: 10
-  kickTargetReach: 18
-  enableWindup: 1
-  windupPullBack: 8
-  windupMoveSpeed: 9
-  windupDamper: 8
-  maxWindupSpeed: 18
-  recoveryDuration: 0.18
-  recoveryDamping: 14
-  minimumPowerAtZeroHealth: 0.3
-  debugKickLog: 1
+  playerCamera: {fileID: 0}
+  clickLiftHeight: 2.4
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 0
 --- !u!114 &281823945385840059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1085,11 +1075,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Combat.LimbStrike
   minVelocityThreshold: 8
   forceToDamage: 0.01
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
+  speedToDamage: 1.2
   maxDamagePerHit: 60
   minKnockbackForce: 2
   maxKnockbackForce: 12
@@ -1115,6 +1104,7 @@ GameObject:
   - component: {fileID: 5884711403799478836}
   - component: {fileID: 970124958746250394}
   - component: {fileID: 4859128338769249676}
+  - component: {fileID: 6642889139367793740}
   m_Layer: 3
   m_Name: RightFoot
   m_TagString: BodyParts
@@ -1285,28 +1275,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cb7bb5538b4306642a39b2689a1ec8df, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerFootForRobot
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.LegController
   ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  isStepping: 0
-  isPushingRecovery: 0
-  isJumping: 0
-  torso: {fileID: 6257009638769092180}
-  footRb: {fileID: 7946320219191970491}
-  pivotPoint: {fileID: 1969783591416405876}
-  playerCamera: {fileID: 0}
+  body: {fileID: 7946320219191970491}
+  pivot: {fileID: 1969783591416405876}
   maxLegLength: 14
   minLegLength: 0.4
   footMoveSpeed: 5
   balanceShiftMultiplier: 0.5
   detachedMoveSpeed: 20
   maxDetachedSpeed: 8
-  heightAdjustSpeed: 3
-  clickLiftHeight: 2.4
   legDamper: 25
   groundLayer:
     serializedVersion: 2
@@ -1321,18 +1299,34 @@ MonoBehaviour:
   upwardRecoveryBoost: 800
   mouseReachX: 16
   mouseReachY: 16
-  autoHeightDelay: 0.5
   maxFootVelocity: 25
   groundCheckDistance: 2.2
   makeLegJointsUnbreakable: 1
-  plantedPosition: {x: 0, y: 0, z: 0}
   teleportOnPlant: 1
   ignoreSelfCollision: 1
-  useVirtualCursor: 1
-  mouseSensitivity: 1.5
-  showCrosshair: 0
   ragdollFootMoveSpeed: 3
   standingGroundRayLength: 50
+  kick:
+    chargeTime: 1
+    minimumCharge: 0.12
+    minSpeed: 30
+    maxSpeed: 70
+    acceleration: 1100
+    duration: 0.3
+    reach: 6
+    maxTorsoUpwardSpeed: 0.75
+    moveSpeed: 25
+    damper: 10
+    targetReach: 18
+    enableWindup: 1
+    windupPullBack: 8
+    windupMoveSpeed: 9
+    windupDamper: 8
+    maxWindupSpeed: 18
+    recoveryDuration: 0.18
+    recoveryDamping: 14
+    minimumPowerAtZeroHealth: 0.3
+    debugLog: 1
 --- !u!153 &5884711403799478836
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1446,29 +1440,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4ea6ef1a3648b43a6e2f6f1fc6d17d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerLegCombat
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.LegInput
   ShowTopMostFoldoutHeaderGroup: 1
   kickKey: 304
-  fullChargeDuration: 1
-  minimumCharge: 0.12
-  minimumKickSpeed: 30
-  maximumKickSpeed: 70
-  kickAcceleration: 1100
-  kickDuration: 0.3
-  kickReach: 6
-  maxTorsoUpwardSpeedDuringKick: 0.75
-  kickMoveSpeed: 25
-  kickDamper: 10
-  kickTargetReach: 18
-  enableWindup: 1
-  windupPullBack: 8
-  windupMoveSpeed: 9
-  windupDamper: 8
-  maxWindupSpeed: 18
-  recoveryDuration: 0.18
-  recoveryDamping: 14
-  minimumPowerAtZeroHealth: 0.3
-  debugKickLog: 1
+  playerCamera: {fileID: 0}
+  clickLiftHeight: 2.4
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 0
 --- !u!114 &4859128338769249676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1480,11 +1459,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Combat.LimbStrike
   minVelocityThreshold: 8
   forceToDamage: 0.01
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
+  speedToDamage: 1.2
   maxDamagePerHit: 60
   minKnockbackForce: 2
   maxKnockbackForce: 12
@@ -1846,6 +1824,7 @@ GameObject:
   - component: {fileID: 3017697337275834156}
   - component: {fileID: 4691098123186488490}
   - component: {fileID: 6257009638769092180}
+  - component: {fileID: 3878391793334559389}
   m_Layer: 3
   m_Name: Torso
   m_TagString: Body
@@ -2019,26 +1998,26 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d2c6141a549f0a340a60742b0535e3b9, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TorsoMovement
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.TorsoBalance
+  rules:
+    maxTiltAngle: 45
+    airborneGrace: 0.5
+    bothOffBalanceGrace: 0.15
+    maxStress: 50
   ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
+  isRagdoll:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 2
+    m_InternalValue: 1
   targetTorsoHeight: 20
   heightSpringForce: 500
   heightDamper: 40
   uprightSpring: 5
   uprightDamper: 60
   autoCenterGravityForce: 250
-  maxBalanceAngle: 45
-  fallGracePeriod: 0.5
-  bothFeetUnbalancedGrace: 0.15
   recoveryUprightTorque: 5
   recoveryHeightThreshold: 0.7
-  maxTorsoStress: 50
-  currentStress: 0
   stressDecayRate: 50
   continuousRecoveryForce: 5
   maxRecoveryUpVelocity: 12
@@ -2057,7 +2036,6 @@ MonoBehaviour:
   hipJoints:
   - {fileID: 438222356580900580}
   - {fileID: 5918512235027225671}
-  armPullIntensity: 0
   minCenterForceMultiplier: 0.15
   testSingleFootRecovery: 1
 --- !u!1 &4485924092637935926
@@ -2108,6 +2086,9 @@ GameObject:
   - component: {fileID: 6640856561921496833}
   - component: {fileID: 9114835423681065036}
   - component: {fileID: 7704462238168756950}
+  - component: {fileID: 518330468720367773}
+  - component: {fileID: 2314561680313497716}
+  - component: {fileID: 1513843881561914627}
   m_Layer: 3
   m_Name: Hand_R
   m_TagString: BodyParts
@@ -2380,36 +2361,17 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 285d4bf8c99a639428d574663971fc0d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandCombat
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmController
   ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  torso: {fileID: 6257009638769092180}
-  handRb: {fileID: 2487817889022272104}
-  pivotPoint: {fileID: 6618557556310012899}
-  playerCamera: {fileID: 0}
+  body: {fileID: 2487817889022272104}
+  pivot: {fileID: 6618557556310012899}
   pivotOffset: {x: 0, y: 0, z: 2.35}
-  grabOffset: {x: 0, y: 0, z: 0}
   maxArmLength: 18
   handMoveSpeed: 25
   handDamper: 15
-  planeYOffsetSpeed: 10
-  grabRadius: 2
-  grabBreakForce: 10000
-  preventGrabBreakWhileRagdoll: 1
   torsoPullForce: 10
   kinematicPullForce: 20
   kinematicGrabAddsStress: 0
-  detachedMoveSpeed: 20
-  grabLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
   smoothTime: 0.04
   brakeDistance: 0.5
   brakeDamping: 8
@@ -2423,37 +2385,32 @@ MonoBehaviour:
   ragdollHandSpringScale: 0.1
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
-  mouseReachX: 20
-  mouseReachY: 11
-  mouseReachDepth: 20
-  useVirtualCursor: 1
-  mouseSensitivity: 1.5
-  showCrosshair: 1
-  currentCombatState:
+  punchState:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
-  punchAcceleration: 600
-  maxPunchSpeed: 55
-  maxPunchDuration: 0.75
-  punchWindupTime: 0.12
-  punchDamper: 5
-  punchExtraReach: 8
-  punchBrakeScale: 0.05
-  recoveryBlendDuration: 0.25
-  damageGraceTime: 0.2
-  enableAimAssist: 1
-  aimAssistAngle: 30
-  aimAssistLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
   showAimAssistGizmos: 1
   aimRangeColor: {r: 1, g: 0.75, b: 0, a: 0.35}
   rawAimColor: {r: 0, g: 1, b: 1, a: 1}
   assistedAimColor: {r: 0, g: 1, b: 0, a: 1}
   aimConeSegments: 16
-  debugPunchLog: 1
+  punch:
+    acceleration: 600
+    maxSpeed: 55
+    maxDuration: 0.75
+    windupTime: 0.12
+    damper: 5
+    extraReach: 8
+    brakeScale: 0.05
+    recoveryBlendDuration: 0.25
+    damageGraceTime: 0.2
+    enableAimAssist: 1
+    aimAssistAngle: 30
+    aimAssistLayer:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    debugLog: 1
 --- !u!114 &7704462238168756950
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2465,11 +2422,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Combat.LimbStrike
   minVelocityThreshold: 8
   forceToDamage: 0.01
   speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
   minKnockbackForce: 2
   maxKnockbackForce: 12
@@ -2525,6 +2481,9 @@ GameObject:
   - component: {fileID: 4371318364166063628}
   - component: {fileID: 1287962358011837292}
   - component: {fileID: 4453908891334473178}
+  - component: {fileID: 9173905303549994287}
+  - component: {fileID: 9005445836284205709}
+  - component: {fileID: 2081289526479775370}
   m_Layer: 3
   m_Name: Hand_L
   m_TagString: BodyParts
@@ -2797,36 +2756,17 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 285d4bf8c99a639428d574663971fc0d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandCombat
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmController
   ShowTopMostFoldoutHeaderGroup: 1
-  currentState:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
-  torso: {fileID: 6257009638769092180}
-  handRb: {fileID: 2756808108934423391}
-  pivotPoint: {fileID: 5967943897439673618}
-  playerCamera: {fileID: 0}
+  body: {fileID: 2756808108934423391}
+  pivot: {fileID: 5967943897439673618}
   pivotOffset: {x: 0, y: 0, z: -2.35}
-  grabOffset: {x: 0, y: 0, z: 0}
   maxArmLength: 15
   handMoveSpeed: 25
   handDamper: 15
-  planeYOffsetSpeed: 10
-  grabRadius: 2
-  grabBreakForce: 10000
-  preventGrabBreakWhileRagdoll: 1
   torsoPullForce: 10
   kinematicPullForce: 20
   kinematicGrabAddsStress: 0
-  detachedMoveSpeed: 20
-  grabLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
   smoothTime: 0.04
   brakeDistance: 0.5
   brakeDamping: 8
@@ -2840,37 +2780,32 @@ MonoBehaviour:
   ragdollHandSpringScale: 0.25
   torsoPullHorizontalScale: 0.2
   maxAllowedHorizontalBoost: 3
-  mouseReachX: 20
-  mouseReachY: 11
-  mouseReachDepth: 20
-  useVirtualCursor: 1
-  mouseSensitivity: 1.5
-  showCrosshair: 1
-  currentCombatState:
+  punchState:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 0
-  punchAcceleration: 600
-  maxPunchSpeed: 55
-  maxPunchDuration: 0.75
-  punchWindupTime: 0.12
-  punchDamper: 5
-  punchExtraReach: 8
-  punchBrakeScale: 0.05
-  recoveryBlendDuration: 0.25
-  damageGraceTime: 0.2
-  enableAimAssist: 1
-  aimAssistAngle: 30
-  aimAssistLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
   showAimAssistGizmos: 1
   aimRangeColor: {r: 1, g: 0.75, b: 0, a: 0.35}
   rawAimColor: {r: 0, g: 1, b: 1, a: 1}
   assistedAimColor: {r: 0, g: 1, b: 0, a: 1}
   aimConeSegments: 16
-  debugPunchLog: 1
+  punch:
+    acceleration: 600
+    maxSpeed: 55
+    maxDuration: 0.75
+    windupTime: 0.12
+    damper: 5
+    extraReach: 8
+    brakeScale: 0.05
+    recoveryBlendDuration: 0.25
+    damageGraceTime: 0.2
+    enableAimAssist: 1
+    aimAssistAngle: 30
+    aimAssistLayer:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    debugLog: 1
 --- !u!114 &4453908891334473178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2882,11 +2817,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhysicsDamageSender
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Combat.LimbStrike
   minVelocityThreshold: 8
   forceToDamage: 0.01
   speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
   maxDamagePerHit: 60
   minKnockbackForce: 2
   maxKnockbackForce: 12
@@ -5362,3 +5296,157 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7486741168450146613, guid: ccadc0cfebb3444489213a0c4ea5285f, type: 3}
   m_PrefabInstance: {fileID: 8782263614081949891}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &518330468720367773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5230341996784551176}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82bd635063294ccdaa0135fc5f6a8387, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmGrip
+  grabOffset: {x: 0, y: 0, z: 0}
+  grabRadius: 2
+  grabBreakForce: 10000
+  preventGrabBreakWhileRagdoll: 1
+  grabLayer:
+    serializedVersion: 2
+    m_Bits: 128
+--- !u!114 &2314561680313497716
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5230341996784551176}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c344fdfef1e4ed49a66d62757865b6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmInput
+  playerCamera: {fileID: 0}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  mouseReachX: 20
+  mouseReachY: 11
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 1
+--- !u!114 &1513843881561914627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5230341996784551176}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f07d691904d434d9402a28da30fdcdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotLimb
+  slot: 1
+--- !u!114 &9173905303549994287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5310080303190601942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82bd635063294ccdaa0135fc5f6a8387, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmGrip
+  grabOffset: {x: 0, y: 0, z: 0}
+  grabRadius: 2
+  grabBreakForce: 10000
+  preventGrabBreakWhileRagdoll: 1
+  grabLayer:
+    serializedVersion: 2
+    m_Bits: 128
+--- !u!114 &9005445836284205709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5310080303190601942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c344fdfef1e4ed49a66d62757865b6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Limbs.ArmInput
+  playerCamera: {fileID: 0}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  mouseReachX: 20
+  mouseReachY: 11
+  useVirtualCursor: 1
+  mouseSensitivity: 1.5
+  showCrosshair: 1
+--- !u!114 &2081289526479775370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5310080303190601942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f07d691904d434d9402a28da30fdcdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotLimb
+  slot: 0
+--- !u!114 &7315189886292417092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 826449864210624870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f07d691904d434d9402a28da30fdcdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotLimb
+  slot: 2
+--- !u!114 &6642889139367793740
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1092308282534952556}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f07d691904d434d9402a28da30fdcdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotLimb
+  slot: 3
+--- !u!114 &3878391793334559389
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3237809866050744516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 780ee73d7ca6484fa0c95b5d112af2cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.Robot
+  team:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  limbs:
+  - {fileID: 2081289526479775370}
+  - {fileID: 1513843881561914627}
+  - {fileID: 7315189886292417092}
+  - {fileID: 6642889139367793740}

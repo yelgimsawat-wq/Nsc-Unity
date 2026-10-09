@@ -148,7 +148,7 @@ public class TutorialCanvasCreator
         Selection.activeGameObject = canvasGO;
 
         Debug.Log("[TutorialCanvasCreator] ✅ Tutorial Canvas created and fully wired! " +
-                  "It will activate when LobbyManager starts the game.");
+                  "It will activate when the match starts (LimbControlBinder.Bound).");
     }
 }
 #endif

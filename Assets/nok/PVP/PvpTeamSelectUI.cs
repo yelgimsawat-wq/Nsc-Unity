@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using System.Text;
 using DG.Tweening;
+using Nsc.Combat;
+using Nsc.Match;
+using Nsc.Robots;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
@@ -38,6 +41,8 @@ namespace NscGame.Pvp
     ///   2. กดชิ้นส่วนที่อยากคุม (แขนซ้าย/ขวา, ขาซ้าย/ขวา) — ชิ้นที่เพื่อนร่วมทีมจองแล้วจะกดไม่ได้
     ///   3. Host กด START FIGHT → panel ปิด ฟิสิกส์ปลดล็อก เริ่มสู้
     ///
+    /// เป็นแค่หน้าจอ — การจองอยู่ที่ LimbSelection (เลือกหุ่น = เลือกทีม) / เฟสอยู่ที่ MatchSession
+    ///
     /// ใช้แพทเทิร์น DOTween เดียวกับ OnlineNetworkUI/LobbyManager:
     ///   SetUpdate(true) ทุก tween, เก็บ tween ในดิกชันนารีเพื่อ kill ตอน OnDestroy
     /// </summary>
@@ -65,21 +70,21 @@ namespace NscGame.Pvp
         public Image blueTeamHeader;
 
         [Header("Limb Buttons (เรียง: แขนซ้าย, แขนขวา, ขาซ้าย, ขาขวา)")]
-        public Button[] limbButtons = new Button[PvpLimb.Count];
-        public TextMeshProUGUI[] limbLabels = new TextMeshProUGUI[PvpLimb.Count];
+        public Button[] limbButtons = new Button[LimbSlots.Count];
+        public TextMeshProUGUI[] limbLabels = new TextMeshProUGUI[LimbSlots.Count];
 
         [Header("Robot Assembly (หุ่นกลางจอ — ปล่อยว่างได้ถ้าใช้เลย์เอาต์เก่า)")]
         public Image torsoIcon;
-        public Image[] limbIcons = new Image[PvpLimb.Count];
-        public TextMeshProUGUI[] limbOwnerLabels = new TextMeshProUGUI[PvpLimb.Count];
+        public Image[] limbIcons = new Image[LimbSlots.Count];
+        public TextMeshProUGUI[] limbOwnerLabels = new TextMeshProUGUI[LimbSlots.Count];
 
         [Header("Limb Sockets (ช่องเสียบข้างหุ่น — กดได้เหมือนกดที่ตัวหุ่น)")]
         [Tooltip("ปุ่มสำรองบนตัวหุ่น สั่งงานชิ้นส่วนเดียวกับ limbButtons")]
-        public Button[] limbAltButtons = new Button[PvpLimb.Count];
-        public Image[] limbSocketFrames = new Image[PvpLimb.Count];
-        public Image[] limbSocketIcons = new Image[PvpLimb.Count];
-        [Tooltip("ไอคอนชิ้นส่วนที่เอาไปโชว์ในการ์ดผู้เล่น — เรียงตาม PvpLimb")]
-        public Sprite[] limbPartSprites = new Sprite[PvpLimb.Count];
+        public Button[] limbAltButtons = new Button[LimbSlots.Count];
+        public Image[] limbSocketFrames = new Image[LimbSlots.Count];
+        public Image[] limbSocketIcons = new Image[LimbSlots.Count];
+        [Tooltip("ไอคอนชิ้นส่วนที่เอาไปโชว์ในการ์ดผู้เล่น — เรียงตาม LimbSlot")]
+        public Sprite[] limbPartSprites = new Sprite[LimbSlots.Count];
 
         [Header("Status / Start")]
         public TextMeshProUGUI statusText;
@@ -122,7 +127,8 @@ namespace NscGame.Pvp
         private readonly Dictionary<Transform, Tween> buttonClickTweens = new Dictionary<Transform, Tween>();
         private readonly Dictionary<Graphic, Tween> colorTweens = new Dictionary<Graphic, Tween>();
 
-        private PvpTeamManager manager;
+        private LimbSelection selection;
+        private MatchSession session;
         private bool subscribed;
 
         #region Lifecycle
@@ -136,7 +142,7 @@ namespace NscGame.Pvp
 
         private void Update()
         {
-            // PvpTeamManager spawn ทีหลัง UI ได้ (NetworkObject รอ NetworkManager เริ่มก่อน)
+            // LimbSelection spawn ทีหลัง UI ได้ (NetworkObject รอ NetworkManager เริ่มก่อน)
             if (!subscribed) TrySubscribe();
         }
 
@@ -144,11 +150,12 @@ namespace NscGame.Pvp
         {
             if (subscribed) return;
 
-            manager = PvpTeamManager.Instance;
-            if (manager == null) return;
+            selection = LimbSelection.Current;
+            session = MatchSession.Current;
+            if (selection == null || session == null) return;
 
-            manager.OnRosterChanged += Refresh;
-            manager.OnMatchStateChanged += OnMatchStateChanged;
+            selection.AssignmentsChanged += Refresh;
+            session.PhaseChanged += OnPhaseChanged;
             subscribed = true;
 
             Refresh();
@@ -156,11 +163,8 @@ namespace NscGame.Pvp
 
         private void OnDestroy()
         {
-            if (manager != null)
-            {
-                manager.OnRosterChanged -= Refresh;
-                manager.OnMatchStateChanged -= OnMatchStateChanged;
-            }
+            if (selection != null) selection.AssignmentsChanged -= Refresh;
+            if (session != null) session.PhaseChanged -= OnPhaseChanged;
 
             UnwireButtons();
             KillAllTweens();
@@ -211,49 +215,53 @@ namespace NscGame.Pvp
                     if (b != null) b.onClick.RemoveAllListeners();
         }
 
-        private void OnRedClicked()  => RequestTeam(PvpTeam.Red,  redTeamButton);
-        private void OnBlueClicked() => RequestTeam(PvpTeam.Blue, blueTeamButton);
+        private void OnRedClicked()  => RequestTeam(Team.Red,  redTeamButton);
+        private void OnBlueClicked() => RequestTeam(Team.Blue, blueTeamButton);
 
-        private void RequestTeam(PvpTeam team, Button source)
+        private void RequestTeam(Team team, Button source)
         {
-            if (!EnsureManagerReady()) return;
+            if (!EnsureSelectionReady()) return;
+            Robot robot = TeamRobot(team);
+            if (robot == null) return;
+
             PlayClickFeedback(source);
-            manager.RequestTeamRpc(team);
+            selection.RequestRobotRpc(robot.NetworkObjectId);
         }
 
         private void OnLimbClicked(int index)
         {
-            if (!EnsureManagerReady()) return;
+            if (!EnsureSelectionReady()) return;
 
-            if (manager.LocalTeam == PvpTeam.None)
+            Robot robot = TeamRobot(LocalTeam);
+            if (robot == null)
             {
                 SetStatus("Pick a team before selecting a part");
                 return;
             }
 
             PlayClickFeedback(limbButtons != null && index < limbButtons.Length ? limbButtons[index] : null);
-            manager.RequestLimbRpc(index);
+            selection.RequestLimbRpc(robot.NetworkObjectId, (LimbSlot)index, true); // กดซ้ำ = ยกเลิก
         }
 
         private void OnStartClicked()
         {
-            if (!EnsureManagerReady()) return;
+            if (!EnsureSelectionReady()) return;
 
-            if (!manager.CanStartMatch(out string reason))
+            if (!selection.CanStart(out string reason))
             {
                 SetStatus(reason);
                 return;
             }
 
             PlayClickFeedback(startButton);
-            manager.RequestStartMatchRpc();
+            selection.RequestStartRpc();
         }
 
-        private bool EnsureManagerReady()
+        private bool EnsureSelectionReady()
         {
-            if (manager == null) TrySubscribe();
+            if (selection == null) TrySubscribe();
 
-            if (manager == null || !manager.IsSpawned)
+            if (selection == null || !selection.IsSpawned)
             {
                 SetStatus("Connecting... please wait");
                 return false;
@@ -261,21 +269,60 @@ namespace NscGame.Pvp
             return true;
         }
 
+        // ทีม = หุ่นที่เลือก — หุ่นแต่ละตัวในซีน PVP ตั้งทีมไว้ที่ Robot
+        private static Robot TeamRobot(Team team)
+        {
+            if (team == Team.None) return null;
+            foreach (Robot robot in Robot.All)
+                if (robot != null && robot.IsSpawned && robot.GetTeam() == team) return robot;
+            return null;
+        }
+
+        private static ulong TeamRobotId(Team team)
+        {
+            Robot robot = TeamRobot(team);
+            return robot != null ? robot.NetworkObjectId : 0;
+        }
+
+        private Team LocalTeam
+        {
+            get
+            {
+                Robot choice = selection.GetRobotChoice(NetworkManager.Singleton.LocalClientId);
+                return choice != null ? choice.GetTeam() : Team.None;
+            }
+        }
+
+        private int LocalLimbIndex => SlotIndexOf(NetworkManager.Singleton.LocalClientId);
+
+        private int SlotIndexOf(ulong clientId)
+        {
+            LimbSlot? slot = selection.GetSlot(clientId);
+            return slot.HasValue ? (int)slot.Value : -1;
+        }
+
+        private int CountTeam(Team team) => selection.CountPlayersOn(TeamRobotId(team));
+
+        private ulong GetLimbOwner(Team team, int limbIndex) =>
+            selection.GetController(TeamRobotId(team), (LimbSlot)limbIndex);
+
+        private static string LimbName(int index) => ((LimbSlot)index).DisplayName();
+
         #endregion
 
         #region Refresh
 
-        private void OnMatchStateChanged(PvpMatchState state)
+        private void OnPhaseChanged(MatchPhase phase)
         {
-            SetVisibleAnimated(selectionPanel, state == PvpMatchState.TeamSelect);
+            SetVisibleAnimated(selectionPanel, phase == MatchPhase.Preparing);
         }
 
         private void Refresh()
         {
-            if (manager == null || NetworkManager.Singleton == null) return;
+            if (selection == null || NetworkManager.Singleton == null) return;
 
-            PvpTeam myTeam = manager.LocalTeam;
-            int myLimb = manager.LocalLimbIndex;
+            Team myTeam = LocalTeam;
+            int myLimb = LocalLimbIndex;
             bool isHost = NetworkManager.Singleton.IsServer;
 
             RefreshTeamButtons(myTeam);
@@ -287,25 +334,25 @@ namespace NscGame.Pvp
             RefreshStatus(myTeam, myLimb);
         }
 
-        private void RefreshTeamButtons(PvpTeam myTeam)
+        private void RefreshTeamButtons(Team myTeam)
         {
-            ApplyTeamTint(redTeamButton,  redTeamHeader,  PvpTeam.Red,  myTeam);
-            ApplyTeamTint(blueTeamButton, blueTeamHeader, PvpTeam.Blue, myTeam);
+            ApplyTeamTint(redTeamButton,  redTeamHeader,  Team.Red,  myTeam);
+            ApplyTeamTint(blueTeamButton, blueTeamHeader, Team.Blue, myTeam);
 
             // ทีมเต็มแล้วกดไม่ได้ (ยกเว้นทีมที่ตัวเองอยู่)
             if (redTeamButton != null)
                 redTeamButton.interactable =
-                    myTeam == PvpTeam.Red || manager.CountTeam(PvpTeam.Red) < manager.MaxPlayersPerTeam;
+                    myTeam == Team.Red || CountTeam(Team.Red) < selection.MaxPlayersPerRobot;
             if (blueTeamButton != null)
                 blueTeamButton.interactable =
-                    myTeam == PvpTeam.Blue || manager.CountTeam(PvpTeam.Blue) < manager.MaxPlayersPerTeam;
+                    myTeam == Team.Blue || CountTeam(Team.Blue) < selection.MaxPlayersPerRobot;
         }
 
         /// <summary>
         /// แถบสีหัวการ์ด: ทีมที่เราอยู่สว่างเต็ม ทีมอื่นหรี่ลง
         /// เลย์เอาต์เก่า (ไม่มี header) ยังใช้ค่าขาว/ขาวจางเหมือนเดิม จะได้ไม่ย้อมการ์ดผิดสี
         /// </summary>
-        private void ApplyTeamTint(Button button, Image header, PvpTeam team, PvpTeam myTeam)
+        private void ApplyTeamTint(Button button, Image header, Team team, Team myTeam)
         {
             Color factor = myTeam == team ? selectedTeamColor : idleTeamColor;
             TintButton(button, header != null ? team.DisplayColor() * factor : factor);
@@ -313,22 +360,22 @@ namespace NscGame.Pvp
 
         private void RefreshRosters()
         {
-            if (redRosterText != null)  redRosterText.text  = BuildRoster(PvpTeam.Red);
-            if (blueRosterText != null) blueRosterText.text = BuildRoster(PvpTeam.Blue);
+            if (redRosterText != null)  redRosterText.text  = BuildRoster(Team.Red);
+            if (blueRosterText != null) blueRosterText.text = BuildRoster(Team.Blue);
         }
 
         private void RefreshSlots()
         {
-            FillSlots(redSlots,  PvpTeam.Red);
-            FillSlots(blueSlots, PvpTeam.Blue);
+            FillSlots(redSlots,  Team.Red);
+            FillSlots(blueSlots, Team.Blue);
         }
 
         /// <summary>เติมการ์ดรายคนตามลำดับใน roster — ช่องที่เหลือปล่อยเป็นช่องว่างหรี่ๆ ไว้</summary>
-        private void FillSlots(PvpPlayerSlotView[] slots, PvpTeam team)
+        private void FillSlots(PvpPlayerSlotView[] slots, Team team)
         {
             if (slots == null || slots.Length == 0) return;
 
-            List<PvpPlayerEntry> roster = manager.GetTeamRoster(team);
+            List<SelectionPlayer> roster = selection.PlayersOn(TeamRobotId(team));
             ulong localId = NetworkManager.Singleton.LocalClientId;
             Color teamColor = team.DisplayColor();
 
@@ -343,10 +390,11 @@ namespace NscGame.Pvp
                     continue;
                 }
 
-                PvpPlayerEntry entry = roster[i];
+                SelectionPlayer entry = roster[i];
                 bool isMe = entry.clientId == localId;
                 bool isHost = entry.clientId == NetworkManager.ServerClientId;
-                bool ready = PvpLimb.IsValid(entry.limbIndex);
+                int limbIndex = SlotIndexOf(entry.clientId);
+                bool ready = LimbSlots.IsValid(limbIndex);
 
                 string playerName = entry.playerName.ToString();
                 if (string.IsNullOrEmpty(playerName)) playerName = $"Player {entry.clientId}";
@@ -354,7 +402,7 @@ namespace NscGame.Pvp
 
                 SetText(slot.nameLabel, isMe ? $"{playerName} (You)" : playerName, slotTextColor);
                 SetText(slot.partLabel,
-                    ready ? PvpLimb.Name(entry.limbIndex).ToUpperInvariant() : "NO PART YET",
+                    ready ? LimbName(limbIndex).ToUpperInvariant() : "NO PART YET",
                     ready ? teamColor : slotDimColor);
                 SetText(slot.stateLabel, ready ? "READY" : "PICKING...", ready ? teamColor : pickingColor);
                 SetText(slot.avatarGlyph, playerName.Substring(0, 1).ToUpperInvariant(), slotTextColor);
@@ -374,7 +422,7 @@ namespace NscGame.Pvp
                 if (slot.readyIcon != null)
                     slot.readyIcon.color = ready ? teamColor : new Color(1f, 1f, 1f, 0f);
 
-                SetPartIcon(slot.partIcon, ready ? GetLimbSprite(entry.limbIndex) : null, teamColor);
+                SetPartIcon(slot.partIcon, ready ? GetLimbSprite(limbIndex) : null, teamColor);
             }
         }
 
@@ -397,7 +445,7 @@ namespace NscGame.Pvp
 
         private Sprite GetLimbSprite(int limbIndex)
         {
-            if (limbPartSprites == null || !PvpLimb.IsValid(limbIndex)) return null;
+            if (limbPartSprites == null || !LimbSlots.IsValid(limbIndex)) return null;
             return limbIndex < limbPartSprites.Length ? limbPartSprites[limbIndex] : null;
         }
 
@@ -418,33 +466,32 @@ namespace NscGame.Pvp
 
         private void RefreshCounter()
         {
-            int max = Mathf.Max(1, manager.MaxPlayersPerTeam) * 2;
+            int max = Mathf.Max(1, selection.MaxPlayersPerRobot) * 2;
 
             if (playersConnectedText != null)
-                playersConnectedText.text = $"{manager.PlayerCount} / {max}  PLAYERS CONNECTED";
+                playersConnectedText.text = $"{selection.PlayerCount} / {max}  PLAYERS CONNECTED";
 
             if (subtitleText != null)
                 subtitleText.text = $"2 TEAMS  /  {max} PLAYERS";
         }
 
-        private string BuildRoster(PvpTeam team)
+        private string BuildRoster(Team team)
         {
-            List<PvpPlayerEntry> roster = manager.GetTeamRoster(team);
+            List<SelectionPlayer> roster = selection.PlayersOn(TeamRobotId(team));
             if (roster.Count == 0) return "<i>Empty</i>";
 
             StringBuilder sb = new StringBuilder();
             ulong localId = NetworkManager.Singleton.LocalClientId;
 
-            foreach (PvpPlayerEntry entry in roster)
+            foreach (SelectionPlayer entry in roster)
             {
                 string name = entry.playerName.ToString();
                 if (string.IsNullOrEmpty(name)) name = "Player";
 
                 string me   = entry.clientId == localId ? " (You)" : "";
                 string host = entry.clientId == NetworkManager.ServerClientId ? " [Host]" : "";
-                string limb = PvpLimb.IsValid(entry.limbIndex)
-                    ? PvpLimb.Name(entry.limbIndex)
-                    : "No part selected";
+                int limbIndex = SlotIndexOf(entry.clientId);
+                string limb = LimbSlots.IsValid(limbIndex) ? LimbName(limbIndex) : "No part selected";
 
                 sb.AppendLine($"{name}{host}{me} — {limb}");
             }
@@ -452,19 +499,19 @@ namespace NscGame.Pvp
             return sb.ToString();
         }
 
-        private void RefreshLimbButtons(PvpTeam myTeam, int myLimb)
+        private void RefreshLimbButtons(Team myTeam, int myLimb)
         {
             if (limbButtons == null) return;
 
-            bool hasTeam = myTeam != PvpTeam.None;
+            bool hasTeam = myTeam != Team.None;
             ulong localId = NetworkManager.Singleton.LocalClientId;
 
-            for (int i = 0; i < limbButtons.Length && i < PvpLimb.Count; i++)
+            for (int i = 0; i < limbButtons.Length && i < LimbSlots.Count; i++)
             {
                 if (limbButtons[i] == null) continue;
 
-                ulong owner = hasTeam ? manager.GetLimbOwner(myTeam, i) : ulong.MaxValue;
-                bool taken  = owner != ulong.MaxValue;
+                ulong owner = hasTeam ? GetLimbOwner(myTeam, i) : LimbSelection.NoClient;
+                bool taken  = owner != LimbSelection.NoClient;
                 bool mine   = taken && owner == localId;
 
                 bool selectable = hasTeam && (!taken || mine);
@@ -505,10 +552,10 @@ namespace NscGame.Pvp
                 {
                     // มีป้ายเจ้าของแยกแล้ว (เลย์เอาต์หุ่นกลางจอ) → ป้ายชื่อชิ้นส่วนอยู่นิ่งๆ
                     limbLabels[i].text = hasOwnerLabel
-                        ? PvpLimb.Name(i).ToUpperInvariant()
-                        : mine  ? $"{PvpLimb.Name(i)}\n<size=70%>(You)</size>"
-                        : taken ? $"{PvpLimb.Name(i)}\n<size=70%>(Taken)</size>"
-                                : PvpLimb.Name(i);
+                        ? LimbName(i).ToUpperInvariant()
+                        : mine  ? $"{LimbName(i)}\n<size=70%>(You)</size>"
+                        : taken ? $"{LimbName(i)}\n<size=70%>(Taken)</size>"
+                                : LimbName(i);
                 }
 
                 if (hasOwnerLabel)
@@ -525,9 +572,9 @@ namespace NscGame.Pvp
         }
 
         /// <summary>หาชื่อคนที่จองชิ้นส่วนไว้ — เจ้าของอยู่ในทีมเดียวกับเราเสมอ (limb แยกตามทีม)</summary>
-        private string TeamPlayerName(PvpTeam team, ulong clientId)
+        private string TeamPlayerName(Team team, ulong clientId)
         {
-            foreach (PvpPlayerEntry entry in manager.GetTeamRoster(team))
+            foreach (SelectionPlayer entry in selection.PlayersOn(TeamRobotId(team)))
             {
                 if (entry.clientId != clientId) continue;
 
@@ -540,7 +587,7 @@ namespace NscGame.Pvp
 
         private void RefreshStartButton(bool isHost)
         {
-            bool canStart = manager.CanStartMatch(out string reason);
+            bool canStart = selection.CanStart(out string reason);
 
             // เหตุผลที่ยังกดไม่ได้ไปโชว์ใต้ตัวนับผู้เล่น ปุ่มจะได้ไม่ต้องยัดข้อความยาวๆ
             if (playersHintText != null)
@@ -567,24 +614,24 @@ namespace NscGame.Pvp
             }
         }
 
-        private void RefreshStatus(PvpTeam myTeam, int myLimb)
+        private void RefreshStatus(Team myTeam, int myLimb)
         {
             if (statusText == null) return;
 
-            if (myTeam == PvpTeam.None)
+            if (myTeam == Team.None)
             {
                 SetStatus("Pick your team: <color=#E63A3D>RED</color> or <color=#338CF2>BLUE</color>");
                 return;
             }
 
-            if (!PvpLimb.IsValid(myLimb))
+            if (!LimbSlots.IsValid(myLimb))
             {
                 SetStatus($"{myTeam.DisplayName()} team — select the part you want to control");
                 return;
             }
 
             bool isHost = NetworkManager.Singleton.IsServer;
-            SetStatus($"{myTeam.DisplayName()} team — controlling {PvpLimb.Name(myLimb)} | " +
+            SetStatus($"{myTeam.DisplayName()} team — controlling {LimbName(myLimb)} | " +
                       (isHost ? "Press START FIGHT to begin" : "Waiting for Host to start..."));
         }
 

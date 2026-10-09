@@ -1,16 +1,17 @@
+using Nsc.Robots;
 using UnityEngine;
 
 /// <summary>
-/// ปุ่มทดสอบ UI: กดเลขบังคับชิ้นส่วนหลุดทันที (ข้าม flag กันหลุด / เลือดไม่เกี่ยว)
+/// ปุ่มทดสอบ UI: กดเลขบังคับชิ้นส่วนหลุดทันที (ไม่สนเลือด)
 ///   1 = แขนซ้าย, 2 = แขนขวา, 3 = ขาซ้าย, 4 = ขาขวา
-/// กดได้จากทุกเครื่อง (client ส่งคำขอไป Server ให้อัตโนมัติ)
-/// ⚠️ เอาติ๊ก enableDebugKeys ออกก่อนปล่อยเกมจริง
+/// ทำงานเฉพาะใน Editor และ Development Build — build ที่ปล่อยจริงไม่มีช่องโกงนี้
+/// และ client สั่งหลุดได้เฉพาะชิ้นที่ตัวเองเป็นเจ้าของ
 /// </summary>
 public class DebugLimbBreaker : MonoBehaviour
 {
     [SerializeField] private LocalRobotBinder binder;
 
-    [Tooltip("ปิดตัวนี้ก่อน build ปล่อยเกมจริง")]
+    [Tooltip("ปิดได้แม้ใน Editor")]
     [SerializeField] private bool enableDebugKeys = true;
 
     [Header("Keys")]
@@ -25,20 +26,23 @@ public class DebugLimbBreaker : MonoBehaviour
             binder = GetComponentInParent<LocalRobotBinder>();
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
         if (!enableDebugKeys || binder == null || !binder.IsBound)
             return;
 
-        if (Input.GetKeyDown(leftArmKey)) Break(binder.LeftArmJoint);
-        if (Input.GetKeyDown(rightArmKey)) Break(binder.RightArmJoint);
-        if (Input.GetKeyDown(leftLegKey)) Break(binder.LeftLegJoint);
-        if (Input.GetKeyDown(rightLegKey)) Break(binder.RightLegJoint);
+        if (Input.GetKeyDown(leftArmKey)) Break(LimbSlot.LeftArm);
+        if (Input.GetKeyDown(rightArmKey)) Break(LimbSlot.RightArm);
+        if (Input.GetKeyDown(leftLegKey)) Break(LimbSlot.LeftLeg);
+        if (Input.GetKeyDown(rightLegKey)) Break(LimbSlot.RightLeg);
     }
 
-    private static void Break(JointPullAndReconnect joint)
+    private void Break(LimbSlot slot)
     {
-        if (joint != null)
-            joint.DebugRequestBreak();
+        RobotLimb limb = binder.GetLimb(slot);
+        if (limb != null && limb.Attachment != null)
+            limb.Attachment.DebugRequestBreak();
     }
+#endif
 }

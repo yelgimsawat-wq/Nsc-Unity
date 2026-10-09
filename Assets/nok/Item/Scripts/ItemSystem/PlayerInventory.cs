@@ -135,6 +135,7 @@ namespace NscUnity.Items
         /// <summary>ขอสลับไอเทมที่ถือ (-1 หรือช่องว่าง = มือเปล่า) เรียกได้ทั้งจาก Client และ Server</summary>
         public void RequestEquip(int index)
         {
+            if (!IsSpawned || (!IsServer && !IsOwner)) return;
             if (IsServer) EquipServerSide(index);
             else EquipRpc(index);
         }
@@ -142,6 +143,7 @@ namespace NscUnity.Items
         /// <summary>ขอเลื่อนไปช่องที่มีของถัดไป (direction = +1 / -1) ใช้กับล้อเมาส์ได้</summary>
         public void RequestEquipRelative(int direction)
         {
+            if (!IsSpawned || (!IsServer && !IsOwner)) return;
             if (IsServer) EquipRelativeServerSide(direction);
             else EquipRelativeRpc(direction);
         }
@@ -149,17 +151,18 @@ namespace NscUnity.Items
         /// <summary>ขอโยนไอเทมที่ถืออยู่ทิ้งลงพื้น</summary>
         public void RequestDrop(Vector3 dropPosition, Vector3 dropDirection)
         {
+            if (!IsSpawned || (!IsServer && !IsOwner)) return;
             if (IsServer) DropEquippedServerSide(dropPosition, dropDirection);
             else DropRpc(dropPosition, dropDirection);
         }
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void EquipRpc(int index) => EquipServerSide(index);
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void EquipRelativeRpc(int direction) => EquipRelativeServerSide(direction);
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void DropRpc(Vector3 dropPosition, Vector3 dropDirection) => DropEquippedServerSide(dropPosition, dropDirection);
 
         // ==========================================================
@@ -220,6 +223,7 @@ namespace NscUnity.Items
         private void EquipRelativeServerSide(int direction)
         {
             if (!IsServer || slotItemIndices.Count == 0 || direction == 0) return;
+            direction = direction > 0 ? 1 : -1;
 
             int start = equippedIndex.Value < 0 ? 0 : equippedIndex.Value;
             for (int step = 1; step <= slotItemIndices.Count; step++)
@@ -236,6 +240,11 @@ namespace NscUnity.Items
         private void DropEquippedServerSide(Vector3 dropPosition, Vector3 dropDirection)
         {
             if (!IsServer) return;
+
+            // Drop beside the authoritative hand, regardless of the client's requested position.
+            Transform origin = hand != null && hand.HoldPoint != null ? hand.HoldPoint : transform;
+            dropPosition = origin.position + origin.forward + Vector3.up * 0.5f;
+            dropDirection = origin.forward;
 
             ItemDefinition item = EquippedItem;
             if (item == null) return;

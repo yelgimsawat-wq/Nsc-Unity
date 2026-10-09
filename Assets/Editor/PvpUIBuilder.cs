@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Nsc.Match;
+using Nsc.Robots;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -91,7 +93,7 @@ namespace NscGame.Pvp
             root.AddComponent<GraphicRaycaster>();
 
             PvpTeamSelectUI selectUI = root.AddComponent<PvpTeamSelectUI>();
-            PvpResultUI resultUI = root.AddComponent<PvpResultUI>();
+            MatchResultPanel resultUI = root.AddComponent<MatchResultPanel>();
 
             bool artMissing = BuildTeamSelectPanel(root.transform, selectUI, font);
             BuildResultBanner(root.transform, resultUI, font);
@@ -102,8 +104,7 @@ namespace NscGame.Pvp
             Selection.activeGameObject = root;
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
-            Debug.Log("[PVP] สร้าง PVP UI เสร็จแล้ว — เหลือแค่ใส่ PvpTeamManager + PvpRobotTeam ให้หุ่นสองตัว " +
-                      "(ดู Assets/nok/PVP/README_PVP.md)");
+            Debug.Log("[PVP] สร้าง PVP UI เสร็จแล้ว — ถ้ายังไม่ได้ตั้งหุ่น: Tools ▸ NSC ▸ PVP ▸ Setup Robots In Scene");
 
             if (artMissing)
                 Debug.LogWarning("[PVP] หาสไปรท์หุ่นใน Assets/MenuUI/Lobby/ ไม่ครบ — ใช้กล่องสีแทนไปก่อน " +
@@ -343,22 +344,22 @@ namespace NscGame.Pvp
                 new Vector2(152f, 347f), new Vector2(152f, 347f)
             };
 
-            ui.limbButtons     = new Button[PvpLimb.Count];
-            ui.limbAltButtons  = new Button[PvpLimb.Count];
-            ui.limbLabels      = new TextMeshProUGUI[PvpLimb.Count];
-            ui.limbIcons       = new Image[PvpLimb.Count];
-            ui.limbOwnerLabels = new TextMeshProUGUI[PvpLimb.Count];
-            ui.limbSocketFrames = new Image[PvpLimb.Count];
-            ui.limbSocketIcons  = new Image[PvpLimb.Count];
+            ui.limbButtons     = new Button[LimbSlots.Count];
+            ui.limbAltButtons  = new Button[LimbSlots.Count];
+            ui.limbLabels      = new TextMeshProUGUI[LimbSlots.Count];
+            ui.limbIcons       = new Image[LimbSlots.Count];
+            ui.limbOwnerLabels = new TextMeshProUGUI[LimbSlots.Count];
+            ui.limbSocketFrames = new Image[LimbSlots.Count];
+            ui.limbSocketIcons  = new Image[LimbSlots.Count];
             ui.limbPartSprites  = limbSprites;
 
-            for (int i = 0; i < PvpLimb.Count; i++)
+            for (int i = 0; i < LimbSlots.Count; i++)
             {
                 Sprite sprite = limbSprites[i];
-                string limbName = PvpLimb.Name(i);
+                string limbName = ((LimbSlot)i).DisplayName();
                 string safeName = limbName.Replace(" ", "");
-                bool leftSide = i == PvpLimb.LeftArm || i == PvpLimb.LeftLeg;
-                bool isArm = PvpLimb.IsArm(i);
+                bool leftSide = i == (int)LimbSlot.LeftArm || i == (int)LimbSlot.LeftLeg;
+                bool isArm = ((LimbSlot)i).IsArm();
                 float sideSign = leftSide ? -1f : 1f;
 
                 // ตำแหน่ง/ขนาดของชิ้นส่วนบนตัวหุ่น — ช่องเสียบกับเส้นโยงอ้างอิงค่านี้
@@ -517,7 +518,7 @@ namespace NscGame.Pvp
         /// ฉากมืดคลุมทั้งจอเป็นลูกของ panel แต่ตัวที่เด้ง (popTarget) คือ Content ข้างใน
         /// ไม่งั้นตอนเด้งจาก 0.8 เท่า ฉากมืดจะย่อตามจนเห็นขอบจอโผล่
         /// </summary>
-        private static void BuildResultBanner(Transform parent, PvpResultUI ui, TMP_FontAsset font)
+        private static void BuildResultBanner(Transform parent, MatchResultPanel ui, TMP_FontAsset font)
         {
             GameObject result = CreateUiObject(parent, "ResultPanel");
             Stretch(result.GetComponent<RectTransform>());
@@ -555,14 +556,19 @@ namespace NscGame.Pvp
             Anchor(waiting.rectTransform, Center, new Vector2(180f, -175f), new Vector2(340f, 50f));
             waiting.characterSpacing = 4f;
 
-            ui.resultPanel = result;
-            ui.resultGroup = group;
-            ui.popTarget = content.transform;
-            ui.resultText = resultText;
-            ui.subtitleText = subtitle;
-            ui.exitButton = exitButton;
-            ui.rematchButton = rematchButton;
-            ui.waitingForHostText = waiting.gameObject;
+            // หน้าเดียวใช้ทั้งชนะและแพ้ (ข้อความเปลี่ยนตามทีมของเครื่องตัวเอง) / EXIT = ออกจากห้องเฉพาะเครื่องตัวเอง
+            SerializedObject so = new SerializedObject(ui);
+            SerializedProperty view = so.FindProperty("victoryView");
+            view.FindPropertyRelative("root").objectReferenceValue = result;
+            view.FindPropertyRelative("group").objectReferenceValue = group;
+            view.FindPropertyRelative("popTarget").objectReferenceValue = content.transform;
+            view.FindPropertyRelative("titleText").objectReferenceValue = resultText;
+            view.FindPropertyRelative("subtitleText").objectReferenceValue = subtitle;
+            view.FindPropertyRelative("exitButton").objectReferenceValue = exitButton;
+            view.FindPropertyRelative("retryButton").objectReferenceValue = rematchButton;
+            view.FindPropertyRelative("waitingText").objectReferenceValue = waiting.gameObject;
+            so.FindProperty("exitMode").enumValueIndex = (int)MatchResultPanel.ExitMode.LeaveSession;
+            so.ApplyModifiedPropertiesWithoutUndo();
 
             result.SetActive(false);
         }
@@ -594,8 +600,8 @@ namespace NscGame.Pvp
         }
 
         /// <summary>
-        /// วาง PlayerHUD เดิมลงฉากถ้ายังไม่มี แล้วแปะ PvpPlayerHudGate ให้
-        /// (เกตเดิมรอ LobbyManager ซึ่งฉาก PVP ห้ามมี → HUD จะโผล่ทับหน้าจอเลือกทีม)
+        /// วาง PlayerHUD เดิมลงฉากถ้ายังไม่มี — HUD ซ่อนเองระหว่างเลือกทีม (HudVisibilityGate อ่าน MatchSession)
+        /// และเกาะหุ่นของเราเอง (LocalRobotBinder อ่าน LimbControlBinder)
         /// </summary>
         private static void EnsurePlayerHud()
         {
@@ -612,7 +618,7 @@ namespace NscGame.Pvp
                 if (prefab == null)
                 {
                     Debug.LogWarning($"[PVP] หา PlayerHUD prefab ไม่เจอที่ {PlayerHudPrefabPath} — " +
-                                     "ต้องลากเข้าฉากเองแล้วแปะ PvpPlayerHudGate");
+                                     "ต้องลากเข้าฉากเอง");
                     return;
                 }
 
@@ -621,12 +627,7 @@ namespace NscGame.Pvp
             }
 
             if (hud.GetComponent<CanvasGroup>() == null) hud.AddComponent<CanvasGroup>();
-            if (hud.GetComponent<PvpPlayerHudGate>() == null)
-                Undo.AddComponent<PvpPlayerHudGate>(hud);
-
-            // บอก LocalRobotBinder ว่าหุ่นไหนของเรา — ไม่มีตัวนี้ HUD จะไปเกาะหุ่นศัตรูได้
-            if (hud.GetComponent<PvpHudRobotBinder>() == null)
-                Undo.AddComponent<PvpHudRobotBinder>(hud);
+            if (hud.GetComponent<HudVisibilityGate>() == null) Undo.AddComponent<HudVisibilityGate>(hud);
         }
 
         #endregion

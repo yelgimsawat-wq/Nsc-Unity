@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Nsc.Match;
 using Unity.Netcode;
-using Unity.Services.Authentication;
-using Unity.Services.Core;
-using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Events;
@@ -13,8 +11,9 @@ using TMPro;
 using DG.Tweening;
 
 /// <summary>
-/// OnlineNetworkUI.cs
-/// Unity 6 + Netcode for GameObjects + com.unity.services.multiplayer
+/// OnlineNetworkUI.cs — หน้าจอเมนูหลัก (แผงเชื่อมต่อ ห้องรอ เลือกแมพ แผงต่อกลับ)
+/// การล็อกอิน สร้าง/เข้า/ออกห้อง และการต่อกลับอยู่ที่ SessionService (อยู่ตลอดอายุแอป)
+/// ตัวนี้แค่แสดงผลและส่งคำขอ — จำนวนผู้เล่นในห้องยัง sync ผ่าน NetworkVariable ของตัวนี้
 ///
 /// Flow:
 ///   1. connectPanel — Host clicks "Create Room" or Client enters code and clicks "Join"
@@ -84,12 +83,6 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI reconnectStatusLabel;
     [SerializeField] private Button cancelReconnectButton;
 
-    [Tooltip("พยายามต่อกลับกี่ครั้งก่อนยอมแพ้")]
-    [Min(1)] [SerializeField] private int reconnectMaxAttempts = 5;
-
-    [Tooltip("รอกี่วินาทีก่อนลองครั้งแรก (ครั้งถัดไปจะเพิ่มเป็นเท่าตัว สูงสุด 8 วิ)")]
-    [Min(0.5f)] [SerializeField] private float reconnectFirstDelay = 2f;
-
     [Header("--- References ---")]
     [SerializeField] private Camera lobbyCam;
 
@@ -98,7 +91,6 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private int maxPlayers = 4;
     [Tooltip("Set to 1 for solo testing. Increase this only when testing multiplayer requirements.")]
     [Min(1)] [SerializeField] private int minimumPlayersToStart = 1;
-    [SerializeField] private string nextSceneName = "91626425186"; // Scene name in Build Settings
 
     [Header("--- UI Animation ---")]
     [SerializeField] private float uiFadeDuration = 0.22f;
@@ -142,14 +134,10 @@ public class OnlineNetworkUI : NetworkBehaviour
     /// <summary>ความจุห้องที่ใช้โชว์ UI — ก่อน spawn ยังไม่มีค่า ให้ fallback เป็นค่าโหมดปกติ</summary>
     private int RoomCapacity => roomCapacity.Value > 0 ? roomCapacity.Value : maxPlayers;
 
-    private ISession session;
     private bool servicesReady;
     // true ระหว่าง Host()/Join() กำลังทำงาน — กันกดซ้ำแล้วสอง attempt ทับกัน
     private bool isConnecting;
     private string currentRoomCode = string.Empty;
-    // true = ผู้เล่นกด Leave เอง (UI ถูกจัดการใน OnLeaveRoomClicked แล้ว)
-    // false = โดนตัดจากอีกฝั่ง เช่น Host ปิดห้อง → OnNetworkStopped ต้องพากลับเมนูเอง
-    private bool intentionalLeave;
     private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
     private readonly Dictionary<Transform, Vector3> originalUiScales = new Dictionary<Transform, Vector3>();
     private readonly Dictionary<Transform, Tween> buttonClickTweens = new Dictionary<Transform, Tween>();
@@ -191,19 +179,17 @@ public class OnlineNetworkUI : NetworkBehaviour
         BindWaitingPanelButtons();
         ApplyButtonHoverColors();
 
-        ReturnToMenuOnHostLost.OnReconnectStateChanged -= OnReconnectStateChanged;
-        ReturnToMenuOnHostLost.OnReconnectStateChanged += OnReconnectStateChanged;
+        Service.ReconnectStateChanged -= OnReconnectStateChanged;
+        Service.ReconnectStateChanged += OnReconnectStateChanged;
+        Service.ConnectionLost -= OnConnectionLost;
+        Service.ConnectionLost += OnConnectionLost;
         SetConnectState(ConnectState.MainMenu);
         SetStatus("Connecting...");
         SetButtons(false);
 
         try
         {
-            await UnityServices.InitializeAsync();
-
-            if (!AuthenticationService.Instance.IsSignedIn)
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
-
+            await Service.EnsureSignedInAsync();
             servicesReady = true;
             SetStatus("Ready - Press Play");
             SetButtons(true);
@@ -220,12 +206,16 @@ public class OnlineNetworkUI : NetworkBehaviour
         UpdateMenuFeel();
     }
 
+    /// <summary>service ถูกสร้างตอนเกมเริ่ม (RuntimeInitializeOnLoadMethod) จึงมีอยู่เสมอเมื่อเมนูโหลด</summary>
+    private static SessionService Service => SessionService.Instance;
+
     public override void OnDestroy()
     {
-        if (NetworkManager.Singleton != null)
-            NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
-
-        ReturnToMenuOnHostLost.OnReconnectStateChanged -= OnReconnectStateChanged;
+        if (Service != null)
+        {
+            Service.ReconnectStateChanged -= OnReconnectStateChanged;
+            Service.ConnectionLost -= OnConnectionLost;
+        }
 
         UnbindConnectPanelButtons();
         UnbindWaitingPanelButtons();
@@ -244,14 +234,6 @@ public class OnlineNetworkUI : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-
-        intentionalLeave = false;
-
-        // ทุกเครื่อง (รวม Host) ฟังตอน "การเชื่อมต่อฝั่งเราหยุด" — ครอบคลุมทั้ง
-        // Host กดออก, Host หลุด, และเน็ตหลุด → Client จะเด้งกลับหน้าเมนูอัตโนมัติ
-        // (ห้าม unsubscribe ใน OnNetworkDespawn เพราะ despawn เกิดก่อน event นี้ยิง)
-        NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
-        NetworkManager.Singleton.OnClientStopped += OnNetworkStopped;
 
         // All Clients listen to NetworkVariable to update UI
         playerCount.OnValueChanged += OnPlayerCountChanged;
@@ -411,20 +393,8 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         try
         {
-            // Never build a session on top of leftover Netcode state — see ResetNetworkStateAsync.
-            await ResetNetworkStateAsync();
-
-            var options = new SessionOptions { MaxPlayers = capacity }.WithRelayNetwork();
-            session = await MultiplayerService.Instance.CreateSessionAsync(options);
-
-            string code = session.Code;
+            string code = await Service.HostAsync(capacity);
             currentRoomCode = code;
-
-            // Sessions API (WithRelayNetwork) starts the NetworkManager itself when the NGO
-            // integration is present. If it did not, the transport has no relay data and a
-            // manual StartHost() would bind to nothing — treat it as a failed attempt instead.
-            if (!NetworkManager.Singleton.IsListening)
-                throw new Exception("Session created but Netcode did not start.");
 
             ApplyPendingRoomInfo(); // เผื่อ spawn เสร็จไปแล้วระหว่างรอ await
 
@@ -433,7 +403,6 @@ public class OnlineNetworkUI : NetworkBehaviour
         }
         catch (Exception e)
         {
-            await ResetNetworkStateAsync();
             currentRoomCode = string.Empty;
             SetStatus("Failed to create room: " + e.Message);
             SetButtons(true);
@@ -467,25 +436,14 @@ public class OnlineNetworkUI : NetworkBehaviour
 
         try
         {
-            // A previous attempt that failed at "start NetworkManager" leaves NGO listening on a
-            // relay allocation the Sessions SDK has already torn down. Joining again on top of it
-            // makes the SDK log "NetworkManager is already connected", skip its own start, and
-            // report success for a client that is not actually connected to the Host.
-            await ResetNetworkStateAsync();
-
-            session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+            await Service.JoinAsync(code);
             currentRoomCode = code;
-
-            // Same caveat as Host() — the SDK owns the start, so no manual StartClient().
-            if (!NetworkManager.Singleton.IsListening)
-                throw new Exception("Session joined but Netcode did not start.");
 
             ShowWaitingPanel(code);
             SetStatus("Joined successfully! Waiting for Host to start...");
         }
         catch (Exception e)
         {
-            await ResetNetworkStateAsync();
             currentRoomCode = string.Empty;
             SetStatus("Failed to join: " + e.Message);
             SetButtons(true);
@@ -507,11 +465,6 @@ public class OnlineNetworkUI : NetworkBehaviour
         HideConnectFlowControlsForWaiting();
         SetVisibleAnimated(waitingPanel, true);
         currentRoomCode = roomCode;
-
-        // ✅ [Reconnect] ฝากข้อมูลห้องไว้กับตัวที่อยู่ข้ามฉาก — ตัว UI นี้จะหายไปตอนเข้าเกม
-        // session.Id สำคัญกว่า Code เพราะ ReconnectToSessionAsync ใช้ Id เท่านั้น
-        ReturnToMenuOnHostLost.LastRoomCode = roomCode;
-        if (session != null) ReturnToMenuOnHostLost.LastSessionId = session.Id;
 
         if (codeDisplay != null)
         {
@@ -1241,43 +1194,17 @@ public class OnlineNetworkUI : NetworkBehaviour
 
     private async void OnLeaveRoomClicked()
     {
-        // บอก OnNetworkStopped ว่านี่คือการออกโดยตั้งใจ จะได้ไม่จัดการ UI ซ้ำ
-        intentionalLeave = true;
-        ReturnToMenuOnHostLost.LeavingIntentionally = true;   // กัน service ไปพยายามต่อกลับ
-
-        // Host: Shutdown ตัดการเชื่อมต่อ → Client ทุกเครื่องจะได้ event OnClientStopped
-        // ของฝั่งตัวเองแล้วเด้งกลับเมนูอัตโนมัติ (ดู OnNetworkStopped)
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
-            NetworkManager.Singleton.Shutdown();
-
-        await LeaveSessionAsync();
-
+        // Host ออก = ห้องปิด Client ทุกเครื่องเด้งกลับเมนูเองผ่าน SessionService.ConnectionLost
+        await Service.LeaveAsync(returnToMenu: false);
         ReturnToMainMenu("Returned to Connect Panel.");
     }
 
     /// <summary>
-    /// เรียกเมื่อการเชื่อมต่อ Netcode ฝั่งเราหยุดลง — ไม่ว่าจะเพราะ Host ปิดห้อง,
-    /// Host หลุด, หรือเน็ตเราหลุดเอง ถ้าไม่ใช่การกด Leave เองให้พากลับหน้าเมนู
+    /// หลุดจากห้องโดยไม่ได้ตั้งใจและจะไม่ต่อกลับ (Client ที่หลุดจะลองต่อกลับก่อน — ดู OnReconnectStateChanged)
     /// </summary>
-    private void OnNetworkStopped(bool wasHost)
+    private void OnConnectionLost(bool wasHost)
     {
-        if (NetworkManager.Singleton != null)
-            NetworkManager.Singleton.OnClientStopped -= OnNetworkStopped;
-
-        if (intentionalLeave)
-        {
-            intentionalLeave = false;
-            return; // OnLeaveRoomClicked จัดการ UI เองแล้ว
-        }
-
-        // ✅ [Reconnect] ตัวจัดการอยู่ที่ ReturnToMenuOnHostLost (DontDestroyOnLoad)
-        // เพราะ OnlineNetworkUI ตายไปพร้อมฉากเมนูตอนเข้าเกม จะคุม reconnect กลางเกมไม่ได้
-        // ตรงนี้แค่ปล่อยให้มันทำงาน แล้วรอฟังสถานะผ่าน OnReconnectStateChanged
-        if (!wasHost && !string.IsNullOrWhiteSpace(currentRoomCode))
-            return;
-
-        // โดนตัดจากอีกฝั่ง — เคลียร์ session บน Services แล้วกลับเมนู
-        _ = LeaveSessionAsync();
+        if (this == null) return;
         ReturnToMainMenu(wasHost ? "Room closed." : "Disconnected: Host closed the room.");
     }
 
@@ -1285,7 +1212,7 @@ public class OnlineNetworkUI : NetworkBehaviour
     //  RECONNECT — แสดงผลอย่างเดียว ลอจิกอยู่ที่ ReturnToMenuOnHostLost
     // ================================================================
 
-    public bool IsReconnecting => ReturnToMenuOnHostLost.IsReconnecting;
+    public bool IsReconnecting => Service != null && Service.IsReconnecting;
 
     private void OnReconnectStateChanged(bool reconnecting, int attempt, int total, string message)
     {
@@ -1313,66 +1240,15 @@ public class OnlineNetworkUI : NetworkBehaviour
         }
 
         // ⚠️ ต่อกลับไม่สำเร็จ "ตอนอยู่ฉากเมนูอยู่แล้ว" — service โหลดฉากเมนูซ้ำไม่ได้
-        // (GoToMenu จะ return ทันทีเพราะอยู่ฉากนั้นแล้ว) ถ้าไม่จัดการตรงนี้ UI จะค้างที่แผง reconnect
-        _ = LeaveSessionAsync();
+        // ถ้าไม่จัดการตรงนี้ UI จะค้างที่แผง reconnect
         currentRoomCode = string.Empty;
         ReturnToMainMenu(message);
     }
 
     private void OnCancelReconnectClicked()
     {
-        ReturnToMenuOnHostLost.CancelReconnect();
+        Service.CancelReconnect();
         if (reconnectStatusLabel != null) reconnectStatusLabel.text = "Cancelling...";
-    }
-
-    /// <summary>
-    /// ออกจาก Session บน Unity Services ให้เรียบร้อย
-    /// Host = ลบห้องทิ้ง (คนอื่น join ต่อไม่ได้) / Client = ออกจากห้องเฉย ๆ
-    /// </summary>
-    private async Task LeaveSessionAsync()
-    {
-        if (session == null) return;
-
-        ISession leavingSession = session;
-        session = null; // กันเรียกซ้ำระหว่าง await
-
-        try
-        {
-            if (leavingSession.IsHost)
-                await leavingSession.AsHost().DeleteAsync();
-            else
-                await leavingSession.LeaveAsync();
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning("[Network] Failed to leave session cleanly: " + e.Message);
-        }
-    }
-
-    /// <summary>
-    /// เคลียร์สถานะเน็ตเวิร์กให้สะอาดก่อนเริ่ม Host/Join ครั้งใหม่ และหลังจาก attempt ที่ล้มเหลว
-    /// ถ้าไม่ทำ NetworkManager ที่ค้างอยู่จาก attempt เก่าจะทำให้ Sessions SDK ข้ามการ start
-    /// (ขึ้น log "NetworkManager is already connected") แล้วได้ Client ที่ไม่ได้ต่อกับ Host จริง
-    /// </summary>
-    private async Task ResetNetworkStateAsync()
-    {
-        await LeaveSessionAsync();
-
-        NetworkManager nm = NetworkManager.Singleton;
-        if (nm == null || (!nm.IsListening && !nm.ShutdownInProgress)) return;
-
-        // Shutdown ที่นี่เป็นการล้างของเราเอง — อย่าให้ OnNetworkStopped พา UI กลับเมนูซ้ำ
-        intentionalLeave = true;
-        ReturnToMenuOnHostLost.LeavingIntentionally = true;   // กัน service ไปพยายามต่อกลับ
-
-        if (!nm.ShutdownInProgress) nm.Shutdown();
-
-        // NGO ปิดจริงตอนท้ายเฟรม — รอจนปิดเสร็จก่อน ไม่งั้น attempt ถัดไปเจอสถานะค้างอีก
-        for (int i = 0; i < 300 && (nm.IsListening || nm.ShutdownInProgress); i++)
-            await Task.Yield();
-
-        if (nm.IsListening)
-            Debug.LogWarning("[Network] NetworkManager did not shut down in time before the next attempt.");
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Nsc.Limbs;
 using Unity.Netcode;
 using UnityEditor;
 using UnityEngine;
@@ -170,17 +171,17 @@ namespace NscUnity.Items.Editor
 
         private static void CheckArms(List<string> problems, List<string> passed)
         {
-            PlayerHandMovement[] arms = Object.FindObjectsByType<PlayerHandMovement>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            ArmController[] arms = Object.FindObjectsByType<ArmController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
             if (arms.Length == 0)
             {
-                problems.Add("ไม่เจอแขน (PlayerHandMovement) ในฉากเลย");
+                problems.Add("ไม่เจอแขน (ArmController) ในฉากเลย");
                 return;
             }
 
             int fullySetUp = 0;
 
-            foreach (PlayerHandMovement arm in arms)
+            foreach (ArmController arm in arms)
             {
                 string name = arm.name;
                 bool ok = true;
@@ -240,7 +241,7 @@ namespace NscUnity.Items.Editor
 
             foreach (PlayerInventory inventory in Object.FindObjectsByType<PlayerInventory>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                if (inventory.GetComponent<PlayerHandMovement>() == null)
+                if (inventory.GetComponent<ArmController>() == null)
                 {
                     problems.Add($"'{inventory.name}' มี PlayerInventory แต่ไม่ใช่แขน — ของค้างจากการตั้งค่าเวอร์ชันเก่า ให้ลบ component นี้ทิ้ง");
                     strays++;
@@ -249,7 +250,7 @@ namespace NscUnity.Items.Editor
 
             foreach (ItemPickupInteractor interactor in Object.FindObjectsByType<ItemPickupInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                if (interactor.GetComponent<PlayerHandMovement>() == null)
+                if (interactor.GetComponent<ArmController>() == null)
                 {
                     problems.Add($"'{interactor.name}' มี ItemPickupInteractor แต่ไม่ใช่แขน — ของค้างจากการตั้งค่าเวอร์ชันเก่า ให้ลบ component นี้ทิ้ง");
                     strays++;

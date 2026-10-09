@@ -16175,7 +16175,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa3de4dc9c5a0504bbd873884c13eeac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InMatchMenu
-  menuSceneName: -MenuNOk
   panelRoot: {fileID: 206445753}
   masterSlider: {fileID: 1281423205}
   masterValue: {fileID: 1852983831}
@@ -16367,6 +16366,9 @@ GameObject:
   - component: {fileID: 184078184}
   - component: {fileID: 184078183}
   - component: {fileID: 184078182}
+  - component: {fileID: 2314561680313497716}
+  - component: {fileID: 1513843881561914627}
+  - component: {fileID: 9173905303549994287}
   m_Layer: 0
   m_Name: PvpTeamManager
   m_TagString: Untagged
@@ -16385,13 +16387,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 54ee6943a3723864fba65c2bb5cd7dca, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpTeamManager
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.PvpModeRules
   ShowTopMostFoldoutHeaderGroup: 1
-  redRobotRoot: {fileID: 1971545320}
-  blueRobotRoot: {fileID: 967124201}
-  maxPlayersPerTeam: 4
-  requireBothTeams: 1
-  requireLimbSelection: 1
+  defeatCheckInterval: 0.25
+  limbsLostToLose: 4
   debugLog: 1
 --- !u!114 &184078183
 MonoBehaviour:
@@ -18739,34 +18738,12 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2646395607906782820, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 1971545319}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545325}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
---- !u!114 &282992577
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545325}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &291956405
 GameObject:
   m_ObjectHideFlags: 0
@@ -29289,12 +29266,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8c1f32f218a809845a12890556ea2dc0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpRobotTeam
-  ShowTopMostFoldoutHeaderGroup: 1
-  team: 1
-  robotRoot: {fileID: 1971545320}
-  limbsLostToLose: 4
-  defeatCheckInterval: 0.25
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotBodyDamageRelay
   debugLog: 1
 --- !u!114 &702801669
 MonoBehaviour:
@@ -29540,28 +29512,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2895594905979117474, guid: a054a8993f387fb49ae9a91d65614d5c, type: 3}
   m_PrefabInstance: {fileID: 708213370}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &711744343
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545326}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &715002247
 GameObject:
   m_ObjectHideFlags: 0
@@ -31245,52 +31195,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 4864419346785846144, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 809571791}
-    - targetCorrespondingSourceObject: {fileID: 4864419346785846144, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 809571792}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
---- !u!1 &809571790 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 4864419346785846144, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
-  m_PrefabInstance: {fileID: 809571789}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &809571791
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 809571790}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 97f87eee43601014ea50f1846e19b7ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpPlayerHudGate
-  canvasGroup: {fileID: 809571795}
-  fadeDuration: 0.35
---- !u!114 &809571792
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 809571790}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1b2c47ef21f91744b3fb49a2fa36f73, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpHudRobotBinder
-  checkInterval: 0.5
-  debugLog: 1
---- !u!225 &809571795 stripped
-CanvasGroup:
-  m_CorrespondingSourceObject: {fileID: 2229530570752864862, guid: cc6e72e4bf6c44b469e3fbd44a02926d, type: 3}
-  m_PrefabInstance: {fileID: 809571789}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &817405280
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -33887,6 +33793,10 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 2748350913
       objectReference: {fileID: 0}
+    - target: {fileID: 5518799872316173316, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: team.m_InternalValue
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: mouseReachY
       value: 20
@@ -33979,41 +33889,24 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8231529201378721791, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1303953280}
-    - targetCorrespondingSourceObject: {fileID: 8533423472278843637, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1409105580}
     - targetCorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1167036784}
     - targetCorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1167036783}
-    - targetCorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 967124212}
-    - targetCorrespondingSourceObject: {fileID: 3527820515117252175, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 967124215}
   m_SourcePrefab: {fileID: 100100000, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
 --- !u!114 &967124200 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6761938855648372778, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 967124199}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124207}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
---- !u!4 &967124201 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 967124199}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &967124202 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
@@ -34024,76 +33917,12 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2646395607906782820, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 967124199}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124204}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
---- !u!1 &967124204 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 967124199}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &967124205 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8533423472278843637, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 967124199}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &967124206 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8231529201378721791, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 967124199}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &967124207 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3527820515117252175, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 967124199}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &967124212
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124204}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
---- !u!114 &967124215
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124207}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &972674053
 GameObject:
   m_ObjectHideFlags: 0
@@ -41141,12 +40970,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8c1f32f218a809845a12890556ea2dc0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpRobotTeam
-  ShowTopMostFoldoutHeaderGroup: 1
-  team: 2
-  robotRoot: {fileID: 967124201}
-  limbsLostToLose: 4
-  defeatCheckInterval: 0.25
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotBodyDamageRelay
   debugLog: 1
 --- !u!114 &1167036784
 MonoBehaviour:
@@ -44258,28 +44082,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &1303953280
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124206}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &1305598950
 GameObject:
   m_ObjectHideFlags: 0
@@ -45687,28 +45489,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -16, y: 14}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1409105580
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 967124205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &1421729668
 GameObject:
   m_ObjectHideFlags: 0
@@ -62205,6 +61985,10 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3663510146
       objectReference: {fileID: 0}
+    - target: {fileID: 5518799872316173316, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: team.m_InternalValue
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: mouseReachY
       value: 20
@@ -62293,53 +62077,16 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8231529201378721791, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1971545332}
-    - targetCorrespondingSourceObject: {fileID: 8533423472278843637, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 711744343}
     - targetCorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
       addedObject: {fileID: 702801669}
     - targetCorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       insertIndex: -1
       addedObject: {fileID: 702801668}
-    - targetCorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: 11
-      addedObject: {fileID: 282992577}
-    - targetCorrespondingSourceObject: {fileID: 3527820515117252175, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-      insertIndex: 11
-      addedObject: {fileID: 1971545331}
   m_SourcePrefab: {fileID: 100100000, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
---- !u!4 &1971545320 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2751952578176398030, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 1971545319}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1971545321 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6173138888507981405, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 1971545319}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1971545323 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3527820515117252175, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 1971545319}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1971545325 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3589808305125051281, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 1971545319}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1971545326 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8533423472278843637, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
-  m_PrefabInstance: {fileID: 1971545319}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1971545327 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8231529201378721791, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 1971545319}
   m_PrefabAsset: {fileID: 0}
 --- !u!114 &1971545328 stripped
@@ -62347,7 +62094,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1648379763235856960, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 1971545319}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545323}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b575c0172fd758419037f61af995e93, type: 3}
@@ -62358,56 +62105,12 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6761938855648372778, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
   m_PrefabInstance: {fileID: 1971545319}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545323}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c619040728b5ddf4a9407b3084527315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscUnity.Items.HandItemHolder
---- !u!114 &1971545331
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545323}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
---- !u!114 &1971545332
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971545327}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
-  minVelocityThreshold: 8
-  speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
-  forceToDamage: 0.01
-  maxDamagePerHit: 60
-  limbDamageMultiplier: 1
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1 &1981690544
 GameObject:
   m_ObjectHideFlags: 0
@@ -64571,19 +64274,38 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d924588c9fb99ab429e88bcc47032747, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpResultUI
-  resultPanel: {fileID: 1140054075}
-  resultText: {fileID: 195065771}
-  subtitleText: {fileID: 1430417876}
-  resultGroup: {fileID: 1140054077}
-  popTarget: {fileID: 1265040329}
-  exitButton: {fileID: 671033458}
-  rematchButton: {fileID: 982636137}
-  waitingForHostText: {fileID: 511473030}
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.MatchResultPanel
+  victoryView:
+    root: {fileID: 1140054075}
+    group: {fileID: 1140054077}
+    popTarget: {fileID: 1265040329}
+    titleText: {fileID: 195065771}
+    subtitleText: {fileID: 1430417876}
+    timeText: {fileID: 0}
+    heightText: {fileID: 0}
+    hostButtons: {fileID: 0}
+    waitingText: {fileID: 511473030}
+    retryButton: {fileID: 982636137}
+    exitButton: {fileID: 671033458}
+  defeatView:
+    root: {fileID: 0}
+    group: {fileID: 0}
+    popTarget: {fileID: 0}
+    titleText: {fileID: 0}
+    subtitleText: {fileID: 0}
+    timeText: {fileID: 0}
+    heightText: {fileID: 0}
+    hostButtons: {fileID: 0}
+    waitingText: {fileID: 0}
+    retryButton: {fileID: 0}
+    exitButton: {fileID: 0}
+  exitMode: 1
   victoryColor: {r: 0.3, g: 0.95, b: 0.55, a: 1}
   defeatColor: {r: 0.95, g: 0.28, b: 0.32, a: 1}
-  resultPopDuration: 0.35
+  endingCutscene: {fileID: 0}
+  victoryPanelDelay: 0
   fadeDuration: 0.35
+  popDuration: 0.35
 --- !u!114 &2105954577
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -65620,6 +65342,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2146958964}
   m_CullTransparentMesh: 1
+--- !u!114 &1513843881561914627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 184078181}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f14120c95af4c268ef21cc4c8b3407a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.LimbSelection
+  ShowTopMostFoldoutHeaderGroup: 1
+  maxPlayersPerRobot: 4
+  requireEveryRobotManned: 1
+  requireLimbForEveryPlayer: 1
+  primaryRobot: {fileID: 0}
+  autoDisableExtraRobots: 0
+  freezeRobotsWhilePreparing: 0
+  seatHoldSeconds: 90
+--- !u!114 &2314561680313497716
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 184078181}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34a91033ad7d40ca9838cfc42eac1c56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.MatchSession
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &9173905303549994287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 184078181}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18251ddef3cd43dd9241d87565e5c745, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.LimbControlBinder
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

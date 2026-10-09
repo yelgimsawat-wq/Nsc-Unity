@@ -1,0 +1,2060 @@
+{
+  "classes": [
+    {
+      "name": "TorsoMovement",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-HashSet~PlayerFootForRobot~ _attachedFeet",
+        "-HashSet~PlayerHandMovement~ _attachedHands",
+        "+RegisterFoot(PlayerFootForRobot foot) void",
+        "+RegisterHand(PlayerHandMovement hand) void"
+      ],
+      "role": "ทรงตัวและขยับลำตัว เก็บแขนและขาที่ลงทะเบียนไว้",
+      "path": "Assets/Scenes/TheBestFolder/Mynigga/player/TorsoMovement.cs",
+      "line": 5,
+      "x": 520,
+      "y": 100,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- _attachedFeet : HashSet<PlayerFootForRobot>",
+          "lines": [
+            "- _attachedFeet :",
+            "    HashSet<PlayerFootForRobot>"
+          ],
+          "static": false
+        },
+        {
+          "text": "- _attachedHands : HashSet<PlayerHandMovement>",
+          "lines": [
+            "- _attachedHands :",
+            "    HashSet<PlayerHandMovement>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ RegisterFoot(foot : PlayerFootForRobot) : void",
+          "lines": [
+            "+ RegisterFoot(foot :",
+            "    PlayerFootForRobot) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ RegisterHand(hand : PlayerHandMovement) : void",
+          "lines": [
+            "+ RegisterHand(hand :",
+            "    PlayerHandMovement) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 118,
+      "opH": 118,
+      "h": 300
+    },
+    {
+      "name": "PlayerHandMovement",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+TorsoMovement torso",
+        "+ServerReleaseGrab() void",
+        "+ResetForRespawn() void"
+      ],
+      "role": "ควบคุมแขน การเล็ง และการจับวัตถุ",
+      "path": "Assets/Scenes/TheBestFolder/Mynigga/player/PlayerHandMovement.cs",
+      "line": 5,
+      "x": 40,
+      "y": 440,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ torso : TorsoMovement",
+          "lines": [
+            "+ torso : TorsoMovement"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerReleaseGrab() : void",
+          "lines": [
+            "+ ServerReleaseGrab() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ResetForRespawn() : void",
+          "lines": [
+            "+ ResetForRespawn() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "PlayerHandCombat",
+      "group": "Robot",
+      "kind": "",
+      "members": [
+        "+NetworkVariable~CombatState~ currentCombatState",
+        "+float maxPunchSpeed",
+        "+NotifyPunchImpact() void",
+        "+NotifyPunchBlocked() void"
+      ],
+      "role": "เพิ่มการต่อยบนพฤติกรรมแขนเดิม — สืบทอดจริงในโค้ด",
+      "path": "Assets/Scenes/TheBestFolder/Mynigga/player/PlayerHandCombat.cs",
+      "line": 5,
+      "x": 40,
+      "y": 780,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ currentCombatState : NetworkVariable<CombatState>",
+          "lines": [
+            "+ currentCombatState :",
+            "    NetworkVariable<CombatState>"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ maxPunchSpeed : float",
+          "lines": [
+            "+ maxPunchSpeed : float"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ NotifyPunchImpact() : void",
+          "lines": [
+            "+ NotifyPunchImpact() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ NotifyPunchBlocked() : void",
+          "lines": [
+            "+ NotifyPunchBlocked() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 93,
+      "opH": 68,
+      "h": 225
+    },
+    {
+      "name": "PlayerFootForRobot",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+TorsoMovement torso",
+        "+IsGrounded() bool",
+        "+GetKickAimDirection() Vector3"
+      ],
+      "role": "ควบคุมขา การวางเท้า และทิศเล็งการเตะ",
+      "path": "Assets/Scenes/TheBestFolder/Mynigga/player/PlayerFootForRobot.cs",
+      "line": 6,
+      "x": 520,
+      "y": 440,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ torso : TorsoMovement",
+          "lines": [
+            "+ torso : TorsoMovement"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ IsGrounded() : bool",
+          "lines": [
+            "+ IsGrounded() : bool"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ GetKickAimDirection() : Vector3",
+          "lines": [
+            "+ GetKickAimDirection() : Vector3"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "PlayerLegCombat",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-PlayerFootForRobot footController",
+        "-RobotHealth legHealth",
+        "+NotifyKickImpact() void",
+        "+ResetForRespawn() void"
+      ],
+      "role": "ควบคุมการชาร์จและเตะ ใช้ footController ไม่ได้สืบทอดจากเท้า",
+      "path": "Assets/Scenes/TheBestFolder/Mynigga/player/PlayerLegCombat.cs",
+      "line": 5,
+      "x": 520,
+      "y": 780,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- footController : PlayerFootForRobot",
+          "lines": [
+            "- footController : PlayerFootForRobot"
+          ],
+          "static": false
+        },
+        {
+          "text": "- legHealth : RobotHealth",
+          "lines": [
+            "- legHealth : RobotHealth"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ NotifyKickImpact() : void",
+          "lines": [
+            "+ NotifyKickImpact() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ResetForRespawn() : void",
+          "lines": [
+            "+ ResetForRespawn() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "RobotHealth",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+float MaxHp",
+        "+NetworkVariable~float~ currentHp",
+        "+ServerTakeDamage(float amount, AttackType source) void",
+        "+ServerBreakPart() void"
+      ],
+      "role": "เลือดของชิ้นส่วนหุ่น รับ damage ผ่าน IHittable และทำให้ข้อต่อหลุด; มี ServerTakeDamage ทั้ง 2 และ 3/4 พารามิเตอร์ตามโค้ด",
+      "path": "Assets/Scenes/Enemy AndInteractive Object/RobotHealth.cs",
+      "line": 5,
+      "x": 520,
+      "y": 1120,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ MaxHp : float",
+          "lines": [
+            "+ MaxHp : float"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ currentHp : NetworkVariable<float>",
+          "lines": [
+            "+ currentHp : NetworkVariable<float>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerTakeDamage(amount : float, source : AttackType) : void",
+          "lines": [
+            "+ ServerTakeDamage(amount : float,",
+            "    source : AttackType) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ServerBreakPart() : void",
+          "lines": [
+            "+ ServerBreakPart() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 93,
+      "h": 225
+    },
+    {
+      "name": "JointPullAndReconnect",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+OnConnectionStateChanged : Action~bool~",
+        "+ForceBreakJoint() void",
+        "+StartPullingExternal() void"
+      ],
+      "role": "จัดการการหลุดและดึงข้อต่อกลับ พร้อมแจ้งการเปลี่ยนสถานะ",
+      "path": "Assets/Scenes/Enemy AndInteractive Object/JointPullAndReconnect.cs",
+      "line": 6,
+      "x": 40,
+      "y": 1120,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ OnConnectionStateChanged : Action<bool>",
+          "lines": [
+            "+ OnConnectionStateChanged :",
+            "    Action<bool>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ForceBreakJoint() : void",
+          "lines": [
+            "+ ForceBreakJoint() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ StartPullingExternal() : void",
+          "lines": [
+            "+ StartPullingExternal() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "RespawnManager",
+      "group": "Robot",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-TorsoMovement torsoMovement",
+        "+SetCheckpoint(Vector3 pos, Quaternion rot) void",
+        "+RespawnBody() void"
+      ],
+      "role": "คืนตำแหน่งและรีเซ็ตส่วนต่าง ๆ ของหุ่นที่ checkpoint",
+      "path": "Assets/nok/SaveScript/RespawnManager.cs",
+      "line": 26,
+      "x": 40,
+      "y": 100,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- torsoMovement : TorsoMovement",
+          "lines": [
+            "- torsoMovement : TorsoMovement"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ SetCheckpoint(pos : Vector3, rot : Quaternion) : void",
+          "lines": [
+            "+ SetCheckpoint(pos : Vector3, rot :",
+            "    Quaternion) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ RespawnBody() : void",
+          "lines": [
+            "+ RespawnBody() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 93,
+      "h": 200
+    },
+    {
+      "name": "EnemyController",
+      "group": "Enemy",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-EnemyCombat combat",
+        "-float attackRange",
+        "+ServerDie() void",
+        "+ServerBeginKnockback() void"
+      ],
+      "role": "ตัดสินใจศัตรูและควบคุมลำดับพฤติกรรมบน server",
+      "path": "Assets/nok/Enemy/Scripts/EnemyAI/EnemyController.cs",
+      "line": 36,
+      "x": 520,
+      "y": 1480,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- combat : EnemyCombat",
+          "lines": [
+            "- combat : EnemyCombat"
+          ],
+          "static": false
+        },
+        {
+          "text": "- attackRange : float",
+          "lines": [
+            "- attackRange : float"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerDie() : void",
+          "lines": [
+            "+ ServerDie() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ServerBeginKnockback() : void",
+          "lines": [
+            "+ ServerBeginKnockback() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "EnemyCombat",
+      "group": "Enemy",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-EnemyController controller",
+        "+ServerExecuteAttack(AttackType type) float",
+        "+ServerStopAllCombatEffects() void"
+      ],
+      "role": "โจมตี ตรวจโดน และจัดการเอฟเฟกต์ของการโจมตี",
+      "path": "Assets/nok/Enemy/Scripts/EnemyAI/EnemyCombat.cs",
+      "line": 23,
+      "x": 520,
+      "y": 1840,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- controller : EnemyController",
+          "lines": [
+            "- controller : EnemyController"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerExecuteAttack(type : AttackType) : float",
+          "lines": [
+            "+ ServerExecuteAttack(type :",
+            "    AttackType) : float"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ServerStopAllCombatEffects() : void",
+          "lines": [
+            "+ ServerStopAllCombatEffects() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 93,
+      "h": 200
+    },
+    {
+      "name": "EnemyHealth",
+      "group": "Enemy",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-float maxHp",
+        "+NetworkVariable~float~ CurrentHp",
+        "+ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce, Vector3? hitPoint) void",
+        "+IsDead() bool"
+      ],
+      "role": "เลือด การกระเด็น และการตายของศัตรู; ใช้ ServerTakeHit ไม่ได้ implement IHittable",
+      "path": "Assets/nok/Enemy/Scripts/EnemyAI/EnemyHealth.cs",
+      "line": 33,
+      "x": 40,
+      "y": 1480,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- maxHp : float",
+          "lines": [
+            "- maxHp : float"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ CurrentHp : NetworkVariable<float>",
+          "lines": [
+            "+ CurrentHp : NetworkVariable<float>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerTakeHit(damage : float, hitDirection : Vector3, knockbackForce : float, hitPoint : Vector3?) : void",
+          "lines": [
+            "+ ServerTakeHit(damage : float,",
+            "    hitDirection : Vector3, knockbackForce",
+            "    : float, hitPoint : Vector3?) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ IsDead() : bool",
+          "lines": [
+            "+ IsDead() : bool"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 118,
+      "h": 250
+    },
+    {
+      "name": "IHittable",
+      "group": "Enemy",
+      "kind": "interface",
+      "members": [
+        "+ServerTakeDamage(float amount, AttackType source) void",
+        "+ServerTakeDamage(float amount, AttackType source, Vector3 direction) void"
+      ],
+      "role": "สัญญารับ damage บน server; ประกาศอยู่ท้าย EnemyCombat.cs",
+      "path": "Assets/nok/Enemy/Scripts/EnemyAI/EnemyCombat.cs",
+      "line": 644,
+      "x": 1000,
+      "y": 1840,
+      "w": 400,
+      "attributes": [],
+      "operations": [
+        {
+          "text": "+ ServerTakeDamage(amount : float, source : AttackType) : void",
+          "lines": [
+            "+ ServerTakeDamage(amount : float,",
+            "    source : AttackType) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ServerTakeDamage(amount : float, source : AttackType, direction : Vector3) : void",
+          "lines": [
+            "+ ServerTakeDamage(amount : float,",
+            "    source : AttackType, direction :",
+            "    Vector3) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 35,
+      "opH": 143,
+      "h": 242
+    },
+    {
+      "name": "GameFlowManager",
+      "group": "Match",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+GameEnded : bool$",
+        "+TriggerVictory() void",
+        "+TriggerDefeat() void"
+      ],
+      "role": "ตัดสินผลเกมร่วมเล่นและแสดงผลจบเกม; GameEnded เป็น static property",
+      "path": "Assets/Yelmee/UI/GameFlowManager.cs",
+      "line": 21,
+      "x": 40,
+      "y": 1840,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ GameEnded : bool",
+          "lines": [
+            "+ GameEnded : bool"
+          ],
+          "static": true
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ TriggerVictory() : void",
+          "lines": [
+            "+ TriggerVictory() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ TriggerDefeat() : void",
+          "lines": [
+            "+ TriggerDefeat() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "PvpTeamManager",
+      "group": "Match",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-NetworkList~PvpPlayerEntry~ players",
+        "+ServerReportDefeat(PvpTeam defeatedTeam) void"
+      ],
+      "role": "เก็บทีมและการเลือกชิ้นส่วน เริ่มและจบแมตช์ PVP",
+      "path": "Assets/nok/PVP/PvpTeamManager.cs",
+      "line": 24,
+      "x": 1960,
+      "y": 100,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- players : NetworkList<PvpPlayerEntry>",
+          "lines": [
+            "- players : NetworkList<PvpPlayerEntry>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerReportDefeat(defeatedTeam : PvpTeam) : void",
+          "lines": [
+            "+ ServerReportDefeat(defeatedTeam :",
+            "    PvpTeam) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "PvpRobotTeam",
+      "group": "Match",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-PvpTeam team",
+        "-List~RobotHealth~ _limbHealths",
+        "+ServerResetDefeat() void"
+      ],
+      "role": "ระบุทีมหุ่น รวมเลือดชิ้นส่วน และรายงานแพ้ให้ PvpTeamManager",
+      "path": "Assets/nok/PVP/PvpRobotTeam.cs",
+      "line": 25,
+      "x": 1960,
+      "y": 1120,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- team : PvpTeam",
+          "lines": [
+            "- team : PvpTeam"
+          ],
+          "static": false
+        },
+        {
+          "text": "- _limbHealths : List<RobotHealth>",
+          "lines": [
+            "- _limbHealths : List<RobotHealth>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ServerResetDefeat() : void",
+          "lines": [
+            "+ ServerResetDefeat() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 43,
+      "h": 175
+    },
+    {
+      "name": "ItemPickupInteractor",
+      "group": "Items",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-PlayerInventory inventory",
+        "+Focused : WorldItem",
+        "-RequestPickup(WorldItem item) void"
+      ],
+      "role": "หาไอเทมเป้าหมาย ส่งคำขอเก็บ และแจ้ง OnFocusChanged",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/ItemPickupInteractor.cs",
+      "line": 15,
+      "x": 1000,
+      "y": 440,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- inventory : PlayerInventory",
+          "lines": [
+            "- inventory : PlayerInventory"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ Focused : WorldItem",
+          "lines": [
+            "+ Focused : WorldItem"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "- RequestPickup(item : WorldItem) : void",
+          "lines": [
+            "- RequestPickup(item : WorldItem) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 43,
+      "h": 175
+    },
+    {
+      "name": "PlayerInventory",
+      "group": "Items",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "-NetworkList~int~ slotItemIndices",
+        "-NetworkVariable~int~ equippedIndex",
+        "+RequestEquip(int index) void"
+      ],
+      "role": "เก็บช่องและช่องที่เลือกบนเครือข่าย แปลง index ผ่าน ItemDatabase และอัปเดตของในมือ",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/PlayerInventory.cs",
+      "line": 16,
+      "x": 1480,
+      "y": 440,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- slotItemIndices : NetworkList<int>",
+          "lines": [
+            "- slotItemIndices : NetworkList<int>"
+          ],
+          "static": false
+        },
+        {
+          "text": "- equippedIndex : NetworkVariable<int>",
+          "lines": [
+            "- equippedIndex : NetworkVariable<int>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ RequestEquip(index : int) : void",
+          "lines": [
+            "+ RequestEquip(index : int) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 43,
+      "h": 175
+    },
+    {
+      "name": "HandItemHolder",
+      "group": "Items",
+      "kind": "NetworkBehaviour",
+      "members": [
+        "+Current : HeldItem",
+        "+Hold(ItemDefinition definition) void",
+        "+RequestFire() void"
+      ],
+      "role": "สร้างและทำลาย held instance ประสานการใช้ไอเทมและคำขอยิง",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/HandItemHolder.cs",
+      "line": 54,
+      "x": 1480,
+      "y": 780,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ Current : HeldItem",
+          "lines": [
+            "+ Current : HeldItem"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ Hold(definition : ItemDefinition) : void",
+          "lines": [
+            "+ Hold(definition : ItemDefinition) : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ RequestFire() : void",
+          "lines": [
+            "+ RequestFire() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "HeldItem",
+      "group": "Items",
+      "kind": "MonoBehaviour",
+      "members": [
+        "+Definition : ItemDefinition",
+        "+Holder : HandItemHolder",
+        "+OnUseStart() void"
+      ],
+      "role": "คลาสฐาน concrete ของไอเทมในมือ; OnUseStart เป็น virtual ไม่ใช่ abstract",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/HeldItem.cs",
+      "line": 10,
+      "x": 1480,
+      "y": 1120,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ Definition : ItemDefinition",
+          "lines": [
+            "+ Definition : ItemDefinition"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ Holder : HandItemHolder",
+          "lines": [
+            "+ Holder : HandItemHolder"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ OnUseStart() : void",
+          "lines": [
+            "+ OnUseStart() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 43,
+      "h": 175
+    },
+    {
+      "name": "GunHeldItem",
+      "group": "Items",
+      "kind": "",
+      "members": [
+        "-float damage",
+        "-float fireRate",
+        "+OnUseStart() void",
+        "+OnUseHold(float deltaTime) void"
+      ],
+      "role": "ไอเทมปืนแบบยิงทันที; override การใช้ไอเทม",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/GunHeldItem.cs",
+      "line": 18,
+      "x": 1000,
+      "y": 1480,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- damage : float",
+          "lines": [
+            "- damage : float"
+          ],
+          "static": false
+        },
+        {
+          "text": "- fireRate : float",
+          "lines": [
+            "- fireRate : float"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ OnUseStart() : void",
+          "lines": [
+            "+ OnUseStart() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ OnUseHold(deltaTime : float) : void",
+          "lines": [
+            "+ OnUseHold(deltaTime : float) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "ChargeGunHeldItem",
+      "group": "Items",
+      "kind": "",
+      "members": [
+        "-float maxChargeTime",
+        "-float maxDamage",
+        "+CancelCharge() void",
+        "+ExecuteFire(FireData data) void"
+      ],
+      "role": "ไอเทมปืนชาร์จ รับข้อมูลยิงที่ server ตรวจแล้ว",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/ChargeGunHeldItem.cs",
+      "line": 20,
+      "x": 1480,
+      "y": 1480,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- maxChargeTime : float",
+          "lines": [
+            "- maxChargeTime : float"
+          ],
+          "static": false
+        },
+        {
+          "text": "- maxDamage : float",
+          "lines": [
+            "- maxDamage : float"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ CancelCharge() : void",
+          "lines": [
+            "+ CancelCharge() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ ExecuteFire(data : FireData) : void",
+          "lines": [
+            "+ ExecuteFire(data : FireData) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "SwordHeldItem",
+      "group": "Items",
+      "kind": "",
+      "members": [
+        "-FixedJoint joint",
+        "-float damageMultiplier",
+        "+OnEquipped() void",
+        "+OnUnequipped() void"
+      ],
+      "role": "ยึดดาบเข้ามือด้วย FixedJoint และตั้งค่า PvpDamageSender; damage มาจากการชน ไม่ใช่ OnUseStart",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/SwordHeldItem.cs",
+      "line": 19,
+      "x": 1960,
+      "y": 1480,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- joint : FixedJoint",
+          "lines": [
+            "- joint : FixedJoint"
+          ],
+          "static": false
+        },
+        {
+          "text": "- damageMultiplier : float",
+          "lines": [
+            "- damageMultiplier : float"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ OnEquipped() : void",
+          "lines": [
+            "+ OnEquipped() : void"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ OnUnequipped() : void",
+          "lines": [
+            "+ OnUnequipped() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 68,
+      "opH": 68,
+      "h": 200
+    },
+    {
+      "name": "ItemDatabase",
+      "group": "Items",
+      "kind": "ScriptableObject",
+      "members": [
+        "-List~ItemDefinition~ items",
+        "+GetIndex(ItemDefinition item) int",
+        "+GetByIndex(int index) ItemDefinition"
+      ],
+      "role": "asset ตารางแปลงไอเทมกับ index สำหรับการซิงก์",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/ItemDatabase.cs",
+      "line": 15,
+      "x": 1960,
+      "y": 440,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- items : List<ItemDefinition>",
+          "lines": [
+            "- items : List<ItemDefinition>"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ GetIndex(item : ItemDefinition) : int",
+          "lines": [
+            "+ GetIndex(item : ItemDefinition) : int"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ GetByIndex(index : int) : ItemDefinition",
+          "lines": [
+            "+ GetByIndex(index : int) : ItemDefinition"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    },
+    {
+      "name": "ItemDefinition",
+      "group": "Items",
+      "kind": "ScriptableObject",
+      "members": [
+        "+string displayName",
+        "+GameObject heldPrefab",
+        "+GameObject worldPrefab"
+      ],
+      "role": "asset ค่าตั้งต้นและ prefab ของไอเทม ไม่ใช่สถานะช่อง runtime",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/ItemDefinition.cs",
+      "line": 10,
+      "x": 1960,
+      "y": 780,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "+ displayName : string",
+          "lines": [
+            "+ displayName : string"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ heldPrefab : GameObject",
+          "lines": [
+            "+ heldPrefab : GameObject"
+          ],
+          "static": false
+        },
+        {
+          "text": "+ worldPrefab : GameObject",
+          "lines": [
+            "+ worldPrefab : GameObject"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [],
+      "headerH": 64,
+      "attrH": 93,
+      "opH": 35,
+      "h": 192
+    },
+    {
+      "name": "WorldItem",
+      "group": "Items",
+      "kind": "MonoBehaviour",
+      "members": [
+        "-ItemDefinition definition",
+        "+ConsumeFromWorld() void"
+      ],
+      "role": "ไอเทมในฉากที่เก็บได้ อ้างอิง asset definition",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/WorldItem.cs",
+      "line": 13,
+      "x": 1000,
+      "y": 780,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- definition : ItemDefinition",
+          "lines": [
+            "- definition : ItemDefinition"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "+ ConsumeFromWorld() : void",
+          "lines": [
+            "+ ConsumeFromWorld() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 43,
+      "h": 150
+    },
+    {
+      "name": "ItemWheelUI",
+      "group": "Items",
+      "kind": "MonoBehaviour",
+      "members": [
+        "-PlayerInventory inventory",
+        "-RefreshSlots() void"
+      ],
+      "role": "แสดง inventory และส่งคำขอเลือกของ; subscribe OnSlotsChanged และ OnEquippedChanged",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/ItemWheelUI.cs",
+      "line": 17,
+      "x": 1480,
+      "y": 100,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- inventory : PlayerInventory",
+          "lines": [
+            "- inventory : PlayerInventory"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "- RefreshSlots() : void",
+          "lines": [
+            "- RefreshSlots() : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 43,
+      "h": 150
+    },
+    {
+      "name": "PickupPromptUI",
+      "group": "Items",
+      "kind": "MonoBehaviour",
+      "members": [
+        "-ItemPickupInteractor interactor",
+        "-HandleFocusChanged(WorldItem item) void"
+      ],
+      "role": "แสดงชื่อไอเทมเป้าหมาย; subscribe OnFocusChanged",
+      "path": "Assets/nok/Item/Scripts/ItemSystem/PickupPromptUI.cs",
+      "line": 10,
+      "x": 1000,
+      "y": 100,
+      "w": 400,
+      "attributes": [
+        {
+          "text": "- interactor : ItemPickupInteractor",
+          "lines": [
+            "- interactor : ItemPickupInteractor"
+          ],
+          "static": false
+        }
+      ],
+      "operations": [
+        {
+          "text": "- HandleFocusChanged(item : WorldItem) : void",
+          "lines": [
+            "- HandleFocusChanged(item :",
+            "    WorldItem) : void"
+          ],
+          "static": false
+        }
+      ],
+      "headerH": 64,
+      "attrH": 43,
+      "opH": 68,
+      "h": 175
+    }
+  ],
+  "edges": [
+    {
+      "a": "PlayerHandMovement",
+      "rel": "<|--",
+      "b": "PlayerHandCombat",
+      "label": "",
+      "proof": "class PlayerHandCombat : PlayerHandMovement",
+      "points": [
+        [
+          240.0,
+          615
+        ],
+        [
+          240.0,
+          780
+        ]
+      ]
+    },
+    {
+      "a": "TorsoMovement",
+      "rel": "<-->",
+      "b": "PlayerHandMovement",
+      "label": "registered hands / torso",
+      "proof": "_attachedHands; PlayerHandMovement.torso",
+      "points": [
+        [
+          520,
+          250.0
+        ],
+        [
+          470,
+          250
+        ],
+        [
+          470,
+          527.5
+        ],
+        [
+          440,
+          527.5
+        ]
+      ]
+    },
+    {
+      "a": "TorsoMovement",
+      "rel": "<-->",
+      "b": "PlayerFootForRobot",
+      "label": "registered feet / torso",
+      "proof": "_attachedFeet; PlayerFootForRobot.torso",
+      "points": [
+        [
+          520,
+          250.0
+        ],
+        [
+          490,
+          250.0
+        ],
+        [
+          490,
+          527.5
+        ],
+        [
+          520,
+          527.5
+        ]
+      ]
+    },
+    {
+      "a": "PlayerLegCombat",
+      "rel": "-->",
+      "b": "PlayerFootForRobot",
+      "label": "footController",
+      "proof": "private PlayerFootForRobot footController",
+      "points": [
+        [
+          720.0,
+          780
+        ],
+        [
+          720.0,
+          615
+        ]
+      ]
+    },
+    {
+      "a": "PlayerLegCombat",
+      "rel": "-->",
+      "b": "RobotHealth",
+      "label": "legHealth",
+      "proof": "private RobotHealth legHealth",
+      "points": [
+        [
+          720.0,
+          980
+        ],
+        [
+          720.0,
+          1120
+        ]
+      ]
+    },
+    {
+      "a": "RespawnManager",
+      "rel": "-->",
+      "b": "TorsoMovement",
+      "label": "torsoMovement",
+      "proof": "private TorsoMovement torsoMovement",
+      "points": [
+        [
+          440,
+          200.0
+        ],
+        [
+          470,
+          200.0
+        ],
+        [
+          470,
+          250
+        ],
+        [
+          520,
+          250.0
+        ]
+      ]
+    },
+    {
+      "a": "RespawnManager",
+      "rel": "-->",
+      "b": "PlayerHandMovement",
+      "label": "hands",
+      "proof": "private PlayerHandMovement[] hands",
+      "points": [
+        [
+          240.0,
+          300
+        ],
+        [
+          240.0,
+          440
+        ]
+      ]
+    },
+    {
+      "a": "RespawnManager",
+      "rel": "-->",
+      "b": "PlayerFootForRobot",
+      "label": "feet",
+      "proof": "private PlayerFootForRobot[] feet",
+      "points": [
+        [
+          440,
+          200.0
+        ],
+        [
+          480,
+          200
+        ],
+        [
+          480,
+          530
+        ],
+        [
+          490,
+          530
+        ],
+        [
+          490,
+          527.5
+        ],
+        [
+          520,
+          527.5
+        ]
+      ]
+    },
+    {
+      "a": "RobotHealth",
+      "rel": "-->",
+      "b": "JointPullAndReconnect",
+      "label": "Jpar / subscribes",
+      "proof": "Jpar; OnConnectionStateChanged += OnPartConnectionChanged",
+      "points": [
+        [
+          520,
+          1232.5
+        ],
+        [
+          490,
+          1232.5
+        ],
+        [
+          490,
+          1220
+        ],
+        [
+          440,
+          1220.0
+        ]
+      ]
+    },
+    {
+      "a": "IHittable",
+      "rel": "<|..",
+      "b": "RobotHealth",
+      "label": "",
+      "proof": "RobotHealth : NetworkBehaviour, IHittable",
+      "points": [
+        [
+          1000,
+          1961.0
+        ],
+        [
+          970,
+          1961.0
+        ],
+        [
+          970,
+          1230
+        ],
+        [
+          950,
+          1230
+        ],
+        [
+          950,
+          1232.5
+        ],
+        [
+          920,
+          1232.5
+        ]
+      ]
+    },
+    {
+      "a": "EnemyController",
+      "rel": "<-->",
+      "b": "EnemyCombat",
+      "label": "combat / controller",
+      "proof": "EnemyController.combat; EnemyCombat.controller",
+      "points": [
+        [
+          720.0,
+          1680
+        ],
+        [
+          720.0,
+          1840
+        ]
+      ]
+    },
+    {
+      "a": "EnemyHealth",
+      "rel": "-->",
+      "b": "EnemyController",
+      "label": "controller",
+      "proof": "private EnemyController controller",
+      "points": [
+        [
+          440,
+          1605.0
+        ],
+        [
+          470,
+          1605.0
+        ],
+        [
+          470,
+          1580
+        ],
+        [
+          520,
+          1580.0
+        ]
+      ]
+    },
+    {
+      "a": "EnemyCombat",
+      "rel": "..>",
+      "b": "IHittable",
+      "label": "damage",
+      "proof": "ProcessHitDetection calls ServerTakeDamage",
+      "points": [
+        [
+          920,
+          1940.0
+        ],
+        [
+          950,
+          1940.0
+        ],
+        [
+          950,
+          1960
+        ],
+        [
+          970,
+          1960
+        ],
+        [
+          970,
+          1961.0
+        ],
+        [
+          1000,
+          1961.0
+        ]
+      ]
+    },
+    {
+      "a": "EnemyHealth",
+      "rel": "..>",
+      "b": "GameFlowManager",
+      "label": "TriggerVictory",
+      "proof": "ServerDie calls GameFlowManager.Instance.TriggerVictory()",
+      "points": [
+        [
+          240.0,
+          1730
+        ],
+        [
+          240.0,
+          1840
+        ]
+      ]
+    },
+    {
+      "a": "PvpTeamManager",
+      "rel": "..>",
+      "b": "PvpRobotTeam",
+      "label": "reset defeat",
+      "proof": "PvpRobotTeam.FindByTeam(team); robot.ServerResetDefeat()",
+      "points": [
+        [
+          2360,
+          187.5
+        ],
+        [
+          2390,
+          187.5
+        ],
+        [
+          2390,
+          1207.5
+        ],
+        [
+          2360,
+          1207.5
+        ]
+      ]
+    },
+    {
+      "a": "PvpRobotTeam",
+      "rel": "..>",
+      "b": "PvpTeamManager",
+      "label": "report defeat",
+      "proof": "PvpTeamManager.Instance.ServerReportDefeat(team)",
+      "points": [
+        [
+          1960,
+          1207.5
+        ],
+        [
+          1930,
+          1207.5
+        ],
+        [
+          1930,
+          187.5
+        ],
+        [
+          1960,
+          187.5
+        ]
+      ]
+    },
+    {
+      "a": "PvpRobotTeam",
+      "rel": "-->",
+      "b": "RobotHealth",
+      "label": "_limbHealths",
+      "proof": "private readonly List<RobotHealth> _limbHealths",
+      "points": [
+        [
+          1960,
+          1207.5
+        ],
+        [
+          1930,
+          1207.5
+        ],
+        [
+          1930,
+          1320
+        ],
+        [
+          950,
+          1320
+        ],
+        [
+          950,
+          1232.5
+        ],
+        [
+          920,
+          1232.5
+        ]
+      ]
+    },
+    {
+      "a": "ItemPickupInteractor",
+      "rel": "-->",
+      "b": "PlayerInventory",
+      "label": "inventory",
+      "proof": "private PlayerInventory inventory; TryAddServerSide",
+      "points": [
+        [
+          1400,
+          527.5
+        ],
+        [
+          1430,
+          527.5
+        ],
+        [
+          1430,
+          530
+        ],
+        [
+          1450,
+          530
+        ],
+        [
+          1450,
+          527.5
+        ],
+        [
+          1480,
+          527.5
+        ]
+      ]
+    },
+    {
+      "a": "ItemPickupInteractor",
+      "rel": "-->",
+      "b": "WorldItem",
+      "label": "Focused",
+      "proof": "WorldItem Focused; RequestPickup(WorldItem)",
+      "points": [
+        [
+          1200.0,
+          615
+        ],
+        [
+          1200.0,
+          780
+        ]
+      ]
+    },
+    {
+      "a": "PlayerInventory",
+      "rel": "-->",
+      "b": "ItemDatabase",
+      "label": "itemDatabase",
+      "proof": "private ItemDatabase itemDatabase",
+      "points": [
+        [
+          1880,
+          527.5
+        ],
+        [
+          1910,
+          527.5
+        ],
+        [
+          1910,
+          530
+        ],
+        [
+          1930,
+          530
+        ],
+        [
+          1930,
+          527.5
+        ],
+        [
+          1960,
+          527.5
+        ]
+      ]
+    },
+    {
+      "a": "PlayerInventory",
+      "rel": "-->",
+      "b": "HandItemHolder",
+      "label": "hand / Hold",
+      "proof": "RefreshHandFromEquipped calls hand.Hold(EquippedItem)",
+      "points": [
+        [
+          1680.0,
+          615
+        ],
+        [
+          1680.0,
+          780
+        ]
+      ]
+    },
+    {
+      "a": "HandItemHolder",
+      "rel": "*--",
+      "b": "HeldItem",
+      "label": "0..1 instance",
+      "proof": "Hold instantiates heldPrefab below holdPoint; ClearCurrent destroys Current.gameObject",
+      "points": [
+        [
+          1680.0,
+          955
+        ],
+        [
+          1680.0,
+          1120
+        ]
+      ]
+    },
+    {
+      "a": "HeldItem",
+      "rel": "<|--",
+      "b": "GunHeldItem",
+      "label": "",
+      "proof": "class GunHeldItem : HeldItem",
+      "points": [
+        [
+          1480,
+          1207.5
+        ],
+        [
+          1450,
+          1207.5
+        ],
+        [
+          1450,
+          1580
+        ],
+        [
+          1400,
+          1580.0
+        ]
+      ]
+    },
+    {
+      "a": "HeldItem",
+      "rel": "<|--",
+      "b": "ChargeGunHeldItem",
+      "label": "",
+      "proof": "class ChargeGunHeldItem : HeldItem",
+      "points": [
+        [
+          1680.0,
+          1295
+        ],
+        [
+          1680.0,
+          1480
+        ]
+      ]
+    },
+    {
+      "a": "HeldItem",
+      "rel": "<|--",
+      "b": "SwordHeldItem",
+      "label": "",
+      "proof": "class SwordHeldItem : HeldItem",
+      "points": [
+        [
+          1880,
+          1207.5
+        ],
+        [
+          1910,
+          1207.5
+        ],
+        [
+          1910,
+          1580
+        ],
+        [
+          1960,
+          1580.0
+        ]
+      ]
+    },
+    {
+      "a": "HandItemHolder",
+      "rel": "..>",
+      "b": "ChargeGunHeldItem",
+      "label": "charge / fire",
+      "proof": "serverChargingGun; CancelCharge; ExecuteFire",
+      "points": [
+        [
+          1480,
+          867.5
+        ],
+        [
+          1450,
+          867.5
+        ],
+        [
+          1450,
+          870
+        ],
+        [
+          1440,
+          870
+        ],
+        [
+          1440,
+          1580
+        ],
+        [
+          1480,
+          1580.0
+        ]
+      ]
+    },
+    {
+      "a": "HeldItem",
+      "rel": "-->",
+      "b": "ItemDefinition",
+      "label": "Definition",
+      "proof": "public ItemDefinition Definition { get; private set; }",
+      "points": [
+        [
+          1880,
+          1207.5
+        ],
+        [
+          1910,
+          1207.5
+        ],
+        [
+          1910,
+          880
+        ],
+        [
+          1930,
+          880
+        ],
+        [
+          1930,
+          876.0
+        ],
+        [
+          1960,
+          876.0
+        ]
+      ]
+    },
+    {
+      "a": "ItemDatabase",
+      "rel": "-->",
+      "b": "ItemDefinition",
+      "label": "items",
+      "proof": "private List<ItemDefinition> items",
+      "points": [
+        [
+          2160.0,
+          615
+        ],
+        [
+          2160.0,
+          780
+        ]
+      ]
+    },
+    {
+      "a": "WorldItem",
+      "rel": "-->",
+      "b": "ItemDefinition",
+      "label": "definition",
+      "proof": "private ItemDefinition definition",
+      "points": [
+        [
+          1400,
+          855.0
+        ],
+        [
+          1430,
+          855.0
+        ],
+        [
+          1430,
+          980
+        ],
+        [
+          1930,
+          980
+        ],
+        [
+          1930,
+          876.0
+        ],
+        [
+          1960,
+          876.0
+        ]
+      ]
+    },
+    {
+      "a": "GunHeldItem",
+      "rel": "..>",
+      "b": "EnemyHealth",
+      "label": "ServerTakeHit",
+      "proof": "GetComponentInParent<EnemyHealth>(); enemyHealth.ServerTakeHit(...)",
+      "points": [
+        [
+          1000,
+          1580.0
+        ],
+        [
+          950,
+          1580
+        ],
+        [
+          950,
+          1710
+        ],
+        [
+          470,
+          1710
+        ],
+        [
+          470,
+          1605.0
+        ],
+        [
+          440,
+          1605.0
+        ]
+      ]
+    },
+    {
+      "a": "GunHeldItem",
+      "rel": "..>",
+      "b": "IHittable",
+      "label": "ServerTakeDamage",
+      "proof": "GetComponentInParent<IHittable>(); hittable.ServerTakeDamage(...)",
+      "points": [
+        [
+          1200.0,
+          1680
+        ],
+        [
+          1200.0,
+          1840
+        ]
+      ]
+    },
+    {
+      "a": "ItemWheelUI",
+      "rel": "-->",
+      "b": "PlayerInventory",
+      "label": "subscribes / RequestEquip",
+      "proof": "inventory.OnSlotsChanged += RefreshSlots; inventory.OnEquippedChanged += HandleEquippedChanged",
+      "points": [
+        [
+          1680.0,
+          250
+        ],
+        [
+          1680.0,
+          440
+        ]
+      ]
+    },
+    {
+      "a": "PickupPromptUI",
+      "rel": "-->",
+      "b": "ItemPickupInteractor",
+      "label": "subscribes",
+      "proof": "interactor.OnFocusChanged += HandleFocusChanged",
+      "points": [
+        [
+          1200.0,
+          275
+        ],
+        [
+          1200.0,
+          440
+        ]
+      ]
+    }
+  ]
+}

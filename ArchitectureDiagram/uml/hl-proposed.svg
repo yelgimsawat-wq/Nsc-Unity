@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 896" width="1020" height="896" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>ภาพรวมโมดูล: โครงสร้างที่เสนอ</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="161.3" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด</text></g>
+<g transform="translate(0,36)">
+<polyline points="480,140 480,262" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="475.0,252.0 480,262 485.0,252.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="444,140 444,190 145,190 145,262" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="140.0,252.0 145,262 150.0,252.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="600,140 600,502" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="595.0,492.0 600,502 605.0,492.0" fill="none" stroke="#E3E3E3"/>
+<rect x="523.9" y="412.0" width="152.2" height="14" fill="#141414"/><text x="600.0" y="423.0" text-anchor="middle" font-size="10" fill="#BDBDBD">อ่านสถานะ Robot, Enemy, Items</text>
+<polyline points="480,355 480,480" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="475.0,470.0 480,480 485.0,470.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="380,355 380,430 136,430 136,502" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="131.0,492.0 136,502 141.0,492.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="330,300 250,300" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="260.0,295.0 250,300 260.0,305.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="350,355 350,410 20,410 20,795 420,795" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="410.0,800.0 420,795 410.0,790.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="820,541 645,541" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="655.0,536.0 645,541 655.0,546.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="200,541 435,541" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="425.0,546.0 435,541 425.0,536.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="540,610 540,742" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="535.0,732.0 540,742 545.0,732.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="120,580 120,765 420,765" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="410.0,770.0 420,765 410.0,760.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="900,580 900,780 660,780" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polyline points="670.0,775.0 660,780 670.0,785.0" fill="none" stroke="#E3E3E3"/>
+<rect x="420" y="40" width="40" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="420" y="62" width="240" height="78" fill="#141414" stroke="#E3E3E3"/>
+<text x="430" y="55" font-size="12" font-weight="700">UI</text>
+<text x="432" y="81" font-size="11">MainMenuUI, RoomPanel</text>
+<text x="432" y="96" font-size="11">LimbSelectionPanel, PvpTeamSelectUI</text>
+<text x="432" y="111" font-size="11">HUD widgets, MatchResultPanel</text>
+<text x="432" y="126" font-size="11">InMatchMenu, SettingsPanel, TutorialPanel</text>
+<rect x="330" y="240" width="60" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="330" y="262" width="200" height="93" fill="#141414" stroke="#E3E3E3"/>
+<text x="340" y="255" font-size="12" font-weight="700">Match</text>
+<text x="342" y="281" font-size="11">MatchSession</text>
+<text x="342" y="296" font-size="11">LimbSelection, PvpMatch</text>
+<text x="342" y="311" font-size="11">LimbControlBinder</text>
+<text x="342" y="326" font-size="11">Boss / Parkour / PvpModeRules</text>
+<text x="342" y="341" font-size="11">RespawnManager, SceneNavigator</text>
+<rect x="40" y="240" width="80" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="40" y="262" width="210" height="78" fill="#141414" stroke="#E3E3E3"/>
+<text x="50" y="255" font-size="12" font-weight="700">Services</text>
+<text x="52" y="281" font-size="11">SessionService</text>
+<text x="52" y="296" font-size="11">GameSettings</text>
+<text x="52" y="311" font-size="11">VoiceChat</text>
+<text x="52" y="326" font-size="11">GraphicsQualityService, GameAudio</text>
+<rect x="40" y="480" width="70" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="40" y="502" width="160" height="78" fill="#141414" stroke="#E3E3E3"/>
+<text x="50" y="495" font-size="12" font-weight="700">Enemy</text>
+<text x="52" y="521" font-size="11">EnemyController</text>
+<text x="52" y="536" font-size="11">EnemyCombat</text>
+<text x="52" y="551" font-size="11">EnemyHealth (+ Died)</text>
+<text x="52" y="566" font-size="11">EnemyUltimate</text>
+<rect x="435" y="480" width="60" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="435" y="502" width="210" height="108" fill="#141414" stroke="#E3E3E3"/>
+<text x="445" y="495" font-size="12" font-weight="700">Robot</text>
+<text x="447" y="521" font-size="11">Robot, RobotLimb</text>
+<text x="447" y="536" font-size="11">TorsoBalance + FallRules</text>
+<text x="447" y="551" font-size="11">LimbController: Arm, Leg (+ ArmGrip)</text>
+<text x="447" y="566" font-size="11">Arm/LegInput, LocalAim</text>
+<text x="447" y="581" font-size="11">Punch/KickAbility, LimbStrike</text>
+<text x="447" y="596" font-size="11">LimbAttachment, LimbHealth</text>
+<rect x="820" y="480" width="60" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="820" y="502" width="160" height="78" fill="#141414" stroke="#E3E3E3"/>
+<text x="830" y="495" font-size="12" font-weight="700">Items</text>
+<text x="832" y="521" font-size="11">PlayerInventory</text>
+<text x="832" y="536" font-size="11">HandItemHolder</text>
+<text x="832" y="551" font-size="11">HeldItem + subclasses</text>
+<text x="832" y="566" font-size="11">Projectile</text>
+<rect x="420" y="720" width="60" height="22" fill="#141414" stroke="#E3E3E3"/>
+<rect x="420" y="742" width="240" height="78" fill="#141414" stroke="#E3E3E3"/>
+<text x="430" y="735" font-size="12" font-weight="700">Core</text>
+<text x="432" y="761" font-size="11">DamageInfo, IDamageable, DamageRouter</text>
+<text x="432" y="776" font-size="11">GameplayGate</text>
+<text x="432" y="791" font-size="11">LimbSlot, Team</text>
+<text x="432" y="806" font-size="11">UiFocus, InputCompat</text>
+</g>
+</svg>

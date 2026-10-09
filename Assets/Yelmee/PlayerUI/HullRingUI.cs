@@ -1,3 +1,4 @@
+using Nsc.Robots;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -21,7 +22,7 @@ public class HullRingUI : MonoBehaviour
     [SerializeField] private Color fullColor = new Color(0.35f, 0.85f, 1f, 1f);
     [SerializeField] private Color lowColor = new Color(1f, 0.25f, 0.2f, 1f);
 
-    private readonly List<RobotHealth> boundHealths = new List<RobotHealth>();
+    private readonly List<LimbHealth> boundHealths = new List<LimbHealth>();
 
     private void Awake()
     {
@@ -52,13 +53,13 @@ public class HullRingUI : MonoBehaviour
     {
         DetachHealth();
 
-        foreach (RobotHealth health in binder.OwnedHealths)
+        foreach (LimbHealth health in binder.OwnedHealths)
         {
             if (health == null || boundHealths.Contains(health))
                 continue;
 
-            health.currentHp.OnValueChanged += OnHealthChanged;
-            health.currentMaxHp.OnValueChanged += OnHealthChanged; // เพดานลดตอนชิ้นหลุด → วงแหวนต้องคำนวณใหม่
+            // รวมเพดานเลือดที่ลดตอนชิ้นหลุด → วงแหวนต้องคำนวณใหม่
+            health.HealthChanged += Refresh;
             boundHealths.Add(health);
         }
 
@@ -67,37 +68,28 @@ public class HullRingUI : MonoBehaviour
 
     private void DetachHealth()
     {
-        foreach (RobotHealth health in boundHealths)
+        foreach (LimbHealth health in boundHealths)
         {
             if (health != null)
-            {
-                health.currentHp.OnValueChanged -= OnHealthChanged;
-                health.currentMaxHp.OnValueChanged -= OnHealthChanged;
-            }
+                health.HealthChanged -= Refresh;
         }
 
         boundHealths.Clear();
     }
 
-    private void OnHealthChanged(float previousValue, float newValue)
-    {
-        Refresh();
-    }
-
     private void Refresh()
     {
         // โชว์ชิ้นที่เลือดต่ำสุดในบรรดาชิ้นที่เราคุม (คุมชิ้นเดียว = ชิ้นนั้นตรงๆ)
-        RobotHealth worst = null;
+        LimbHealth worst = null;
         float worstNormalized = float.MaxValue;
 
-        foreach (RobotHealth health in boundHealths)
+        foreach (LimbHealth health in boundHealths)
         {
             if (health == null)
                 continue;
 
             // เทียบกับ "เพดานปัจจุบัน" ที่ sync จาก Server — MaxHp ตายตัวจะเพี้ยนหลังชิ้นเคยหลุด
-            float normalized = Mathf.Clamp01(
-                health.currentHp.Value / Mathf.Max(1f, health.currentMaxHp.Value));
+            float normalized = Mathf.Clamp01(health.Hp / Mathf.Max(1f, health.MaxHp));
 
             if (normalized < worstNormalized)
             {
@@ -109,8 +101,8 @@ public class HullRingUI : MonoBehaviour
         if (worst == null)
             return;
 
-        float maxHp = Mathf.Max(1f, worst.currentMaxHp.Value);
-        float currentHp = Mathf.Clamp(worst.currentHp.Value, 0f, maxHp);
+        float maxHp = Mathf.Max(1f, worst.MaxHp);
+        float currentHp = Mathf.Clamp(worst.Hp, 0f, maxHp);
         float normalizedHp = currentHp / maxHp;
 
         if (fillImage != null)

@@ -2,13 +2,8 @@
 //  EnemyHealth.cs
 //  Manages enemy HP and knockback reactions
 //
-//  Usage from Player Attack Script:
-//  ─────────────────────────────────────────────────────────────────────────
-//  EnemyHealth enemyHp = hitCollider.GetComponentInParent<EnemyHealth>();
-//  if (enemyHp != null)
-//      enemyHp.ServerTakeHit(damage, hitDirection, knockbackForce);
-//
-//  Note: hitDirection should be the attacking player's forward direction
+//  รับดาเมจผ่าน DamageRouter เท่านั้น (IDamageable) — ผู้โจมตีห้ามเรียกเมธอดในคลาสนี้ตรงๆ
+//  บอสตาย → ยิงอีเวนต์ Died (BossModeRules ฟังแล้วจบแมตช์) บอสไม่รู้จักโหมดของเกม
 //
 //  CHANGELOG (fixes):
 //  - Awake() no longer overwrites an Inspector-assigned AudioSource with null
@@ -21,7 +16,9 @@
 //    failing silently.
 // =============================================================================
 
+using System;
 using System.Collections;
+using Nsc.Combat;
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
@@ -30,7 +27,7 @@ namespace NscGame.Enemy
 {
     [RequireComponent(typeof(EnemyController))]
     [RequireComponent(typeof(NavMeshAgent))]
-    public class EnemyHealth : NetworkBehaviour
+    public class EnemyHealth : NetworkBehaviour, IDamageable
     {
         #region Inspector Fields
 
@@ -74,7 +71,6 @@ namespace NscGame.Enemy
         private EnemyBodySway bodySway;
         private EnemyUltimate ultimate;
         private bool isDead = false;
-        private bool ultimateCueSent = false;
 
         // Knockback state — เก็บไว้นอก coroutine เพื่อให้หมัดที่เข้าซ้ำ "เติมแรง+ต่อเวลา"
         // ในรอบเดิมได้ แทนที่จะ start coroutine ซ้อนกันหลายตัว (ดู ServerTakeHit)
@@ -134,7 +130,19 @@ namespace NscGame.Enemy
         /// (e.g. Collision.contacts[0].point or the hit collider's closest
         /// point). Omit to fall back to a position above the enemy's pivot.
         /// </param>
-        public void ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce, Vector3? hitPoint = null)
+        /// <summary>[SERVER] ยิงครั้งเดียวตอนบอสตาย</summary>
+        public event Action Died;
+
+        public Team GetTeam() => Team.Enemy;
+
+        public bool ServerApplyDamage(DamageInfo info)
+        {
+            if (!IsServer || isDead) return false;
+            ServerTakeHit(info.amount, info.direction, info.knockback, info.point);
+            return true;
+        }
+
+        private void ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce, Vector3? hitPoint = null)
         {
             if (!IsServer || isDead) return;
 
@@ -171,11 +179,8 @@ namespace NscGame.Enemy
             // 🕳️ [Ultimate Cue] เลือดร่วงถึงเกณฑ์ → คิวท่าไม้ตายไว้
             // แค่ "คิว" ไม่ใช่เริ่มทันที เพราะหมัดที่ทำให้เลือดถึง 50% ก็เป็นหมัดที่ทำให้ปลิว
             // EnemyUltimate จะรอให้ knockback จบและ agent กลับขึ้น NavMesh ก่อนค่อยกระโดดถอย
-            if (!ultimateCueSent && ultimate != null && hpRatio <= ultimate.TriggerHpPercent)
-            {
-                ultimateCueSent = true;
-                ultimate.ServerRequestUltimate();
-            }
+            if (ultimate != null)
+                ultimate.ServerTryTrigger(hpRatio);
 
             // Calculate knockback direction (horizontal + slight upward)
             Vector3 knockDir = pushDir;
@@ -278,10 +283,8 @@ namespace NscGame.Enemy
             isDead = true;
             controller.ServerDie();
 
-            // 🏆 [GameFlow] บอสตาย = ชนะ — แจ้ง GameFlowManager โชว์ WinPanel ทุกเครื่อง
-            // (ซีนที่ไม่มี GameFlowManager เช่นซีนเทส ก็แค่ไม่เกิดอะไร)
-            if (GameFlowManager.Instance != null)
-                GameFlowManager.Instance.TriggerVictory();
+            // 🏆 บอสตาย — ใครสนใจก็ฟังเอง (BossModeRules จบแมตช์เป็นชัยชนะ)
+            Died?.Invoke();
         }
 
         #endregion

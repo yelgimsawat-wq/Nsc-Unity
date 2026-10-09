@@ -23,6 +23,8 @@
 // =============================================================================
 
 using System.Collections.Generic;
+using Nsc.Combat;
+using Nsc.Robots;
 using UnityEngine;
 
 namespace NscGame.Enemy
@@ -55,7 +57,7 @@ namespace NscGame.Enemy
         private int partsHit;
         private int partsDetached;
 
-        /// <summary>The knockdown is one per shot — the torso only needs telling once.</summary>
+        /// <summary>The knockdown is one per shot — the robot only needs telling once.</summary>
         private bool torsoKnockedDown;
 
         #endregion
@@ -155,51 +157,43 @@ namespace NscGame.Enemy
                 if (col == null) continue;
                 if (ignoreRoot != null && col.transform.IsChildOf(ignoreRoot)) continue;
 
-                IHittable hittable = col.GetComponentInParent<IHittable>();
-                if (hittable == null) continue;
+                IDamageable target = col.GetComponentInParent<IDamageable>();
+                if (target == null) continue;
+                if (!alreadyDamaged.Add((Object)target)) continue;
 
-                Object key = (Object)hittable;
-                if (!alreadyDamaged.Add(key)) continue;
+                // This is the ultimate: whatever robot part it touches comes off — no HP
+                // threshold involved, a graze is enough — and the robot goes down.
+                Robot robot = Robot.FromCollider(col);
+                bool isRobotPart = robot != null && target is LimbHealth;
 
-                if (hittable is explobuilding)
+                // bounds เพราะ ClosestPoint ใช้กับ MeshCollider แบบ non-convex (ตึก) ไม่ได้
+                var info = new DamageInfo(target is DestructibleBuilding ? buildingDamage : playerDamage,
+                                          col.bounds.ClosestPoint(to),
+                                          direction, DamageSource.EnemyUltimate, Team.Enemy)
                 {
-                    hittable.ServerTakeDamage(buildingDamage, AttackType.BlackHole, direction);
+                    detachLimb = isRobotPart
+                };
+                if (!DamageRouter.TryApply(target, info)) continue;
+
+                if (target is DestructibleBuilding)
+                {
                     buildingsDestroyed++;
                 }
-                else
+                else if (robot != null)
                 {
-                    hittable.ServerTakeDamage(playerDamage, AttackType.BlackHole, direction);
                     partsHit++;
-
-                    // This is the ultimate: whatever it touches comes off, and the robot
-                    // goes down. No HP threshold involved — a graze is enough.
-                    if (hittable is RobotHealth part)
-                    {
-                        part.ServerBreakPart();
-                        partsDetached++;
-                        KnockDownRobot(part.transform);
-                    }
+                    if (isRobotPart) partsDetached++;
+                    KnockDownRobot(robot);
                 }
             }
         }
 
-        /// <summary>
-        /// [SERVER ONLY] Puts the robot on the floor. Going through Falling rather than
-        /// straight to Ragdoll is deliberate: TorsoMovement's own FixedUpdate promotes
-        /// Falling → Ragdoll, so this follows the same path a normal loss of balance takes
-        /// and cannot skip whatever that transition sets up.
-        /// </summary>
-        private void KnockDownRobot(Transform hitPart)
+        /// <summary>[SERVER ONLY] Puts the robot on the floor — once per shot.</summary>
+        private void KnockDownRobot(Robot robot)
         {
-            if (torsoKnockedDown || hitPart == null) return;
-
-            TorsoMovement torso = hitPart.root.GetComponentInChildren<TorsoMovement>();
-            if (torso == null) return;
-
-            torsoKnockedDown = true;   // found it — don't search the hierarchy again this shot
-
-            if (torso.currentState.Value == TorsoMovement.TorsoState.Standing)
-                torso.currentState.Value = TorsoMovement.TorsoState.Falling;
+            if (torsoKnockedDown) return;
+            torsoKnockedDown = true;
+            robot.ServerKnockDown(FallReason.KnockedDown);
         }
 
         /// <summary>Stop emitting and fade out, then remove the object.</summary>

@@ -1,0 +1,176 @@
+classDiagram
+direction TB
+%% Current code. Selected members and dependencies. Base Unity classes omitted.
+class TorsoMovement {
+  -HashSet~PlayerFootForRobot~ _attachedFeet
+  -HashSet~PlayerHandMovement~ _attachedHands
+  +RegisterFoot(PlayerFootForRobot foot) void
+  +RegisterHand(PlayerHandMovement hand) void
+}
+class PlayerHandMovement {
+  +TorsoMovement torso
+  +ServerReleaseGrab() void
+  +ResetForRespawn() void
+}
+class PlayerHandCombat {
+  +NetworkVariable~CombatState~ currentCombatState
+  +float maxPunchSpeed
+  +NotifyPunchImpact() void
+  +NotifyPunchBlocked() void
+}
+class PlayerFootForRobot {
+  +TorsoMovement torso
+  +IsGrounded() bool
+  +GetKickAimDirection() Vector3
+}
+class PlayerLegCombat {
+  -PlayerFootForRobot footController
+  -RobotHealth legHealth
+  +NotifyKickImpact() void
+  +ResetForRespawn() void
+}
+class RobotHealth {
+  +float MaxHp
+  +NetworkVariable~float~ currentHp
+  +ServerTakeDamage(float amount, AttackType source) void
+  +ServerBreakPart() void
+}
+class JointPullAndReconnect {
+  +OnConnectionStateChanged : Action~bool~
+  +ForceBreakJoint() void
+  +StartPullingExternal() void
+}
+class RespawnManager {
+  -TorsoMovement torsoMovement
+  +SetCheckpoint(Vector3 pos, Quaternion rot) void
+  +RespawnBody() void
+}
+class EnemyController {
+  -EnemyCombat combat
+  -float attackRange
+  +ServerDie() void
+  +ServerBeginKnockback() void
+}
+class EnemyCombat {
+  -EnemyController controller
+  +ServerExecuteAttack(AttackType type) float
+  +ServerStopAllCombatEffects() void
+}
+class EnemyHealth {
+  -float maxHp
+  +NetworkVariable~float~ CurrentHp
+  +ServerTakeHit(float damage, Vector3 hitDirection, float knockbackForce, Vector3? hitPoint) void
+  +IsDead() bool
+}
+class IHittable {
+  <<interface>>
+  +ServerTakeDamage(float amount, AttackType source) void
+  +ServerTakeDamage(float amount, AttackType source, Vector3 direction) void
+}
+class GameFlowManager {
+  +GameEnded : bool$
+  +TriggerVictory() void
+  +TriggerDefeat() void
+}
+class PvpTeamManager {
+  -NetworkList~PvpPlayerEntry~ players
+  +ServerReportDefeat(PvpTeam defeatedTeam) void
+}
+class PvpRobotTeam {
+  -PvpTeam team
+  -List~RobotHealth~ _limbHealths
+  +ServerResetDefeat() void
+}
+class ItemPickupInteractor {
+  -PlayerInventory inventory
+  +Focused : WorldItem
+  -RequestPickup(WorldItem item) void
+}
+class PlayerInventory {
+  -NetworkList~int~ slotItemIndices
+  -NetworkVariable~int~ equippedIndex
+  +RequestEquip(int index) void
+}
+class HandItemHolder {
+  +Current : HeldItem
+  +Hold(ItemDefinition definition) void
+  +RequestFire() void
+}
+class HeldItem {
+  +Definition : ItemDefinition
+  +Holder : HandItemHolder
+  +OnUseStart() void
+}
+class GunHeldItem {
+  -float damage
+  -float fireRate
+  +OnUseStart() void
+  +OnUseHold(float deltaTime) void
+}
+class ChargeGunHeldItem {
+  -float maxChargeTime
+  -float maxDamage
+  +CancelCharge() void
+  +ExecuteFire(FireData data) void
+}
+class SwordHeldItem {
+  -FixedJoint joint
+  -float damageMultiplier
+  +OnEquipped() void
+  +OnUnequipped() void
+}
+class ItemDatabase {
+  -List~ItemDefinition~ items
+  +GetIndex(ItemDefinition item) int
+  +GetByIndex(int index) ItemDefinition
+}
+class ItemDefinition {
+  +string displayName
+  +GameObject heldPrefab
+  +GameObject worldPrefab
+}
+class WorldItem {
+  -ItemDefinition definition
+  +ConsumeFromWorld() void
+}
+class ItemWheelUI {
+  -PlayerInventory inventory
+  -RefreshSlots() void
+}
+class PickupPromptUI {
+  -ItemPickupInteractor interactor
+  -HandleFocusChanged(WorldItem item) void
+}
+PlayerHandMovement <|-- PlayerHandCombat
+TorsoMovement <--> PlayerHandMovement : registered hands / torso
+TorsoMovement <--> PlayerFootForRobot : registered feet / torso
+PlayerLegCombat --> PlayerFootForRobot : footController
+PlayerLegCombat --> RobotHealth : legHealth
+RespawnManager --> TorsoMovement : torsoMovement
+RespawnManager --> PlayerHandMovement : hands
+RespawnManager --> PlayerFootForRobot : feet
+RobotHealth --> JointPullAndReconnect : Jpar / subscribes
+IHittable <|.. RobotHealth
+EnemyController <--> EnemyCombat : combat / controller
+EnemyHealth --> EnemyController : controller
+EnemyCombat ..> IHittable : damage
+EnemyHealth ..> GameFlowManager : TriggerVictory
+PvpTeamManager ..> PvpRobotTeam : reset defeat
+PvpRobotTeam ..> PvpTeamManager : report defeat
+PvpRobotTeam --> RobotHealth : _limbHealths
+ItemPickupInteractor --> PlayerInventory : inventory
+ItemPickupInteractor --> WorldItem : Focused
+PlayerInventory --> ItemDatabase : itemDatabase
+PlayerInventory --> HandItemHolder : hand / Hold
+HandItemHolder *-- "0..1" HeldItem
+HeldItem <|-- GunHeldItem
+HeldItem <|-- ChargeGunHeldItem
+HeldItem <|-- SwordHeldItem
+HandItemHolder ..> ChargeGunHeldItem : charge / fire
+HeldItem --> ItemDefinition : Definition
+ItemDatabase --> ItemDefinition : items
+WorldItem --> ItemDefinition : definition
+GunHeldItem ..> EnemyHealth : ServerTakeHit
+GunHeldItem ..> IHittable : ServerTakeDamage
+ItemWheelUI --> PlayerInventory : subscribes / RequestEquip
+PickupPromptUI --> ItemPickupInteractor : subscribes

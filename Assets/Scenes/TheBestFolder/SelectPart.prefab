@@ -2976,6 +2976,9 @@ GameObject:
   - component: {fileID: 6446494927609607903}
   - component: {fileID: 5414908361271220053}
   - component: {fileID: 8728345932751941716}
+  - component: {fileID: 8056162396624951086}
+  - component: {fileID: 9051965328020705368}
+  - component: {fileID: 3841576538151294796}
   m_Layer: 5
   m_Name: SelectPart
   m_TagString: Untagged
@@ -3105,7 +3108,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LobbyManager
   ShowTopMostFoldoutHeaderGroup: 1
   selectionPanel: {fileID: 7590344148223099913}
-  robotContainer: {fileID: 0}
   playerNameTexts:
   - {fileID: 1834451495487351725}
   - {fileID: 6001243331167270112}
@@ -3127,10 +3129,6 @@ MonoBehaviour:
   - {fileID: 5688723700882416501}
   - {fileID: 4353055468044904778}
   bottomStatusText: {fileID: 713141467916726100}
-  leftArm: {fileID: 0}
-  rightArm: {fileID: 0}
-  leftLeg: {fileID: 0}
-  rightLeg: {fileID: 0}
   limbButtons:
   - {fileID: 2345422750167230685}
   - {fileID: 9135532560935486293}
@@ -3304,3 +3302,39 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &8056162396624951086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214275996633661246}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34a91033ad7d40ca9838cfc42eac1c56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.MatchSession
+--- !u!114 &9051965328020705368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214275996633661246}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f14120c95af4c268ef21cc4c8b3407a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.LimbSelection
+--- !u!114 &3841576538151294796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214275996633661246}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18251ddef3cd43dd9241d87565e5c745, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.LimbControlBinder

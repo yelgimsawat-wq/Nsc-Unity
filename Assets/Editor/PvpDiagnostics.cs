@@ -1,4 +1,7 @@
 using System.Text;
+using Nsc.Combat;
+using Nsc.Match;
+using Nsc.Robots;
 using Unity.Netcode;
 using UnityEditor;
 using UnityEngine;
@@ -6,16 +9,11 @@ using UnityEngine;
 namespace NscGame.Pvp
 {
     /// <summary>
-    /// เครื่องมือตรวจสถานะ PVP ตอนรันจริง — ใช้แยกให้ชัดว่า "เลือดไม่ลด" พังตรงไหน
-    ///
-    /// ปัญหาเลือดไม่ลดมีได้ 3 จุด แต่จากภายนอกดูเหมือนกันหมด:
+    /// เครื่องมือตรวจสถานะ PVP ตอนรันจริง — แยกให้ชัดว่า "เลือดไม่ลด" พังตรงไหน:
     ///   1. ดาเมจไม่ถูกส่ง (เล็งพลาด / ทีมผิด / แมตช์ยังไม่เริ่ม)
-    ///   2. ดาเมจส่งแล้วแต่ RobotHealth ไม่รับ (ชิ้นหลุดไปแล้ว / หาชิ้นไม่เจอ)
+    ///   2. ดาเมจส่งแล้วแต่ไม่มีชิ้นรับ (ชิ้นหลุดไปแล้ว)
     ///   3. เลือดลดจริงแต่ UI ไม่อัปเดต
-    ///
-    /// เมนู Report = ดูสถานะทุกอย่าง | เมนู Damage = ยิงดาเมจตรงๆ ข้ามระบบเล็ง
-    /// ถ้า Damage แล้ว UI ขยับ → ปัญหาอยู่ที่ข้อ 1 (ระบบเล็ง/ตี)
-    /// ถ้า Damage แล้ว UI ไม่ขยับ แต่ Report บอกว่าเลือดลด → ปัญหาอยู่ที่ข้อ 3 (UI)
+    /// เมนู Report = ดูสถานะทุกอย่าง | เมนู Damage = ยิงดาเมจผ่าน DamageRouter ข้ามระบบเล็ง
     /// </summary>
     public static class PvpDiagnostics
     {
@@ -35,51 +33,30 @@ namespace NscGame.Pvp
             sb.AppendLine($"NetworkManager : listening={nm != null && nm.IsListening} " +
                           $"server={nm != null && nm.IsServer} client={nm != null && nm.IsClient}");
 
-            PvpTeamManager mgr = PvpTeamManager.Instance;
-            if (mgr == null)
-            {
-                sb.AppendLine("PvpTeamManager : ❌ ไม่มีในฉาก — ดาเมจจะไม่นับเลย");
-            }
-            else
-            {
-                sb.AppendLine($"PvpTeamManager : spawned={mgr.IsSpawned} state={mgr.MatchState} " +
-                              $"fighting={mgr.IsFighting} ผู้เล่น={mgr.PlayerCount} ทีมเรา={mgr.LocalTeam.DisplayName()}");
-                if (!mgr.IsFighting)
-                    sb.AppendLine("                 ⚠️ ยังไม่ Fighting → ดาเมจทุกทางถูกปฏิเสธ ต้องกด START FIGHT");
-            }
+            MatchSession session = MatchSession.Current;
+            sb.AppendLine(session == null
+                ? "MatchSession   : ❌ ไม่มีในฉาก — GameplayGate เปิดตลอด"
+                : $"MatchSession   : phase={session.Phase} canDamage={GameplayGate.CanDamage}");
+            if (session != null && !session.IsPlaying)
+                sb.AppendLine("                 ⚠️ ยังไม่ Playing → ดาเมจทุกทางถูกปฏิเสธ ต้องกด START");
 
-            foreach (PvpTeam team in new[] { PvpTeam.Red, PvpTeam.Blue })
+            foreach (Robot robot in Robot.All)
             {
                 sb.AppendLine();
-                PvpRobotTeam robot = PvpRobotTeam.FindByTeam(team);
+                sb.AppendLine($"[{robot.GetTeam().DisplayName()}] root='{(robot.Root != null ? robot.Root.name : "null")}' " +
+                              $"spawned={robot.IsSpawned} ต่ออยู่={robot.AttachedLimbCount}/4 " +
+                              $"ลำตัวรับดาเมจ={(robot.GetComponent<RobotBodyDamageRelay>() != null ? "ได้" : "ไม่ได้")}");
 
-                if (robot == null)
+                foreach (LimbSlot slot in LimbSlots.All)
                 {
-                    sb.AppendLine($"[{team.DisplayName()}] ❌ ไม่มี PvpRobotTeam — สั่ง Setup Robots In Scene");
-                    continue;
-                }
-
-                sb.AppendLine($"[{team.DisplayName()}] root='{(robot.RobotRoot != null ? robot.RobotRoot.name : "null")}' " +
-                              $"spawned={robot.IsSpawned} แพ้แล้ว={robot.IsDefeated}");
-                sb.AppendLine($"           ชิ้นที่หลุดได้={robot.LimbsTotal}  ยังต่ออยู่={robot.LimbsRemaining}");
-
-                if (robot.LimbsTotal == 0)
-                    sb.AppendLine("           ⚠️ หาชิ้นส่วนไม่เจอเลย → robotRoot ชี้ผิด หรือหุ่นไม่มี JointPullAndReconnect");
-
-                if (robot.TryGetTotalHp(out float cur, out float max))
-                    sb.AppendLine($"           เลือดรวม {cur:F0} / {max:F0}");
-                else
-                    sb.AppendLine("           ⚠️ TryGetTotalHp คืน false → ไม่มี RobotHealth สักชิ้น " +
-                                  "→ แถบเลือดจะนิ่งตลอดและดาเมจลงลำตัวจะไม่มีที่ลง");
-
-                if (robot.RobotRoot != null)
-                {
-                    foreach (RobotHealth h in robot.RobotRoot.GetComponentsInChildren<RobotHealth>(true))
+                    RobotLimb limb = robot.GetLimb(slot);
+                    if (limb == null)
                     {
-                        bool detached = h.Jpar != null && !h.Jpar.IsConnected;
-                        sb.AppendLine($"             • {h.name,-16} hp={h.currentHp.Value,6:F0}/{h.currentMaxHp.Value,-6:F0} " +
-                                      $"jpar={(h.Jpar != null ? (detached ? "หลุดแล้ว" : "ต่ออยู่") : "❌ ไม่ได้ต่อ")}");
+                        sb.AppendLine($"             • {slot,-9} ❌ ไม่มี RobotLimb");
+                        continue;
                     }
+                    string hp = limb.Health != null ? $"{limb.Health.Hp,6:F0}/{limb.Health.MaxHp,-6:F0}" : "ไม่มีเลือด";
+                    sb.AppendLine($"             • {slot,-9} hp={hp} {(limb.IsAttached ? "ต่ออยู่" : "หลุดแล้ว")}");
                 }
             }
 
@@ -87,58 +64,42 @@ namespace NscGame.Pvp
             sb.AppendLine();
             sb.AppendLine(binder == null
                 ? "PlayerHUD      : ❌ ไม่มี LocalRobotBinder ในฉาก"
-                : $"PlayerHUD      : bound={binder.IsBound} " +
-                  $"หุ่นที่เกาะ='{(binder.RobotRoot != null ? binder.RobotRoot.name : "null")}' " +
-                  $"ชิ้นที่คุม={binder.OwnedHealths.Count}");
+                : $"PlayerHUD      : bound={binder.IsBound} หุ่นที่เกาะ='{(binder.RobotRoot != null ? binder.RobotRoot.name : "null")}' " +
+                  $"ชิ้นที่คุม={(binder.OwnedLimb != null ? binder.OwnedLimb.Slot.ToString() : "none")}");
 
             sb.AppendLine("==================================");
             Debug.Log(sb.ToString());
         }
 
         [MenuItem("Tools/NSC/PVP/Test Damage: ตัดเลือดทีมน้ำเงิน 100")]
-        public static void DamageBlue() => TestDamage(PvpTeam.Blue, 100f);
+        public static void DamageBlue() => TestDamage(Team.Blue, 100f);
 
         [MenuItem("Tools/NSC/PVP/Test Damage: ตัดเลือดทีมแดง 100")]
-        public static void DamageRed() => TestDamage(PvpTeam.Red, 100f);
+        public static void DamageRed() => TestDamage(Team.Red, 100f);
 
-        /// <summary>
-        /// ยิงดาเมจเข้าหุ่นตรงๆ ข้ามระบบเล็ง/ชน/เช็คทีมทั้งหมด
-        /// ใช้พิสูจน์ว่า RobotHealth + UI ทำงานไหม โดยไม่ต้องเล็งให้โดน
-        /// </summary>
-        private static void TestDamage(PvpTeam team, float damage)
+        /// <summary>ยิงดาเมจเข้าลำตัวผ่าน DamageRouter (เส้นทางเดียวกับต่อยลำตัว) — ข้ามระบบเล็ง/ชน</summary>
+        private static void TestDamage(Team team, float damage)
         {
-            if (!Application.isPlaying)
+            if (!Application.isPlaying || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
             {
-                EditorUtility.DisplayDialog("PVP Test Damage", "ใช้ได้เฉพาะตอนกด Play อยู่", "โอเค");
+                Debug.LogWarning("[PVP] Test Damage ต้องรันตอน Play บนเครื่องที่เป็น Host/Server เท่านั้น");
                 return;
             }
 
-            if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+            foreach (Robot robot in Robot.All)
             {
-                Debug.LogWarning("[PVP] Test Damage ต้องรันบนเครื่องที่เป็น Host/Server เท่านั้น");
+                if (robot.GetTeam() != team) continue;
+
+                IDamageable body = robot.GetComponent<RobotBodyDamageRelay>();
+                var info = new DamageInfo(damage, robot.transform.position, Vector3.forward, DamageSource.Punch, Team.None);
+                bool applied = DamageRouter.TryApply(body, info);
+                Debug.Log(applied
+                    ? $"[PVP] 🧪 ตัดเลือดทีม {team.DisplayName()} {damage} — ถ้า UI ไม่ขยับ = ปัญหาอยู่ที่ UI"
+                    : $"[PVP] 🧪 ❌ ไม่สำเร็จ — แมตช์ยังไม่เริ่ม / ไม่มี RobotBodyDamageRelay / ชิ้นหลุดหมด");
                 return;
             }
 
-            PvpRobotTeam robot = PvpRobotTeam.FindByTeam(team);
-            if (robot == null)
-            {
-                Debug.LogWarning($"[PVP] ไม่เจอหุ่นทีม {team.DisplayName()}");
-                return;
-            }
-
-            robot.TryGetTotalHp(out float before, out _);
-
-            // ยิงเข้าที่ตำแหน่งลำตัว → ระบบจะเลือกชิ้นใกล้สุดให้เอง (เส้นทางเดียวกับต่อยลำตัว)
-            Vector3 at = robot.RobotRoot != null ? robot.RobotRoot.position : Vector3.zero;
-            bool applied = robot.ServerApplyBodyDamage(damage, NscGame.Enemy.AttackType.LightPunch, Vector3.forward, at);
-
-            robot.TryGetTotalHp(out float after, out _);
-
-            Debug.Log(applied
-                ? $"[PVP] 🧪 ตัดเลือดทีม {team.DisplayName()} {damage} → เลือดรวม {before:F0} → {after:F0}\n" +
-                  "ถ้าตัวเลขนี้ลดแต่ UI บนจอไม่ขยับ = ปัญหาอยู่ที่ UI ไม่ใช่ระบบดาเมจ"
-                : $"[PVP] 🧪 ❌ ตัดเลือดไม่สำเร็จ — หุ่นทีม {team.DisplayName()} ไม่มีชิ้นส่วนที่รับดาเมจได้ " +
-                  "(ชิ้นหลุดหมดแล้ว หรือไม่มี RobotHealth)");
+            Debug.LogWarning($"[PVP] ไม่เจอหุ่นทีม {team.DisplayName()}");
         }
     }
 }

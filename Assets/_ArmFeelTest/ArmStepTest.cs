@@ -3,6 +3,8 @@
 // so control feel can be tuned against numbers instead of impressions.
 using System.Collections.Generic;
 using System.Reflection;
+using Nsc.Limbs;
+using Nsc.Robots;
 using UnityEngine;
 
 public class ArmStepTest : MonoBehaviour
@@ -14,12 +16,12 @@ public class ArmStepTest : MonoBehaviour
     [Tooltip("How far sideways the target jumps, as a fraction of maxArmLength.")]
     public float stepFraction = 0.55f;
 
-    private static readonly FieldInfo TargetField = typeof(PlayerHandMovement)
+    private static readonly FieldInfo TargetField = typeof(ArmController)
         .GetField("targetHandPosition", BindingFlags.NonPublic | BindingFlags.Instance);
 
     private class Probe
     {
-        public PlayerHandCombat hand;
+        public ArmController hand;
         public Vector3 restTarget, stepTarget;
         public float stepDistance;
         public List<float> err = new List<float>();   // distance from target, per physics step
@@ -42,14 +44,14 @@ public class ArmStepTest : MonoBehaviour
             return;
         }
 
-        foreach (var h in FindObjectsByType<PlayerHandCombat>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (var h in FindObjectsByType<ArmController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
-            if (h.handRb == null || h.pivotPoint == null) continue;
-            // Silence the real input path: Update() early-returns when playerCamera is null,
-            // so no UpdateHandTargetRpc can overwrite the target we are driving.
-            h.playerCamera = null;
-            Vector3 pivot = h.pivotPoint.TransformPoint(h.pivotOffset);
-            float reach = h.maxArmLength;
+            if (h.Body == null || h.Pivot == null) continue;
+            // Silence the real input path: ArmInput stops reading input when it has no camera,
+            // so no SetHandTargetRpc can overwrite the target we are driving.
+            if (h.TryGetComponent(out ArmInput input)) input.Bind(null);
+            Vector3 pivot = h.PivotPosition;
+            float reach = h.MaxArmLength;
             var p = new Probe { hand = h };
             // Rest: hanging below the shoulder. Step: same depth, swung sideways.
             p.restTarget = pivot + Vector3.down * (reach * 0.5f);
@@ -70,25 +72,25 @@ public class ArmStepTest : MonoBehaviour
     ///    on a body lying on the floor. A pinned torso is the closest stable stand-in for
     ///    "a robot the players are successfully holding upright".
     ///  • Arm chain un-frozen. The robot spawns with every rigidbody kinematic and asleep
-    ///    because LobbyManager only unfreezes physics once the host presses Start, and this
+    ///    because LimbSelection only unfreezes physics once the host presses Start, and this
     ///    harness never goes through the lobby.
     /// </summary>
     private void PrepareBodies()
     {
         foreach (var p in probes)
         {
-            var torso = p.hand.torso;
+            var torso = Torso(p.hand);
             if (torso != null)
             {
-                if (torso.IsServer) torso.currentState.Value = TorsoMovement.TorsoState.Standing;
-                if (torso.torsoRb != null) torso.torsoRb.isKinematic = true;
+                if (torso.IsServer && torso.IsRagdoll) torso.ServerResetForRespawn();
+                if (torso.Body != null) torso.Body.isKinematic = true;
             }
 
             // Walk hand -> ... -> torso and wake every link except the pinned torso.
-            var rb = p.hand.handRb;
+            var rb = p.hand.Body;
             for (int hop = 0; rb != null && hop < 8; hop++)
             {
-                if (torso != null && rb == torso.torsoRb) break;
+                if (torso != null && rb == torso.Body) break;
                 if (rb.isKinematic) rb.isKinematic = false;
                 if (rb.IsSleeping()) rb.WakeUp();
                 var joints = rb.GetComponents<Joint>();
@@ -100,7 +102,7 @@ public class ArmStepTest : MonoBehaviour
     private void FixedUpdate()
     {
         if (probes.Count == 0) return;
-        PrepareBodies(); // TorsoMovement re-evaluates balance every step and would flip it back
+        PrepareBodies(); // TorsoBalance re-evaluates balance every step and would flip it back
         if (reported)
         {
             // Keep holding the step target so the steady state can be inspected live.
@@ -119,7 +121,7 @@ public class ArmStepTest : MonoBehaviour
         foreach (var p in probes)
         {
             TargetField.SetValue(p.hand, p.stepTarget);
-            p.err.Add(Vector3.Distance(p.hand.handRb.position, p.stepTarget));
+            p.err.Add(Vector3.Distance(p.hand.Body.position, p.stepTarget));
         }
 
         if (t >= recordTime) { Report(); reported = true; }
@@ -174,16 +176,19 @@ public class ArmStepTest : MonoBehaviour
         // Geometry dump — if the hand never approaches the target, these say why.
         foreach (var p in probes)
         {
-            Vector3 pivot = p.hand.pivotPoint.TransformPoint(p.hand.pivotOffset);
+            Vector3 pivot = p.hand.PivotPosition;
             report.AppendLine(string.Format(
                 "   {0} geom: pivot->target={1:F1}m (reach limit {2:F1}m) | pivot->hand={3:F1}m | handPos={4} target={5} | torso={6}",
                 p.hand.name,
-                Vector3.Distance(pivot, p.stepTarget), p.hand.maxArmLength,
-                Vector3.Distance(pivot, p.hand.handRb.position),
-                p.hand.handRb.position.ToString("F1"), p.stepTarget.ToString("F1"),
-                p.hand.torso == null ? "null" : p.hand.torso.currentState.Value.ToString()));
+                Vector3.Distance(pivot, p.stepTarget), p.hand.MaxArmLength,
+                Vector3.Distance(pivot, p.hand.Body.position),
+                p.hand.Body.position.ToString("F1"), p.stepTarget.ToString("F1"),
+                Torso(p.hand) == null ? "null" : Torso(p.hand).IsRagdoll ? "Ragdoll" : "Standing"));
         }
         LastReport = report.ToString();
         Debug.Log("[ArmStepTest] DONE\n" + LastReport);
     }
+
+    private static TorsoBalance Torso(ArmController hand) =>
+        hand.Limb != null && hand.Limb.Owner != null ? hand.Limb.Owner.Torso : null;
 }

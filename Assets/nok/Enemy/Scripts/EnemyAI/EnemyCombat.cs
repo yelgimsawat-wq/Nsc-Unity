@@ -7,12 +7,14 @@
 //  - VFX rotation matches enemy facing direction + optional offset
 //  - One active VFX per attack type (old VFX destroyed when same attack triggers)
 //  - Automatic VFX cleanup when particle system finishes
-//  - Physics-based hitbox detection with IHittable interface
+//  - Hits the target robot's nearest attached limb through DamageRouter
 // =============================================================================
 
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Nsc.Combat;
+using Nsc.Robots;
 using UnityEngine;
 using Unity.Netcode;
 
@@ -135,7 +137,8 @@ namespace NscGame.Enemy
                 hitboxOrigin = transform;
         }
 
-        private void OnDestroy()
+        // NetworkBehaviour.OnDestroy ทำ cleanup ภายในของ Netcode — ต้อง override + เรียก base เสมอ
+        public override void OnDestroy()
         {
             // Clean up any running coroutines to prevent leaks
             foreach (var kvp in activeVfxCoroutines)
@@ -152,6 +155,7 @@ namespace NscGame.Enemy
                     Destroy(kvp.Value);
             }
             activeVfxByType.Clear();
+            base.OnDestroy();
         }
 
         #endregion
@@ -342,9 +346,8 @@ namespace NscGame.Enemy
         private void ProcessHitDetection(Vector3 origin, float radius, float damage, AttackType attackType)
         {
             // ✅ [Simple Hit v2] หุ่นผู้เล่นตัวใหญ่มาก (มือ/เท้าห่างลำตัว 15-18m) แต่ radius แค่ 5-7m
-            // → OverlapSphere รอบลำตัวไม่มีทางแตะชิ้นที่มี RobotHealth (มือ/เท้า) เลย = โดน 0 ตลอด
-            // แก้เป็น: หา IHittable ทุกชิ้นของหุ่นเป้าหมายตรงๆ — ชิ้นในรัศมีจากจุดกระแทกโดนหมด
-            // ถ้าไม่มีสักชิ้น โดนชิ้นที่ใกล้จุดกระแทกสุด 1 ชิ้นเสมอ (อยู่ในระยะ = ตีติดแน่นอน)
+            // → OverlapSphere รอบลำตัวไม่มีทางแตะชิ้นที่มีเลือด (มือ/เท้า) เลย = โดน 0 ตลอด
+            // แก้เป็น: ถามหุ่นเป้าหมายตรงๆ ว่ามีชิ้นไหนต่ออยู่ แล้วตีชิ้นที่ใกล้จุดกระแทกสุด
             // การหลบ = วิ่งออกนอก maxStrikeReach ก่อนจังหวะกระแทก
             // ✅ บอสตายระหว่างรอจังหวะกระแทก (ผู้เล่นต่อยตายทัน) → ศพห้ามคิดดาเมจ
             if (controller != null && controller.CurrentState == EnemyState.Dead)
@@ -371,19 +374,10 @@ namespace NscGame.Enemy
                 return;
             }
 
-            // ชิ้นส่วนที่รับดาเมจได้ทั้งหมดของหุ่นเป้าหมาย (RobotHealth อยู่บนมือ/เท้า)
+            // ชิ้นส่วนที่รับดาเมจได้ของหุ่นเป้าหมาย (เลือดอยู่บนมือ/เท้า)
             // ข้ามชิ้นที่หลุดไปแล้ว — ตีชิ้นที่กองพื้นอยู่ = ดาเมจฟรี ไม่มีความหมาย
-            IHittable[] allParts = playerTransform.root.GetComponentsInChildren<IHittable>();
-            List<IHittable> partList = new List<IHittable>();
-            foreach (IHittable p in allParts)
-            {
-                if (p is RobotHealth rh && rh.Jpar != null && !rh.Jpar.IsConnected)
-                    continue;
-                partList.Add(p);
-            }
-            IHittable[] parts = partList.ToArray();
-
-            if (parts.Length == 0)
+            Robot robot = Robot.FromTransform(playerTransform);
+            if (robot == null || robot.AttachedLimbCount == 0)
             {
                 Debug.Log($"[EnemyCombat] 🏆 {attackType} — ชิ้นส่วนหุ่นหลุดหมดแล้ว ไม่เหลืออะไรให้ตี");
                 return;
@@ -391,24 +385,21 @@ namespace NscGame.Enemy
 
             // Barrage ห้ามยิง hit-confirm รายดอก — VFX จำกัด 1 ตัว/ประเภท ดอกใหม่จะ
             // Destroy VFX หลักที่กำลังเล่นทุก interval → เอฟเฟคกระพริบไม่เคยเล่นจบท่า
-            // (VFX หลักถูก spawn ตอนเริ่มท่าแล้ว ให้เล่นยาวจนจบเอง)
             bool spawnHitVfx = attackType != AttackType.BarragePunch;
 
-            // ✅ [Damage Stacking Fix] เดิมวนตีทุกชิ้นที่อยู่ในรัศมี "ชิ้นละเต็มจำนวน"
-            // → ดาเมจจริง = damage × จำนวนชิ้นที่บังเอิญอยู่ใกล้ ซึ่งผู้เล่นคุมไม่ได้เลย
-            // ต่อยรัวเคยพุ่งได้ถึง 432 (8 × 3 ชิ้น × 6 ดอก × 3 รอบ) จากที่ตั้งใจไว้ 48
-            // ใหม่: หนึ่งครั้งที่ตี = ดาเมจลงชิ้นเดียว (ชิ้นที่ใกล้จุดกระแทกที่สุด)
-            // ดาเมจต่อท่าจึงเท่ากับตัวเลขใน Inspector เป๊ะๆ คาดเดาได้และจูนง่าย
-            IHittable target = null;
+            // ✅ [Damage Stacking Fix] หนึ่งครั้งที่ตี = ดาเมจลงชิ้นเดียว (ชิ้นที่ใกล้จุดกระแทกที่สุด)
+            // เดิมตีทุกชิ้นในรัศมีชิ้นละเต็มจำนวน ต่อยรัวเคยพุ่งได้ถึง 432 จากที่ตั้งใจไว้ 48
+            LimbHealth target = null;
             float closestDist = float.MaxValue;
 
-            foreach (IHittable part in parts)
+            foreach (RobotLimb limb in robot.AttachedLimbs())
             {
-                float dist = Vector3.Distance(origin, ((Component)part).transform.position);
+                if (limb.Health == null) continue;
+                float dist = Vector3.Distance(origin, limb.Health.transform.position);
                 if (dist < closestDist)
                 {
                     closestDist = dist;
-                    target = part;
+                    target = limb.Health;
                 }
             }
 
@@ -425,8 +416,9 @@ namespace NscGame.Enemy
 
             if (target == null) return;
 
-            Transform targetT = ((Component)target).transform;
-            target.ServerTakeDamage(damage, attackType, transform.forward);
+            Transform targetT = target.transform;
+            var info = new DamageInfo(damage, targetT.position, transform.forward, DamageSource.EnemyMelee, Team.Enemy);
+            if (!DamageRouter.TryApply(target, info)) return;
 
             if (spawnHitVfx)
                 SpawnHitConfirmClientRpc(attackType, targetT.position, GetVfxRotation(attackType));
@@ -635,16 +627,5 @@ namespace NscGame.Enemy
 #endif
 
         #endregion
-    }
-
-    // =========================================================================
-    //  IHittable Interface
-    //  Implement this on player scripts to receive damage from enemy attacks
-    // =========================================================================
-    public interface IHittable
-    {
-        /// <summary>Receive damage on server</summary>
-        void ServerTakeDamage(float amount, AttackType source);
-        void ServerTakeDamage(float amount, AttackType source, Vector3 direction);
     }
 }

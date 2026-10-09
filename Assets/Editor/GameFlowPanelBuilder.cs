@@ -1,3 +1,4 @@
+using Nsc.Match;
 using TMPro;
 using Unity.Netcode;
 using UnityEditor;
@@ -32,9 +33,9 @@ public static class GameFlowPanelBuilder
     public static void Build()
     {
         // ลบของเก่าก่อน regenerate — builder เป็นเจ้าของ layout ทั้งหมด
-        GameFlowManager[] oldManagers = Object.FindObjectsByType<GameFlowManager>(
+        BossModeRules[] oldManagers = Object.FindObjectsByType<BossModeRules>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (GameFlowManager old in oldManagers)
+        foreach (BossModeRules old in oldManagers)
             Object.DestroyImmediate(old.gameObject);
 
         TMP_FontAsset font = LoadFont();
@@ -42,7 +43,7 @@ public static class GameFlowPanelBuilder
         Sprite gameOverArt = LoadSprite(ArtFolder + "/GameOverPanel.png");
         Sprite buttonArt = LoadButtonSprite(ArtFolder + "/Botton.png", ArtFolder + "/BottonTrimmed.png");
 
-        // ── Root: Canvas + NetworkObject + GameFlowManager ──
+        // ── Root: Canvas + NetworkObject + BossModeRules + MatchResultPanel ──
         GameObject root = new GameObject("BossGameFlowUI", typeof(RectTransform));
 
         Canvas canvas = root.AddComponent<Canvas>();
@@ -56,7 +57,8 @@ public static class GameFlowPanelBuilder
 
         root.AddComponent<GraphicRaycaster>();
         root.AddComponent<NetworkObject>(); // scene object — NGO spawn ให้อัตโนมัติ
-        GameFlowManager manager = root.AddComponent<GameFlowManager>();
+        root.AddComponent<BossModeRules>();
+        MatchResultPanel resultPanel = root.AddComponent<MatchResultPanel>();
 
         // ── สร้างสอง panel (subtitle ตามต้นแบบ "ภารกิจสำเร็จ" — แปลงเป็นอังกฤษตามที่ตกลง) ──
         PanelRefs win = BuildEndPanel(root.transform, "WinPanel", winArt, buttonArt, font,
@@ -68,20 +70,10 @@ public static class GameFlowPanelBuilder
         TextMeshProUGUI winTime = BuildTimeBlock(win.canvasGroup.transform, font);
         TextMeshProUGUI loseTime = BuildTimeBlock(lose.canvasGroup.transform, font);
 
-        // ── โยง references เข้า GameFlowManager ──
-        SerializedObject so = new SerializedObject(manager);
-        so.FindProperty("winPanel").objectReferenceValue = win.canvasGroup;
-        so.FindProperty("gameOverPanel").objectReferenceValue = lose.canvasGroup;
-        so.FindProperty("winHostButtons").objectReferenceValue = win.hostButtons;
-        so.FindProperty("winWaitingText").objectReferenceValue = win.waitingText;
-        so.FindProperty("gameOverHostButtons").objectReferenceValue = lose.hostButtons;
-        so.FindProperty("gameOverWaitingText").objectReferenceValue = lose.waitingText;
-        so.FindProperty("winRestartButton").objectReferenceValue = win.restartButton;
-        so.FindProperty("winExitButton").objectReferenceValue = win.exitButton;
-        so.FindProperty("gameOverRestartButton").objectReferenceValue = lose.restartButton;
-        so.FindProperty("gameOverExitButton").objectReferenceValue = lose.exitButton;
-        so.FindProperty("winTimeText").objectReferenceValue = winTime;
-        so.FindProperty("gameOverTimeText").objectReferenceValue = loseTime;
+        // ── โยง references เข้า MatchResultPanel ──
+        SerializedObject so = new SerializedObject(resultPanel);
+        WireView(so.FindProperty("victoryView"), win, winTime, null);
+        WireView(so.FindProperty("defeatView"), lose, loseTime, null);
         so.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAssetAndConnect(root, PrefabPath, InteractionMode.UserAction);
@@ -89,7 +81,7 @@ public static class GameFlowPanelBuilder
         Selection.activeGameObject = root;
 
         Debug.Log($"[GameFlowUI] built and saved to {PrefabPath} — instance placed in the open scene.\n" +
-                  "อย่าลืม: 1) hook TriggerVictory ใน EnemyHealth ถูกเพิ่มให้แล้ว 2) เช็คชื่อซีนเมนูใน Inspector (menuSceneName)");
+                  "อย่าลืม: ลาก EnemyHealth ของบอสใส่ช่อง boss ของ BossModeRules");
     }
 
     // ================================================================
@@ -101,9 +93,9 @@ public static class GameFlowPanelBuilder
     [MenuItem("Tools/NSC/Build Parkour GameFlow UI")]
     public static void BuildParkour()
     {
-        ParkourFlowManager[] oldManagers = Object.FindObjectsByType<ParkourFlowManager>(
+        ParkourModeRules[] oldManagers = Object.FindObjectsByType<ParkourModeRules>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (ParkourFlowManager old in oldManagers)
+        foreach (ParkourModeRules old in oldManagers)
             Object.DestroyImmediate(old.gameObject);
 
         TMP_FontAsset font = LoadFont();
@@ -123,7 +115,8 @@ public static class GameFlowPanelBuilder
 
         root.AddComponent<GraphicRaycaster>();
         root.AddComponent<NetworkObject>();
-        ParkourFlowManager manager = root.AddComponent<ParkourFlowManager>();
+        root.AddComponent<ParkourModeRules>();
+        MatchResultPanel resultPanel = root.AddComponent<MatchResultPanel>();
 
         // ── Panel: Backdrop → Art → TIME/HEIGHT → ปุ่ม ──
         RectTransform panel = CreateRect(root.transform, "HighScorePanel");
@@ -187,14 +180,17 @@ public static class GameFlowPanelBuilder
         waiting.gameObject.SetActive(false);
 
         // ── Wire references ──
-        SerializedObject so = new SerializedObject(manager);
-        so.FindProperty("highScorePanel").objectReferenceValue = group;
-        so.FindProperty("hostButtons").objectReferenceValue = hostButtons.gameObject;
-        so.FindProperty("waitingText").objectReferenceValue = waiting.gameObject;
-        so.FindProperty("retryButton").objectReferenceValue = retry;
-        so.FindProperty("exitButton").objectReferenceValue = exit;
-        so.FindProperty("timeText").objectReferenceValue = timeValue;
-        so.FindProperty("heightText").objectReferenceValue = heightValue;
+        // พาร์คัวร์จบได้ทางเดียว (ถึงยอด) → ใช้หน้า victory หน้าเดียว
+        SerializedObject so = new SerializedObject(resultPanel);
+        PanelRefs refs = new PanelRefs
+        {
+            canvasGroup = group,
+            hostButtons = hostButtons.gameObject,
+            waitingText = waiting.gameObject,
+            restartButton = retry,
+            exitButton = exit,
+        };
+        WireView(so.FindProperty("victoryView"), refs, timeValue, heightValue);
         so.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAssetAndConnect(root, ParkourPrefabPath, InteractionMode.UserAction);
@@ -202,12 +198,25 @@ public static class GameFlowPanelBuilder
         Selection.activeGameObject = root;
 
         Debug.Log($"[ParkourGameFlowUI] built and saved to {ParkourPrefabPath} — instance placed in the open scene.\n" +
-                  "อย่าลืม: วาง ParkourGoalZone (Collider isTrigger) ไว้บนยอดด่าน + เช็ค menuSceneName ใน Inspector");
+                  "อย่าลืม: วาง ParkourGoalZone (Collider isTrigger) ไว้บนยอดด่าน");
     }
 
     // ================================================================
     //  Panel เดียว: Backdrop → Art เต็มจอ → ปุ่ม Host / ข้อความรอ Client
     // ================================================================
+
+    private static void WireView(SerializedProperty view, PanelRefs refs,
+        TextMeshProUGUI timeText, TextMeshProUGUI heightText)
+    {
+        view.FindPropertyRelative("root").objectReferenceValue = refs.canvasGroup.gameObject;
+        view.FindPropertyRelative("group").objectReferenceValue = refs.canvasGroup;
+        view.FindPropertyRelative("hostButtons").objectReferenceValue = refs.hostButtons;
+        view.FindPropertyRelative("waitingText").objectReferenceValue = refs.waitingText;
+        view.FindPropertyRelative("retryButton").objectReferenceValue = refs.restartButton;
+        view.FindPropertyRelative("exitButton").objectReferenceValue = refs.exitButton;
+        view.FindPropertyRelative("timeText").objectReferenceValue = timeText;
+        view.FindPropertyRelative("heightText").objectReferenceValue = heightText;
+    }
 
     private struct PanelRefs
     {
@@ -229,7 +238,7 @@ public static class GameFlowPanelBuilder
         group.alpha = 0f;
         group.blocksRaycasts = false;
         group.interactable = false;
-        panel.gameObject.SetActive(false); // GameFlowManager เปิดเองตอนจบเกม
+        panel.gameObject.SetActive(false); // MatchResultPanel เปิดเองตอนจบเกม
 
         // ม่านดำกันคลิกทะลุ + ปิดช่องว่างจอที่ไม่ใช่ 16:9
         Image backdrop = CreateImage(panel, "Backdrop", null, BackdropColor);

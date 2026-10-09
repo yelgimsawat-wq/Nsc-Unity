@@ -1,3 +1,4 @@
+using Nsc.Robots;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -10,8 +11,6 @@ using UnityEngine.UI;
 /// </summary>
 public class LimbStatusUI : MonoBehaviour
 {
-    public enum LimbSlot { LeftArm = 0, RightArm = 1, LeftLeg = 2, RightLeg = 3 }
-
     [SerializeField] private LocalRobotBinder binder;
     [SerializeField] private LimbSlot slot;
 
@@ -38,7 +37,7 @@ public class LimbStatusUI : MonoBehaviour
     [Tooltip("สีป้ายของชิ้นที่ผู้เล่นคนนี้คุม (ตอนต่ออยู่) ให้รู้ว่าการ์ดใบไหนของเรา")]
     [SerializeField] private Color ownedLabel = new Color(0.35f, 0.85f, 1f, 1f);
 
-    private JointPullAndReconnect joint;
+    private RobotLimb limb;
     private Tween pulseTween;
 
     private void Awake()
@@ -63,52 +62,37 @@ public class LimbStatusUI : MonoBehaviour
         if (binder != null)
             binder.OnBound -= HandleBound;
 
-        DetachJoint();
+        DetachLimb();
         StopPulse();
     }
 
     private void HandleBound()
     {
-        DetachJoint();
+        DetachLimb();
 
-        joint = JointForSlot();
-        if (joint != null)
-            joint.OnConnectionStateChanged += OnConnectionChanged;
+        limb = binder.GetLimb(slot);
+        if (limb != null)
+            limb.StateChanged += OnLimbStateChanged;
 
-        Apply(joint == null || joint.IsConnected);
+        Apply(limb == null || limb.IsAttached);
     }
 
-    private JointPullAndReconnect JointForSlot()
+    private void DetachLimb()
     {
-        if (binder == null)
-            return null;
+        if (limb != null)
+            limb.StateChanged -= OnLimbStateChanged;
 
-        return slot switch
-        {
-            LimbSlot.LeftArm => binder.LeftArmJoint,
-            LimbSlot.RightArm => binder.RightArmJoint,
-            LimbSlot.LeftLeg => binder.LeftLegJoint,
-            LimbSlot.RightLeg => binder.RightLegJoint,
-            _ => null
-        };
+        limb = null;
     }
 
-    private void DetachJoint()
+    private void OnLimbStateChanged(RobotLimb changed)
     {
-        if (joint != null)
-            joint.OnConnectionStateChanged -= OnConnectionChanged;
-
-        joint = null;
-    }
-
-    private void OnConnectionChanged(bool connected)
-    {
-        Apply(connected);
+        Apply(changed.IsAttached);
     }
 
     private void Apply(bool connected)
     {
-        bool isOwnLimb = binder != null && joint != null && binder.OwnedJoint == joint;
+        bool isOwnLimb = binder != null && limb != null && binder.OwnedLimb == limb;
 
         if (borderImage != null)
             borderImage.color = connected ? attachedBorder : detachedBorder;

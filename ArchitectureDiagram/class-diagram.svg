@@ -1,0 +1,280 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2410" height="2210" viewBox="0 0 2410 2210" role="img" aria-labelledby="svg-title svg-desc">
+<title id="svg-title">Nsc-Unity — UML Class Diagram</title><desc id="svg-desc">Selected current gameplay classes. All class boxes show attributes and operations. Actual source names and relationships; not a proposed refactor.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 1L9 5L1 9" fill="none" stroke="#b8b8b8" stroke-width="1.5"/></marker><marker id="inherit" markerWidth="17" markerHeight="17" refX="16" refY="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 1L16 8L1 15Z" fill="#121212" stroke="#d0d0d0" stroke-width="1.5"/></marker><marker id="diamond" markerWidth="20" markerHeight="14" refX="19" refY="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 7L10 1L19 7L10 13Z" fill="#d0d0d0" stroke="#d0d0d0"/></marker></defs>
+<style>text{font-family:Arial,Tahoma,sans-serif;fill:#eeeeee}.member{font-size:20px}.class-name{font-size:22px;font-weight:600}.base{font-size:16px;fill:#adadad}.class-box{fill:#121212;stroke:#a6a6a6;stroke-width:1.5}.divider{stroke:#a6a6a6;stroke-width:1.2}.link{fill:none;stroke:#aaa;stroke-width:1.5}.node:focus .class-box,.node.active .class-box{stroke:#fff;stroke-width:3}.node{cursor:pointer}</style>
+<rect width="2410" height="2210" fill="#121212"/>
+<text x="40" y="40" font-size="23" font-weight="600">NSC-UNITY / CLASS DIAGRAM</text>
+<text x="2370" y="40" text-anchor="end" font-size="16" fill="#aaa">CURRENT CODE · SELECTED GAMEPLAY CLASSES</text>
+<g class="relationship" data-from="PlayerHandMovement" data-to="PlayerHandCombat"><title>PlayerHandMovement &lt;|-- PlayerHandCombat — class PlayerHandCombat : PlayerHandMovement</title><path class="link" d="M240,615 L240,780" marker-start="url(#inherit)"/></g>
+<g class="relationship" data-from="HandItemHolder" data-to="HeldItem"><title>HandItemHolder *-- HeldItem — Hold instantiates heldPrefab below holdPoint; ClearCurrent destroys Current.gameObject</title><path class="link" d="M1680,955 L1680,1120" marker-start="url(#diamond)"/></g>
+<text x="1694.0" y="1108" font-size="17">0..1</text>
+<g class="relationship" data-from="HeldItem" data-to="ChargeGunHeldItem"><title>HeldItem &lt;|-- ChargeGunHeldItem — class ChargeGunHeldItem : HeldItem</title><path class="link" d="M1680,1295 L1680,1480" marker-start="url(#inherit)"/></g>
+<g class="relationship" data-from="HeldItem" data-to="GunHeldItem"><title>HeldItem &lt;|-- GunHeldItem — class GunHeldItem : HeldItem</title><path class="link" d="M1480,1207.5 L1450,1207.5 L1450,1580 L1400,1580" marker-start="url(#inherit)"/></g>
+<g class="relationship" data-from="HeldItem" data-to="SwordHeldItem"><title>HeldItem &lt;|-- SwordHeldItem — class SwordHeldItem : HeldItem</title><path class="link" d="M1880,1207.5 L1910,1207.5 L1910,1580 L1960,1580" marker-start="url(#inherit)"/></g>
+<g class="relationship" data-from="IHittable" data-to="RobotHealth"><title>IHittable &lt;|.. RobotHealth — RobotHealth : NetworkBehaviour, IHittable</title><path class="link" d="M1000,1961 L970,1961 L970,1230 L950,1230 L950,1232.5 L920,1232.5" marker-start="url(#inherit)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="TorsoMovement" data-to="PlayerFootForRobot"><title>TorsoMovement &lt;--&gt; PlayerFootForRobot — _attachedFeet; PlayerFootForRobot.torso</title><path class="link" d="M520,250 L490,250 L490,527.5 L520,527.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/></g>
+<g class="relationship" data-from="PlayerLegCombat" data-to="PlayerFootForRobot"><title>PlayerLegCombat --&gt; PlayerFootForRobot — private PlayerFootForRobot footController</title><path class="link" d="M720,780 L720,615" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="PlayerLegCombat" data-to="RobotHealth"><title>PlayerLegCombat --&gt; RobotHealth — private RobotHealth legHealth</title><path class="link" d="M720,980 L720,1120" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="RespawnManager" data-to="PlayerHandMovement"><title>RespawnManager --&gt; PlayerHandMovement — private PlayerHandMovement[] hands</title><path class="link" d="M240,300 L240,440" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="ItemPickupInteractor" data-to="WorldItem"><title>ItemPickupInteractor --&gt; WorldItem — WorldItem Focused; RequestPickup(WorldItem)</title><path class="link" d="M1200,615 L1200,780" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="PlayerInventory" data-to="HandItemHolder"><title>PlayerInventory --&gt; HandItemHolder — RefreshHandFromEquipped calls hand.Hold(EquippedItem)</title><path class="link" d="M1680,615 L1680,780" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="ItemDatabase" data-to="ItemDefinition"><title>ItemDatabase --&gt; ItemDefinition — private List&lt;ItemDefinition&gt; items</title><path class="link" d="M2160,615 L2160,780" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="ItemWheelUI" data-to="PlayerInventory"><title>ItemWheelUI --&gt; PlayerInventory — inventory.OnSlotsChanged += RefreshSlots; inventory.OnEquippedChanged += HandleEquippedChanged</title><path class="link" d="M1680,250 L1680,440" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="PickupPromptUI" data-to="ItemPickupInteractor"><title>PickupPromptUI --&gt; ItemPickupInteractor — interactor.OnFocusChanged += HandleFocusChanged</title><path class="link" d="M1200,275 L1200,440" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="EnemyController" data-to="EnemyCombat"><title>EnemyController &lt;--&gt; EnemyCombat — EnemyController.combat; EnemyCombat.controller</title><path class="link" d="M720,1680 L720,1840" marker-end="url(#arrow)" marker-start="url(#arrow)"/></g>
+<g class="relationship" data-from="EnemyHealth" data-to="GameFlowManager"><title>EnemyHealth ..&gt; GameFlowManager — ServerDie calls GameFlowManager.Instance.TriggerVictory()</title><path class="link" d="M240,1730 L240,1840" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="GunHeldItem" data-to="IHittable"><title>GunHeldItem ..&gt; IHittable — GetComponentInParent&lt;IHittable&gt;(); hittable.ServerTakeDamage(...)</title><path class="link" d="M1200,1680 L1200,1840" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="RespawnManager" data-to="TorsoMovement"><title>RespawnManager --&gt; TorsoMovement — private TorsoMovement torsoMovement</title><path class="link" d="M440,200 L470,200 L470,250 L520,250" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="RobotHealth" data-to="JointPullAndReconnect"><title>RobotHealth --&gt; JointPullAndReconnect — Jpar; OnConnectionStateChanged += OnPartConnectionChanged</title><path class="link" d="M520,1232.5 L490,1232.5 L490,1220 L440,1220" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="EnemyHealth" data-to="EnemyController"><title>EnemyHealth --&gt; EnemyController — private EnemyController controller</title><path class="link" d="M440,1605 L470,1605 L470,1580 L520,1580" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="EnemyCombat" data-to="IHittable"><title>EnemyCombat ..&gt; IHittable — ProcessHitDetection calls ServerTakeDamage</title><path class="link" d="M920,1940 L950,1940 L950,1960 L970,1960 L970,1961 L1000,1961" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="ItemPickupInteractor" data-to="PlayerInventory"><title>ItemPickupInteractor --&gt; PlayerInventory — private PlayerInventory inventory; TryAddServerSide</title><path class="link" d="M1400,527.5 L1430,527.5 L1430,530 L1450,530 L1450,527.5 L1480,527.5" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="PlayerInventory" data-to="ItemDatabase"><title>PlayerInventory --&gt; ItemDatabase — private ItemDatabase itemDatabase</title><path class="link" d="M1880,527.5 L1910,527.5 L1910,530 L1930,530 L1930,527.5 L1960,527.5" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="HandItemHolder" data-to="ChargeGunHeldItem"><title>HandItemHolder ..&gt; ChargeGunHeldItem — serverChargingGun; CancelCharge; ExecuteFire</title><path class="link" d="M1480,867.5 L1450,867.5 L1450,870 L1440,870 L1440,1580 L1480,1580" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="TorsoMovement" data-to="PlayerHandMovement"><title>TorsoMovement &lt;--&gt; PlayerHandMovement — _attachedHands; PlayerHandMovement.torso</title><path class="link" d="M520,250 L470,250 L470,527.5 L440,527.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/></g>
+<g class="relationship" data-from="RespawnManager" data-to="PlayerFootForRobot"><title>RespawnManager --&gt; PlayerFootForRobot — private PlayerFootForRobot[] feet</title><path class="link" d="M440,200 L480,200 L480,530 L490,530 L490,527.5 L520,527.5" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="HeldItem" data-to="ItemDefinition"><title>HeldItem --&gt; ItemDefinition — public ItemDefinition Definition { get; private set; }</title><path class="link" d="M1880,1207.5 L1910,1207.5 L1910,880 L1930,880 L1930,876 L1960,876" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="WorldItem" data-to="ItemDefinition"><title>WorldItem --&gt; ItemDefinition — private ItemDefinition definition</title><path class="link" d="M1400,855 L1430,855 L1430,980 L1930,980 L1930,876 L1960,876" marker-end="url(#arrow)"/></g>
+<g class="relationship" data-from="GunHeldItem" data-to="EnemyHealth"><title>GunHeldItem ..&gt; EnemyHealth — GetComponentInParent&lt;EnemyHealth&gt;(); enemyHealth.ServerTakeHit(...)</title><path class="link" d="M1000,1580 L950,1580 L950,1710 L470,1710 L470,1605 L440,1605" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="PvpTeamManager" data-to="PvpRobotTeam"><title>PvpTeamManager ..&gt; PvpRobotTeam — PvpRobotTeam.FindByTeam(team); robot.ServerResetDefeat()</title><path class="link" d="M2360,187.5 L2390,187.5 L2390,1207.5 L2360,1207.5" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="PvpRobotTeam" data-to="PvpTeamManager"><title>PvpRobotTeam ..&gt; PvpTeamManager — PvpTeamManager.Instance.ServerReportDefeat(team)</title><path class="link" d="M1960,1207.5 L1930,1207.5 L1930,187.5 L1960,187.5" marker-end="url(#arrow)" stroke-dasharray="7 5"/></g>
+<g class="relationship" data-from="PvpRobotTeam" data-to="RobotHealth"><title>PvpRobotTeam --&gt; RobotHealth — private readonly List&lt;RobotHealth&gt; _limbHealths</title><path class="link" d="M1960,1207.5 L1930,1207.5 L1930,1320 L950,1320 L950,1232.5 L920,1232.5" marker-end="url(#arrow)"/></g>
+<g class="node" id="TorsoMovement" data-name="TorsoMovement" tabindex="0" role="button" aria-label="TorsoMovement"><title>ทรงตัวและขยับลำตัว เก็บแขนและขาที่ลงทะเบียนไว้ | Assets/Scenes/TheBestFolder/Mynigga/player/TorsoMovement.cs:5</title><rect class="class-box" x="520" y="100" width="400" height="300"/>
+<text class="base" x="720.0" y="123" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="149" text-anchor="middle">TorsoMovement</text>
+<path class="divider" d="M520 164H920"/>
+<path class="divider" d="M520 282H920"/>
+<text class="member" x="532" y="191">- _attachedFeet :</text>
+<text class="member" x="532" y="216">    HashSet&lt;PlayerFootForRobot&gt;</text>
+<text class="member" x="532" y="241">- _attachedHands :</text>
+<text class="member" x="532" y="266">    HashSet&lt;PlayerHandMovement&gt;</text>
+<text class="member" x="532" y="309">+ RegisterFoot(foot :</text>
+<text class="member" x="532" y="334">    PlayerFootForRobot) : void</text>
+<text class="member" x="532" y="359">+ RegisterHand(hand :</text>
+<text class="member" x="532" y="384">    PlayerHandMovement) : void</text>
+</g>
+<g class="node" id="PlayerHandMovement" data-name="PlayerHandMovement" tabindex="0" role="button" aria-label="PlayerHandMovement"><title>ควบคุมแขน การเล็ง และการจับวัตถุ | Assets/Scenes/TheBestFolder/Mynigga/player/PlayerHandMovement.cs:5</title><rect class="class-box" x="40" y="440" width="400" height="175"/>
+<text class="base" x="240.0" y="463" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="240.0" y="489" text-anchor="middle">PlayerHandMovement</text>
+<path class="divider" d="M40 504H440"/>
+<path class="divider" d="M40 547H440"/>
+<text class="member" x="52" y="531">+ torso : TorsoMovement</text>
+<text class="member" x="52" y="574">+ ServerReleaseGrab() : void</text>
+<text class="member" x="52" y="599">+ ResetForRespawn() : void</text>
+</g>
+<g class="node" id="PlayerHandCombat" data-name="PlayerHandCombat" tabindex="0" role="button" aria-label="PlayerHandCombat"><title>เพิ่มการต่อยบนพฤติกรรมแขนเดิม — สืบทอดจริงในโค้ด | Assets/Scenes/TheBestFolder/Mynigga/player/PlayerHandCombat.cs:5</title><rect class="class-box" x="40" y="780" width="400" height="225"/>
+<text class="base" x="240.0" y="803" text-anchor="middle">: PlayerHandMovement</text><text class="class-name" x="240.0" y="829" text-anchor="middle">PlayerHandCombat</text>
+<path class="divider" d="M40 844H440"/>
+<path class="divider" d="M40 937H440"/>
+<text class="member" x="52" y="871">+ currentCombatState :</text>
+<text class="member" x="52" y="896">    NetworkVariable&lt;CombatState&gt;</text>
+<text class="member" x="52" y="921">+ maxPunchSpeed : float</text>
+<text class="member" x="52" y="964">+ NotifyPunchImpact() : void</text>
+<text class="member" x="52" y="989">+ NotifyPunchBlocked() : void</text>
+</g>
+<g class="node" id="PlayerFootForRobot" data-name="PlayerFootForRobot" tabindex="0" role="button" aria-label="PlayerFootForRobot"><title>ควบคุมขา การวางเท้า และทิศเล็งการเตะ | Assets/Scenes/TheBestFolder/Mynigga/player/PlayerFootForRobot.cs:6</title><rect class="class-box" x="520" y="440" width="400" height="175"/>
+<text class="base" x="720.0" y="463" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="489" text-anchor="middle">PlayerFootForRobot</text>
+<path class="divider" d="M520 504H920"/>
+<path class="divider" d="M520 547H920"/>
+<text class="member" x="532" y="531">+ torso : TorsoMovement</text>
+<text class="member" x="532" y="574">+ IsGrounded() : bool</text>
+<text class="member" x="532" y="599">+ GetKickAimDirection() : Vector3</text>
+</g>
+<g class="node" id="PlayerLegCombat" data-name="PlayerLegCombat" tabindex="0" role="button" aria-label="PlayerLegCombat"><title>ควบคุมการชาร์จและเตะ ใช้ footController ไม่ได้สืบทอดจากเท้า | Assets/Scenes/TheBestFolder/Mynigga/player/PlayerLegCombat.cs:5</title><rect class="class-box" x="520" y="780" width="400" height="200"/>
+<text class="base" x="720.0" y="803" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="829" text-anchor="middle">PlayerLegCombat</text>
+<path class="divider" d="M520 844H920"/>
+<path class="divider" d="M520 912H920"/>
+<text class="member" x="532" y="871">- footController : PlayerFootForRobot</text>
+<text class="member" x="532" y="896">- legHealth : RobotHealth</text>
+<text class="member" x="532" y="939">+ NotifyKickImpact() : void</text>
+<text class="member" x="532" y="964">+ ResetForRespawn() : void</text>
+</g>
+<g class="node" id="RobotHealth" data-name="RobotHealth" tabindex="0" role="button" aria-label="RobotHealth"><title>เลือดของชิ้นส่วนหุ่น รับ damage ผ่าน IHittable และทำให้ข้อต่อหลุด; มี ServerTakeDamage ทั้ง 2 และ 3/4 พารามิเตอร์ตามโค้ด | Assets/Scenes/Enemy AndInteractive Object/RobotHealth.cs:5</title><rect class="class-box" x="520" y="1120" width="400" height="225"/>
+<text class="base" x="720.0" y="1143" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="1169" text-anchor="middle">RobotHealth</text>
+<path class="divider" d="M520 1184H920"/>
+<path class="divider" d="M520 1252H920"/>
+<text class="member" x="532" y="1211">+ MaxHp : float</text>
+<text class="member" x="532" y="1236">+ currentHp : NetworkVariable&lt;float&gt;</text>
+<text class="member" x="532" y="1279">+ ServerTakeDamage(amount : float,</text>
+<text class="member" x="532" y="1304">    source : AttackType) : void</text>
+<text class="member" x="532" y="1329">+ ServerBreakPart() : void</text>
+</g>
+<g class="node" id="JointPullAndReconnect" data-name="JointPullAndReconnect" tabindex="0" role="button" aria-label="JointPullAndReconnect"><title>จัดการการหลุดและดึงข้อต่อกลับ พร้อมแจ้งการเปลี่ยนสถานะ | Assets/Scenes/Enemy AndInteractive Object/JointPullAndReconnect.cs:6</title><rect class="class-box" x="40" y="1120" width="400" height="200"/>
+<text class="base" x="240.0" y="1143" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="240.0" y="1169" text-anchor="middle">JointPullAndReconnect</text>
+<path class="divider" d="M40 1184H440"/>
+<path class="divider" d="M40 1252H440"/>
+<text class="member" x="52" y="1211">+ OnConnectionStateChanged :</text>
+<text class="member" x="52" y="1236">    Action&lt;bool&gt;</text>
+<text class="member" x="52" y="1279">+ ForceBreakJoint() : void</text>
+<text class="member" x="52" y="1304">+ StartPullingExternal() : void</text>
+</g>
+<g class="node" id="RespawnManager" data-name="RespawnManager" tabindex="0" role="button" aria-label="RespawnManager"><title>คืนตำแหน่งและรีเซ็ตส่วนต่าง ๆ ของหุ่นที่ checkpoint | Assets/nok/SaveScript/RespawnManager.cs:26</title><rect class="class-box" x="40" y="100" width="400" height="200"/>
+<text class="base" x="240.0" y="123" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="240.0" y="149" text-anchor="middle">RespawnManager</text>
+<path class="divider" d="M40 164H440"/>
+<path class="divider" d="M40 207H440"/>
+<text class="member" x="52" y="191">- torsoMovement : TorsoMovement</text>
+<text class="member" x="52" y="234">+ SetCheckpoint(pos : Vector3, rot :</text>
+<text class="member" x="52" y="259">    Quaternion) : void</text>
+<text class="member" x="52" y="284">+ RespawnBody() : void</text>
+</g>
+<g class="node" id="EnemyController" data-name="EnemyController" tabindex="0" role="button" aria-label="EnemyController"><title>ตัดสินใจศัตรูและควบคุมลำดับพฤติกรรมบน server | Assets/nok/Enemy/Scripts/EnemyAI/EnemyController.cs:36</title><rect class="class-box" x="520" y="1480" width="400" height="200"/>
+<text class="base" x="720.0" y="1503" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="1529" text-anchor="middle">EnemyController</text>
+<path class="divider" d="M520 1544H920"/>
+<path class="divider" d="M520 1612H920"/>
+<text class="member" x="532" y="1571">- combat : EnemyCombat</text>
+<text class="member" x="532" y="1596">- attackRange : float</text>
+<text class="member" x="532" y="1639">+ ServerDie() : void</text>
+<text class="member" x="532" y="1664">+ ServerBeginKnockback() : void</text>
+</g>
+<g class="node" id="EnemyCombat" data-name="EnemyCombat" tabindex="0" role="button" aria-label="EnemyCombat"><title>โจมตี ตรวจโดน และจัดการเอฟเฟกต์ของการโจมตี | Assets/nok/Enemy/Scripts/EnemyAI/EnemyCombat.cs:23</title><rect class="class-box" x="520" y="1840" width="400" height="200"/>
+<text class="base" x="720.0" y="1863" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="720.0" y="1889" text-anchor="middle">EnemyCombat</text>
+<path class="divider" d="M520 1904H920"/>
+<path class="divider" d="M520 1947H920"/>
+<text class="member" x="532" y="1931">- controller : EnemyController</text>
+<text class="member" x="532" y="1974">+ ServerExecuteAttack(type :</text>
+<text class="member" x="532" y="1999">    AttackType) : float</text>
+<text class="member" x="532" y="2024">+ ServerStopAllCombatEffects() : void</text>
+</g>
+<g class="node" id="EnemyHealth" data-name="EnemyHealth" tabindex="0" role="button" aria-label="EnemyHealth"><title>เลือด การกระเด็น และการตายของศัตรู; ใช้ ServerTakeHit ไม่ได้ implement IHittable | Assets/nok/Enemy/Scripts/EnemyAI/EnemyHealth.cs:33</title><rect class="class-box" x="40" y="1480" width="400" height="250"/>
+<text class="base" x="240.0" y="1503" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="240.0" y="1529" text-anchor="middle">EnemyHealth</text>
+<path class="divider" d="M40 1544H440"/>
+<path class="divider" d="M40 1612H440"/>
+<text class="member" x="52" y="1571">- maxHp : float</text>
+<text class="member" x="52" y="1596">+ CurrentHp : NetworkVariable&lt;float&gt;</text>
+<text class="member" x="52" y="1639">+ ServerTakeHit(damage : float,</text>
+<text class="member" x="52" y="1664">    hitDirection : Vector3, knockbackForce</text>
+<text class="member" x="52" y="1689">    : float, hitPoint : Vector3?) : void</text>
+<text class="member" x="52" y="1714">+ IsDead() : bool</text>
+</g>
+<g class="node" id="IHittable" data-name="IHittable" tabindex="0" role="button" aria-label="IHittable"><title>สัญญารับ damage บน server; ประกาศอยู่ท้าย EnemyCombat.cs | Assets/nok/Enemy/Scripts/EnemyAI/EnemyCombat.cs:644</title><rect class="class-box" x="1000" y="1840" width="400" height="242"/>
+<text class="base" x="1200.0" y="1863" text-anchor="middle">«interface»</text><text class="class-name" x="1200.0" y="1889" text-anchor="middle">IHittable</text>
+<path class="divider" d="M1000 1904H1400"/>
+<path class="divider" d="M1000 1939H1400"/>
+<text class="member" x="1012" y="1966">+ ServerTakeDamage(amount : float,</text>
+<text class="member" x="1012" y="1991">    source : AttackType) : void</text>
+<text class="member" x="1012" y="2016">+ ServerTakeDamage(amount : float,</text>
+<text class="member" x="1012" y="2041">    source : AttackType, direction :</text>
+<text class="member" x="1012" y="2066">    Vector3) : void</text>
+</g>
+<g class="node" id="GameFlowManager" data-name="GameFlowManager" tabindex="0" role="button" aria-label="GameFlowManager"><title>ตัดสินผลเกมร่วมเล่นและแสดงผลจบเกม; GameEnded เป็น static property | Assets/Yelmee/UI/GameFlowManager.cs:21</title><rect class="class-box" x="40" y="1840" width="400" height="175"/>
+<text class="base" x="240.0" y="1863" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="240.0" y="1889" text-anchor="middle">GameFlowManager</text>
+<path class="divider" d="M40 1904H440"/>
+<path class="divider" d="M40 1947H440"/>
+<text class="member" x="52" y="1931" text-decoration="underline">+ GameEnded : bool</text>
+<text class="member" x="52" y="1974">+ TriggerVictory() : void</text>
+<text class="member" x="52" y="1999">+ TriggerDefeat() : void</text>
+</g>
+<g class="node" id="PvpTeamManager" data-name="PvpTeamManager" tabindex="0" role="button" aria-label="PvpTeamManager"><title>เก็บทีมและการเลือกชิ้นส่วน เริ่มและจบแมตช์ PVP | Assets/nok/PVP/PvpTeamManager.cs:24</title><rect class="class-box" x="1960" y="100" width="400" height="175"/>
+<text class="base" x="2160.0" y="123" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="2160.0" y="149" text-anchor="middle">PvpTeamManager</text>
+<path class="divider" d="M1960 164H2360"/>
+<path class="divider" d="M1960 207H2360"/>
+<text class="member" x="1972" y="191">- players : NetworkList&lt;PvpPlayerEntry&gt;</text>
+<text class="member" x="1972" y="234">+ ServerReportDefeat(defeatedTeam :</text>
+<text class="member" x="1972" y="259">    PvpTeam) : void</text>
+</g>
+<g class="node" id="PvpRobotTeam" data-name="PvpRobotTeam" tabindex="0" role="button" aria-label="PvpRobotTeam"><title>ระบุทีมหุ่น รวมเลือดชิ้นส่วน และรายงานแพ้ให้ PvpTeamManager | Assets/nok/PVP/PvpRobotTeam.cs:25</title><rect class="class-box" x="1960" y="1120" width="400" height="175"/>
+<text class="base" x="2160.0" y="1143" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="2160.0" y="1169" text-anchor="middle">PvpRobotTeam</text>
+<path class="divider" d="M1960 1184H2360"/>
+<path class="divider" d="M1960 1252H2360"/>
+<text class="member" x="1972" y="1211">- team : PvpTeam</text>
+<text class="member" x="1972" y="1236">- _limbHealths : List&lt;RobotHealth&gt;</text>
+<text class="member" x="1972" y="1279">+ ServerResetDefeat() : void</text>
+</g>
+<g class="node" id="ItemPickupInteractor" data-name="ItemPickupInteractor" tabindex="0" role="button" aria-label="ItemPickupInteractor"><title>หาไอเทมเป้าหมาย ส่งคำขอเก็บ และแจ้ง OnFocusChanged | Assets/nok/Item/Scripts/ItemSystem/ItemPickupInteractor.cs:15</title><rect class="class-box" x="1000" y="440" width="400" height="175"/>
+<text class="base" x="1200.0" y="463" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="1200.0" y="489" text-anchor="middle">ItemPickupInteractor</text>
+<path class="divider" d="M1000 504H1400"/>
+<path class="divider" d="M1000 572H1400"/>
+<text class="member" x="1012" y="531">- inventory : PlayerInventory</text>
+<text class="member" x="1012" y="556">+ Focused : WorldItem</text>
+<text class="member" x="1012" y="599">- RequestPickup(item : WorldItem) : void</text>
+</g>
+<g class="node" id="PlayerInventory" data-name="PlayerInventory" tabindex="0" role="button" aria-label="PlayerInventory"><title>เก็บช่องและช่องที่เลือกบนเครือข่าย แปลง index ผ่าน ItemDatabase และอัปเดตของในมือ | Assets/nok/Item/Scripts/ItemSystem/PlayerInventory.cs:16</title><rect class="class-box" x="1480" y="440" width="400" height="175"/>
+<text class="base" x="1680.0" y="463" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="1680.0" y="489" text-anchor="middle">PlayerInventory</text>
+<path class="divider" d="M1480 504H1880"/>
+<path class="divider" d="M1480 572H1880"/>
+<text class="member" x="1492" y="531">- slotItemIndices : NetworkList&lt;int&gt;</text>
+<text class="member" x="1492" y="556">- equippedIndex : NetworkVariable&lt;int&gt;</text>
+<text class="member" x="1492" y="599">+ RequestEquip(index : int) : void</text>
+</g>
+<g class="node" id="HandItemHolder" data-name="HandItemHolder" tabindex="0" role="button" aria-label="HandItemHolder"><title>สร้างและทำลาย held instance ประสานการใช้ไอเทมและคำขอยิง | Assets/nok/Item/Scripts/ItemSystem/HandItemHolder.cs:54</title><rect class="class-box" x="1480" y="780" width="400" height="175"/>
+<text class="base" x="1680.0" y="803" text-anchor="middle">: NetworkBehaviour</text><text class="class-name" x="1680.0" y="829" text-anchor="middle">HandItemHolder</text>
+<path class="divider" d="M1480 844H1880"/>
+<path class="divider" d="M1480 887H1880"/>
+<text class="member" x="1492" y="871">+ Current : HeldItem</text>
+<text class="member" x="1492" y="914">+ Hold(definition : ItemDefinition) : void</text>
+<text class="member" x="1492" y="939">+ RequestFire() : void</text>
+</g>
+<g class="node" id="HeldItem" data-name="HeldItem" tabindex="0" role="button" aria-label="HeldItem"><title>คลาสฐาน concrete ของไอเทมในมือ; OnUseStart เป็น virtual ไม่ใช่ abstract | Assets/nok/Item/Scripts/ItemSystem/HeldItem.cs:10</title><rect class="class-box" x="1480" y="1120" width="400" height="175"/>
+<text class="base" x="1680.0" y="1143" text-anchor="middle">: MonoBehaviour</text><text class="class-name" x="1680.0" y="1169" text-anchor="middle">HeldItem</text>
+<path class="divider" d="M1480 1184H1880"/>
+<path class="divider" d="M1480 1252H1880"/>
+<text class="member" x="1492" y="1211">+ Definition : ItemDefinition</text>
+<text class="member" x="1492" y="1236">+ Holder : HandItemHolder</text>
+<text class="member" x="1492" y="1279">+ OnUseStart() : void</text>
+</g>
+<g class="node" id="GunHeldItem" data-name="GunHeldItem" tabindex="0" role="button" aria-label="GunHeldItem"><title>ไอเทมปืนแบบยิงทันที; override การใช้ไอเทม | Assets/nok/Item/Scripts/ItemSystem/GunHeldItem.cs:18</title><rect class="class-box" x="1000" y="1480" width="400" height="200"/>
+<text class="base" x="1200.0" y="1503" text-anchor="middle">: HeldItem</text><text class="class-name" x="1200.0" y="1529" text-anchor="middle">GunHeldItem</text>
+<path class="divider" d="M1000 1544H1400"/>
+<path class="divider" d="M1000 1612H1400"/>
+<text class="member" x="1012" y="1571">- damage : float</text>
+<text class="member" x="1012" y="1596">- fireRate : float</text>
+<text class="member" x="1012" y="1639">+ OnUseStart() : void</text>
+<text class="member" x="1012" y="1664">+ OnUseHold(deltaTime : float) : void</text>
+</g>
+<g class="node" id="ChargeGunHeldItem" data-name="ChargeGunHeldItem" tabindex="0" role="button" aria-label="ChargeGunHeldItem"><title>ไอเทมปืนชาร์จ รับข้อมูลยิงที่ server ตรวจแล้ว | Assets/nok/Item/Scripts/ItemSystem/ChargeGunHeldItem.cs:20</title><rect class="class-box" x="1480" y="1480" width="400" height="200"/>
+<text class="base" x="1680.0" y="1503" text-anchor="middle">: HeldItem</text><text class="class-name" x="1680.0" y="1529" text-anchor="middle">ChargeGunHeldItem</text>
+<path class="divider" d="M1480 1544H1880"/>
+<path class="divider" d="M1480 1612H1880"/>
+<text class="member" x="1492" y="1571">- maxChargeTime : float</text>
+<text class="member" x="1492" y="1596">- maxDamage : float</text>
+<text class="member" x="1492" y="1639">+ CancelCharge() : void</text>
+<text class="member" x="1492" y="1664">+ ExecuteFire(data : FireData) : void</text>
+</g>
+<g class="node" id="SwordHeldItem" data-name="SwordHeldItem" tabindex="0" role="button" aria-label="SwordHeldItem"><title>ยึดดาบเข้ามือด้วย FixedJoint และตั้งค่า PvpDamageSender; damage มาจากการชน ไม่ใช่ OnUseStart | Assets/nok/Item/Scripts/ItemSystem/SwordHeldItem.cs:19</title><rect class="class-box" x="1960" y="1480" width="400" height="200"/>
+<text class="base" x="2160.0" y="1503" text-anchor="middle">: HeldItem</text><text class="class-name" x="2160.0" y="1529" text-anchor="middle">SwordHeldItem</text>
+<path class="divider" d="M1960 1544H2360"/>
+<path class="divider" d="M1960 1612H2360"/>
+<text class="member" x="1972" y="1571">- joint : FixedJoint</text>
+<text class="member" x="1972" y="1596">- damageMultiplier : float</text>
+<text class="member" x="1972" y="1639">+ OnEquipped() : void</text>
+<text class="member" x="1972" y="1664">+ OnUnequipped() : void</text>
+</g>
+<g class="node" id="ItemDatabase" data-name="ItemDatabase" tabindex="0" role="button" aria-label="ItemDatabase"><title>asset ตารางแปลงไอเทมกับ index สำหรับการซิงก์ | Assets/nok/Item/Scripts/ItemSystem/ItemDatabase.cs:15</title><rect class="class-box" x="1960" y="440" width="400" height="175"/>
+<text class="base" x="2160.0" y="463" text-anchor="middle">: ScriptableObject</text><text class="class-name" x="2160.0" y="489" text-anchor="middle">ItemDatabase</text>
+<path class="divider" d="M1960 504H2360"/>
+<path class="divider" d="M1960 547H2360"/>
+<text class="member" x="1972" y="531">- items : List&lt;ItemDefinition&gt;</text>
+<text class="member" x="1972" y="574">+ GetIndex(item : ItemDefinition) : int</text>
+<text class="member" x="1972" y="599">+ GetByIndex(index : int) : ItemDefinition</text>
+</g>
+<g class="node" id="ItemDefinition" data-name="ItemDefinition" tabindex="0" role="button" aria-label="ItemDefinition"><title>asset ค่าตั้งต้นและ prefab ของไอเทม ไม่ใช่สถานะช่อง runtime | Assets/nok/Item/Scripts/ItemSystem/ItemDefinition.cs:10</title><rect class="class-box" x="1960" y="780" width="400" height="192"/>
+<text class="base" x="2160.0" y="803" text-anchor="middle">: ScriptableObject</text><text class="class-name" x="2160.0" y="829" text-anchor="middle">ItemDefinition</text>
+<path class="divider" d="M1960 844H2360"/>
+<path class="divider" d="M1960 937H2360"/>
+<text class="member" x="1972" y="871">+ displayName : string</text>
+<text class="member" x="1972" y="896">+ heldPrefab : GameObject</text>
+<text class="member" x="1972" y="921">+ worldPrefab : GameObject</text>
+</g>
+<g class="node" id="WorldItem" data-name="WorldItem" tabindex="0" role="button" aria-label="WorldItem"><title>ไอเทมในฉากที่เก็บได้ อ้างอิง asset definition | Assets/nok/Item/Scripts/ItemSystem/WorldItem.cs:13</title><rect class="class-box" x="1000" y="780" width="400" height="150"/>
+<text class="base" x="1200.0" y="803" text-anchor="middle">: MonoBehaviour</text><text class="class-name" x="1200.0" y="829" text-anchor="middle">WorldItem</text>
+<path class="divider" d="M1000 844H1400"/>
+<path class="divider" d="M1000 887H1400"/>
+<text class="member" x="1012" y="871">- definition : ItemDefinition</text>
+<text class="member" x="1012" y="914">+ ConsumeFromWorld() : void</text>
+</g>
+<g class="node" id="ItemWheelUI" data-name="ItemWheelUI" tabindex="0" role="button" aria-label="ItemWheelUI"><title>แสดง inventory และส่งคำขอเลือกของ; subscribe OnSlotsChanged และ OnEquippedChanged | Assets/nok/Item/Scripts/ItemSystem/ItemWheelUI.cs:17</title><rect class="class-box" x="1480" y="100" width="400" height="150"/>
+<text class="base" x="1680.0" y="123" text-anchor="middle">: MonoBehaviour</text><text class="class-name" x="1680.0" y="149" text-anchor="middle">ItemWheelUI</text>
+<path class="divider" d="M1480 164H1880"/>
+<path class="divider" d="M1480 207H1880"/>
+<text class="member" x="1492" y="191">- inventory : PlayerInventory</text>
+<text class="member" x="1492" y="234">- RefreshSlots() : void</text>
+</g>
+<g class="node" id="PickupPromptUI" data-name="PickupPromptUI" tabindex="0" role="button" aria-label="PickupPromptUI"><title>แสดงชื่อไอเทมเป้าหมาย; subscribe OnFocusChanged | Assets/nok/Item/Scripts/ItemSystem/PickupPromptUI.cs:10</title><rect class="class-box" x="1000" y="100" width="400" height="175"/>
+<text class="base" x="1200.0" y="123" text-anchor="middle">: MonoBehaviour</text><text class="class-name" x="1200.0" y="149" text-anchor="middle">PickupPromptUI</text>
+<path class="divider" d="M1000 164H1400"/>
+<path class="divider" d="M1000 207H1400"/>
+<text class="member" x="1012" y="191">- interactor : ItemPickupInteractor</text>
+<text class="member" x="1012" y="234">- HandleFocusChanged(item :</text>
+<text class="member" x="1012" y="259">    WorldItem) : void</text>
+</g>
+<text x="40" y="2168" font-size="17">+ public   − private   # protected     |     Solid line + hollow triangle: inheritance · Dashed line + hollow triangle: interface · Diamond: owned lifetime</text>
+<text x="40" y="2195" font-size="16" fill="#aaa">Base types shown after “:”. Selected members and dependencies only. Shared references are not composition. Not every class in the project is shown.</text>
+</svg>

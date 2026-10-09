@@ -118,24 +118,24 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 15c26ecc780d76840af46f9512d3fa7e, type: 2}
-    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: kickReach
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.reach
       value: 6
       objectReference: {fileID: 0}
-    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: recoveryDamping
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.recoveryDamping
       value: 14
       objectReference: {fileID: 0}
-    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: kickAcceleration
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.acceleration
       value: 1100
       objectReference: {fileID: 0}
-    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: maximumKickSpeed
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.maxSpeed
       value: 70
       objectReference: {fileID: 0}
-    - target: {fileID: 970124958746250394, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: minimumKickSpeed
+    - target: {fileID: 2455239865576692288, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.minSpeed
       value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 1052885194524453545, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
@@ -146,11 +146,11 @@ PrefabInstance:
       propertyPath: handDamper
       value: 50
       objectReference: {fileID: 0}
-    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 9005445836284205709, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachX
       value: 4
       objectReference: {fileID: 0}
-    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 9005445836284205709, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachY
       value: 4
       objectReference: {fileID: 0}
@@ -167,10 +167,10 @@ PrefabInstance:
       value: 120
       objectReference: {fileID: 0}
     - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: punchExtraReach
+      propertyPath: punch.extraReach
       value: 2
       objectReference: {fileID: 0}
-    - target: {fileID: 1287962358011837292, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 9005445836284205709, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handDepthScrollSpeed
       value: 0.03
       objectReference: {fileID: 0}
@@ -379,7 +379,7 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: maxTorsoStress
+      propertyPath: rules.maxStress
       value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
@@ -395,8 +395,8 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: currentState.m_InternalValue
-      value: 2
+      propertyPath: isRagdoll.m_InternalValue
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6308388643719817161, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash
@@ -566,35 +566,35 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 15c26ecc780d76840af46f9512d3fa7e, type: 2}
-    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: kickReach
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.reach
       value: 6
       objectReference: {fileID: 0}
-    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: recoveryDamping
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.recoveryDamping
       value: 14
       objectReference: {fileID: 0}
-    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: kickAcceleration
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.acceleration
       value: 1100
       objectReference: {fileID: 0}
-    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: maximumKickSpeed
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.maxSpeed
       value: 70
       objectReference: {fileID: 0}
-    - target: {fileID: 8940036673481268773, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: minimumKickSpeed
+    - target: {fileID: 5726095937807362579, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+      propertyPath: kick.minSpeed
       value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handDamper
       value: 50
       objectReference: {fileID: 0}
-    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 2314561680313497716, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachX
       value: 4
       objectReference: {fileID: 0}
-    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 2314561680313497716, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: mouseReachY
       value: 4
       objectReference: {fileID: 0}
@@ -611,10 +611,10 @@ PrefabInstance:
       value: 120
       objectReference: {fileID: 0}
     - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: punchExtraReach
+      propertyPath: punch.extraReach
       value: 2
       objectReference: {fileID: 0}
-    - target: {fileID: 9114835423681065036, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
+    - target: {fileID: 2314561680313497716, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: handDepthScrollSpeed
       value: 0.03
       objectReference: {fileID: 0}

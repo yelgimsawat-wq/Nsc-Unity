@@ -41,9 +41,6 @@ namespace NscGame.Enemy
         private float lastDamageTime = 0f;
         private bool isBossActive = false;
 
-        private LobbyManager lobby;
-        private float nextLobbySearchTime;
-
         private void Awake()
         {
             canvasGroup = GetComponent<CanvasGroup>();
@@ -66,26 +63,11 @@ namespace NscGame.Enemy
             }
         }
 
+        /// <summary>ซ่อนหลอดเลือดบอสระหว่างเตรียมตัว (ลอบบี้) — ซีนที่ไม่มี MatchSession โชว์ทันที</summary>
         private bool ShouldShow()
         {
-            if (lobby == null && Time.unscaledTime >= nextLobbySearchTime)
-            {
-                nextLobbySearchTime = Time.unscaledTime + 1f;
-                lobby = FindFirstObjectByType<LobbyManager>(FindObjectsInactive.Include);
-            }
-
-            // scene นี้ไม่มี lobby (เข้าเกมตรงๆ) → ไม่มีอะไรต้องรอ
-            if (lobby == null)
-                return true;
-
-            // ไม่มี NetworkManager เลย = เทส offline ล้วนๆ → โชว์
-            // มี NetworkManager แต่ยังไม่ host/join = ยังอยู่หน้าเมนู → ซ่อนรอ
-            if (Unity.Netcode.NetworkManager.Singleton == null)
-                return true;
-            if (!Unity.Netcode.NetworkManager.Singleton.IsListening)
-                return false;
-
-            return lobby.GameStarted;
+            Nsc.Match.MatchSession session = Nsc.Match.MatchSession.Current;
+            return session == null || session.Phase != Nsc.Match.MatchPhase.Preparing;
         }
 
         private void FindEnemyHealth()

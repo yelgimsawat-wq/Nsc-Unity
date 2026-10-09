@@ -1,13 +1,12 @@
-using NscGame.Pvp;
+using Nsc.Combat;
+using Nsc.Match;
 using Unity.Netcode;
 using UnityEngine;
 
 namespace NscUnity.Items
 {
     /// <summary>
-    /// ข้อมูลนัดยิง 1 ครั้ง ส่งผ่านเครือข่ายจากเจ้าของไปให้ทุกเครื่อง (รวมตัวเอง) — ดูที่ HandItemHolder.FireRpc
-    /// ค่าถูกคำนวณจบแล้วที่ฝั่งเจ้าของก่อนส่ง (เชื่อ client เรื่องเลข ไม่ validate ซ้ำฝั่ง Server —
-    /// พอสำหรับเกมนี้ที่ยังไม่มีระบบกันโกง เหมือนที่ PvpDamageSender ก็เชื่อค่าจาก client อยู่แล้ว)
+    /// ผลการยิงหนึ่งนัดที่ server คำนวณแล้วประกาศให้ทุกเครื่อง
     /// </summary>
     public struct FireData : INetworkSerializable
     {
@@ -20,14 +19,8 @@ namespace NscUnity.Items
         public float hitRadius;
         public float visualSize;
 
-        /// <summary>ทีมของคนยิง (PVP) — ใช้กันยิงเพื่อนร่วมทีม None = ไม่ได้อยู่ในแมตช์ PVP</summary>
-        public PvpTeam shooterTeam;
-
-        /// <summary>
-        /// NetworkObjectId ของหุ่นที่ยิง — ใช้แยก "ยิงโดนตัวเอง" (อนุญาต) ออกจาก "ยิงโดนเพื่อนร่วมทีมคนอื่น" (กันไว้)
-        /// เทียบแบบเป๊ะกับ NetworkObjectId ของหุ่นเป้าหมาย ไม่ใช่แค่เทียบทีมเฉยๆ
-        /// </summary>
-        public ulong shooterRobotId;
+        /// <summary>ทีมของคนยิง — DamageRouter ใช้กันยิงเพื่อนร่วมทีม (None = ไม่มีทีม)</summary>
+        public Team shooterTeam;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
@@ -39,19 +32,17 @@ namespace NscUnity.Items
             serializer.SerializeValue(ref maxDistance);
             serializer.SerializeValue(ref hitRadius);
             serializer.SerializeValue(ref shooterTeam);
-            serializer.SerializeValue(ref shooterRobotId);
             serializer.SerializeValue(ref visualSize);
         }
     }
 
     /// <summary>
-    /// "มือ" ของตัวละคร — หน้าที่หลักคือ spawn / ทำลาย โมเดลไอเทมที่จุด Hold Point
-    /// และส่งต่อ input ปุ่มใช้งานไปให้ HeldItem ที่ถืออยู่
-    /// แปะไว้ที่ GameObject ของผู้เล่น แล้วลากกระดูกมือ (หรือ Empty ที่เป็นลูกของกระดูกมือ) มาใส่ holdPoint
+    /// "มือ" ของตัวละคร — spawn / ทำลาย โมเดลไอเทมที่ Hold Point และส่งต่อ input ปุ่มใช้งานไปให้ HeldItem
     ///
-    /// ออนไลน์: Hold() ทำงานบนทุกเครื่อง (เพื่อให้ทุกคนเห็นว่าผู้เล่นคนนี้ถืออะไรอยู่ — ขับเคลื่อนโดย
-    /// PlayerInventory.EquippedIndex ที่ซิงค์อยู่แล้ว) ส่วนการรับ Input (คลิกใช้ไอเทม) อ่านเฉพาะฝั่งเจ้าของ
-    /// (IsOwner) เท่านั้น แล้วส่งผลการยิงไปให้ทุกเครื่องผ่าน FireRpc เพื่อให้เห็นเอฟเฟกต์ตรงกัน
+    /// ออนไลน์: Hold() ทำงานบนทุกเครื่อง (ขับโดย PlayerInventory.EquippedIndex ที่ซิงค์อยู่แล้ว)
+    /// input อ่านเฉพาะฝั่งเจ้าของ แล้วข้ามไป server ด้วยโปรโตคอลกลางชุดเดียว (เริ่ม/ปล่อย/ยกเลิก)
+    /// ส่งแค่ "จังหวะกด" ข้ามเครือข่าย — ค่าความแรงของนัดคำนวณบน server เสมอ
+    /// มือไม่รู้จักไอเทมชนิดไหนเป็นพิเศษ: โปรโตคอลชาร์จอยู่ใน ChargeGunHeldItem เอง
     /// </summary>
     public class HandItemHolder : NetworkBehaviour
     {
@@ -62,16 +53,14 @@ namespace NscUnity.Items
         [Header("ปุ่มใช้งานไอเทม")]
         [SerializeField] private bool handleUseInput = true;
         [Tooltip("0 = คลิกซ้าย, 1 = คลิกขวา, 2 = คลิกกลาง\n" +
-                 "โปรเจกต์นี้คลิกซ้าย = ก้าวเดิน (PlayerFootForRobot) / ต่อย (PlayerHandCombat) " +
-                 "และคลิกขวาค้าง = หมุนกล้อง ทั้งสองปุ่มชนแน่ๆ ห้ามใช้ — ค่าเริ่มต้นเลยเป็นคลิกกลาง (2)")]
+                 "คลิกซ้าย = ก้าวเดิน/ต่อย และคลิกขวาค้าง = หมุนกล้อง ทั้งสองปุ่มชนแน่ๆ — ค่าเริ่มต้นจึงเป็นคลิกกลาง")]
         [SerializeField] private int useMouseButton = 2;
 
         [Header("สคริปต์ที่ต้องปิดตอนถือไอเทม")]
-        [Tooltip("ปกติปล่อยว่างไว้ได้ — โปรเจกต์นี้ต่อยด้วย PlayerHandCombat (Shift) ซึ่งไม่ชนกับการถือไอเทม " +
-                 "(ไอเทมแค่เกาะเป็นลูกของมือ ไม่กันการต่อย) ใส่เฉพาะถ้ามีสคริปต์อื่นที่อยากปิดตอนมือไม่ว่าง")]
+        [Tooltip("ปกติปล่อยว่างได้ — ใส่เฉพาะถ้ามีสคริปต์อื่นที่อยากปิดตอนมือไม่ว่าง")]
         [SerializeField] private Behaviour[] disableWhileHolding;
 
-        /// <summary>ไอเทมที่ถืออยู่ตอนนี้ (null = มือเปล่า) — เป็นอินสแตนซ์ local ของเครื่องนี้เอง</summary>
+        /// <summary>ไอเทมที่ถืออยู่ตอนนี้ (null = มือเปล่า) — อินสแตนซ์ local ของเครื่องนี้เอง</summary>
         public HeldItem Current { get; private set; }
 
         /// <summary>ข้อมูลไอเทมที่ถืออยู่ตอนนี้ (null = มือเปล่า)</summary>
@@ -81,12 +70,16 @@ namespace NscUnity.Items
 
         public Transform HoldPoint => holdPoint;
 
+        // server เท่านั้น — การใช้งานที่กำลังดำเนินอยู่และ cooldown (เก็บที่มือ สลับอาวุธแล้ว cooldown ไม่รีเซ็ต)
+        private HeldItem serverUsingItem;
+        private ulong serverUsingOwner;
+        private double serverUseStartedAt;
+        private double serverNextUseAt;
+
         private void Awake()
         {
             if (holdPoint == null)
-            {
                 Debug.LogWarning($"[HandItemHolder] ยังไม่ได้ลาก Hold Point มาใส่บน '{name}' — ไอเทมจะไม่โผล่ในมือ", this);
-            }
 
             ApplyDisabledBehaviours();
         }
@@ -95,7 +88,6 @@ namespace NscUnity.Items
         public void Hold(ItemDefinition definition)
         {
             ClearCurrent();
-
             CurrentDefinition = definition;
 
             if (definition != null && holdPoint != null)
@@ -125,6 +117,7 @@ namespace NscUnity.Items
 
         private void ClearCurrent()
         {
+            serverUsingItem = null;
             if (Current != null)
             {
                 Current.OnUnequipped();
@@ -135,9 +128,7 @@ namespace NscUnity.Items
             {
                 // เผื่อกรณี prefab ไม่มี HeldItem แต่ถูก spawn ค้างไว้
                 for (int i = holdPoint.childCount - 1; i >= 0; i--)
-                {
                     Destroy(holdPoint.GetChild(i).gameObject);
-                }
             }
 
             CurrentDefinition = null;
@@ -145,26 +136,25 @@ namespace NscUnity.Items
 
         private void ApplyDisabledBehaviours()
         {
-            if (disableWhileHolding == null) return;
-
-            // สคริปต์อื่นในเครื่องเดียวกันเท่านั้นที่ควรถูกปิด/เปิดตาม — ผู้เล่นระยะไกลไม่ควรมีสคริปต์เหล่านี้ทำงานอยู่แล้ว
-            if (!IsOwner) return;
+            // ผู้เล่นระยะไกลไม่ควรมีสคริปต์เหล่านี้ทำงานอยู่แล้ว — ปิด/เปิดเฉพาะของเครื่องเจ้าของ
+            if (disableWhileHolding == null || !IsOwner) return;
 
             bool holding = IsHoldingSomething;
             foreach (Behaviour behaviour in disableWhileHolding)
-            {
                 if (behaviour != null) behaviour.enabled = !holding;
-            }
         }
 
         private void Update()
         {
-            // อ่าน Input จริงเฉพาะฝั่งเจ้าของเท่านั้น — เครื่องอื่นเห็นแค่ผลลัพธ์ผ่านสถานะที่ซิงค์มา ไม่ประมวลผล Input ของคนอื่น
-            if (!IsOwner) return;
-            if (!handleUseInput || Current == null) return;
+            // อ่าน input จริงเฉพาะฝั่งเจ้าของ — เครื่องอื่นเห็นแค่ผลลัพธ์ที่ซิงค์มา
+            if (!IsOwner || !handleUseInput || Current == null) return;
 
-            // ตอนวงล้อเลือกไอเทมเปิดอยู่ ห้ามยิง/ใช้ไอเทม
-            if (UiFocus.IsCaptured) return; // วงล้อ/เมนูเปิดอยู่ — ห้ามใช้ไอเทมในมือ
+            // วงล้อเลือกไอเทมเปิดอยู่ / แมตช์ยังไม่เริ่มหรือจบแล้ว → ห้ามใช้ไอเทม
+            if (UiFocus.IsCaptured || !GameplayGate.CanAct)
+            {
+                Current.OnUseCancelled();
+                return;
+            }
 
             if (InputCompat.GetMouseButtonDown(useMouseButton)) Current.OnUseStart();
             if (InputCompat.GetMouseButton(useMouseButton)) Current.OnUseHold(Time.deltaTime);
@@ -172,24 +162,71 @@ namespace NscUnity.Items
         }
 
         // ==========================================================
-        // ยิงของ — ให้ทุกเครื่องเห็นผลตรงกัน (ดู ChargeGunHeldItem.OnUseEnd/OnUseHold ที่เรียกเมธอดนี้)
+        //  โปรโตคอลกลาง: เจ้าของส่งแค่จังหวะกด — ค่าทุกอย่างคำนวณบน server
         // ==========================================================
 
-        /// <summary>
-        /// ขอยิงออกไป — เรียกจากฝั่งเจ้าของเท่านั้น (HeldItem คำนวณค่าทั้งหมดเสร็จแล้วก่อนเรียก)
-        /// ส่งต่อไปให้ทุกเครื่องรวมตัวเองผ่าน Rpc เพื่อให้เห็นกระสุน/เอฟเฟกต์ตรงกัน
-        /// ดาเมจจริงจะถูกคิดเฉพาะฝั่ง Server เท่านั้น (ดู Projectile.ApplyDamage ที่เช็ค IsServer เองอยู่แล้ว)
-        /// </summary>
-        public void RequestFire(FireData data)
+        public void RequestUseStart()
         {
-            if (!IsOwner) return;
-            FireRpc(data);
+            if (IsSpawned && IsOwner) UseStartRpc();
         }
 
-        [Rpc(SendTo.Everyone)]
-        private void FireRpc(FireData data)
+        public void RequestUseRelease()
         {
-            (Current as ChargeGunHeldItem)?.ExecuteFire(data);
+            if (IsSpawned && IsOwner) UseReleaseRpc();
+        }
+
+        public void RequestUseCancel()
+        {
+            if (IsSpawned && IsOwner) UseCancelRpc();
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void UseStartRpc()
+        {
+            if (serverUsingOwner != OwnerClientId) serverUsingItem = null;
+            if (!GameplayGate.CanAct || serverUsingItem != null || Current == null) return;
+
+            double now = NetworkManager.ServerTime.Time;
+            if (now < serverNextUseAt) return;
+
+            serverUsingItem = Current;
+            serverUsingOwner = OwnerClientId;
+            serverUseStartedAt = now;
+            Current.ServerOnUseStart();
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void UseReleaseRpc()
+        {
+            HeldItem item = serverUsingItem;
+            serverUsingItem = null;
+            if (!GameplayGate.CanAct || item == null || item != Current || serverUsingOwner != OwnerClientId) return;
+
+            item.ServerOnUseRelease((float)(NetworkManager.ServerTime.Time - serverUseStartedAt));
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        private void UseCancelRpc() => serverUsingItem = null;
+
+        /// <summary>[SERVER] ไอเทมยิงนัดหนึ่งออกไป — ตั้ง cooldown ที่มือแล้วประกาศให้ทุกเครื่องเล่นภาพตรงกัน</summary>
+        public void ServerBroadcastShot(FireData data, float cooldownSeconds)
+        {
+            if (!IsServer) return;
+            serverNextUseAt = NetworkManager.ServerTime.Time + Mathf.Max(0f, cooldownSeconds);
+            ShotRpc(data);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        private void ShotRpc(FireData data)
+        {
+            if (Current != null) Current.OnShot(data);
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            serverUsingItem = null;
+            serverNextUseAt = 0;
+            base.OnNetworkDespawn();
         }
 
         private void OnDrawGizmosSelected()

@@ -11390,7 +11390,7 @@ PrefabInstance:
       value: 3063381678
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: maxTorsoStress
+      propertyPath: rules.maxStress
       value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
@@ -11406,8 +11406,8 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 6257009638769092180, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
-      propertyPath: currentState.m_InternalValue
-      value: 2
+      propertyPath: isRagdoll.m_InternalValue
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6308388643719817161, guid: 0834517742dfa384ca687ff6f8f1ad03, type: 3}
       propertyPath: GlobalObjectIdHash

@@ -1,23 +1,23 @@
-using UnityEngine;
+using Nsc.Combat;
 using Unity.Netcode;
-using NscGame.Enemy;
-public class PunchBag : NetworkBehaviour , IHittable
+using UnityEngine;
+
+/// <summary>กระสอบทรายทดสอบหมัด — รับดาเมจได้ทุกฝ่าย แค่ log ค่าแล้วกระเด็นตามแรง</summary>
+public class PunchBag : NetworkBehaviour, IDamageable
 {
     private Rigidbody rb;
-    void Start()
+
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
     }
-    public void ServerTakeDamage(float amount, AttackType source)
-    {
-        if (!IsServer) return;
-        Debug.Log($"PunchBag took {amount} damage from {source}");
-    }
 
-    public void ServerTakeDamage(float amount, AttackType source, Vector3 direction)
+    public Team GetTeam() => Team.None;
+
+    public bool ServerApplyDamage(DamageInfo info)
     {
-        if (!IsServer) return;
-        Debug.Log($"PunchBag took {amount} damage from {source} with direction {direction}");
-        rb.AddForce(direction * amount * 1.2f, ForceMode.Impulse);
+        Debug.Log($"PunchBag took {info.amount} damage from {info.source}");
+        if (rb != null) rb.AddForce(info.direction * info.amount * 1.2f, ForceMode.Impulse);
+        return true;
     }
 }

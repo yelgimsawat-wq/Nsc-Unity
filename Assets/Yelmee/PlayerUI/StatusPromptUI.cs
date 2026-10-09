@@ -1,3 +1,5 @@
+using Nsc.Limbs;
+using Nsc.Robots;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -56,8 +58,7 @@ public class StatusPromptUI : MonoBehaviour
                 break;
 
             case PromptMode.Pull:
-                JointPullAndReconnect joint = binder != null ? binder.OwnedJoint : null;
-                SetContent(joint != null ? joint.PullKeyLabel : "R", pullInstruction);
+                SetContent(PullKeyLabel(), pullInstruction);
                 FadeTo(1f);
                 break;
 
@@ -75,23 +76,25 @@ public class StatusPromptUI : MonoBehaviour
         // Priority 1: ชิ้นที่ "เราคุม" หลุดและพร้อมดึง — เห็นเฉพาะเจ้าของ
         // มาก่อนเรื่องล้ม เพราะขาหลุดจะสั่งล้มอัตโนมัติ และการดึงชิ้นกลับ
         // ทำได้ระหว่างนอน (ต้องดึงก่อนค่อยลุก ไม่งั้นลุกไปตัวก็ลอยเพราะขาไม่ครบ)
-        JointPullAndReconnect ownedJoint = binder.OwnedJoint;
-        if (ownedJoint != null && ownedJoint.IsPullReady)
+        LimbAttachment ownedAttachment = binder.OwnedLimb != null ? binder.OwnedLimb.Attachment : null;
+        if (ownedAttachment != null && ownedAttachment.IsPullReady)
             return PromptMode.Pull;
 
         // Priority 2: ตัวล้ม — ทุกคนเห็นและช่วยกด Q ลุกได้
-        TorsoMovement torso = binder.Torso;
-        if (torso != null)
-        {
-            TorsoMovement.TorsoState state = torso.currentState.Value;
-            if (state == TorsoMovement.TorsoState.Ragdoll ||
-                state == TorsoMovement.TorsoState.Falling)
-            {
-                return PromptMode.Recovery;
-            }
-        }
+        TorsoBalance torso = binder.Torso;
+        if (torso != null && torso.IsRagdoll)
+            return PromptMode.Recovery;
 
         return PromptMode.Hidden;
+    }
+
+    /// <summary>ปุ่มดึงกลับที่ผูกไว้กับ input ของชิ้นที่เราคุม</summary>
+    private string PullKeyLabel()
+    {
+        RobotLimb limb = binder != null ? binder.OwnedLimb : null;
+        if (limb != null && limb.TryGetComponent(out ArmInput arm)) return arm.PullKeyLabel;
+        if (limb != null && limb.TryGetComponent(out LegInput leg)) return leg.PullKeyLabel;
+        return "R";
     }
 
     private void SetContent(string key, string instruction)

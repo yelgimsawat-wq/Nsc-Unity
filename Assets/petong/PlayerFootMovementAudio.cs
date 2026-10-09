@@ -1,13 +1,16 @@
+using Nsc.Limbs;
 using UnityEngine;
 using Unity.Netcode;
 
-// 🔊 [Foot Movement + Landing Audio] 別スクリプト、PlayerFootForRobot.cs には触れない
-// PlayerFootForRobot と同じ GameObject に付ける
+// 🔊 [Foot Movement + Landing Audio] 別スクリプト、LegController.cs には触れない
+// LegController と同じ GameObject に付ける
 public class PlayerFootMovementAudio : NetworkBehaviour
 {
     [Header("Reference")]
-    [Tooltip("同じ object 上の PlayerFootForRobot をここへドラッグ")]
-    public PlayerFootForRobot foot;
+    [Tooltip("同じ object 上の LegController をここへドラッグ")]
+    public LegController foot;
+
+    private LegInput input;
 
     [Header("Landing Sound (One-Shot)")]
     [Tooltip("ドラッグを離して足が地面に着いた瞬間の音")]
@@ -35,6 +38,9 @@ public class PlayerFootMovementAudio : NetworkBehaviour
 
     private void Awake()
     {
+        if (foot == null) foot = GetComponent<LegController>();
+        input = GetComponent<LegInput>();
+
         if (movementAudioSource != null)
         {
             movementAudioSource.loop = true;
@@ -56,7 +62,7 @@ public class PlayerFootMovementAudio : NetworkBehaviour
     {
         // 他プレイヤー（オーナーではない）はここから音を鳴らす
         _steppingSynced.OnValueChanged += OnSteppingChangedRemote;
-        _localPrevStepping = foot != null && foot.isStepping;
+        _localPrevStepping = input != null && input.IsStepping;
     }
 
     public override void OnNetworkDespawn()
@@ -69,11 +75,11 @@ public class PlayerFootMovementAudio : NetworkBehaviour
         if (foot == null) return;
 
         // ✅ [Zero-Latency Path] オーナーはネットワーク同期を待たず、ローカルの isStepping を直接見る
-        // isStepping は HandleInput 内でオーナーのクライアント上で即座に true/false になっているため、
+        // LegInput.IsStepping はオーナーのクライアント上で即座に true/false になっているため、
         // NetworkVariable の往復（送信→サーバー確定→同期戻り）を待つより確実に速い
         if (IsOwner)
         {
-            bool isDraggingNow = foot.isStepping && !foot.IsKickControllingFoot;
+            bool isDraggingNow = input != null && input.IsStepping && !foot.IsKickControllingFoot;
             if (_localPrevStepping && !isDraggingNow) PlayLandingSound();
             SetMovementLoop(isDraggingNow);
             _localPrevStepping = isDraggingNow;
@@ -82,7 +88,7 @@ public class PlayerFootMovementAudio : NetworkBehaviour
         // サーバーは自分の状態を NetworkVariable に反映 → 他クライアントへ配信
         if (IsServer)
         {
-            bool serverStepping = foot.isStepping && !foot.IsKickControllingFoot;
+            bool serverStepping = foot.IsStepping && !foot.IsKickControllingFoot;
             if (_steppingSynced.Value != serverStepping)
                 _steppingSynced.Value = serverStepping;
         }

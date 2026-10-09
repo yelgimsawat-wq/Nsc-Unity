@@ -50,10 +50,6 @@ public class InMatchMenu : MonoBehaviour
 
     #region Inspector
 
-    [Header("Scene")]
-    [Tooltip("อยู่ฉากนี้จะกด ESC เปิดเมนูไม่ได้ (เมนูหลักมีปุ่มของตัวเองอยู่แล้ว)")]
-    public string menuSceneName = "-MenuNOk";
-
     [Header("Panel")]
     public GameObject panelRoot;
 
@@ -197,7 +193,7 @@ public class InMatchMenu : MonoBehaviour
     private bool CanOpenHere()
     {
         if (panelRoot == null) return false;
-        return SceneManager.GetActiveScene().name != menuSceneName;
+        return SceneManager.GetActiveScene().name != Nsc.Match.GameScenes.Menu;
     }
 
     #endregion
@@ -675,7 +671,8 @@ public class InMatchMenu : MonoBehaviour
         if (confirmCancelButton != null) confirmCancelButton.interactable = false;
         if (confirmLeaveLabel != null) confirmLeaveLabel.text = "LEAVING...";
 
-        await ReturnToMenuOnHostLost.LeaveMatchAsync();
+        if (Nsc.Match.SessionService.Instance != null)
+            await Nsc.Match.SessionService.Instance.LeaveAsync();
         // ฉากถูกโหลดใหม่แล้ว — object นี้อยู่ในฉากเกม จึงถูกทำลายไปพร้อมกัน ไม่ต้องเก็บกวาดต่อ
     }
 

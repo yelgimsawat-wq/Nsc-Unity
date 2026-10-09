@@ -23,6 +23,7 @@
 // =============================================================================
 
 using System.Collections;
+using Nsc.Robots;
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
@@ -467,14 +468,17 @@ namespace NscGame.Enemy
                 netState.Value = newState;
         }
 
-        // ✅ [No-Tag Fix] หาเป้าจาก TorsoMovement component ตรงๆ — เดิมหาจาก tag "Player"
+        // ✅ [No-Tag Fix] หาเป้าจากหุ่นที่อยู่ในฉากตรงๆ — เดิมหาจาก tag "Player"
         // ซึ่งเช็คในซีนจริงแล้ว "ไม่มีชิ้นไหนติด tag นี้เลย" (ลำตัวติด tag "Body")
         // → playerTarget เป็น null ตลอด → บอสไม่เคยเข้าโหมดโจมตีแม้แต่ครั้งเดียว
         private Transform FindRobotTarget()
         {
-            TorsoMovement torso = FindFirstObjectByType<TorsoMovement>();
-            if (torso == null) return null;
-            return torso.torsoRb != null ? torso.torsoRb.transform : torso.transform;
+            foreach (Robot robot in Robot.All)
+            {
+                if (robot == null || robot.Torso == null) continue;
+                return robot.Torso.Body != null ? robot.Torso.Body.transform : robot.Torso.transform;
+            }
+            return null;
         }
 
         private float HorizontalDistanceTo(Vector3 position)

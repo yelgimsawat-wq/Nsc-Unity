@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1562 630" width="1562" height="630" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>Sequence: ตกแมพแล้วเกิดใหม่ที่เช็คพอยต์</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="161.3" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด</text></g>
+<g transform="translate(0,36)">
+<line x1="100" y1="82" x2="100" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="40" y="40" width="120" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="100" y="59" text-anchor="middle" font-size="12" font-weight="700">FallDeathZone</text>
+<text x="100" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="346.8455" y1="82" x2="346.8455" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="276.8455" y="40" width="140" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="346.8455" y="59" text-anchor="middle" font-size="12" font-weight="700">RespawnManager</text>
+<text x="346.8455" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="567.567" y1="82" x2="567.567" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="532.567" y="40" width="70" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="567.567" y="59" text-anchor="middle" font-size="12" font-weight="700">Robot</text>
+<text x="567.567" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="817.8125" y1="82" x2="817.8125" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="752.8125" y="40" width="130" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="817.8125" y="59" text-anchor="middle" font-size="12" font-weight="700">LimbController ×4</text>
+<text x="817.8125" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1050.63" y1="82" x2="1050.63" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1000.6300000000001" y="40" width="100" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1050.63" y="59" text-anchor="middle" font-size="12" font-weight="700">ArmGrip ×2</text>
+<text x="1050.63" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1189.63" y1="82" x2="1189.63" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1134.63" y="40" width="110" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1189.63" y="59" text-anchor="middle" font-size="12" font-weight="700">TorsoBalance</text>
+<text x="1189.63" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(server)</text>
+<line x1="1461.2010000000002" y1="82" x2="1461.2010000000002" y2="564" stroke="#A9A9A9" stroke-dasharray="5 4"/>
+<rect x="1401.2010000000002" y="40" width="120" height="42" fill="#141414" stroke="#E3E3E3"/>
+<text x="1461.2010000000002" y="59" text-anchor="middle" font-size="12" font-weight="700">เจ้าของแต่ละชิ้น</text>
+<text x="1461.2010000000002" y="74" text-anchor="middle" font-size="10" fill="#A9A9A9">(owner client)</text>
+<polyline points="100,118 346.8455,118" fill="none" stroke="#E3E3E3"/>
+<polygon points="346.8,118.0 333.8,125.0 333.8,111.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="114.0" y="101" width="218.8" height="14" fill="#141414"/>
+<text x="223.42275" y="112" text-anchor="middle" font-size="10.5">1. RespawnBody() (กันเรียกซ้ำด้วย cooldown)</text>
+<polyline points="346.8455,156 567.567,156" fill="none" stroke="#E3E3E3"/>
+<polygon points="567.6,156.0 554.6,163.0 554.6,149.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="360.8" y="139" width="192.7" height="14" fill="#141414"/>
+<text x="457.20625" y="150" text-anchor="middle" font-size="10.5">2. ServerResetForRespawn(checkpoint)</text>
+<polyline points="567.567,194 817.8125,194" fill="none" stroke="#E3E3E3"/>
+<polygon points="817.8,194.0 804.8,201.0 804.8,187.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="624.3" y="177" width="136.7" height="14" fill="#141414"/>
+<text x="692.68975" y="188" text-anchor="middle" font-size="10.5">3. ServerPrepareRespawn()</text>
+<polyline points="817.8125,232 1050.63,232" fill="none" stroke="#E3E3E3"/>
+<polygon points="1050.6,232.0 1037.6,239.0 1037.6,225.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="831.8" y="215" width="204.8" height="14" fill="#141414"/>
+<text x="934.22125" y="226" text-anchor="middle" font-size="10.5">4. ServerRelease() (แขนปล่อยของที่จับเอง)</text>
+<polyline points="567.567,270 599.567,270 599.567,288 568.567,288" fill="none" stroke="#E3E3E3"/>
+<polygon points="568.6,288.0 581.6,281.0 581.6,295.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="604.6" y="272" width="206.2" height="14" fill="#141414"/>
+<text x="607.567" y="283" font-size="10.5">5. ปลด joint ที่ต่ออยู่ตอนนี้ แล้ว teleport ทุกชิ้น</text>
+<polyline points="567.567,316 599.567,316 599.567,334 568.567,334" fill="none" stroke="#E3E3E3"/>
+<polygon points="568.6,334.0 581.6,327.0 581.6,341.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="604.6" y="318" width="74.3" height="14" fill="#141414"/>
+<text x="607.567" y="329" font-size="10.5">6. ต่อ joint กลับ</text>
+<polyline points="567.567,362 817.8125,362" fill="none" stroke="#E3E3E3"/>
+<polygon points="817.8,362.0 804.8,369.0 804.8,355.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="621.4" y="345" width="142.5" height="14" fill="#141414"/>
+<text x="692.68975" y="356" text-anchor="middle" font-size="10.5">7. ServerResetForRespawn()</text>
+<polyline points="817.8125,400 1461.2010000000002,400" fill="none" stroke="#E3E3E3"/>
+<polygon points="1461.2,400.0 1448.2,407.0 1448.2,393.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="1095.1" y="383" width="88.8" height="14" fill="#141414"/>
+<text x="1139.50675" y="394" text-anchor="middle" font-size="10.5">8. ResetAimRpc()</text>
+<polyline points="567.567,438 1189.63,438" fill="none" stroke="#E3E3E3"/>
+<polygon points="1189.6,438.0 1176.6,445.0 1176.6,431.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="807.3" y="421" width="142.5" height="14" fill="#141414"/>
+<text x="878.5985000000001" y="432" text-anchor="middle" font-size="10.5">9. ServerResetForRespawn()</text>
+<polyline points="1189.63,476 1221.63,476 1221.63,494 1190.63,494" fill="none" stroke="#E3E3E3"/>
+<polygon points="1190.6,494.0 1203.6,487.0 1203.6,501.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="1226.6" y="478" width="227.6" height="14" fill="#141414"/>
+<text x="1229.63" y="489" font-size="10.5">10. state = Standing, ล้าง stress และตัวจับเวลา</text>
+<path d="M428.4515,508 H698.6825000000001 L706.6825000000001,516 V532 H428.4515 Z M698.6825000000001,508 V516 H706.6825000000001" fill="#141414" stroke="#E3E3E3"/>
+<text x="567.567" y="524" text-anchor="middle" font-size="10.5">แขนขาที่หลุดยังหลุดอยู่ และเลือดคงเดิม (ตามโค้ดตอนนี้)</text>
+</g>
+</svg>

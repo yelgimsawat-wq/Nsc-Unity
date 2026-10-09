@@ -1,389 +1,133 @@
 using System;
 using System.Collections.Generic;
+using Nsc.Limbs;
+using Nsc.Match;
+using Nsc.Robots;
 using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// หัวใจของ Player HUD: หา "หุ่นของเรา" จากแขนขาที่ client นี้เป็นเจ้าของ (ชิ้นเดียวพอ)
-/// แล้ว expose reference ให้ widget ทุกตัวใช้ร่วมกัน
+/// หัวใจของ Player HUD: บอก widget ทุกตัวว่า "หุ่นของเรา" คือตัวไหน และเราคุมชิ้นไหน
 ///
-/// กติกาสำคัญ (จากดีไซน์เกม):
-/// - หุ่น 1 ตัวถูกแบ่งคุมหลายคน — LobbyManager โอน ownership แขนขาทีละชิ้นให้คนละ client
-///   ห้าม assume ว่าผู้เล่นเป็นเจ้าของครบทุกชิ้น
-/// - ชิ้นส่วนที่หลุดอาจถูกย้าย parent ออกนอก RobotContainer
-///   จึงจับคู่ชิ้นกับหุ่นผ่าน joint.targetBody (จุดที่มันต่ออยู่ ซึ่งไม่เคยหลุดจากหุ่น)
-/// - รองรับทดสอบคนเดียวแบบไม่ต่อ network (ไม่มีอะไร spawn → ใช้หุ่นตัวแรกที่เจอ)
+/// ข้อมูลมาจาก LimbControlBinder (ผูกตอนแมตช์เริ่มตามที่จองในลอบบี้) — ไม่ต้องเดาจาก ownership
+/// หรือชื่อ GameObject แล้ว (Host เป็นเจ้าของชิ้นที่ไม่มีใครเลือก เดาจาก ownership จะได้หุ่น/ชิ้นผิด)
+/// ฉากเทสที่ไม่มีลอบบี้: ใช้หุ่นตัวแรก และชิ้นแรกที่เครื่องนี้เป็นเจ้าของ
 /// </summary>
 public class LocalRobotBinder : MonoBehaviour
 {
     [SerializeField, Min(0.1f)]
-    [Tooltip("ความถี่ในการลองหาหุ่นของเรา (วินาที) จนกว่าจะเจอครบ — ownership ถูกโอนหลัง spawn")]
+    [Tooltip("ฉากที่ไม่มีลอบบี้: ความถี่ในการลองหาหุ่นของเรา (วินาที)")]
     private float bindRetryInterval = 0.5f;
 
-    /// <summary>ยิงทุกครั้งที่ bind สำเร็จ (รวมถึงตอน rebind หลัง ownership เปลี่ยน)</summary>
+    /// <summary>ยิงทุกครั้งที่ bind สำเร็จ (รวมการ bind ใหม่หลังต่อกลับ)</summary>
     public event Action OnBound;
 
     public bool IsBound { get; private set; }
-    public Transform RobotRoot { get; private set; }
+    public Robot Robot { get; private set; }
+    public Transform RobotRoot => Robot != null ? Robot.Root : null;
+    public TorsoBalance Torso => Robot != null ? Robot.Torso : null;
+
+    /// <summary>ชิ้นที่ผู้เล่นคนนี้คุม — null ถ้าไม่ได้คุมชิ้นไหน (คนดู/Host ที่ไม่ได้เลือก)</summary>
+    public RobotLimb OwnedLimb { get; private set; }
+
+    /// <summary>แขนที่เราคุม — null ถ้าคุมขา</summary>
+    public ArmController OwnedHand { get; private set; }
+
+    /// <summary>ขาที่เราคุม (input ฝั่งเรา มีเกจชาร์จเตะ) — null ถ้าคุมแขน</summary>
+    public LegInput OwnedLeg { get; private set; }
+
+    public LimbHealth OwnedLimbHealth => OwnedHealths.Count > 0 ? OwnedHealths[0] : null;
 
     /// <summary>
-    /// หุ่นที่ "ต้อง" bind — ตั้งจากภายนอกเพื่อข้ามการเดาจาก ownership
-    ///
-    /// ทำไมต้องมี: โหมดที่มีหุ่นสองตัวในฉาก (PVP) เดาจาก ownership ไม่ได้
-    /// เพราะ Host มี IsOwner = true กับชิ้นส่วนที่ยังไม่มีใครจองของหุ่น "ทั้งสองตัว"
-    /// binder เลยคว้าตัวแรกที่เจอ ซึ่งอาจเป็นหุ่นฝั่งตรงข้าม →
-    /// HUD โชว์เลือด/สถานะแขนขาของศัตรูแทนของตัวเอง
-    ///
-    /// ปล่อย null = พฤติกรรมเดิมทุกอย่าง (โหมด Boss/Parkour ไม่ได้รับผลกระทบ)
+    /// เลือดของ "ทุกชิ้นที่เราคุม" — เล่นจริงคุมชิ้นเดียว แต่ตอนเทสคนเดียว (Host คุมครบ 4 ชิ้น)
+    /// HUD ต้องเห็นดาเมจของทุกชิ้น ชิ้นที่เลือกเล่นอยู่ต้นลิสต์เสมอ
     /// </summary>
-    private Transform preferredRobotRoot;
+    public readonly List<LimbHealth> OwnedHealths = new List<LimbHealth>();
 
-    /// <summary>บังคับให้ bind หุ่นตัวนี้ แล้ว rebind ทันที — ส่ง null เพื่อกลับไปเดาเองแบบเดิม</summary>
-    public void SetPreferredRobotRoot(Transform root)
+    private LimbControlBinder controlBinder;
+    private float nextFallbackAttempt;
+
+    private void Start()
     {
-        if (preferredRobotRoot == root) return;
+        controlBinder = LimbControlBinder.Current;
+        if (controlBinder == null) return;
 
-        preferredRobotRoot = root;
-        IsBound = false;            // บังคับให้ TryBind ทำงานรอบใหม่
-        nextBindAttemptTime = 0f;
+        controlBinder.Bound += OnControlBound;
+        if (controlBinder.IsBound) OnControlBound(controlBinder.LocalRobot, controlBinder.LocalSlot);
     }
 
-    public TorsoMovement Torso { get; private set; }
-
-    public JointPullAndReconnect LeftArmJoint { get; private set; }
-    public JointPullAndReconnect RightArmJoint { get; private set; }
-    public JointPullAndReconnect LeftLegJoint { get; private set; }
-    public JointPullAndReconnect RightLegJoint { get; private set; }
-
-    public PlayerHandCombat LeftHand { get; private set; }
-    public PlayerHandCombat RightHand { get; private set; }
-    public PlayerLegCombat LeftLeg { get; private set; }
-    public PlayerLegCombat RightLeg { get; private set; }
-
-    /// <summary>มือที่เราคุม — null ถ้าผู้เล่นคนนี้คุมขา</summary>
-    public PlayerHandCombat OwnedHand { get; private set; }
-    public PlayerLegCombat OwnedLeg { get; private set; }
-
-    /// <summary>ชิ้นส่วนชิ้นแรกที่เราเป็นเจ้าของ (แขนซ้าย → แขนขวา → ขาซ้าย → ขาขวา)</summary>
-    public JointPullAndReconnect OwnedJoint { get; private set; }
-
-    /// <summary>เลือดของชิ้นแรกที่เราคุม (สะดวกสำหรับ widget ที่ต้องการชิ้นเดียว)</summary>
-    public RobotHealth OwnedLimbHealth { get; private set; }
-
-    /// <summary>
-    /// เลือดของ "ทุกชิ้นที่เราคุม" — ตอนเล่นจริงคุมคนละชิ้นจะมีตัวเดียว
-    /// แต่ตอนเทสคนเดียว (Host คุมครบ 4 ชิ้น) HUL ต้องเห็นดาเมจของทุกชิ้น ไม่ใช่แค่แขนซ้าย
-    /// </summary>
-    public readonly List<RobotHealth> OwnedHealths = new List<RobotHealth>();
-
-    private NetworkBehaviour anchor;
-    private LobbyManager lobby;
-    private float nextBindAttemptTime;
-    private float nextDiagnosticTime;
+    private void OnDestroy()
+    {
+        if (controlBinder != null) controlBinder.Bound -= OnControlBound;
+    }
 
     private void Update()
     {
-        if (Time.unscaledTime >= nextBindAttemptTime && NeedsRebind())
-            TryBind();
+        // ฉากที่มีลอบบี้ รอ LimbControlBinder อย่างเดียว
+        if (controlBinder != null || IsBound || Time.unscaledTime < nextFallbackAttempt) return;
+        nextFallbackAttempt = Time.unscaledTime + bindRetryInterval;
+        TryBindFallback();
     }
 
-    private bool NeedsRebind()
-    {
-        if (!IsBound || anchor == null || Torso == null ||
-            LeftArmJoint == null || RightArmJoint == null ||
-            LeftLegJoint == null || RightLegJoint == null)
-        {
-            return true;
-        }
+    private void OnControlBound(Robot robot, LimbSlot slot) => Bind(robot, robot.GetLimb(slot));
 
-        // bind ไว้ตอน offline แล้ว network เพิ่งเปิด — ต้องหาหุ่นตัวที่ spawn จริงใหม่
+    /// <summary>ฉากเทส: หุ่นตัวแรก / ชิ้นแรกที่เครื่องนี้เป็นเจ้าของ (ไม่ต่อ network = ชิ้นแรกที่มี)</summary>
+    private void TryBindFallback()
+    {
         bool networkActive = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
-        if (networkActive && !anchor.IsSpawned)
-            return true;
-
-        // ผู้เล่นเปลี่ยนชิ้นที่เลือกในลอบบี้ (หรือเพิ่งเลือกหลัง HUD bind ไปแล้ว)
-        // → rebind เพื่ออัปเดตชิ้นที่คุม ไม่งั้นแถบพลังหมัด/prompt จะอิงชิ้นเก่า
-        JointPullAndReconnect selectedJoint = GetLobbySelectedJoint();
-        if (selectedJoint != null && selectedJoint != OwnedJoint)
-            return true;
-
-        // LobbyManager โอน ownership หลัง spawn ได้ — anchor ที่ไม่ใช่ของเราแล้วต้องหาใหม่
-        return anchor.IsSpawned && !anchor.IsOwner;
-    }
-
-    /// <summary>Joint ของชิ้นที่ client นี้เลือกจริงใน lobby หรือ null ถ้าไม่มีข้อมูล</summary>
-    private JointPullAndReconnect GetLobbySelectedJoint()
-    {
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
-            return null;
-
-        if (lobby == null)
-            lobby = FindFirstObjectByType<LobbyManager>(FindObjectsInactive.Include);
-
-        if (lobby == null)
-            return null;
-
-        GameObject selectedLimb = lobby.GetSelectedLimbForClient(
-            NetworkManager.Singleton.LocalClientId);
-        return selectedLimb != null
-            ? selectedLimb.GetComponent<JointPullAndReconnect>()
-            : null;
-    }
-
-    /// <summary>ชื่อย่อของชิ้นส่วนไว้โชว์บน HUD (L-ARM / R-ARM / L-LEG / R-LEG)</summary>
-    public string GetLimbLabel(Component limbComponent)
-    {
-        if (limbComponent == null)
-            return string.Empty;
-
-        JointPullAndReconnect joint = limbComponent.GetComponent<JointPullAndReconnect>();
-        if (joint == null)
-            return string.Empty;
-
-        if (joint == LeftArmJoint) return "L-ARM";
-        if (joint == RightArmJoint) return "R-ARM";
-        if (joint == LeftLegJoint) return "L-LEG";
-        if (joint == RightLegJoint) return "R-LEG";
-        return string.Empty;
-    }
-
-    private void TryBind()
-    {
-        nextBindAttemptTime = Time.unscaledTime + bindRetryInterval;
-
-        PlayerHandCombat[] allCombats = FindObjectsByType<PlayerHandCombat>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
-        JointPullAndReconnect[] allJoints = FindObjectsByType<JointPullAndReconnect>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
-
-        // 0) ถูกสั่งมาแล้วว่าหุ่นไหนของเรา (PVP) → ใช้ตัวนั้นอย่างเดียว ห้าม fallback
-        //    ถ้า fallback ไปเดาต่อ จะกลับไปคว้าหุ่นฝั่งตรงข้ามเหมือนเดิม
-        if (preferredRobotRoot != null)
+        foreach (Robot robot in Robot.All)
         {
-            NetworkBehaviour hinted = FirstInsideRoot(allCombats, preferredRobotRoot)
-                                   ?? FirstInsideRoot(allJoints, preferredRobotRoot);
-
-            if (hinted == null)
+            foreach (LimbSlot slot in LimbSlots.All)
             {
-                LogDiagnostic($"preferred robot '{preferredRobotRoot.name}' ยังไม่มีชิ้นส่วนพร้อม — รอรอบหน้า");
+                RobotLimb limb = robot.GetLimb(slot);
+                if (limb == null || limb.Controller == null) continue;
+                if (networkActive && (!limb.Controller.IsSpawned || !limb.Controller.IsOwner)) continue;
+
+                Bind(robot, limb);
                 return;
             }
-
-            BindFromAnchor(hinted, allJoints);
-            return;
         }
-
-        // 1) anchor = อะไรก็ได้ของหุ่นที่ "เรา" เป็นเจ้าของสักชิ้น
-        NetworkBehaviour localAnchor = FindLocalOwner(allCombats);
-        if (localAnchor == null)
-            localAnchor = FindLocalOwner(allJoints);
-
-        // 2) Host/ผู้เล่นที่ไม่ได้เป็นเจ้าของแขนขาเลย: ยึดหุ่นจาก Torso (Server เป็นเจ้าของ)
-        if (localAnchor == null)
-        {
-            TorsoMovement[] allTorsos = FindObjectsByType<TorsoMovement>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
-            localAnchor = FindLocalOwner(allTorsos);
-        }
-
-        // 3) โหมดทดสอบไม่ต่อ network เท่านั้น (NetworkManager ยังไม่เปิด):
-        //    ใช้หุ่นตัวแรกที่ยัง active — กัน bind หุ่นสำรองที่ถูกปิดไว้ใน scene
-        //    (ถ้า network เปิดอยู่ ต้องรอ ownership จริง ไม่งั้นจะไป bind หุ่นของคนอื่น)
-        bool networkActive = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
-        if (localAnchor == null && !networkActive)
-        {
-            localAnchor = FirstActive(allCombats);
-            if (localAnchor == null)
-                localAnchor = FirstActive(allJoints);
-        }
-
-        if (localAnchor == null)
-        {
-            LogDiagnostic($"no locally owned NetworkBehaviour (combats={allCombats.Length}, joints={allJoints.Length})");
-            return;
-        }
-
-        BindFromAnchor(localAnchor, allJoints);
     }
 
-    /// <summary>ผูก reference ทั้งชุดจากชิ้นส่วนตั้งต้นที่รู้แล้วว่าเป็นหุ่นตัวไหน</summary>
-    private void BindFromAnchor(NetworkBehaviour anchorBehaviour, JointPullAndReconnect[] allJoints)
+    private void Bind(Robot robot, RobotLimb ownedLimb)
     {
-        anchor = anchorBehaviour; // field — NeedsRebind() ใช้ตัวนี้เช็คว่ายัง bind อยู่ไหม
-        Transform robotRoot = ResolveRobotRoot(anchor);
-        TorsoMovement torso = robotRoot.GetComponentInChildren<TorsoMovement>(true);
+        if (robot == null) return;
 
-        JointPullAndReconnect leftArm = null;
-        JointPullAndReconnect rightArm = null;
-        JointPullAndReconnect leftLeg = null;
-        JointPullAndReconnect rightLeg = null;
+        Robot = robot;
+        OwnedLimb = ownedLimb;
+        OwnedHand = ownedLimb != null ? ownedLimb.Controller as ArmController : null;
+        OwnedLeg = ownedLimb != null ? ownedLimb.GetComponent<LegInput>() : null;
 
-        foreach (JointPullAndReconnect joint in allJoints)
-        {
-            if (joint == null || ResolveRobotRoot(joint) != robotRoot)
-                continue;
-
-            bool isArm = joint.GetComponent<PlayerHandCombat>() != null;
-            bool isLeg = joint.GetComponent<PlayerFootForRobot>() != null;
-
-            if (isArm && IsLeftName(joint.name)) leftArm = joint;
-            else if (isArm && IsRightName(joint.name)) rightArm = joint;
-            else if (isLeg && IsLeftName(joint.name)) leftLeg = joint;
-            else if (isLeg && IsRightName(joint.name)) rightLeg = joint;
-        }
-
-        if (torso == null || leftArm == null || rightArm == null ||
-            leftLeg == null || rightLeg == null)
-        {
-            LogDiagnostic(
-                $"incomplete robot root '{robotRoot.name}' " +
-                $"(torso={torso != null}, leftArm={leftArm != null}, rightArm={rightArm != null}, " +
-                $"leftLeg={leftLeg != null}, rightLeg={rightLeg != null})");
-            return;
-        }
-
-        RobotRoot = robotRoot;
-        Torso = torso;
-        LeftArmJoint = leftArm;
-        RightArmJoint = rightArm;
-        LeftLegJoint = leftLeg;
-        RightLegJoint = rightLeg;
-        LeftHand = leftArm.GetComponent<PlayerHandCombat>();
-        RightHand = rightArm.GetComponent<PlayerHandCombat>();
-        LeftLeg = leftLeg.GetComponent<PlayerLegCombat>();
-        RightLeg = rightLeg.GetComponent<PlayerLegCombat>();
-
-        // ชิ้นที่ "เราคุมจริง" ยึดตามที่เลือกใน lobby ก่อน — Host เป็นเจ้าของชิ้นที่
-        // ไม่มีใครเลือกโดย default ถ้าดูจาก ownership อย่างเดียวจะนับผิดว่าคุมมือ
-        // ทั้งที่เลือกขา / ไม่มีข้อมูล lobby (เทสไม่ผ่านลอบบี้) ค่อย fallback เป็น ownership
-        OwnedJoint = GetLobbySelectedJoint();
-        if (OwnedJoint == null)
-            OwnedJoint = FirstLocallyOwned(leftArm, rightArm, leftLeg, rightLeg);
-        OwnedHand = OwnedJoint != null ? OwnedJoint.GetComponent<PlayerHandCombat>() : null;
-        OwnedLeg = OwnedJoint != null ? OwnedJoint.GetComponent<PlayerLegCombat>() : null;
-
-        // รวมเลือดของทุกชิ้นที่เราคุม (เทสคนเดียว = ครบ 4, เล่นจริง = 1 ชิ้น)
-        // ชิ้นที่เลือกเล่นต้องอยู่ต้นลิสต์ — วงแหวนเลือกโชว์ตัวแรกเมื่อเลือดเท่ากัน
-        // จะได้เห็นชื่อชิ้นตัวเองตอนเลือดเต็ม ไม่ใช่ L-ARM ตลอด
         OwnedHealths.Clear();
-        CollectOwnedHealth(OwnedJoint);
-        CollectOwnedHealth(leftArm);
-        CollectOwnedHealth(rightArm);
-        CollectOwnedHealth(leftLeg);
-        CollectOwnedHealth(rightLeg);
-
-        // ไม่ได้คุมชิ้นไหนเลย (เช่น host ที่เป็นแค่คนเปิดห้อง) — ใช้แขนซ้ายให้มีข้อมูลโชว์
-        if (OwnedHealths.Count == 0)
+        AddHealth(ownedLimb);
+        foreach (LimbSlot slot in LimbSlots.All)
         {
-            RobotHealth fallbackHealth = leftArm.GetComponent<RobotHealth>();
-            if (fallbackHealth != null)
-                OwnedHealths.Add(fallbackHealth);
+            RobotLimb limb = robot.GetLimb(slot);
+            if (limb != null && limb.Controller != null && (!limb.Controller.IsSpawned || limb.Controller.IsOwner))
+                AddHealth(limb);
         }
 
-        OwnedLimbHealth = OwnedHealths.Count > 0 ? OwnedHealths[0] : null;
+        // ไม่ได้คุมชิ้นไหนเลย (Host ที่เป็นแค่คนเปิดห้อง) — ใช้แขนซ้ายให้มีข้อมูลโชว์
+        if (OwnedHealths.Count == 0) AddHealth(robot.GetLimb(LimbSlot.LeftArm));
 
         IsBound = true;
-
-        Debug.Log(
-            $"[PlayerHUD] bound to '{robotRoot.name}' | owned limb: " +
-            $"{(OwnedJoint != null ? OwnedJoint.name : "none")} | anchor: {anchor.name}",
-            this);
-
+        Debug.Log($"[PlayerHUD] bound to '{(robot.Root != null ? robot.Root.name : robot.name)}' | " +
+                  $"owned limb: {(ownedLimb != null ? ownedLimb.Slot.ToString() : "none")}", this);
         OnBound?.Invoke();
     }
 
-    /// <summary>
-    /// หา root ของหุ่นจาก component ใดๆ — ชิ้นที่หลุด/ถูกย้าย parent ยังโยงกลับถึงหุ่นได้
-    /// ผ่าน targetBody (rigidbody ปลายทางที่ joint ต่ออยู่ ซึ่งไม่เคยหลุดจากตัวหุ่น)
-    /// </summary>
-    private static Transform ResolveRobotRoot(NetworkBehaviour behaviour)
+    private void AddHealth(RobotLimb limb)
     {
-        JointPullAndReconnect joint = behaviour.GetComponent<JointPullAndReconnect>();
-        if (joint != null && joint.targetBody != null)
-            return joint.targetBody.transform.root;
-
-        return behaviour.transform.root;
+        if (limb != null && limb.Health != null && !OwnedHealths.Contains(limb.Health))
+            OwnedHealths.Add(limb.Health);
     }
 
-    /// <summary>ชิ้นส่วนตัวแรกที่อยู่ใต้หุ่นตัวที่ระบุ — ใช้ตอนถูกสั่งมาว่าให้ bind หุ่นไหน</summary>
-    private static NetworkBehaviour FirstInsideRoot<T>(T[] behaviours, Transform root)
-        where T : NetworkBehaviour
+    public RobotLimb GetLimb(LimbSlot slot) => Robot != null ? Robot.GetLimb(slot) : null;
+
+    /// <summary>ชื่อย่อของชิ้นส่วนบน HUD (L-ARM / R-ARM / L-LEG / R-LEG)</summary>
+    public string GetLimbLabel(Component limbComponent)
     {
-        foreach (T behaviour in behaviours)
-        {
-            if (behaviour != null && behaviour.transform.IsChildOf(root))
-                return behaviour;
-        }
-
-        return null;
-    }
-
-    private static NetworkBehaviour FindLocalOwner<T>(T[] behaviours)
-        where T : NetworkBehaviour
-    {
-        foreach (T behaviour in behaviours)
-        {
-            if (behaviour != null && behaviour.IsSpawned && behaviour.IsOwner)
-                return behaviour;
-        }
-
-        return null;
-    }
-
-    private static JointPullAndReconnect FirstLocallyOwned(params JointPullAndReconnect[] joints)
-    {
-        foreach (JointPullAndReconnect joint in joints)
-        {
-            // ยังไม่ spawn (ทดสอบไม่ต่อ network) = ถือว่าเป็นของเรา
-            if (joint != null && (!joint.IsSpawned || joint.IsOwner))
-                return joint;
-        }
-
-        return null;
-    }
-
-    private void CollectOwnedHealth(JointPullAndReconnect joint)
-    {
-        if (joint == null || (joint.IsSpawned && !joint.IsOwner))
-            return;
-
-        RobotHealth health = joint.GetComponent<RobotHealth>();
-        if (health != null && !OwnedHealths.Contains(health))
-            OwnedHealths.Add(health);
-    }
-
-    private static NetworkBehaviour FirstActive<T>(T[] behaviours)
-        where T : NetworkBehaviour
-    {
-        foreach (T behaviour in behaviours)
-        {
-            if (behaviour != null && behaviour.gameObject.activeInHierarchy)
-                return behaviour;
-        }
-
-        return null;
-    }
-
-    private static bool IsLeftName(string objectName)
-    {
-        string normalized = objectName.Replace('-', '_').Replace(' ', '_');
-        return normalized.IndexOf("left", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               normalized.EndsWith("_L", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsRightName(string objectName)
-    {
-        string normalized = objectName.Replace('-', '_').Replace(' ', '_');
-        return normalized.IndexOf("right", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               normalized.EndsWith("_R", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void LogDiagnostic(string reason)
-    {
-        if (Time.unscaledTime < nextDiagnosticTime)
-            return;
-
-        nextDiagnosticTime = Time.unscaledTime + 5f;
-        Debug.LogWarning($"[PlayerHUD] waiting to bind: {reason}.", this);
+        RobotLimb limb = limbComponent != null ? limbComponent.GetComponent<RobotLimb>() : null;
+        return limb != null && limb.Owner == Robot ? limb.Slot.ShortLabel() : string.Empty;
     }
 }

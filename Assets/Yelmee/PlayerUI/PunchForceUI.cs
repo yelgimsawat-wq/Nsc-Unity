@@ -1,3 +1,4 @@
+using Nsc.Limbs;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,7 +19,7 @@ public class PunchForceUI : MonoBehaviour
     [SerializeField] private Color filledColor = new Color(1f, 0.72f, 0.2f, 1f);
     [SerializeField] private Color emptyColor = new Color(1f, 1f, 1f, 0.16f);
 
-    private PlayerHandCombat ownedHand;
+    private ArmController ownedHand;
     private int litSegments = -1;
 
     private void Awake()

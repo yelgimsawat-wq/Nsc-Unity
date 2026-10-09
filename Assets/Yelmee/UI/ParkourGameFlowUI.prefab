@@ -1458,6 +1458,7 @@ GameObject:
   - component: {fileID: 4849351122748318048}
   - component: {fileID: 5203508513425657981}
   - component: {fileID: 5891245110867478094}
+  - component: {fileID: 518330468720367773}
   m_Layer: 0
   m_Name: ParkourGameFlowUI
   m_TagString: Untagged
@@ -1584,15 +1585,43 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7766aa2f986375f47898202ef7964f40, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ParkourFlowManager
-  ShowTopMostFoldoutHeaderGroup: 1
-  highScorePanel: {fileID: 1938599022877413745}
-  hostButtons: {fileID: 371289756975840671}
-  waitingText: {fileID: 731514520191548520}
-  retryButton: {fileID: 8359646290019476888}
-  exitButton: {fileID: 6131497674308150551}
-  timeText: {fileID: 600638641995005534}
-  heightText: {fileID: 356792208794442978}
-  menuSceneName: -Menu
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.ParkourModeRules
   heightSyncStep: 0.5
+--- !u!114 &518330468720367773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8630107922940741868}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d924588c9fb99ab429e88bcc47032747, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.MatchResultPanel
+  victoryView:
+    root: {fileID: 0}
+    group: {fileID: 1938599022877413745}
+    popTarget: {fileID: 0}
+    titleText: {fileID: 0}
+    subtitleText: {fileID: 0}
+    timeText: {fileID: 600638641995005534}
+    heightText: {fileID: 356792208794442978}
+    hostButtons: {fileID: 371289756975840671}
+    waitingText: {fileID: 731514520191548520}
+    retryButton: {fileID: 8359646290019476888}
+    exitButton: {fileID: 6131497674308150551}
+  defeatView:
+    root: {fileID: 0}
+    group: {fileID: 0}
+    popTarget: {fileID: 0}
+    titleText: {fileID: 0}
+    subtitleText: {fileID: 0}
+    timeText: {fileID: 0}
+    heightText: {fileID: 0}
+    hostButtons: {fileID: 0}
+    waitingText: {fileID: 0}
+    retryButton: {fileID: 0}
+    exitButton: {fileID: 0}
+  exitMode: 0
   fadeDuration: 0.45

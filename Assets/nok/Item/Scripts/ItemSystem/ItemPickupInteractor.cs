@@ -150,9 +150,10 @@ namespace NscUnity.Items
             PickupRpc(new NetworkObjectReference(netObj));
         }
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         private void PickupRpc(NetworkObjectReference itemRef)
         {
+            if (!IsServer || inventory == null || !inventory.IsSpawned || inventory.OwnerClientId != OwnerClientId) return;
             // ระหว่างที่ Rpc นี้เดินทางมา อาจมีอีกคนเก็บของชิ้นนี้ไปก่อนแล้ว (Despawn ไปแล้ว) — TryGet จะคืน false ให้เอง
             if (!itemRef.TryGet(out NetworkObject netObj) || netObj == null)
             {
@@ -167,6 +168,8 @@ namespace NscUnity.Items
                 return;
             }
 
+            if (!netObj.IsSpawned || !item.isActiveAndEnabled || !IsWithinPickupReach(item.transform.position)) return;
+
             if (!inventory.TryAddServerSide(item.Definition, out int index))
             {
                 // TryAddServerSide จะ log error เองถ้าไอเทมไม่ได้อยู่ใน Database — เหลือแค่เคสกระเป๋าเต็ม
@@ -179,6 +182,18 @@ namespace NscUnity.Items
             if (equipOnPickup) inventory.RequestEquip(index);
 
             item.ConsumeFromWorld(); // เล่นเอฟเฟกต์ตอนเก็บ (ถ้ามี) แล้ว Despawn ให้ทุกเครื่องเห็นของหายพร้อมกัน
+        }
+
+        private bool IsWithinPickupReach(Vector3 position)
+        {
+            Vector3 offset = position - Origin.position;
+            float sqrDistance = offset.sqrMagnitude;
+            // Negated comparison also rejects NaN positions.
+            if (!(sqrDistance <= Mathf.Max(0f, pickupRange) * Mathf.Max(0f, pickupRange))) return false;
+            if (maxPickupAngle >= 180f || sqrDistance <= 0.0001f) return true;
+
+            Vector3 flat = new Vector3(offset.x, 0f, offset.z).normalized;
+            return Vector3.Dot(Origin.forward, flat) >= Mathf.Cos(maxPickupAngle * Mathf.Deg2Rad);
         }
 
         private void OnDrawGizmosSelected()

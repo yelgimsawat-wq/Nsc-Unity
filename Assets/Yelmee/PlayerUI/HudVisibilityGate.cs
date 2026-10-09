@@ -1,19 +1,18 @@
 using DG.Tweening;
-using Unity.Netcode;
+using Nsc.Match;
 using UnityEngine;
 
 /// <summary>
-/// เกตเปิด/ปิด HUD ทั้งชุด: ซ่อนไว้ระหว่างอยู่ในหน้าเลือกชิ้นส่วน (Lobby)
-/// แล้วค่อย fade ขึ้นเมื่อ Host กด Start (LobbyManager.GameStarted = true)
-/// โหมดทดสอบที่ไม่มี network/ไม่มี LobbyManager ใน scene → โชว์ทันที
+/// เกตเปิด/ปิด HUD ทั้งชุด — ซ่อนระหว่างเตรียมตัว (ลอบบี้/เลือกทีม) แล้ว fade ขึ้นเมื่อแมตช์เริ่ม
+/// อ่านเฟสจาก MatchSession ตัวเดียว ใช้ได้ทั้ง co-op และ PVP (เดิมต้องมีเกตสองตัวแย่งกันคุม alpha)
+/// ฉากที่ไม่มี MatchSession (ซีนเทส) → โชว์ทันที
 /// </summary>
 public class HudVisibilityGate : MonoBehaviour
 {
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField] private float fadeDuration = 0.35f;
 
-    private LobbyManager lobby;
-    private float nextLobbySearchTime;
+    private MatchSession session;
     private bool visible;
     private Tween fadeTween;
 
@@ -28,21 +27,23 @@ public class HudVisibilityGate : MonoBehaviour
             canvasGroup.interactable = false;
             canvasGroup.blocksRaycasts = false;
         }
-
-        visible = false;
     }
 
-    private void Update()
+    private void Start()
     {
-        bool shouldShow = ShouldShow();
-        if (shouldShow == visible)
+        session = MatchSession.Current;
+        if (session != null) session.PhaseChanged += OnPhaseChanged;
+        SetVisible(session == null || session.Phase != MatchPhase.Preparing);
+    }
+
+    private void OnPhaseChanged(MatchPhase phase) => SetVisible(phase != MatchPhase.Preparing);
+
+    private void SetVisible(bool show)
+    {
+        if (show == visible || canvasGroup == null)
             return;
 
-        visible = shouldShow;
-
-        if (canvasGroup == null)
-            return;
-
+        visible = show;
         fadeTween?.Kill();
         fadeTween = canvasGroup
             .DOFade(visible ? 1f : 0f, fadeDuration)
@@ -50,30 +51,9 @@ public class HudVisibilityGate : MonoBehaviour
             .SetUpdate(true);
     }
 
-    private bool ShouldShow()
-    {
-        if (lobby == null && Time.unscaledTime >= nextLobbySearchTime)
-        {
-            nextLobbySearchTime = Time.unscaledTime + 1f;
-            lobby = FindFirstObjectByType<LobbyManager>(FindObjectsInactive.Include);
-        }
-
-        // scene นี้ไม่มี lobby (เข้าเกมตรงๆ) → ไม่มีอะไรต้องรอ
-        if (lobby == null)
-            return true;
-
-        // ไม่มี NetworkManager เลย = เทส offline ล้วนๆ → โชว์
-        // มี NetworkManager แต่ยังไม่ host/join = ยังอยู่หน้าเมนู → ซ่อนรอ
-        if (NetworkManager.Singleton == null)
-            return true;
-        if (!NetworkManager.Singleton.IsListening)
-            return false;
-
-        return lobby.GameStarted;
-    }
-
     private void OnDestroy()
     {
+        if (session != null) session.PhaseChanged -= OnPhaseChanged;
         fadeTween?.Kill();
     }
 }

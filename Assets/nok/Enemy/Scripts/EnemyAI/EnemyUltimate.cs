@@ -104,14 +104,14 @@ namespace NscGame.Enemy
         [Tooltip("รัศมีแนวทำลายรอบเส้นทางบิน — ตึกที่อยู่ในทรงกระบอกนี้พังทั้งแนว")]
         [SerializeField] private float damageRadius = 22f;
 
-        [Tooltip("ดาเมจที่ส่งให้ตึก (explobuilding เลือดเริ่มต้น 100 — ใส่เกินไว้ให้พังแน่)")]
+        [Tooltip("ดาเมจที่ส่งให้ตึก (DestructibleBuilding เลือดเริ่มต้น 100 — ใส่เกินไว้ให้พังแน่)")]
         [SerializeField] private float buildingDamage = 500f;
 
         [Tooltip("ดาเมจที่ลงชิ้นส่วนหุ่นผู้เล่นถ้าโดนระเบิด")]
         [SerializeField] private float playerDamage = 40f;
 
         [Tooltip("เลเยอร์ที่ลูกกระสุนกวาดหาเป้า (ตึก/รถ = grabLayer, ชิ้นส่วนหุ่น = RobotParts)\n" +
-                 "ของที่ไม่มี IHittable จะถูกข้ามอยู่แล้ว เสาไฟ/ต้นไม้จึงไม่มีผล")]
+                 "ของที่ไม่ใช่ IDamageable จะถูกข้ามอยู่แล้ว เสาไฟ/ต้นไม้จึงไม่มีผล")]
         [SerializeField] private LayerMask sweepMask = ~0;
 
         [Tooltip("เปิด = เล็งขนานพื้นเสมอ (แนะนำ — ผู้เล่นอ่านแนวยิงง่าย เดินหลบข้างได้)")]
@@ -204,6 +204,12 @@ namespace NscGame.Enemy
 
             ultimateQueued = true;
             Debug.Log($"[EnemyUltimate] 🕳️ คิวท่าไม้ตายไว้แล้ว (เลือดถึง {triggerHpPercent * 100f:F0}%)");
+        }
+
+        /// <summary>[SERVER] EnemyHealth เรียกทุกครั้งที่โดนตี — เลือดถึงเกณฑ์แล้วค่อยคิวท่าไม้ตาย</summary>
+        public void ServerTryTrigger(float hpPercent)
+        {
+            if (hpPercent <= triggerHpPercent) ServerRequestUltimate();
         }
 
         public float TriggerHpPercent => triggerHpPercent;

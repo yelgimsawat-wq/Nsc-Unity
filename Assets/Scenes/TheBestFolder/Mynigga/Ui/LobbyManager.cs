@@ -1,8 +1,7 @@
-using System.Collections;
 using System.Collections.Generic;
-using Unity.Collections;
+using Nsc.Match;
+using Nsc.Robots;
 using Unity.Netcode;
-using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -11,9 +10,13 @@ using DG.Tweening;
 using TMPro;
 
 /// <summary>
-/// LobbyManager.cs
-/// Canvas ทับบน Gameplay Scene — เลือก Part แล้ว Host กด Start
-/// ปิด Panel + Unfreeze Physics ให้เกมเริ่ม (ไม่มี LoadScene)
+/// LobbyManager.cs — หน้าจอเลือกชิ้นส่วน (co-op) ที่ทับบนฉากเกมเพลย์ แสดงผลอย่างเดียว
+///
+/// การจองชิ้นส่วน รายชื่อผู้เล่น ที่นั่งรอต่อกลับ และการเริ่มแมตช์อยู่ที่ LimbSelection
+/// การผูกกล้อง/คอนโทรลตอนเริ่มอยู่ที่ LimbControlBinder / เฟสของแมตช์อยู่ที่ MatchSession
+/// ตัวนี้เหลือแค่: วาดรายชื่อ วาดสถานะชิ้นส่วน ส่งคำขอเมื่อกด และเริ่มบทสอนเล่นหลังผูกเสร็จ
+///
+/// UI ช่องที่ i (0-3) = LimbSlot เดียวกัน (แขนซ้าย, แขนขวา, ขาซ้าย, ขาขวา ของตัวหุ่น)
 ///
 /// Features ported from OnlineNetworkUI.cs:
 ///   • DOTween fade/scale panel transitions
@@ -22,13 +25,12 @@ using TMPro;
 ///   • Interactive robot-part images (clickable anatomy)
 ///   • State-based coloring: dimmed → lit + tinted on selection
 /// </summary>
-public class LobbyManager : NetworkBehaviour
+public class LobbyManager : MonoBehaviour
 {
     public static LobbyManager Instance;
 
     [Header("UI Panels")]
     public GameObject selectionPanel;
-    public GameObject robotContainer;
 
     [Header("Player List UI")]
     [Tooltip("4 Text elements for P1 to P4 names")]
@@ -44,14 +46,8 @@ public class LobbyManager : NetworkBehaviour
     [Tooltip("The bottom status text")]
     [SerializeField] private TextMeshProUGUI bottomStatusText;
 
-    [Header("Robot Targets")]
-    public GameObject leftArm;
-    public GameObject rightArm;
-    public GameObject leftLeg;
-    public GameObject rightLeg;
-
     [Header("Buttons")]
-    [SerializeField] private Button[] limbButtons; // ✅ นำกลับมาเพื่อให้ปุ่มเดิมทำงานได้
+    [SerializeField] private Button[] limbButtons;
     [SerializeField] private Button startButton; // Host only
 
     [Header("Robot Part Images (Clickable Anatomy)")]
@@ -64,14 +60,14 @@ public class LobbyManager : NetworkBehaviour
     [SerializeField] private Image[] alwaysVisibleParts;
 
     [Header("Part Coloring")]
-    [SerializeField] private Color unassignedColor  = new Color(1f, 1f, 1f, 1f); // ✅ เปลี่ยนให้ภาพปกติ ไม่จางหาย
+    [SerializeField] private Color unassignedColor  = new Color(1f, 1f, 1f, 1f);
     [SerializeField] private Color myPartColor      = new Color(0.2f, 0.85f, 0.4f, 1f);
     [SerializeField] private Color otherPartColor   = new Color(0.85f, 0.2f, 0.2f, 1f);
     [SerializeField] private Color hoverTintColor   = new Color(0.6f, 0.9f, 1f, 0.55f);
     [SerializeField] private float colorFadeDuration = 0.25f;
 
     [Header("UI Animation (from OnlineNetworkUI)")]
-    [SerializeField] private float uiFadeDuration = 0.0f; // ✅ ปิด Fade กันภาพล่องหน
+    [SerializeField] private float uiFadeDuration = 0.0f; // ปิด Fade กันภาพล่องหน
     [SerializeField] private float uiScaleFrom    = 1.0f;
     [SerializeField] private Ease  uiEase         = Ease.OutCubic;
 
@@ -92,62 +88,6 @@ public class LobbyManager : NetworkBehaviour
     [SerializeField] private float buttonClickScale      = 1.06f;
     [SerializeField] private float buttonClickDuration   = 0.12f;
 
-    // NetworkList ต้อง init ระดับ field (ก่อน OnNetworkSpawn)
-    private NetworkList<ulong> limbOwners = new NetworkList<ulong>(
-        new ulong[] { ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue });
-
-    // ✅ เกมเริ่มหรือยัง (Host กด Start แล้ว) — sync ให้ทุกเครื่องรวมถึงคนที่เข้าห้องช้า
-    // ระบบอื่น (เช่น Player HUD) ใช้ตัวนี้ตัดสินว่าควรโชว์ UI ในเกมได้หรือยัง
-    private NetworkVariable<bool> netGameStarted = new NetworkVariable<bool>(
-        false,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server);
-
-    public bool GameStarted => netGameStarted.Value;
-
-    // ✅ [Name Sync] ข้อมูลผู้เล่นหนึ่งคนใน lobby — เก็บ clientId คู่กับชื่อใน struct เดียว
-    // (ใช้ struct เดียวแทน list คู่ขนานสองอัน กันหลุด sync กันเอง)
-    public struct LobbyPlayer : INetworkSerializable, System.IEquatable<LobbyPlayer>
-    {
-        public ulong clientId;
-        public FixedString64Bytes playerName;
-
-        // ✅ [Reconnect] ตัวระบุตัวตนที่ "ไม่เปลี่ยน" ข้ามการต่อใหม่
-        // NGO แจก clientId ใหม่ทุกครั้งที่ต่อ ใช้เป็นตัวจำคนไม่ได้
-        // ตัวนี้มาจาก AuthenticationService.Instance.PlayerId ซึ่งผูกกับบัญชี anonymous ของเครื่อง
-        public FixedString64Bytes playerId;
-
-        // false = หลุดไปแล้วแต่ยังกันที่ไว้ให้ รอกลับเข้ามา
-        public bool connected;
-
-        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-        {
-            serializer.SerializeValue(ref clientId);
-            serializer.SerializeValue(ref playerName);
-            serializer.SerializeValue(ref playerId);
-            serializer.SerializeValue(ref connected);
-        }
-
-        public bool Equals(LobbyPlayer other) =>
-            clientId == other.clientId &&
-            playerName.Equals(other.playerName) &&
-            playerId.Equals(other.playerId) &&
-            connected == other.connected;
-    }
-
-    // ✅ [Reconnect] กันที่ไว้ให้คนที่หลุด — ครบเวลาแล้วค่อยปล่อยให้คนอื่นเลือก
-    [Header("--- Reconnect ---")]
-    [Tooltip("กันชิ้นส่วนไว้ให้คนที่หลุดนานกี่วินาที ก่อนปล่อยให้คนอื่นเลือกได้")]
-    [Min(0f)]
-    [SerializeField] private float seatHoldSeconds = 90f;
-
-    // server เท่านั้น: playerId -> เวลาที่ที่นั่งจะหมดอายุ (ไม่ต้อง sync ให้ client)
-    private readonly Dictionary<string, float> seatExpiry = new Dictionary<string, float>();
-
-    // เก็บรายชื่อผู้เล่นที่ต่อเข้ามา (id + ชื่อ) เพื่อเอาไปแมปกับ Slot P1, P2, P3, P4
-    // ชื่อมาจาก PlayerPrefs ของแต่ละเครื่อง ส่งขึ้น server ผ่าน SubmitPlayerNameServerRpc
-    private NetworkList<LobbyPlayer> connectedClients = new NetworkList<LobbyPlayer>();
-
     // DOTween tracking dictionaries (ported from OnlineNetworkUI)
     private readonly Dictionary<GameObject, Tween> runningUiTweens = new Dictionary<GameObject, Tween>();
     private readonly Dictionary<Transform, Vector3> originalUiScales = new Dictionary<Transform, Vector3>();
@@ -165,44 +105,24 @@ public class LobbyManager : NetworkBehaviour
     // Hover state tracking for part images
     private int hoveredPartIndex = -1;
 
-    // ✅ [Startup Race Fix] true ก็ต่อเมื่อ OnNetworkSpawn ทำงานแล้วเท่านั้น
-    // (การันตีว่า NetworkManager กำลัง Listening อยู่จริง — ปุ่มใน Awake() ต่อสายให้กดได้เร็วเกินไป
-    // ถ้าคลิกก่อน NetworkManager พร้อม ServerRpc จะโดนปัดทิ้งพร้อม error "can only be invoked after starting")
-    private bool _networkReady = false;
-
-    // ทางเข้าเดียวที่อนุญาตให้ยิง RequestLimbServerRpc — กันคลิกทะลุก่อนเน็ตพร้อม
-    private void TryRequestLimb(int index)
-    {
-        if (!_networkReady)
-        {
-            Debug.LogWarning("[Lobby] ยังเชื่อมต่อเครือข่ายไม่เสร็จ รอสักครู่แล้วลองกดใหม่");
-            if (bottomStatusText != null) bottomStatusText.text = "CONNECTING... PLEASE WAIT";
-            return;
-        }
-        RequestLimbServerRpc(index);
-    }
+    private LimbSelection selection;
+    private MatchSession session;
+    private LimbControlBinder binder;
+    private bool tutorialStarted;
 
     // ================================================================
     //  UNITY LIFECYCLE
     // ================================================================
 
-    void Awake()
+    private void Awake()
     {
         Instance = this;
-
-        // Freeze physics early to prevent objects from falling before clicking start
-        ResolveActiveRobot(); // หาหุ่นตัวที่ active ก่อน — กัน freeze/อ้างอิงผิดตัว
-        FreezeAllPhysics();
-
-        // ✅ ตรวจสอบว่า SettingsManager ยังอยู่ไหม ถ้าหายให้สร้างใหม่
         EnsureSettingsManagerExists();
 
-        // ✅ บังคับเปิด selectionPanel ทันทีตอนเริ่ม (ไม่ต้องรอ Network Spawn)
+        // ✅ เปิด selectionPanel ทันทีตอนเริ่ม (ไม่ต้องรอ Network Spawn)
         if (selectionPanel != null)
         {
             selectionPanel.SetActive(true);
-
-            // ถ้ามี CanvasGroup อยู่แล้ว ต้องให้ alpha = 1 ด้วย
             CanvasGroup cg = selectionPanel.GetComponent<CanvasGroup>();
             if (cg != null)
             {
@@ -212,223 +132,121 @@ public class LobbyManager : NetworkBehaviour
             }
         }
 
-        // Initialize Part Selection Texts
         InitPartSelectionTexts();
-
-        // Wire clickable robot-part images
         WirePartImageClicks();
-
-        // Ensure always-visible parts are opaque
         InitAlwaysVisibleParts();
-
-        // Apply hover colors & click punch to all normal buttons
         ApplyButtonHoverColors();
 
-        // ✅ นำระบบผูกปุ่มแบบเก่ากลับมา
         if (limbButtons != null)
         {
             for (int i = 0; i < limbButtons.Length; i++)
             {
                 int captured = i;
-                if (limbButtons[captured] != null)
-                {
-                    limbButtons[captured].onClick.RemoveAllListeners();
-                    limbButtons[captured].onClick.AddListener(() => TryRequestLimb(captured));
-                }
+                if (limbButtons[captured] == null) continue;
+                limbButtons[captured].onClick.RemoveAllListeners();
+                limbButtons[captured].onClick.AddListener(() => TryRequestLimb(captured));
             }
         }
 
-        // Capture base pose for parallax
+        if (startButton != null)
+        {
+            startButton.gameObject.SetActive(false); // โชว์เฉพาะ Host หลังต่อเน็ตเสร็จ
+            startButton.onClick.RemoveAllListeners();
+            startButton.onClick.AddListener(OnStartButtonClicked);
+            ApplyButtonHoverColor(startButton);
+        }
+
         CaptureMenuFeelBasePose();
     }
 
-    void Update()
+    private void Start()
     {
-        UpdateMenuFeel();
-        SweepExpiredSeats();   // server เท่านั้น — ปล่อยที่นั่งที่รอเกินเวลาแล้ว
+        selection = LimbSelection.Current;
+        session = MatchSession.Current;
+        binder = LimbControlBinder.Current;
+
+        if (selection != null) selection.AssignmentsChanged += RefreshAllButtonUI;
+        if (session != null) session.PhaseChanged += OnPhaseChanged;
+        if (binder != null) binder.Bound += OnLocalLimbBound;
+
+        if (selection == null)
+            Debug.LogWarning("[Lobby] ไม่มี LimbSelection ในฉาก — หน้าเลือกชิ้นส่วนจะกดไม่ได้", this);
+
+        if (session != null && session.Phase != MatchPhase.Preparing)
+            SetVisibleInstant(selectionPanel, false);
+
+        RefreshAllButtonUI();
     }
 
-    public override void OnDestroy()
+    private void Update()
+    {
+        UpdateMenuFeel();
+
+        // ปุ่ม Start โชว์เฉพาะ Host — รู้ได้ก็ต่อเมื่อเน็ตเริ่มแล้ว
+        if (startButton != null)
+        {
+            bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
+            if (startButton.gameObject.activeSelf != isHost) startButton.gameObject.SetActive(isHost);
+        }
+    }
+
+    private void OnDestroy()
     {
         if (Instance == this) Instance = null;
+
+        if (selection != null) selection.AssignmentsChanged -= RefreshAllButtonUI;
+        if (session != null) session.PhaseChanged -= OnPhaseChanged;
+        if (binder != null) binder.Bound -= OnLocalLimbBound;
 
         ClearButtonClickFeedback();
         KillAllButtonClickTweens();
         KillAllUiTweens();
         KillAllPartColorTweens();
         originalUiScales.Clear();
-
-        base.OnDestroy();
     }
 
     // ================================================================
-    //  NETWORK SPAWN — Freeze physics, wire UI, subscribe list changes
+    //  คำขอ — ส่งต่อให้ LimbSelection (server ตัดสิน)
     // ================================================================
 
-    public override void OnNetworkSpawn()
-{
-    base.OnNetworkSpawn();
-
-    // ✅ NetworkManager listening แน่นอนแล้ว ณ จุดนี้ — ปลดล็อกให้กดเลือกชิ้นส่วนได้
-    _networkReady = true;
-    if (bottomStatusText != null) bottomStatusText.text = "PLAYER STATUS: AWAITING SELECTION";
-
-    // Freeze ทุก Rigidbody ตอนเปิด Panel ทั้ง Host และ Client
-    ResolveActiveRobot();  // เผื่อหุ่นถูกสลับ/ย้ายหลัง Awake
-    DisableExtraRobots();  // server ถอดหุ่นตัวเกินออกจากเกมอัตโนมัติ
-    FreezeAllPhysics();
-
-    // ✅ เปิด Panel ตอนเริ่ม
-    if (selectionPanel != null)
-        SetVisibleAnimated(selectionPanel, true);
-
-    if (IsServer)
+    /// <summary>ทางเข้าเดียวที่ยิงคำขอจอง — กันคลิกทะลุก่อนเน็ตพร้อม (RPC ก่อน spawn ถูกปัดทิ้ง)</summary>
+    private void TryRequestLimb(int index)
     {
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-
-        // Add already connected clients (ชื่อ default ไว้ก่อน — เดี๋ยวแต่ละเครื่องส่งชื่อจริงตามมา)
-        foreach (ulong clientId in NetworkManager.Singleton.ConnectedClientsIds)
+        Robot robot = selection != null ? selection.PrimaryRobot : null;
+        if (selection == null || !selection.IsSpawned || robot == null || !robot.IsSpawned)
         {
-            if (FindPlayerIndex(clientId) < 0)
-                connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player" });
-        }
-    }
-
-    // ✅ [Name Sync] ทุกเครื่อง (รวม Host) ส่งชื่อจาก Settings ขึ้น server
-    // → server อัปเดต NetworkList → ทุกคนเห็นชื่อจริงของกันและกัน
-    SubmitPlayerNameServerRpc(PlayerPrefs.GetString("PlayerName", "Player"), LocalPlayerId);
-
-    // Subscribe NetworkList → อัปเดต UI ปุ่มทุกครั้งที่มีคนจอง
-    limbOwners.OnListChanged += OnLimbOwnersChanged;
-    connectedClients.OnListChanged += OnConnectedClientsChanged;
-
-    // Refresh ปุ่มให้ตรงกับ state ปัจจุบัน (กรณี Client join หลัง Host จองไปแล้ว)
-    RefreshAllButtonUI();
-
-    if (startButton != null)
-    {
-        startButton.gameObject.SetActive(IsServer);
-        if (IsServer)
-        {
-            startButton.onClick.RemoveAllListeners();
-            startButton.onClick.AddListener(OnStartButtonClicked);
-            ApplyButtonHoverColor(startButton);
-        }
-    }
-}
-
-    public override void OnNetworkDespawn()
-    {
-        limbOwners.OnListChanged -= OnLimbOwnersChanged;
-        connectedClients.OnListChanged -= OnConnectedClientsChanged;
-
-        if (IsServer && NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
-        }
-
-        base.OnNetworkDespawn();
-    }
-
-    private void OnClientConnected(ulong clientId)
-    {
-        // ยังไม่รู้ playerId ตอนนี้ — client จะส่งตามมาใน SubmitPlayerNameServerRpc
-        // ตรงนั้นคือจุดที่เช็คว่าเป็นคนเดิมที่หลุดไปหรือเปล่า แล้วคืนชิ้นส่วนให้
-        if (IsServer && FindPlayerIndex(clientId) < 0)
-            connectedClients.Add(new LobbyPlayer { clientId = clientId, playerName = "Player", connected = true });
-    }
-
-    private void OnClientDisconnected(ulong clientId)
-    {
-        if (!IsServer) return;
-
-        int index = FindPlayerIndex(clientId);
-        if (index < 0) return;
-
-        LobbyPlayer entry = connectedClients[index];
-
-        // ✅ [Reconnect] ไม่รู้ว่าเป็นใคร (ยังไม่ทันส่ง playerId มา) → เอาออกแบบเดิม
-        if (entry.playerId.Length == 0)
-        {
-            connectedClients.RemoveAt(index);
-            for (int i = 0; i < limbOwners.Count; i++)
-                if (limbOwners[i] == clientId) limbOwners[i] = ulong.MaxValue;
+            Debug.LogWarning("[Lobby] ยังเชื่อมต่อเครือข่ายไม่เสร็จ รอสักครู่แล้วลองกดใหม่");
+            if (bottomStatusText != null) bottomStatusText.text = "CONNECTING... PLEASE WAIT";
             return;
         }
 
-        // รู้ว่าเป็นใคร → กันที่ไว้ ไม่ปล่อยชิ้นส่วนทันที
-        // limbOwners ยังชี้ clientId เดิมอยู่ ทำให้ UI ยังโชว์ว่าถูกจอง คนอื่นแย่งไม่ได้
-        entry.connected = false;
-        connectedClients[index] = entry;
-
-        seatExpiry[entry.playerId.ToString()] = Time.unscaledTime + seatHoldSeconds;
-        Debug.Log($"[Lobby] Client {clientId} หลุด — กันที่ไว้ {seatHoldSeconds:F0} วินาที (playerId {entry.playerId})");
+        selection.RequestLimbRpc(robot.NetworkObjectId, (LimbSlot)index, false);
     }
 
-    /// <summary>[SERVER] ปล่อยที่นั่งที่หมดเวลารอแล้ว</summary>
-    private void SweepExpiredSeats()
+    private void OnStartButtonClicked()
     {
-        if (!IsServer || seatExpiry.Count == 0) return;
-
-        List<string> expired = null;
-        foreach (var kv in seatExpiry)
-        {
-            if (Time.unscaledTime < kv.Value) continue;
-            (expired ??= new List<string>()).Add(kv.Key);
-        }
-        if (expired == null) return;
-
-        foreach (string playerId in expired)
-        {
-            seatExpiry.Remove(playerId);
-
-            int index = FindPlayerIndexByPlayerId(playerId);
-            if (index < 0) continue;
-
-            ulong staleClientId = connectedClients[index].clientId;
-            connectedClients.RemoveAt(index);
-
-            for (int i = 0; i < limbOwners.Count; i++)
-                if (limbOwners[i] == staleClientId) limbOwners[i] = ulong.MaxValue;
-
-            Debug.Log($"[Lobby] หมดเวลารอ playerId {playerId} — ปล่อยชิ้นส่วนให้คนอื่นเลือกได้แล้ว");
-        }
+        if (selection == null || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+        if (startButton != null) startButton.interactable = false;
+        selection.RequestStartRpc();
     }
 
-    private int FindPlayerIndexByPlayerId(string playerId)
+    private void OnPhaseChanged(MatchPhase phase)
     {
-        if (string.IsNullOrEmpty(playerId)) return -1;
-        for (int i = 0; i < connectedClients.Count; i++)
-            if (connectedClients[i].playerId.ToString() == playerId) return i;
-        return -1;
+        // ปิด Panel (animated fade-out) เมื่อแมตช์เริ่ม — ฟิสิกส์ปลดแช่แข็งโดย LimbSelection
+        if (phase != MatchPhase.Preparing && selectionPanel != null)
+            SetVisibleAnimated(selectionPanel, false);
     }
 
-    /// <summary>ตัวตนถาวรของเครื่องนี้ — คงเดิมข้ามการต่อใหม่ ต่างจาก clientId</summary>
-    public static string LocalPlayerId
+    /// <summary>ผูกกล้อง/คอนโทรลเสร็จแล้ว → เริ่มบทสอนเล่นตามบทบาท แขน/ขา</summary>
+    private void OnLocalLimbBound(Robot robot, LimbSlot slot)
     {
-        get
-        {
-            try
-            {
-                var auth = Unity.Services.Authentication.AuthenticationService.Instance;
-                if (auth != null && auth.IsSignedIn && !string.IsNullOrEmpty(auth.PlayerId))
-                    return auth.PlayerId;
-            }
-            catch { /* Services ยังไม่พร้อม */ }
+        if (tutorialStarted || TutorialManager.Instance == null) return;
+        tutorialStarted = true;
 
-            // ตกกลับไปใช้ id ที่ปั่นเองแล้วเก็บไว้ในเครื่อง — ยังกลับเข้าห้องเดิมได้
-            const string key = "Lobby_LocalPlayerId";
-            string saved = PlayerPrefs.GetString(key, string.Empty);
-            if (string.IsNullOrEmpty(saved))
-            {
-                saved = System.Guid.NewGuid().ToString("N");
-                PlayerPrefs.SetString(key, saved);
-                PlayerPrefs.Save();
-            }
-            return saved;
-        }
+        TutorialManager.LimbRole role = slot.IsLeg() ? TutorialManager.LimbRole.Leg : TutorialManager.LimbRole.Arm;
+        TutorialManager.Instance.SetRole(role);
+        TutorialManager.Instance.StartTutorial();
+        Debug.Log($"[Client] Tutorial started automatically for local limb {slot} ({role}).");
     }
 
     // ================================================================
@@ -589,156 +407,99 @@ public class LobbyManager : NetworkBehaviour
     }
 
     // ================================================================
-    //  NetworkList callback → update button + image visuals
+    //  Refresh — วาดสถานะจาก LimbSelection
     // ================================================================
 
-    private void OnLimbOwnersChanged(NetworkListEvent<ulong> changeEvent)
-    {
-        RefreshAllButtonUI();
-    }
+    private ulong LocalClientId => NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
 
-    private void OnConnectedClientsChanged(NetworkListEvent<LobbyPlayer> changeEvent)
+    /// <summary>เจ้าของชิ้นที่ index — NoClient ถ้ายังว่าง</summary>
+    private ulong OwnerOf(int index)
     {
-        RefreshAllButtonUI();
+        Robot robot = selection != null ? selection.PrimaryRobot : null;
+        if (robot == null || !robot.IsSpawned || !LimbSlots.IsValid(index)) return LimbSelection.NoClient;
+        return selection.GetController(robot.NetworkObjectId, (LimbSlot)index);
     }
 
     private void RefreshAllButtonUI()
     {
-        // Refresh all robot-part images to match ownership state
         RefreshAllPartImages();
-        
-        // Refresh player list
         RefreshPlayerListUI();
-        
-        // Refresh bottom status text
         RefreshBottomStatusText();
 
-        // ✅ อัปเดตข้อความปุ่มแบบเก่าให้กลับมาใช้งานได้
-        // (เช็ก i < limbOwners.Count ด้วย กันพังถ้ามีปุ่มใน Inspector เกิน 4 ตัว)
-        if (limbButtons != null)
+        if (limbButtons == null) return;
+        for (int i = 0; i < limbButtons.Length && i < LimbSlots.Count; i++)
         {
-            for (int i = 0; i < limbButtons.Length && i < limbOwners.Count; i++)
+            if (limbButtons[i] == null) continue;
+
+            ulong owner  = OwnerOf(i);
+            bool isTaken = owner != LimbSelection.NoClient;
+            bool isMine  = isTaken && owner == LocalClientId;
+
+            limbButtons[i].interactable = !isTaken || isMine;
+
+            // ป้ายอยู่ใน Part Selection Texts (UI แยก Text ออกมาจากปุ่ม)
+            var label = (partSelectionTexts != null && i < partSelectionTexts.Length) ? partSelectionTexts[i] : null;
+            if (label != null)
             {
-                if (limbButtons[i] == null) continue;
-
-                ulong owner  = limbOwners[i];
-                bool isTaken = owner != ulong.MaxValue;
-                bool isMine  = isTaken && owner == NetworkManager.Singleton.LocalClientId;
-
-                limbButtons[i].interactable = !isTaken || isMine;
-
-                // ✅ แก้ไขให้ดึง Text จาก Part Selection Texts ที่คุณตั้งไว้ แทนที่จะหาในปุ่ม (เพราะ UI ของคุณแยก Text ออกมา)
-                var label = (partSelectionTexts != null && i < partSelectionTexts.Length) ? partSelectionTexts[i] : null;
-                if (label != null)
-                {
-                    if (isMine)       label.text = "You";
-                    else if (isTaken) label.text = "Taken";
-                    else              label.text = GetDefaultLimbName(i);
-                }
+                if (isMine)       label.text = "You";
+                else if (isTaken) label.text = "Taken";
+                else              label.text = GetDefaultLimbName(i);
             }
         }
-
     }
 
     private void RefreshPlayerListUI()
     {
+        int playerCount = selection != null && selection.IsSpawned ? selection.PlayerCount : 0;
+
         for (int i = 0; i < 4; i++)
         {
-            bool hasPlayer = i < connectedClients.Count;
-            LobbyPlayer player = hasPlayer ? connectedClients[i] : default;
-            ulong clientId = hasPlayer ? player.clientId : ulong.MaxValue;
+            bool hasPlayer = i < playerCount;
+            SelectionPlayer player = hasPlayer ? selection.GetPlayer(i) : default;
 
-            // 1. Avatar Color
             if (playerAvatarImages != null && i < playerAvatarImages.Length && playerAvatarImages[i] != null)
-            {
                 playerAvatarImages[i].color = hasPlayer ? Color.white : new Color(1f, 1f, 1f, 0.3f);
-            }
 
-            // 2. Name Text — ✅ [Name Sync] ใช้ชื่อจริงที่ sync มาจากเครื่องของแต่ละคน
+            // ชื่อจริงที่ sync มาจากเครื่องของแต่ละคน + ป้าย [Host]
             if (playerNameTexts != null && i < playerNameTexts.Length && playerNameTexts[i] != null)
             {
-                if (hasPlayer)
-                {
-                    string displayName = player.playerName.ToString();
-                    if (string.IsNullOrEmpty(displayName)) displayName = "Player";
-
-                    // ติดป้าย [Host] ให้รู้ว่าใครเป็นเจ้าของห้อง
-                    string hostTag = clientId == NetworkManager.ServerClientId ? " [Host]" : "";
-                    playerNameTexts[i].text = $"{displayName} (P{i + 1}){hostTag}";
-                }
-                else
-                {
-                    playerNameTexts[i].text = $"P{i + 1}: Empty";
-                }
+                string hostTag = hasPlayer && player.clientId == NetworkManager.ServerClientId ? " [Host]" : "";
+                playerNameTexts[i].text = hasPlayer ? $"{player.DisplayName} (P{i + 1}){hostTag}" : $"P{i + 1}: Empty";
             }
 
-            // 3. Status Text
             if (playerStatusTexts != null && i < playerStatusTexts.Length && playerStatusTexts[i] != null)
             {
-                if (hasPlayer)
-                {
-                    // Check if this client owns any limb
-                    int ownedLimbIndex = -1;
-                    for (int j = 0; j < limbOwners.Count; j++)
-                    {
-                        if (limbOwners[j] == clientId)
-                        {
-                            ownedLimbIndex = j;
-                            break;
-                        }
-                    }
-
-                    if (ownedLimbIndex != -1)
-                        playerStatusTexts[i].text = $"(SELECTED {GetDefaultLimbName(ownedLimbIndex).ToUpper()})";
-                    else
-                        playerStatusTexts[i].text = "(UNASSIGNED)";
-                }
-                else
+                if (!hasPlayer)
                 {
                     playerStatusTexts[i].text = "(PENDING JOIN)...";
+                    continue;
                 }
+
+                LimbSlot? slot = selection.GetSlot(player.clientId);
+                playerStatusTexts[i].text = slot.HasValue
+                    ? $"(SELECTED {GetDefaultLimbName((int)slot.Value).ToUpper()})"
+                    : "(UNASSIGNED)";
             }
         }
     }
 
     private void RefreshBottomStatusText()
     {
-        if (bottomStatusText == null) return;
+        if (bottomStatusText == null || selection == null || !selection.IsSpawned) return;
 
-        ulong myId = NetworkManager.Singleton.LocalClientId;
-        bool iHaveSelected = false;
-
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] == myId)
-            {
-                iHaveSelected = true;
-                break;
-            }
-        }
-
-        if (iHaveSelected)
-            bottomStatusText.text = "PLAYER STATUS: AWAITING DEPLOYMENT";
-        else
-            bottomStatusText.text = "PLAYER STATUS: AWAITING SELECTION";
+        bool iHaveSelected = selection.GetSlot(LocalClientId).HasValue;
+        bottomStatusText.text = iHaveSelected
+            ? "PLAYER STATUS: AWAITING DEPLOYMENT"
+            : "PLAYER STATUS: AWAITING SELECTION";
     }
 
-    /// <summary>
-    /// Update every robot-part image color based on current ownership.
-    /// </summary>
     private void RefreshAllPartImages()
     {
         if (robotPartImages == null) return;
-
-        for (int i = 0; i < robotPartImages.Length && i < limbOwners.Count; i++)
-        {
+        for (int i = 0; i < robotPartImages.Length && i < LimbSlots.Count; i++)
             RefreshSinglePartImage(i);
-        }
     }
 
-    /// <summary>
-    /// Update a single part image's color/alpha based on ownership.
-    /// </summary>
     private void RefreshSinglePartImage(int index)
     {
         if (robotPartImages == null || index < 0 || index >= robotPartImages.Length) return;
@@ -746,29 +507,12 @@ public class LobbyManager : NetworkBehaviour
         Image img = robotPartImages[index];
         if (img == null) return;
 
-        ulong owner  = limbOwners[index];
-        bool isTaken = owner != ulong.MaxValue;
-        bool isMine  = isTaken && owner == NetworkManager.Singleton.LocalClientId;
+        ulong owner  = OwnerOf(index);
+        bool isTaken = owner != LimbSelection.NoClient;
+        bool isMine  = isTaken && owner == LocalClientId;
 
-        Color targetColor;
-
-        if (!isTaken)
-        {
-            // Unassigned → dimmed / faded out (missing component feel)
-            targetColor = unassignedColor;
-        }
-        else if (isMine)
-        {
-            // My part → bright green (local player highlight)
-            targetColor = myPartColor;
-        }
-        else
-        {
-            // Other client's part → red tint
-            targetColor = otherPartColor;
-        }
-
-        // ✅ เอาการเช็ค Hover ออก เพื่อให้มันเปลี่ยนเป็นสีเขียวทันทีที่กด (ของเดิมพอกดแล้วสีไม่เปลี่ยนจนกว่าจะเอาเมาส์ออก)
+        // ว่าง = สีปกติ / ของเรา = เขียว / ของคนอื่น = แดง — เปลี่ยนทันทีที่กด ไม่รอเอาเมาส์ออก
+        Color targetColor = !isTaken ? unassignedColor : isMine ? myPartColor : otherPartColor;
         TweenPartColor(img, targetColor, colorFadeDuration);
     }
 
@@ -812,269 +556,6 @@ public class LobbyManager : NetworkBehaviour
         3 => "Right Leg",
         _ => "?"
     };
-
-    // ================================================================
-    //  Player Name Sync
-    // ================================================================
-
-    private int FindPlayerIndex(ulong clientId)
-    {
-        for (int i = 0; i < connectedClients.Count; i++)
-        {
-            if (connectedClients[i].clientId == clientId)
-                return i;
-        }
-        return -1;
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    private void SubmitPlayerNameServerRpc(string playerName, string playerId, ServerRpcParams rpcParams = default)
-    {
-        ulong senderId = rpcParams.Receive.SenderClientId;
-
-        // 🛡️ Server-side validation: ชื่อว่าง → default, ยาวเกิน → ตัด (FixedString64 จุจำกัด)
-        if (string.IsNullOrWhiteSpace(playerName)) playerName = "Player";
-        playerName = playerName.Trim();
-        if (playerName.Length > 20) playerName = playerName.Substring(0, 20);
-
-        if (playerId == null) playerId = string.Empty;
-        if (playerId.Length > 60) playerId = playerId.Substring(0, 60);
-
-        // ── [Reconnect] คนนี้เคยอยู่ในห้องแล้วหลุดไปหรือเปล่า ──
-        int previous = FindPlayerIndexByPlayerId(playerId);
-        if (!string.IsNullOrEmpty(playerId) && previous >= 0 &&
-            connectedClients[previous].clientId != senderId)
-        {
-            LobbyPlayer old = connectedClients[previous];
-
-            // ย้ายชิ้นส่วนที่กันไว้มาผูกกับ clientId ใหม่
-            for (int i = 0; i < limbOwners.Count; i++)
-                if (limbOwners[i] == old.clientId) limbOwners[i] = senderId;
-
-            old.clientId = senderId;
-            old.playerName = playerName;
-            old.connected = true;
-            connectedClients[previous] = old;
-
-            seatExpiry.Remove(playerId);
-
-            // ลบ entry ซ้ำที่ OnClientConnected เพิ่งใส่ไว้ให้ clientId ใหม่
-            for (int i = connectedClients.Count - 1; i >= 0; i--)
-                if (i != previous && connectedClients[i].clientId == senderId)
-                    connectedClients.RemoveAt(i);
-
-            Debug.Log($"[Lobby] ✅ playerId {playerId} กลับเข้าห้องแล้ว — คืนชิ้นส่วนเดิมให้ Client {senderId}");
-            return;
-        }
-
-        int index = FindPlayerIndex(senderId);
-        if (index < 0)
-        {
-            // RPC มาถึงก่อน callback connect (กันเหนียว) — เพิ่มเข้าลิสต์เลย
-            connectedClients.Add(new LobbyPlayer
-            {
-                clientId = senderId,
-                playerName = playerName,
-                playerId = playerId,
-                connected = true
-            });
-            return;
-        }
-
-        LobbyPlayer entry = connectedClients[index];
-        entry.playerName = playerName;
-        entry.playerId = playerId;
-        entry.connected = true;
-        connectedClients[index] = entry; // เขียนทับ index เดิม → OnListChanged ยิง → UI refresh ทุกเครื่อง
-    }
-
-    // ================================================================
-    //  Select Part — Send to Server to check availability
-    // ================================================================
-
-    [ServerRpc(RequireOwnership = false)]
-    public void RequestLimbServerRpc(int index, ServerRpcParams rpcParams = default)
-    {
-        // Server-side validation — never trust an index coming from a client
-        if (index < 0 || index >= limbOwners.Count)
-        {
-            Debug.LogWarning($"[Server] Rejected invalid limb index {index} from Client {rpcParams.Receive.SenderClientId}");
-            return;
-        }
-
-        ulong clientId = rpcParams.Receive.SenderClientId;
-
-        // ถ้าอันที่กดอยู่แล้วของคนอื่น → ไม่ทำอะไร
-        if (limbOwners[index] != ulong.MaxValue && limbOwners[index] != clientId)
-        {
-            Debug.Log($"[Server] Part {index} already reserved by Client {limbOwners[index]}");
-            return;
-        }
-
-        // ยกเลิกอันเก่าของตัวเองก่อน (ถ้าเคยจองไว้)
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] == clientId)
-            {
-                limbOwners[i] = ulong.MaxValue;
-                Debug.Log($"[Server] Client {clientId} released Part {i}");
-                break;
-            }
-        }
-
-        // จองอันใหม่
-        limbOwners[index] = clientId;
-        Debug.Log($"[Server] Client {clientId} reserved Part {index}");
-    }
-
-    // ================================================================
-    //  Host clicks Start — ปิด Panel + Unfreeze (ไม่มี LoadScene)
-    // ================================================================
-
-    private void OnStartButtonClicked()
-    {
-        if (!IsServer) return;
-        if (startButton != null) startButton.interactable = false;
-
-        netGameStarted.Value = true; // ปลดล็อก UI ในเกม (Player HUD) ทุกเครื่อง
-
-        ResolveActiveRobot(); // การันตีว่าโอน ownership ให้หุ่นตัวที่ active จริง
-
-        // --- NEW: Transfer ownership to the players who selected the limbs ---
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] != ulong.MaxValue)
-            {
-                GameObject targetLimb = GetLimbByIndex(i);
-                if (targetLimb != null)
-                {
-                    NetworkObject no = targetLimb.GetComponent<NetworkObject>();
-                    if (no != null) no.ChangeOwnership(limbOwners[i]);
-                }
-            }
-        }
-
-        // ยิง ClientRpc ไปทุกคนพร้อมกัน:
-        // 1. Assign limb → player
-        // 2. ปิด selectionPanel (animated)
-        // 3. Unfreeze physics → เกมเริ่ม
-        StartGameClientRpc();
-
-        Debug.Log("[Server] Game started — panel closed, physics unfrozen, ownership transferred.");
-    }
-
-    // ================================================================
-    //  Start Game — runs on ALL Clients (including Host)
-    // ================================================================
-
-    [ClientRpc]
-    void StartGameClientRpc()
-    {
-        // Assign limb → player ก่อน (retry เผื่อ PlayerObject spawn ไม่ทัน)
-        StartCoroutine(AssignLimbsThenUnfreeze());
-    }
-
-    private IEnumerator AssignLimbsThenUnfreeze(int maxAttempts = 10, float retryDelay = 0.2f)
-    {
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            bool allResolved = TryAssignAllLimbs();
-
-            if (allResolved)
-            {
-                Debug.Log("[Client] All limbs assigned.");
-                break;
-            }
-
-            Debug.Log($"[Client] Limb assign attempt {attempt + 1}/{maxAttempts} — retrying...");
-            yield return new WaitForSeconds(retryDelay);
-        }
-
-        // ปิด Panel + Unfreeze (animated fade-out instead of instant)
-        if (selectionPanel != null)
-            SetVisibleAnimated(selectionPanel, false);
-
-        UnfreezeAllPhysics();
-
-        // เริ่มแสดงบทสอนเล่น (Tutorial) ตามตำแหน่ง แขน/ขา ของผู้เล่น
-        if (TutorialManager.Instance != null && Unity.Netcode.NetworkManager.Singleton != null)
-        {
-            int localLimbIndex = -1;
-            ulong localClientId = Unity.Netcode.NetworkManager.Singleton.LocalClientId;
-            for (int i = 0; i < limbOwners.Count; i++)
-            {
-                if (limbOwners[i] == localClientId)
-                {
-                    localLimbIndex = i;
-                    break;
-                }
-            }
-
-            if (localLimbIndex != -1)
-            {
-                TutorialManager.LimbRole role = localLimbIndex >= 2 ? TutorialManager.LimbRole.Leg : TutorialManager.LimbRole.Arm;
-                TutorialManager.Instance.SetRole(role);
-                TutorialManager.Instance.StartTutorial();
-                Debug.Log($"[Client] Tutorial started automatically for local limb {localLimbIndex} ({role}).");
-            }
-        }
-    }
-
-    private bool TryAssignAllLimbs()
-    {
-        ResolveActiveRobot(); // ฝั่ง client ก็ต้องชี้หุ่นตัวเดียวกับ server ก่อนเสียบกล้อง
-
-        bool allDone = true;
-
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] == ulong.MaxValue) continue;
-
-            ulong ownerId  = limbOwners[i];
-            GameObject playerObj = GetPlayerObject(ownerId);
-
-            if (playerObj == null)
-            {
-                allDone = false;
-                continue;
-            }
-
-            GameObject targetLimb = GetLimbByIndex(i);
-            if (targetLimb == null) continue;
-
-            // Only the specific client who owns this limb sets up their local camera
-            if (ownerId == NetworkManager.Singleton.LocalClientId)
-            {
-                Camera playerCam = playerObj.GetComponentInChildren<Camera>();
-                if (playerCam == null) playerCam = Camera.main; // fallback
-                
-                // Tell the PlayerCam to orbit the assigned limb
-                var camScript = playerObj.GetComponent<PlayerCam>();
-                if (camScript != null) camScript.followTarget = targetLimb.transform;
-                
-                if (i >= 2) // Legs
-                {
-                    var footMovement = targetLimb.GetComponent<PlayerFootForRobot>();
-                    if (footMovement != null)
-                    {
-                        footMovement.playerCamera = playerCam;
-                        footMovement.enabled = true;
-                    }
-                }
-                else // Arms
-                {
-                    var handMovement = targetLimb.GetComponent<PlayerHandMovement>();
-                    if (handMovement != null)
-                    {
-                        handMovement.playerCamera = playerCam;
-                        handMovement.enabled = true;
-                    }
-                }
-            }
-        }
-
-        return allDone;
-    }
 
     // ================================================================
     //  DOTween UI Transitions (ported from OnlineNetworkUI.cs)
@@ -1349,185 +830,5 @@ public class LobbyManager : NetworkBehaviour
                 runningTween.Kill(false);
         }
         runningUiTweens.Clear();
-    }
-
-    // ================================================================
-    //  Freeze / Unfreeze Physics
-    // ================================================================
-
-    private void FreezeAllPhysics()
-    {
-        if (robotContainer == null) return;
-        foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
-        {
-            rigid.isKinematic = true;
-            rigid.Sleep();
-        }
-        Debug.Log("[Lobby] Physics frozen.");
-    }
-
-    private void UnfreezeAllPhysics()
-    {
-        if (robotContainer == null) return;
-
-        // ✅ [Client Leg Collapse Fix] ฟิสิกส์หุ่นเป็น server-authoritative ทั้งหมด
-        // (FixedUpdate ของเท้า/ลำตัวรันเฉพาะ server) — เดิมปลด kinematic "ทุกชิ้นทุกเครื่อง"
-        // ทำให้ฝั่ง Client มีฟิสิกส์ท้องถิ่นรันแข่งกับตำแหน่งที่ NetworkTransform ยัดมาจาก server
-        // → ขาย้วย/สั่น/พับบนจอ Client แล้ว input (pivot เพี้ยน) ป้อนกลับไปทำหุ่นล้มจริงบน server
-        //
-        // ใหม่: Server = dynamic ทุกชิ้น (จำลองจริง)
-        //       Client = ชิ้นที่มี NetworkTransform (เท้า/ลำตัว) เป็น kinematic ให้ sync พาไป
-        //                ท่อนขากลางที่ไม่ได้ sync ปล่อย dynamic ให้ joint ลากตามชิ้นที่ sync
-        bool isServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
-
-        foreach (var rigid in robotContainer.GetComponentsInChildren<Rigidbody>())
-        {
-            bool drivenByNetwork = !isServer && rigid.GetComponent<NetworkTransform>() != null;
-            rigid.isKinematic = drivenByNetwork;
-            if (!drivenByNetwork) rigid.WakeUp();
-        }
-        Debug.Log($"[Lobby] Physics unfrozen — Game running! ({(isServer ? "Server: full simulation" : "Client: network-driven bodies kinematic")})");
-    }
-
-    // ================================================================
-    //  Helpers
-    // ================================================================
-
-    private GameObject GetLimbByIndex(int index)
-    {
-        return index switch { 0 => leftArm, 1 => rightArm, 2 => leftLeg, 3 => rightLeg, _ => null };
-    }
-
-    /// <summary>
-    /// ให้ระบบอื่น (เช่น Player HUD) รู้ว่า client คนหนึ่งเลือกคุมชิ้นไหน
-    /// คืน 0=แขนซ้าย 1=แขนขวา 2=ขาซ้าย 3=ขาขวา หรือ -1 ถ้ายังไม่ได้เลือก
-    /// (ownership อย่างเดียวเชื่อไม่ได้ — Host เป็นเจ้าของชิ้นที่ไม่มีใครเลือกโดย default)
-    /// </summary>
-    public int GetSelectedLimbIndex(ulong clientId)
-    {
-        for (int i = 0; i < limbOwners.Count; i++)
-        {
-            if (limbOwners[i] == clientId)
-                return i;
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// Returns the exact runtime limb selected by this client. This is safer
-    /// than rebuilding the mapping elsewhere because the lobby presents the
-    /// robot from the front and intentionally mirrors left/right labels.
-    /// </summary>
-    public GameObject GetSelectedLimbForClient(ulong clientId)
-    {
-        return GetLimbByIndex(GetSelectedLimbIndex(clientId));
-    }
-
-    /// <summary>
-    /// Returns true only when this exact limb is the one selected by the client
-    /// in the lobby. Network ownership alone is not enough because the Host owns
-    /// every unassigned limb by default.
-    /// </summary>
-    /// <summary>ชิ้นส่วน index นี้เป็นของเครื่องเราอยู่ไหม — ใช้ตรวจว่า reconnect คืนของถูกคน</summary>
-    public bool IsLimbIndexOwnedByLocal(int index)
-    {
-        if (index < 0 || index >= limbOwners.Count) return false;
-        if (NetworkManager.Singleton == null) return false;
-        return limbOwners[index] == NetworkManager.Singleton.LocalClientId;
-    }
-
-    public bool IsLimbSelectedByClient(GameObject limb, ulong clientId)
-    {
-        if (limb == null)
-            return false;
-
-        return GetSelectedLimbForClient(clientId) == limb;
-    }
-
-    [Header("Robot Auto-Management")]
-    [Tooltip("ปิดหุ่นตัวเกินในฉากอัตโนมัติตอนเริ่มเกม เหลือเฉพาะตัวที่ระบบเลือกใช้\n" +
-             "จะได้ก็อป/ย้าย/ทดลองหุ่นหลายตัวในฉากได้โดยไม่ต้องนั่งปิดเอง")]
-    public bool autoDisableExtraRobots = true;
-
-    // ✅ [Auto Disable] ถอดหุ่นตัวเกินออกจากเกม (server เท่านั้น)
-    // ตัวที่ถูกเลือกโดย ResolveActiveRobot = ตัวจริง / ตัวอื่นที่ active ค้าง = ถูกถอด
-    private void DisableExtraRobots()
-    {
-        if (!autoDisableExtraRobots || robotContainer == null) return;
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
-
-        foreach (var torso in FindObjectsByType<TorsoMovement>(FindObjectsSortMode.None))
-        {
-            GameObject root = torso.transform.root.gameObject;
-            if (root == robotContainer) continue;
-
-            // ถอดจาก network ก่อน (ให้ client ทุกเครื่องเห็นตรงกัน) แล้วค่อยปิด
-            foreach (var no in root.GetComponentsInChildren<NetworkObject>(true))
-                if (no.IsSpawned) no.Despawn(false);
-
-            root.SetActive(false);
-            Debug.Log($"[Lobby] 🤖 ปิดหุ่นตัวเกินอัตโนมัติ: {root.name}");
-        }
-    }
-
-    // ✅ [Dynamic Robot Resolve] หา "หุ่นตัวที่ active จริง" ตอนรันไทม์
-    // แก้ปัญหา: ย้าย/ก็อป/สลับตัวหุ่นในฉากแล้ว reference เดิมยังชี้ตัวเก่าที่ปิดอยู่
-    // → freeze/ownership/กล้อง ไปลงหุ่นผิดตัวที่ตำแหน่งเดิม (อาการ "spawn ไม่ตรง")
-    private void ResolveActiveRobot()
-    {
-        // ถ้า container เดิมตาย/ถูกปิด → หาใหม่จาก TorsoMovement ที่ active อยู่
-        if (robotContainer == null || !robotContainer.activeInHierarchy)
-        {
-            TorsoMovement torso = FindFirstObjectByType<TorsoMovement>();
-            if (torso != null) robotContainer = torso.transform.root.gameObject;
-        }
-        if (robotContainer == null)
-        {
-            Debug.LogWarning("[Lobby] ไม่พบหุ่นที่ active ในฉากเลย!");
-            return;
-        }
-
-        // ถ้าช่องชิ้นส่วนยังชี้ของ active ครบทุกช่อง ก็ไม่ต้องทำอะไร
-        bool limbsValid = leftArm  != null && leftArm.activeInHierarchy  &&
-                          rightArm != null && rightArm.activeInHierarchy &&
-                          leftLeg  != null && leftLeg.activeInHierarchy  &&
-                          rightLeg != null && rightLeg.activeInHierarchy;
-        if (limbsValid) return;
-
-        // จับคู่ใหม่จากชิ้นส่วนของหุ่นตัวที่ active — ใช้ convention เดิมตามที่ต่อไว้ใน Inspector
-        // (มุมมอง UI หันหน้าเข้าหาผู้เล่น: ช่อง leftArm = มือขวาของหุ่น ฯลฯ)
-        foreach (var hand in robotContainer.GetComponentsInChildren<PlayerHandMovement>(true))
-        {
-            string n = hand.gameObject.name;
-            if (n.Contains("_R") || n.Contains("Right"))     leftArm  = hand.gameObject;
-            else if (n.Contains("_L") || n.Contains("Left")) rightArm = hand.gameObject;
-        }
-        foreach (var foot in robotContainer.GetComponentsInChildren<PlayerFootForRobot>(true))
-        {
-            string n = foot.gameObject.name;
-            if (n.Contains("_R") || n.Contains("Right"))     leftLeg  = foot.gameObject;
-            else if (n.Contains("_L") || n.Contains("Left")) rightLeg = foot.gameObject;
-        }
-
-        Debug.Log($"[Lobby] Resolved robot '{robotContainer.name}' | L.ARM→{(leftArm ? leftArm.name : "?")} " +
-                  $"R.ARM→{(rightArm ? rightArm.name : "?")} L.LEG→{(leftLeg ? leftLeg.name : "?")} R.LEG→{(rightLeg ? rightLeg.name : "?")}");
-    }
-
-    private GameObject GetPlayerObject(ulong clientId)
-    {
-        if (clientId == NetworkManager.Singleton.LocalClientId)
-        {
-            if (NetworkManager.Singleton.LocalClient?.PlayerObject != null)
-                return NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
-        }
-
-        foreach (var netObj in NetworkManager.Singleton.SpawnManager.SpawnedObjectsList)
-        {
-            if (netObj.IsPlayerObject && netObj.OwnerClientId == clientId)
-                return netObj.gameObject;
-        }
-
-        return null;
     }
 }

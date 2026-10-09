@@ -1,0 +1,938 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4280 2776" width="4280" height="2776" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>Class diagram ทั้งระบบ (ข้อเสนอ)</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="417.9" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด · ป้าย {เดิม: X} คือคลาสในโค้ดตอนนี้ที่ส่วนนี้มาจาก</text><text x="477.90220000000045" y="25" font-size="11" fill="#BDBDBD">เส้นมีแบบเดียว: ลูกศร = ใช้หรือถืออ้างอิงคลาสที่ลูกศรชี้ · หัวลูกศรสองข้าง = อ้างถึงกัน · ชื่อแบบ A : B = A สืบทอดหรือ implement B · enum และ struct ไม่ลากเส้น (ดูชนิดในสมาชิก) · เส้นโค้ง = แค่ผ่านกัน</text></g>
+<g transform="translate(0,36)">
+<polyline points="1900,1290 1830,1290" fill="none" stroke="#E3E3E3"/><polyline points="1840.0,1285.0 1830,1290 1840.0,1295.0" fill="none" stroke="#E3E3E3"/><polyline points="1890.0,1295.0 1900,1290 1890.0,1285.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2380,1290 2480,1290" fill="none" stroke="#E3E3E3"/><polyline points="2470.0,1295.0 2480,1290 2470.0,1285.0" fill="none" stroke="#E3E3E3"/><polyline points="2390.0,1285.0 2380,1290 2390.0,1295.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2500,1401 2500,1640 2305,1640" fill="none" stroke="#E3E3E3"/><polyline points="2315.0,1635.0 2305,1640 2315.0,1645.0" fill="none" stroke="#E3E3E3"/><polyline points="2505.0,1411.0 2500,1401 2495.0,1411.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2560,1401 2560,1820" fill="none" stroke="#E3E3E3"/><polyline points="2555.0,1810.0 2560,1820 2565.0,1810.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2700,1401 2700,1760 2850,1760 2850,1820" fill="none" stroke="#E3E3E3"/><polyline points="2845.0,1810.0 2850,1820 2855.0,1810.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2840,1130 2360,1130 2360,1160" fill="none" stroke="#E3E3E3"/><polyline points="2355.0,1150.0 2360,1160 2365.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1560,1290 1520,1290" fill="none" stroke="#E3E3E3"/><polyline points="1530.0,1285.0 1520,1290 1530.0,1295.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1810,1463 1810,1780 1960,1780 1960,1820" fill="none" stroke="#E3E3E3"/><polyline points="1955.0,1810.0 1960,1820 1965.0,1810.0" fill="none" stroke="#E3E3E3"/><polyline points="1815.0,1473.0 1810,1463 1805.0,1473.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1575,1463 1575,1820" fill="none" stroke="#E3E3E3"/><polyline points="1570.0,1810.0 1575,1820 1580.0,1810.0" fill="none" stroke="#E3E3E3"/><polyline points="1580.0,1473.0 1575,1463 1570.0,1473.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1700,1463 1700,1820" fill="none" stroke="#E3E3E3"/><polyline points="1695.0,1810.0 1700,1820 1705.0,1810.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1140,1798 1140,2460 1600,2460" fill="none" stroke="#E3E3E3"/><polyline points="1590.0,2465.0 1600,2460 1590.0,2455.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2300,2003 2300,2480 1800,2480" fill="none" stroke="#E3E3E3"/><polyline points="1810.0,2475.0 1800,2480 1810.0,2485.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1250,1650 1660,1650 1660,1820" fill="none" stroke="#E3E3E3"/><polyline points="1655.0,1810.0 1660,1820 1665.0,1810.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1250,1700 1460,1700 1460,1820" fill="none" stroke="#E3E3E3"/><polyline points="1455.0,1810.0 1460,1820 1465.0,1810.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2220,1920 2160,1920" fill="none" stroke="#E3E3E3"/><polyline points="2170.0,1915.0 2160,1920 2170.0,1925.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1590,1900 1640,1900" fill="none" stroke="#E3E3E3"/><polyline points="1630.0,1905.0 1640,1900 1630.0,1895.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1430,2120 1430,2043" fill="none" stroke="#E3E3E3"/><polyline points="1435.0,2053.0 1430,2043 1425.0,2053.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2040,2160 2040,2103" fill="none" stroke="#E3E3E3"/><polyline points="2045.0,2113.0 2040,2103 2035.0,2113.0" fill="none" stroke="#E3E3E3"/><polyline points="2035.0,2150.0 2040,2160 2045.0,2150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2900,1421 2900,1500" fill="none" stroke="#E3E3E3"/><polyline points="2895.0,1490.0 2900,1500 2905.0,1490.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3080,1421 3080,1500" fill="none" stroke="#E3E3E3"/><polyline points="3075.0,1490.0 3080,1500 3085.0,1490.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3110,1340 3200,1340 3200,1145 3370,1145" fill="none" stroke="#E3E3E3"/><polyline points="3360.0,1150.0 3370,1145 3360.0,1140.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3250,2100 3335,2100 3335,1210 3370,1210" fill="none" stroke="#E3E3E3"/><polyline points="3360.0,1215.0 3370,1210 3360.0,1205.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2800,678 2800,1040 3420,1040 3420,1120" fill="none" stroke="#E3E3E3"/><polyline points="3415.0,1110.0 3420,1120 3425.0,1110.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2990,380 3480,380 3480,1120" fill="none" stroke="#E3E3E3"/><polyline points="3475.0,1110.0 3480,1120 3485.0,1110.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3680,1170 3760,1170" fill="none" stroke="#E3E3E3"/><polyline points="3750.0,1175.0 3760,1170 3750.0,1165.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3500,1223 3500,1300" fill="none" stroke="#E3E3E3"/><polyline points="3495.0,1290.0 3500,1300 3505.0,1290.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2840,1190 2740,1190" fill="none" stroke="#E3E3E3"/><polyline points="2750.0,1185.0 2740,1190 2750.0,1195.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="990,130 945,130 945,230 900,230" fill="none" stroke="#E3E3E3"/><polyline points="910.0,225.0 900,230 910.0,235.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="990,300 900,300" fill="none" stroke="#E3E3E3"/><polyline points="910.0,295.0 900,300 910.0,305.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="990,480 945,480 945,380 900,380" fill="none" stroke="#E3E3E3"/><polyline points="910.0,375.0 900,380 910.0,385.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="860,200 860,18 3820,18 3820,1120" fill="none" stroke="#E3E3E3"/><polyline points="3815.0,1110.0 3820,1120 3825.0,1110.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="760,620 760,408" fill="none" stroke="#E3E3E3"/><polyline points="765.0,418.0 760,408 755.0,418.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1080,700 1000,700" fill="none" stroke="#E3E3E3"/><polyline points="1010.0,695.0 1000,700 1010.0,705.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="820,860 820,783" fill="none" stroke="#E3E3E3"/><polyline points="825.0,793.0 820,783 815.0,793.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="940,930 1060,930" fill="none" stroke="#E3E3E3"/><polyline points="1050.0,935.0 1060,930 1050.0,925.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="580,300 680,300" fill="none" stroke="#E3E3E3"/><polyline points="670.0,305.0 680,300 670.0,295.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="320,300 230,300" fill="none" stroke="#E3E3E3"/><polyline points="240.0,295.0 230,300 240.0,305.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="160,353 160,410" fill="none" stroke="#E3E3E3"/><polyline points="155.0,400.0 160,410 165.0,400.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="160,250 160,196" fill="none" stroke="#E3E3E3"/><polyline points="165.0,206.0 160,196 155.0,206.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3600,2340 3600,2258" fill="none" stroke="#E3E3E3"/><polyline points="3605.0,2268.0 3600,2258 3595.0,2268.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3780,2258 3780,2400 3960,2400" fill="none" stroke="#E3E3E3"/><polyline points="3950.0,2405.0 3960,2400 3950.0,2395.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="4040,2340 4040,2253" fill="none" stroke="#E3E3E3"/><polyline points="4045.0,2263.0 4040,2253 4035.0,2263.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3600,2473 3600,2560" fill="none" stroke="#E3E3E3"/><polyline points="3595.0,2550.0 3600,2560 3605.0,2550.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3740,2080 3740,1993" fill="none" stroke="#E3E3E3"/><polyline points="3745.0,2003.0 3740,1993 3735.0,2003.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3850,1920 3900,1920" fill="none" stroke="#E3E3E3"/><polyline points="3890.0,1925.0 3900,1920 3890.0,1915.0" fill="none" stroke="#E3E3E3"/><polyline points="3860.0,1915.0 3850,1920 3860.0,1925.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="4040,2041 4040,2120" fill="none" stroke="#E3E3E3"/><polyline points="4035.0,2110.0 4040,2120 4045.0,2110.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3690,2610 4240,2610 4240,2200 4120,2200" fill="none" stroke="#E3E3E3"/><polyline points="4130.0,2195.0 4120,2200 4130.0,2205.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3150,2290 3150,2196" fill="none" stroke="#E3E3E3"/><polyline points="3155.0,2206.0 3150,2196 3145.0,2206.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3250,1880 3250,1180 3370,1180" fill="none" stroke="#E3E3E3"/><polyline points="3360.0,1185.0 3370,1180 3360.0,1175.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1200,1798 1200,2200 1320,2200" fill="none" stroke="#E3E3E3"/><polyline points="1310.0,2205.0 1320,2200 1310.0,2195.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1100,1798 1100,2600 2600,2600 2600,2043" fill="none" stroke="#E3E3E3"/><polyline points="2605.0,2053.0 2600,2043 2595.0,2053.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2240,2003 2240,2250 2160,2250" fill="none" stroke="#E3E3E3"/><polyline points="2170.0,2245.0 2160,2250 2170.0,2255.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2390,1920 2460,1920" fill="none" stroke="#E3E3E3"/><polyline points="2450.0,1925.0 2460,1920 2450.0,1915.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="680,885 650,885 650,390 680,390" fill="none" stroke="#E3E3E3"/><polyline points="670.0,395.0 680,390 670.0,385.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="680,950 540,950" fill="none" stroke="#E3E3E3"/><polyline points="550.0,945.0 540,950 550.0,955.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1125,986 1125,1085 1955,1085 1955,1160" fill="none" stroke="#E3E3E3"/><polyline points="1950.0,1150.0 1955,1160 1960.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1250,90 2260,90" fill="none" stroke="#E3E3E3"/><polyline points="2250.0,95.0 2260,90 2250.0,85.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1250,160 2200,160 2200,1160" fill="none" stroke="#E3E3E3"/><polyline points="2195.0,1150.0 2200,1160 2205.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1150,330 2165,330 2165,1160" fill="none" stroke="#E3E3E3"/><polyline points="2160.0,1150.0 2165,1160 2170.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1250,520 2130,520 2130,1160" fill="none" stroke="#E3E3E3"/><polyline points="2125.0,1150.0 2130,1160 2135.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="610,680 680,680" fill="none" stroke="#E3E3E3"/><polyline points="670.0,685.0 680,680 670.0,675.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1650,950 2025,950 2025,1160" fill="none" stroke="#E3E3E3"/><polyline points="2020.0,1150.0 2025,1160 2030.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2490,440 2620,440 2620,560" fill="none" stroke="#E3E3E3"/><polyline points="2615.0,550.0 2620,560 2625.0,550.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2380,300 2380,193" fill="none" stroke="#E3E3E3"/><polyline points="2385.0,203.0 2380,193 2375.0,203.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2290,463 2290,1160" fill="none" stroke="#E3E3E3"/><polyline points="2285.0,1150.0 2290,1160 2295.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2720,180 2680,180 2680,250 2450,250 2450,300" fill="none" stroke="#E3E3E3"/><polyline points="2445.0,290.0 2450,300 2455.0,290.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2850,208 2850,300" fill="none" stroke="#E3E3E3"/><polyline points="2845.0,290.0 2850,300 2855.0,290.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1450,716 1450,860" fill="none" stroke="#E3E3E3"/><polyline points="1445.0,850.0 1450,860 1455.0,850.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1540,640 1540,600 2095,600 2095,1160" fill="none" stroke="#E3E3E3"/><polyline points="2090.0,1150.0 2095,1160 2100.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1700,746 1700,800 1600,800 1600,860" fill="none" stroke="#E3E3E3"/><polyline points="1595.0,850.0 1600,860 1605.0,850.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1830,700 2060,700 2060,1160" fill="none" stroke="#E3E3E3"/><polyline points="2055.0,1150.0 2060,1160 2065.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="740,1011 740,1580 1120,1580 1120,1620" fill="none" stroke="#E3E3E3"/><polyline points="1115.0,1610.0 1120,1620 1125.0,1610.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="700,1011 700,2700 2360,2700 2360,2003" fill="none" stroke="#E3E3E3"/><polyline points="2365.0,2013.0 2360,2003 2355.0,2013.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="900,1011 900,1110 1920,1110 1920,1160" fill="none" stroke="#E3E3E3"/><polyline points="1915.0,1150.0 1920,1160 1925.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2010,1416 2010,1530" fill="none" stroke="#E3E3E3"/><polyline points="2005.0,1520.0 2010,1530 2015.0,1520.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="1000,770 1330,770 1330,1060 1990,1060 1990,1160" fill="none" stroke="#E3E3E3"/><polyline points="1985.0,1150.0 1990,1160 1995.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2740,421 2740,500 2325,500 2325,1160" fill="none" stroke="#E3E3E3"/><polyline points="2320.0,1150.0 2325,1160 2330.0,1150.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="3820,1860 3820,1223" fill="none" stroke="#E3E3E3"/><polyline points="3825.0,1233.0 3820,1223 3815.0,1233.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="2620,130 2720,130" fill="none" stroke="#E3E3E3"/><polyline points="2710.0,135.0 2720,130 2710.0,125.0" fill="none" stroke="#E3E3E3"/>
+<rect x="1568" y="1648" width="14" height="4" fill="#141414"/>
+<line x1="1575" y1="1647" x2="1575" y2="1653" stroke="#E3E3E3"/>
+<path class="hop" data-at="1575,1650" d="M1569,1650 A6,6 0 0 1 1581,1650" fill="none" stroke="#E3E3E3"/>
+<rect x="2353" y="2598" width="14" height="4" fill="#141414"/>
+<line x1="2360" y1="2597" x2="2360" y2="2603" stroke="#E3E3E3"/>
+<path class="hop" data-at="2360,2600" d="M2354,2600 A6,6 0 0 1 2366,2600" fill="none" stroke="#E3E3E3"/>
+<rect x="643" y="678" width="14" height="4" fill="#141414"/>
+<line x1="650" y1="677" x2="650" y2="683" stroke="#E3E3E3"/>
+<path class="hop" data-at="650,680" d="M644,680 A6,6 0 0 1 656,680" fill="none" stroke="#E3E3E3"/>
+<rect x="2613" y="498" width="14" height="4" fill="#141414"/>
+<line x1="2620" y1="497" x2="2620" y2="503" stroke="#E3E3E3"/>
+<path class="hop" data-at="2620,500" d="M2614,500 A6,6 0 0 1 2626,500" fill="none" stroke="#E3E3E3"/>
+<rect x="1900" y="1160" width="480" height="256" fill="#141414" stroke="#E3E3E3"/>
+<text x="2140" y="1176" text-anchor="middle" font-size="12" font-weight="700">Robot</text>
+<text x="2140" y="1189" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="1900" y1="1197" x2="2380" y2="1197" stroke="#E3E3E3"/>
+<text x="1907" y="1212" font-size="11">+ Team : Team</text>
+<text x="1907" y="1227" font-size="11">- torso : TorsoBalance</text>
+<text x="1907" y="1242" font-size="11">- limbs : RobotLimb[4]</text>
+<text x="1907" y="1257" font-size="11">+ LimbStateChanged : event</text>
+<text x="1907" y="1272" font-size="11">+ All : IReadOnlyList&lt;Robot&gt; {static}</text>
+<line x1="1900" y1="1284" x2="2380" y2="1284" stroke="#E3E3E3"/>
+<text x="1907" y="1303" font-size="11">+ GetLimb(slot : LimbSlot) : RobotLimb</text>
+<text x="1907" y="1318" font-size="11">+ Limbs() : IEnumerable&lt;RobotLimb&gt;</text>
+<text x="1907" y="1333" font-size="11">+ DetachedCount() : int</text>
+<text x="1907" y="1348" font-size="11">+ SetSimulationEnabled(on : bool) : void</text>
+<text x="1907" y="1363" font-size="11">+ ServerResetForRespawn(spawn : Pose) : void</text>
+<text x="1907" y="1378" font-size="11">+ FromCollider(hit : Collider) : Robot {static}</text>
+<text x="1907" y="1393" font-size="11">- OnLimbStateChanged(limb : RobotLimb) : void</text>
+<text x="1907" y="1408" font-size="11">+ ServerKnockDown(reason : FallReason) : void</text>
+<rect x="2870" y="2280" width="150" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="2945" y="2295" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2945" y="2309" text-anchor="middle" font-size="12" font-weight="700">LimbSlot</text>
+<text x="2945" y="2322" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LimbStatusUI.LimbSlot}</text>
+<line x1="2870" y1="2329" x2="3020" y2="2329" stroke="#E3E3E3"/>
+<text x="2877" y="2344" font-size="11">LeftArm</text>
+<text x="2877" y="2359" font-size="11">RightArm</text>
+<text x="2877" y="2374" font-size="11">LeftLeg</text>
+<text x="2877" y="2389" font-size="11">RightLeg</text>
+<line x1="2870" y1="2401" x2="3020" y2="2401" stroke="#E3E3E3"/>
+<rect x="2480" y="1160" width="260" height="241" fill="#141414" stroke="#E3E3E3"/>
+<text x="2610" y="1176" text-anchor="middle" font-size="12" font-weight="700">RobotLimb : IDamageable</text>
+<text x="2610" y="1189" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="2480" y1="1197" x2="2740" y2="1197" stroke="#E3E3E3"/>
+<text x="2487" y="1212" font-size="11">- slot : LimbSlot</text>
+<text x="2487" y="1227" font-size="11">- owner : Robot</text>
+<text x="2487" y="1242" font-size="11">- attachment : LimbAttachment</text>
+<text x="2487" y="1257" font-size="11">- health : LimbHealth</text>
+<text x="2487" y="1272" font-size="11">- controller : LimbController</text>
+<text x="2487" y="1287" font-size="11">+ IsAttached : bool</text>
+<text x="2487" y="1302" font-size="11">+ StateChanged : event</text>
+<line x1="2480" y1="1314" x2="2740" y2="1314" stroke="#E3E3E3"/>
+<text x="2487" y="1333" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="2487" y="1348" font-size="11">+ ServerForceDetach() : void</text>
+<text x="2487" y="1363" font-size="11">- OnHealthDepleted() : void</text>
+<text x="2487" y="1378" font-size="11">- OnAttachmentChanged(attached : bool) : void</text>
+<text x="2487" y="1393" font-size="11">+ CurrentJoint() : ConfigurableJoint</text>
+<rect x="2460" y="1820" width="220" height="223" fill="#141414" stroke="#E3E3E3"/>
+<text x="2570" y="1835" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2570" y="1849" text-anchor="middle" font-size="12" font-weight="700">LimbAttachment</text>
+<text x="2570" y="1862" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: JointPullAndReconnect}</text>
+<line x1="2460" y1="1869" x2="2680" y2="1869" stroke="#E3E3E3"/>
+<text x="2467" y="1884" font-size="11">- isAttached : NetworkVariable&lt;bool&gt;</text>
+<text x="2467" y="1899" font-size="11">- socket : Rigidbody</text>
+<text x="2467" y="1914" font-size="11">- savedJoint : SavedJointSettings</text>
+<text x="2467" y="1929" font-size="11">- reconnectCooldown : float = 3</text>
+<text x="2467" y="1944" font-size="11">- reconnectDistance : float = 2</text>
+<text x="2467" y="1959" font-size="11">+ IsAttached : bool</text>
+<text x="2467" y="1974" font-size="11">+ AttachmentChanged : event</text>
+<line x1="2460" y1="1986" x2="2680" y2="1986" stroke="#E3E3E3"/>
+<text x="2467" y="2005" font-size="11">+ ServerDetach() : void</text>
+<text x="2467" y="2020" font-size="11">+ RequestPullBackRpc(held : bool) : void</text>
+<text x="2467" y="2035" font-size="11">- ServerReconnect() : void</text>
+<rect x="2640" y="2280" width="200" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="2740" y="2295" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="2740" y="2309" text-anchor="middle" font-size="12" font-weight="700">SavedJointSettings</text>
+<text x="2740" y="2322" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: SavedConfigurableJointSettings}</text>
+<line x1="2640" y1="2329" x2="2840" y2="2329" stroke="#E3E3E3"/>
+<text x="2647" y="2344" font-size="11">+ anchor, connectedAnchor : Vector3</text>
+<text x="2647" y="2359" font-size="11">+ axis, secondaryAxis : Vector3</text>
+<text x="2647" y="2374" font-size="11">+ motions, limits, drives</text>
+<line x1="2640" y1="2386" x2="2840" y2="2386" stroke="#E3E3E3"/>
+<rect x="2740" y="1820" width="230" height="208" fill="#141414" stroke="#E3E3E3"/>
+<text x="2855" y="1835" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2855" y="1849" text-anchor="middle" font-size="12" font-weight="700">LimbHealth</text>
+<text x="2855" y="1862" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: RobotHealth}</text>
+<line x1="2740" y1="1869" x2="2970" y2="1869" stroke="#E3E3E3"/>
+<text x="2747" y="1884" font-size="11">- hp : NetworkVariable&lt;float&gt;</text>
+<text x="2747" y="1899" font-size="11">- maxHp : NetworkVariable&lt;float&gt;</text>
+<text x="2747" y="1914" font-size="11">+ Depleted : event</text>
+<text x="2747" y="1929" font-size="11">+ Hp : float</text>
+<text x="2747" y="1944" font-size="11">+ MaxHp : float</text>
+<line x1="2740" y1="1956" x2="2970" y2="1956" stroke="#E3E3E3"/>
+<text x="2747" y="1975" font-size="11">+ ServerTakeDamage(amount : float) : void</text>
+<text x="2747" y="1990" font-size="11">+ ServerDeplete() : void</text>
+<text x="2747" y="2005" font-size="11">+ ServerRefill() : void</text>
+<text x="2747" y="2020" font-size="11">- Regenerate() : void</text>
+<rect x="3370" y="1300" width="260" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="3500" y="1315" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Interface&gt;&gt;</text>
+<text x="3500" y="1329" text-anchor="middle" font-size="12" font-weight="700">IDamageable</text>
+<text x="3500" y="1342" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: IHittable}</text>
+<line x1="3370" y1="1349" x2="3630" y2="1349" stroke="#E3E3E3"/>
+<line x1="3370" y1="1361" x2="3630" y2="1361" stroke="#E3E3E3"/>
+<text x="3377" y="1380" font-size="11">+ Kind() : DamageTargetKind</text>
+<text x="3377" y="1395" font-size="11">+ Team() : Team</text>
+<text x="3377" y="1410" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<rect x="2840" y="1110" width="260" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="2970" y="1126" text-anchor="middle" font-size="12" font-weight="700">RobotBodyDamageRelay : IDamageable</text>
+<text x="2970" y="1139" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PvpRobotTeam}</text>
+<line x1="2840" y1="1147" x2="3100" y2="1147" stroke="#E3E3E3"/>
+<text x="2847" y="1162" font-size="11">- robot : Robot</text>
+<line x1="2840" y1="1174" x2="3100" y2="1174" stroke="#E3E3E3"/>
+<text x="2847" y="1193" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="2847" y="1208" font-size="11">- NearestAttachedLimb(p : Vector3) : RobotLimb</text>
+<rect x="1560" y="1180" width="270" height="283" fill="#141414" stroke="#E3E3E3"/>
+<text x="1695" y="1195" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1695" y="1209" text-anchor="middle" font-size="12" font-weight="700">TorsoBalance</text>
+<text x="1695" y="1222" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: TorsoMovement}</text>
+<line x1="1560" y1="1229" x2="1830" y2="1229" stroke="#E3E3E3"/>
+<text x="1567" y="1244" font-size="11">- state : NetworkVariable&lt;TorsoState&gt;</text>
+<text x="1567" y="1259" font-size="11">- stress : float {server only}</text>
+<text x="1567" y="1274" font-size="11">- lastFall : FallReason {server only}</text>
+<text x="1567" y="1289" font-size="11">- robot : Robot</text>
+<text x="1567" y="1304" font-size="11">- rules : FallRules</text>
+<text x="1567" y="1319" font-size="11">- limits : FallLimits</text>
+<text x="1567" y="1334" font-size="11">+ State : TorsoState</text>
+<line x1="1560" y1="1346" x2="1830" y2="1346" stroke="#E3E3E3"/>
+<text x="1567" y="1365" font-size="11">+ ServerKnockDown(reason : FallReason) : void</text>
+<text x="1567" y="1380" font-size="11">+ ServerAddStress(amount : float) : void</text>
+<text x="1567" y="1395" font-size="11">+ ServerApplyJump(from : LimbSlot) : void</text>
+<text x="1567" y="1410" font-size="11">+ ServerApplyRecoveryPush(point : Vector3) : void</text>
+<text x="1567" y="1425" font-size="11">+ ServerResetForRespawn() : void</text>
+<text x="1567" y="1440" font-size="11">- ReadBalanceInput() : BalanceInput</text>
+<text x="1567" y="1455" font-size="11">- ApplyStandingSupport(input : BalanceInput) : void</text>
+<rect x="1955" y="1530" width="350" height="208" fill="#141414" stroke="#E3E3E3"/>
+<text x="2130" y="1545" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2130" y="1559" text-anchor="middle" font-size="12" font-weight="700" font-style="italic">LimbController</text>
+<text x="2130" y="1572" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="1955" y1="1579" x2="2305" y2="1579" stroke="#E3E3E3"/>
+<text x="1962" y="1594" font-size="11"># limb : RobotLimb</text>
+<text x="1962" y="1609" font-size="11"># body : Rigidbody</text>
+<text x="1962" y="1624" font-size="11"># pivot : Transform</text>
+<text x="1962" y="1639" font-size="11">+ AimReset : event</text>
+<line x1="1955" y1="1651" x2="2305" y2="1651" stroke="#E3E3E3"/>
+<text x="1962" y="1670" font-size="11">+ ServerResetForRespawn() : void {abstract}</text>
+<text x="1962" y="1685" font-size="11"># DriveToward(target : Vector3, speed : float, damper : float) : void</text>
+<text x="1962" y="1700" font-size="11"># ProtectJointChain() : void</text>
+<text x="1962" y="1715" font-size="11">+ ServerPrepareRespawn() : void</text>
+<text x="1962" y="1730" font-size="11"># ResetAimRpc() : void</text>
+<rect x="300" y="1330" width="180" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="390" y="1345" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="390" y="1359" text-anchor="middle" font-size="12" font-weight="700">TorsoState</text>
+<text x="390" y="1372" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: TorsoMovement.TorsoState}</text>
+<line x1="300" y1="1379" x2="480" y2="1379" stroke="#E3E3E3"/>
+<text x="307" y="1394" font-size="11">Standing</text>
+<text x="307" y="1409" font-size="11">Ragdoll</text>
+<line x1="300" y1="1421" x2="480" y2="1421" stroke="#E3E3E3"/>
+<rect x="1230" y="1200" width="290" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="1375" y="1215" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Plain C#&gt;&gt;</text>
+<text x="1375" y="1229" text-anchor="middle" font-size="12" font-weight="700">FallRules</text>
+<text x="1375" y="1242" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="1230" y1="1249" x2="1520" y2="1249" stroke="#E3E3E3"/>
+<text x="1237" y="1264" font-size="11">- limits : FallLimits</text>
+<text x="1237" y="1279" font-size="11">- steppingTimer : float</text>
+<text x="1237" y="1294" font-size="11">- offBalanceTimer : float</text>
+<text x="1237" y="1309" font-size="11">- airborneTimer : float</text>
+<text x="1237" y="1324" font-size="11">- tiltTimer : float</text>
+<line x1="1230" y1="1336" x2="1520" y2="1336" stroke="#E3E3E3"/>
+<text x="1237" y="1355" font-size="11">+ Evaluate(input : BalanceInput, dt : float) : FallReason</text>
+<text x="1237" y="1370" font-size="11">+ Reset() : void</text>
+<rect x="40" y="1100" width="190" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="135" y="1115" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="135" y="1129" text-anchor="middle" font-size="12" font-weight="700">FallLimits</text>
+<text x="135" y="1142" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="40" y1="1149" x2="230" y2="1149" stroke="#E3E3E3"/>
+<text x="47" y="1164" font-size="11">+ maxStress : float = 50</text>
+<text x="47" y="1179" font-size="11">+ maxTiltAngle : float = 45</text>
+<text x="47" y="1194" font-size="11">+ tiltGrace : float = 0.25</text>
+<text x="47" y="1209" font-size="11">+ bothSteppingGrace : float = 0.15</text>
+<text x="47" y="1224" font-size="11">+ offBalanceGrace : float = 0.15</text>
+<text x="47" y="1239" font-size="11">+ airborneGrace : float = 0.5</text>
+<text x="47" y="1254" font-size="11">+ countDetachedLegs : bool = true</text>
+<line x1="40" y1="1266" x2="230" y2="1266" stroke="#E3E3E3"/>
+<rect x="40" y="1330" width="220" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="150" y="1345" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="150" y="1359" text-anchor="middle" font-size="12" font-weight="700">BalanceInput</text>
+<text x="150" y="1372" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="40" y1="1379" x2="260" y2="1379" stroke="#E3E3E3"/>
+<text x="47" y="1394" font-size="11">+ feet, groundedFeet, balancedFeet : int</text>
+<text x="47" y="1409" font-size="11">+ walkSteppingFeet : int</text>
+<text x="47" y="1424" font-size="11">+ hasSupportFoot, kickActive : bool</text>
+<text x="47" y="1439" font-size="11">+ handSupport, jumpProtected : bool</text>
+<text x="47" y="1454" font-size="11">+ stress, tiltAngle : float</text>
+<line x1="40" y1="1466" x2="260" y2="1466" stroke="#E3E3E3"/>
+<rect x="480" y="1100" width="120" height="193" fill="#141414" stroke="#E3E3E3"/>
+<text x="540" y="1115" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="540" y="1129" text-anchor="middle" font-size="12" font-weight="700">FallReason</text>
+<text x="540" y="1142" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="480" y1="1149" x2="600" y2="1149" stroke="#E3E3E3"/>
+<text x="487" y="1164" font-size="11">None</text>
+<text x="487" y="1179" font-size="11">StressOverload</text>
+<text x="487" y="1194" font-size="11">BothFeetStepping</text>
+<text x="487" y="1209" font-size="11">BothFeetOffBalance</text>
+<text x="487" y="1224" font-size="11">AirborneTooLong</text>
+<text x="487" y="1239" font-size="11">TiltedInAir</text>
+<text x="487" y="1254" font-size="11">LegDetached</text>
+<text x="487" y="1269" font-size="11">HitByBlackHole</text>
+<line x1="480" y1="1281" x2="600" y2="1281" stroke="#E3E3E3"/>
+<rect x="270" y="1100" width="170" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="355" y="1115" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="355" y="1129" text-anchor="middle" font-size="12" font-weight="700">FootContact</text>
+<text x="355" y="1142" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="270" y1="1149" x2="440" y2="1149" stroke="#E3E3E3"/>
+<text x="277" y="1164" font-size="11">+ attached : bool</text>
+<text x="277" y="1179" font-size="11">+ grounded, balanced : bool</text>
+<text x="277" y="1194" font-size="11">+ walkStepping, kicking : bool</text>
+<text x="277" y="1209" font-size="11">+ canSupport : bool</text>
+<text x="277" y="1224" font-size="11">+ position : Vector3</text>
+<line x1="270" y1="1236" x2="440" y2="1236" stroke="#E3E3E3"/>
+<rect x="1920" y="1820" width="240" height="283" fill="#141414" stroke="#E3E3E3"/>
+<text x="2040" y="1835" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2040" y="1849" text-anchor="middle" font-size="12" font-weight="700">LegController : LimbController</text>
+<text x="2040" y="1862" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerFootForRobot}</text>
+<line x1="1920" y1="1869" x2="2160" y2="1869" stroke="#E3E3E3"/>
+<text x="1927" y="1884" font-size="11">- mode : LegMode</text>
+<text x="1927" y="1899" font-size="11">- target : Vector3</text>
+<text x="1927" y="1914" font-size="11">- balanceShift : Vector3</text>
+<text x="1927" y="1929" font-size="11">- stepping : bool</text>
+<text x="1927" y="1944" font-size="11">- recoveryHeld : bool</text>
+<text x="1927" y="1959" font-size="11">+ Contact : FootContact</text>
+<line x1="1920" y1="1971" x2="2160" y2="1971" stroke="#E3E3E3"/>
+<text x="1927" y="1990" font-size="11">+ SetFootTargetRpc(target : Vector3) : void</text>
+<text x="1927" y="2005" font-size="11">+ SetBalanceShiftRpc(point : Vector3) : void</text>
+<text x="1927" y="2020" font-size="11">+ SetSteppingRpc(on : bool) : void</text>
+<text x="1927" y="2035" font-size="11">+ SetRecoveryHeldRpc(on : bool) : void</text>
+<text x="1927" y="2050" font-size="11">+ JumpRpc() : void</text>
+<text x="1927" y="2065" font-size="11">+ ServerResetForRespawn() : void {override}</text>
+<text x="1927" y="2080" font-size="11">- ResolveMode() : LegMode</text>
+<text x="1927" y="2095" font-size="11">- DriveForMode(mode : LegMode) : void</text>
+<rect x="1320" y="1820" width="270" height="223" fill="#141414" stroke="#E3E3E3"/>
+<text x="1455" y="1835" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1455" y="1849" text-anchor="middle" font-size="12" font-weight="700">ArmController : LimbController</text>
+<text x="1455" y="1862" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerHandMovement}</text>
+<line x1="1320" y1="1869" x2="1590" y2="1869" stroke="#E3E3E3"/>
+<text x="1327" y="1884" font-size="11">- target : Vector3</text>
+<text x="1327" y="1899" font-size="11">- motionOverride : ArmMotionOverride</text>
+<text x="1327" y="1914" font-size="11">- grip : ArmGrip</text>
+<text x="1327" y="1929" font-size="11">+ ClimbPull : float</text>
+<line x1="1320" y1="1941" x2="1590" y2="1941" stroke="#E3E3E3"/>
+<text x="1327" y="1960" font-size="11">+ SetHandTargetRpc(target : Vector3) : void</text>
+<text x="1327" y="1975" font-size="11">+ RequestRecoveryPushRpc() : void</text>
+<text x="1327" y="1990" font-size="11">+ SetMotionOverride(o : ArmMotionOverride) : void</text>
+<text x="1327" y="2005" font-size="11">+ ServerResetForRespawn() : void {override}</text>
+<text x="1327" y="2020" font-size="11">- DriveHand() : void</text>
+<text x="1327" y="2035" font-size="11">- PullTorsoTowardGrip() : void</text>
+<rect x="1640" y="1820" width="210" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="1745" y="1835" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1745" y="1849" text-anchor="middle" font-size="12" font-weight="700">ArmGrip</text>
+<text x="1745" y="1862" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerHandMovement}</text>
+<line x1="1640" y1="1869" x2="1850" y2="1869" stroke="#E3E3E3"/>
+<text x="1647" y="1884" font-size="11">- joint : FixedJoint</text>
+<text x="1647" y="1899" font-size="11">- held : Rigidbody</text>
+<text x="1647" y="1914" font-size="11">+ IsSupporting : bool</text>
+<line x1="1640" y1="1926" x2="1850" y2="1926" stroke="#E3E3E3"/>
+<text x="1647" y="1945" font-size="11">+ RequestGrabRpc() : void</text>
+<text x="1647" y="1960" font-size="11">+ RequestReleaseRpc() : void</text>
+<text x="1647" y="1975" font-size="11">+ ServerRelease() : void</text>
+<text x="1647" y="1990" font-size="11">- IgnoreTorsoCollision(on : bool) : void</text>
+<rect x="1080" y="1620" width="170" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="1165" y="1635" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1165" y="1649" text-anchor="middle" font-size="12" font-weight="700">ArmInput</text>
+<text x="1165" y="1662" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerHandMovement}</text>
+<line x1="1080" y1="1669" x2="1250" y2="1669" stroke="#E3E3E3"/>
+<text x="1087" y="1684" font-size="11">- controller : ArmController</text>
+<text x="1087" y="1699" font-size="11">- grip : ArmGrip</text>
+<text x="1087" y="1714" font-size="11">- aim : LocalAim</text>
+<text x="1087" y="1729" font-size="11">- punch : PunchAbility</text>
+<text x="1087" y="1744" font-size="11">- attachment : LimbAttachment</text>
+<line x1="1080" y1="1756" x2="1250" y2="1756" stroke="#E3E3E3"/>
+<text x="1087" y="1775" font-size="11">- ReadOwnerInput() : void</text>
+<text x="1087" y="1790" font-size="11">- OnAimReset() : void</text>
+<rect x="1600" y="2420" width="200" height="121" fill="#141414" stroke="#E3E3E3"/>
+<text x="1700" y="2436" text-anchor="middle" font-size="12" font-weight="700">LocalAim</text>
+<text x="1700" y="2449" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerHandMovement}</text>
+<line x1="1600" y1="2457" x2="1800" y2="2457" stroke="#E3E3E3"/>
+<text x="1607" y="2472" font-size="11">- aimOffset : Vector3</text>
+<text x="1607" y="2487" font-size="11">- virtualCursor : Vector2</text>
+<line x1="1600" y1="2499" x2="1800" y2="2499" stroke="#E3E3E3"/>
+<text x="1607" y="2518" font-size="11">+ Accumulate(delta : Vector2) : void</text>
+<text x="1607" y="2533" font-size="11">+ AimNormalized() : Vector2</text>
+<rect x="2220" y="1840" width="170" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="2305" y="1855" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2305" y="1869" text-anchor="middle" font-size="12" font-weight="700">LegInput</text>
+<text x="2305" y="1882" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerFootForRobot}</text>
+<line x1="2220" y1="1889" x2="2390" y2="1889" stroke="#E3E3E3"/>
+<text x="2227" y="1904" font-size="11">- controller : LegController</text>
+<text x="2227" y="1919" font-size="11">- aim : LocalAim</text>
+<text x="2227" y="1934" font-size="11">- kick : KickAbility</text>
+<text x="2227" y="1949" font-size="11">- attachment : LimbAttachment</text>
+<line x1="2220" y1="1961" x2="2390" y2="1961" stroke="#E3E3E3"/>
+<text x="2227" y="1980" font-size="11">- ReadOwnerInput() : void</text>
+<text x="2227" y="1995" font-size="11">- OnAimReset() : void</text>
+<rect x="2440" y="2290" width="120" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="2500" y="2305" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2500" y="2319" text-anchor="middle" font-size="12" font-weight="700">LegMode</text>
+<text x="2500" y="2332" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="2440" y1="2339" x2="2560" y2="2339" stroke="#E3E3E3"/>
+<text x="2447" y="2354" font-size="11">Planted</text>
+<text x="2447" y="2369" font-size="11">Stepping</text>
+<text x="2447" y="2384" font-size="11">Kicking</text>
+<text x="2447" y="2399" font-size="11">Limp</text>
+<text x="2447" y="2414" font-size="11">PushingUp</text>
+<text x="2447" y="2429" font-size="11">Detached</text>
+<line x1="2440" y1="2441" x2="2560" y2="2441" stroke="#E3E3E3"/>
+<rect x="1600" y="2130" width="140" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="1670" y="2145" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="1670" y="2159" text-anchor="middle" font-size="12" font-weight="700">ArmMotionOverride</text>
+<text x="1670" y="2172" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="1600" y1="2179" x2="1740" y2="2179" stroke="#E3E3E3"/>
+<text x="1607" y="2194" font-size="11">+ target : Vector3</text>
+<text x="1607" y="2209" font-size="11">+ velocityCap : float</text>
+<text x="1607" y="2224" font-size="11">+ damper : float</text>
+<text x="1607" y="2239" font-size="11">+ brakeScale : float</text>
+<text x="1607" y="2254" font-size="11">+ extraReach : float</text>
+<line x1="1600" y1="2266" x2="1740" y2="2266" stroke="#E3E3E3"/>
+<rect x="1320" y="2120" width="220" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="1430" y="2135" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1430" y="2149" text-anchor="middle" font-size="12" font-weight="700">PunchAbility : IStrikeSource</text>
+<text x="1430" y="2162" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerHandCombat}</text>
+<line x1="1320" y1="2169" x2="1540" y2="2169" stroke="#E3E3E3"/>
+<text x="1327" y="2184" font-size="11">- state : NetworkVariable&lt;CombatState&gt;</text>
+<text x="1327" y="2199" font-size="11">- peakSpeed : float</text>
+<line x1="1320" y1="2211" x2="1540" y2="2211" stroke="#E3E3E3"/>
+<text x="1327" y="2230" font-size="11">+ RequestPunchStartRpc() : void</text>
+<text x="1327" y="2245" font-size="11">+ RequestPunchReleaseRpc() : void</text>
+<text x="1327" y="2260" font-size="11">+ CanDealDamage() : bool</text>
+<text x="1327" y="2275" font-size="11">+ PeakSpeed() : float</text>
+<rect x="1920" y="2160" width="240" height="193" fill="#141414" stroke="#E3E3E3"/>
+<text x="2040" y="2175" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2040" y="2189" text-anchor="middle" font-size="12" font-weight="700">KickAbility : IStrikeSource</text>
+<text x="2040" y="2202" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerLegCombat}</text>
+<line x1="1920" y1="2209" x2="2160" y2="2209" stroke="#E3E3E3"/>
+<text x="1927" y="2224" font-size="11">- action : NetworkVariable&lt;LegActionState&gt;</text>
+<text x="1927" y="2239" font-size="11">- peakSpeed : float</text>
+<text x="1927" y="2254" font-size="11">+ ControlsFoot : bool</text>
+<line x1="1920" y1="2266" x2="2160" y2="2266" stroke="#E3E3E3"/>
+<text x="1927" y="2285" font-size="11">+ RequestChargeRpc(aim : Vector3) : void</text>
+<text x="1927" y="2300" font-size="11">+ RequestReleaseRpc(aim : Vector3) : void</text>
+<text x="1927" y="2315" font-size="11">+ CanDealDamage() : bool</text>
+<text x="1927" y="2330" font-size="11">+ PeakSpeed() : float</text>
+<text x="1927" y="2345" font-size="11">+ ServerResetForRespawn() : void</text>
+<rect x="2800" y="1500" width="160" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="2880" y="1515" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Interface&gt;&gt;</text>
+<text x="2880" y="1529" text-anchor="middle" font-size="12" font-weight="700">IStrikeSource</text>
+<text x="2880" y="1542" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="2800" y1="1549" x2="2960" y2="1549" stroke="#E3E3E3"/>
+<line x1="2800" y1="1561" x2="2960" y2="1561" stroke="#E3E3E3"/>
+<text x="2807" y="1580" font-size="11">+ CanDealDamage() : bool</text>
+<text x="2807" y="1595" font-size="11">+ PeakSpeed() : float</text>
+<text x="2807" y="1610" font-size="11">+ Source() : DamageSource</text>
+<text x="2807" y="1625" font-size="11">+ OnStrikeLanded() : void</text>
+<text x="2807" y="1640" font-size="11">+ OnStrikeBlocked() : void</text>
+<text x="2807" y="1655" font-size="11">+ AttackerTeam() : Team</text>
+<text x="2807" y="1670" font-size="11">+ AttackerRobotId() : ulong</text>
+<rect x="2850" y="1300" width="260" height="121" fill="#141414" stroke="#E3E3E3"/>
+<text x="2980" y="1316" text-anchor="middle" font-size="12" font-weight="700">LimbStrike</text>
+<text x="2980" y="1329" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PhysicsDamageSender + PvpDamageSender}</text>
+<line x1="2850" y1="1337" x2="3110" y2="1337" stroke="#E3E3E3"/>
+<text x="2857" y="1352" font-size="11">- source : IStrikeSource</text>
+<text x="2857" y="1367" font-size="11">- tuning : StrikeTuning</text>
+<line x1="2850" y1="1379" x2="3110" y2="1379" stroke="#E3E3E3"/>
+<text x="2857" y="1398" font-size="11">- OnCollisionEnter(c : Collision) : void</text>
+<text x="2857" y="1413" font-size="11">- BuildDamageInfo(c : Collision) : DamageInfo</text>
+<rect x="3370" y="1120" width="310" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="3525" y="1135" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Static&gt;&gt;</text>
+<text x="3525" y="1149" text-anchor="middle" font-size="12" font-weight="700">DamageRouter</text>
+<text x="3525" y="1162" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3370" y1="1169" x2="3680" y2="1169" stroke="#E3E3E3"/>
+<line x1="3370" y1="1181" x2="3680" y2="1181" stroke="#E3E3E3"/>
+<text x="3377" y="1200" font-size="11">+ TryApply(hit : Collider, info : DamageInfo) : bool</text>
+<text x="3377" y="1215" font-size="11">- IsAllowed(target : IDamageable, info : DamageInfo) : bool</text>
+<rect x="3920" y="760" width="150" height="193" fill="#141414" stroke="#E3E3E3"/>
+<text x="3995" y="775" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="3995" y="789" text-anchor="middle" font-size="12" font-weight="700">DamageInfo</text>
+<text x="3995" y="802" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3920" y1="809" x2="4070" y2="809" stroke="#E3E3E3"/>
+<text x="3927" y="824" font-size="11">+ amount : float</text>
+<text x="3927" y="839" font-size="11">+ knockback : float</text>
+<text x="3927" y="854" font-size="11">+ direction : Vector3</text>
+<text x="3927" y="869" font-size="11">+ point : Vector3</text>
+<text x="3927" y="884" font-size="11">+ source : DamageSource</text>
+<text x="3927" y="899" font-size="11">+ attackerTeam : Team</text>
+<text x="3927" y="914" font-size="11">+ attackerRobotId : ulong</text>
+<text x="3927" y="929" font-size="11">+ detachLimb : bool</text>
+<line x1="3920" y1="941" x2="4070" y2="941" stroke="#E3E3E3"/>
+<rect x="3760" y="1120" width="120" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="3820" y="1135" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Static&gt;&gt;</text>
+<text x="3820" y="1149" text-anchor="middle" font-size="12" font-weight="700">GameplayGate</text>
+<text x="3820" y="1162" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3760" y1="1169" x2="3880" y2="1169" stroke="#E3E3E3"/>
+<text x="3767" y="1184" font-size="11">+ CanAct : bool</text>
+<text x="3767" y="1199" font-size="11">+ CanDamage : bool</text>
+<line x1="3760" y1="1211" x2="3880" y2="1211" stroke="#E3E3E3"/>
+<rect x="4100" y="760" width="120" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="4160" y="775" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="4160" y="789" text-anchor="middle" font-size="12" font-weight="700">DamageSource</text>
+<text x="4160" y="802" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: AttackType}</text>
+<line x1="4100" y1="809" x2="4220" y2="809" stroke="#E3E3E3"/>
+<text x="4107" y="824" font-size="11">Punch</text>
+<text x="4107" y="839" font-size="11">Kick</text>
+<text x="4107" y="854" font-size="11">MeleeWeapon</text>
+<text x="4107" y="869" font-size="11">Projectile</text>
+<text x="4107" y="884" font-size="11">EnemyMelee</text>
+<text x="4107" y="899" font-size="11">EnemyUltimate</text>
+<line x1="4100" y1="911" x2="4220" y2="911" stroke="#E3E3E3"/>
+<rect x="3920" y="990" width="140" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="3990" y="1005" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="3990" y="1019" text-anchor="middle" font-size="12" font-weight="700">DamageTargetKind</text>
+<text x="3990" y="1032" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3920" y1="1039" x2="4060" y2="1039" stroke="#E3E3E3"/>
+<text x="3927" y="1054" font-size="11">RobotLimb</text>
+<text x="3927" y="1069" font-size="11">Enemy</text>
+<text x="3927" y="1084" font-size="11">Structure</text>
+<line x1="3920" y1="1096" x2="4060" y2="1096" stroke="#E3E3E3"/>
+<rect x="4100" y="990" width="120" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="4160" y="1005" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="4160" y="1019" text-anchor="middle" font-size="12" font-weight="700">Team</text>
+<text x="4160" y="1032" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PvpTeam}</text>
+<line x1="4100" y1="1039" x2="4220" y2="1039" stroke="#E3E3E3"/>
+<text x="4107" y="1054" font-size="11">None</text>
+<text x="4107" y="1069" font-size="11">Red</text>
+<text x="4107" y="1084" font-size="11">Blue</text>
+<text x="4107" y="1099" font-size="11">Enemy</text>
+<line x1="4100" y1="1111" x2="4220" y2="1111" stroke="#E3E3E3"/>
+<rect x="3000" y="1500" width="220" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="3110" y="1515" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="3110" y="1529" text-anchor="middle" font-size="12" font-weight="700">StrikeTuning</text>
+<text x="3110" y="1542" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3000" y1="1549" x2="3220" y2="1549" stroke="#E3E3E3"/>
+<text x="3007" y="1564" font-size="11">+ minVelocity : float = 8</text>
+<text x="3007" y="1579" font-size="11">+ punchSpeedToDamage : float = 0.6</text>
+<text x="3007" y="1594" font-size="11">+ kickSpeedToDamage : float = 1.2</text>
+<text x="3007" y="1609" font-size="11">+ maxDamagePerHit : float = 60</text>
+<text x="3007" y="1624" font-size="11">+ knockbackBySpeed : AnimationCurve</text>
+<line x1="3000" y1="1636" x2="3220" y2="1636" stroke="#E3E3E3"/>
+<rect x="3060" y="2060" width="190" height="136" fill="#141414" stroke="#E3E3E3"/>
+<text x="3155" y="2076" text-anchor="middle" font-size="12" font-weight="700">Projectile</text>
+<text x="3155" y="2089" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3060" y1="2097" x2="3250" y2="2097" stroke="#E3E3E3"/>
+<text x="3067" y="2112" font-size="11">- speed : float</text>
+<text x="3067" y="2127" font-size="11">- damage : float</text>
+<text x="3067" y="2142" font-size="11">- shooterTeam : Team</text>
+<line x1="3060" y1="2154" x2="3250" y2="2154" stroke="#E3E3E3"/>
+<text x="3067" y="2173" font-size="11">- Update() : void</text>
+<text x="3067" y="2188" font-size="11">- HandleHit(hit : RaycastHit) : void</text>
+<rect x="2560" y="560" width="310" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="2715" y="575" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2715" y="589" text-anchor="middle" font-size="12" font-weight="700">EnemyCombat</text>
+<text x="2715" y="602" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="2560" y1="609" x2="2870" y2="609" stroke="#E3E3E3"/>
+<text x="2567" y="624" font-size="11">- attacks : EnemyAttackDefinition[] {ใหม่}</text>
+<line x1="2560" y1="636" x2="2870" y2="636" stroke="#E3E3E3"/>
+<text x="2567" y="655" font-size="11">+ ServerExecuteAttack(type : EnemyAttack) : float</text>
+<text x="2567" y="670" font-size="11">- ApplyHitToNearestPart() : void {เดิม: ProcessHitDetection}</text>
+<rect x="2720" y="300" width="270" height="121" fill="#141414" stroke="#E3E3E3"/>
+<text x="2855" y="316" text-anchor="middle" font-size="12" font-weight="700">BlackHoleProjectile</text>
+<text x="2855" y="329" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="2720" y1="337" x2="2990" y2="337" stroke="#E3E3E3"/>
+<text x="2727" y="352" font-size="11">- damageRadius : float</text>
+<text x="2727" y="367" font-size="11">- buildingDamage : float</text>
+<text x="2727" y="382" font-size="11">- playerDamage : float</text>
+<line x1="2720" y1="394" x2="2990" y2="394" stroke="#E3E3E3"/>
+<text x="2727" y="413" font-size="11">- DamageAlong(from : Vector3, to : Vector3) : void</text>
+<rect x="2260" y="60" width="360" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="2440" y="75" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2440" y="89" text-anchor="middle" font-size="12" font-weight="700">EnemyHealth : IDamageable</text>
+<text x="2440" y="102" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="2260" y1="109" x2="2620" y2="109" stroke="#E3E3E3"/>
+<text x="2267" y="124" font-size="11">+ CurrentHp : NetworkVariable&lt;float&gt;</text>
+<text x="2267" y="139" font-size="11">+ Died : event {ใหม่}</text>
+<line x1="2260" y1="151" x2="2620" y2="151" stroke="#E3E3E3"/>
+<text x="2267" y="170" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool {เดิม: ServerTakeHit}</text>
+<text x="2267" y="185" font-size="11">- ServerKnockbackRoutine() : IEnumerator</text>
+<rect x="3370" y="1480" width="260" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="3500" y="1495" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3500" y="1509" text-anchor="middle" font-size="12" font-weight="700">DestructibleBuilding : IDamageable</text>
+<text x="3500" y="1522" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: explobuilding}</text>
+<line x1="3370" y1="1529" x2="3630" y2="1529" stroke="#E3E3E3"/>
+<text x="3377" y="1544" font-size="11">- health : float</text>
+<text x="3377" y="1559" font-size="11">- isDestroyed : bool</text>
+<line x1="3370" y1="1571" x2="3630" y2="1571" stroke="#E3E3E3"/>
+<text x="3377" y="1590" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="3377" y="1605" font-size="11">- Collapse() : void</text>
+<rect x="3370" y="1660" width="390" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="3565" y="1675" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3565" y="1689" text-anchor="middle" font-size="12" font-weight="700">PunchBag : IDamageable</text>
+<text x="3565" y="1702" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3370" y1="1709" x2="3760" y2="1709" stroke="#E3E3E3"/>
+<text x="3377" y="1724" font-size="11">- rb : Rigidbody</text>
+<line x1="3370" y1="1736" x2="3760" y2="1736" stroke="#E3E3E3"/>
+<text x="3377" y="1755" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool {เดิม: ServerTakeDamage}</text>
+<rect x="680" y="200" width="220" height="208" fill="#141414" stroke="#E3E3E3"/>
+<text x="790" y="215" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="790" y="229" text-anchor="middle" font-size="12" font-weight="700">MatchSession</text>
+<text x="790" y="242" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="680" y1="249" x2="900" y2="249" stroke="#E3E3E3"/>
+<text x="687" y="264" font-size="11">- phase : NetworkVariable&lt;MatchPhase&gt;</text>
+<text x="687" y="279" font-size="11">- result : NetworkVariable&lt;MatchResult&gt;</text>
+<text x="687" y="294" font-size="11">- startTime : float</text>
+<text x="687" y="309" font-size="11">+ PhaseChanged : event</text>
+<text x="687" y="324" font-size="11">+ Result : MatchResult</text>
+<line x1="680" y1="336" x2="900" y2="336" stroke="#E3E3E3"/>
+<text x="687" y="355" font-size="11">+ Phase : MatchPhase</text>
+<text x="687" y="370" font-size="11">+ ElapsedTime() : float</text>
+<text x="687" y="385" font-size="11">+ ServerBeginPlaying() : void</text>
+<text x="687" y="400" font-size="11">+ ServerEnd(result : MatchResult) : void</text>
+<rect x="320" y="420" width="120" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="380" y="435" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="380" y="449" text-anchor="middle" font-size="12" font-weight="700">MatchPhase</text>
+<text x="380" y="462" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="320" y1="469" x2="440" y2="469" stroke="#E3E3E3"/>
+<text x="327" y="484" font-size="11">Preparing</text>
+<text x="327" y="499" font-size="11">Playing</text>
+<text x="327" y="514" font-size="11">Ended</text>
+<line x1="320" y1="526" x2="440" y2="526" stroke="#E3E3E3"/>
+<rect x="460" y="440" width="160" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="540" y="455" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="540" y="469" text-anchor="middle" font-size="12" font-weight="700">MatchResult</text>
+<text x="540" y="482" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="460" y1="489" x2="620" y2="489" stroke="#E3E3E3"/>
+<text x="467" y="504" font-size="11">+ outcome : MatchOutcome</text>
+<text x="467" y="519" font-size="11">+ winningTeam : Team</text>
+<text x="467" y="534" font-size="11">+ time : float</text>
+<text x="467" y="549" font-size="11">+ height : float</text>
+<line x1="460" y1="561" x2="620" y2="561" stroke="#E3E3E3"/>
+<rect x="680" y="620" width="320" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="840" y="635" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="840" y="649" text-anchor="middle" font-size="12" font-weight="700">LimbSelection</text>
+<text x="840" y="662" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LobbyManager}</text>
+<line x1="680" y1="669" x2="1000" y2="669" stroke="#E3E3E3"/>
+<text x="687" y="684" font-size="11">- assignments : NetworkList&lt;LimbAssignment&gt;</text>
+<text x="687" y="699" font-size="11">- seatExpiry : Dictionary&lt;string, float&gt;</text>
+<text x="687" y="714" font-size="11">+ AssignmentsChanged : event</text>
+<line x1="680" y1="726" x2="1000" y2="726" stroke="#E3E3E3"/>
+<text x="687" y="745" font-size="11">+ RequestLimbRpc(robotId : ulong, slot : LimbSlot) : void</text>
+<text x="687" y="760" font-size="11">+ RequestStartRpc() : void</text>
+<text x="687" y="775" font-size="11">+ GetControllerClientId(robotId : ulong, slot : LimbSlot) : ulong</text>
+<rect x="90" y="780" width="120" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="150" y="795" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="150" y="809" text-anchor="middle" font-size="12" font-weight="700">LimbAssignment</text>
+<text x="150" y="822" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LobbyManager}</text>
+<line x1="90" y1="829" x2="210" y2="829" stroke="#E3E3E3"/>
+<text x="97" y="844" font-size="11">+ robotId : ulong</text>
+<text x="97" y="859" font-size="11">+ slot : LimbSlot</text>
+<text x="97" y="874" font-size="11">+ clientId : ulong</text>
+<line x1="90" y1="886" x2="210" y2="886" stroke="#E3E3E3"/>
+<rect x="1080" y="640" width="220" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="1190" y="655" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1190" y="669" text-anchor="middle" font-size="12" font-weight="700">PvpMatch</text>
+<text x="1190" y="682" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PvpTeamManager}</text>
+<line x1="1080" y1="689" x2="1300" y2="689" stroke="#E3E3E3"/>
+<text x="1087" y="704" font-size="11">- players : NetworkList&lt;PvpPlayerEntry&gt;</text>
+<line x1="1080" y1="716" x2="1300" y2="716" stroke="#E3E3E3"/>
+<text x="1087" y="735" font-size="11">+ RequestTeamRpc(team : Team) : void</text>
+<text x="1087" y="750" font-size="11">+ GetTeam(clientId : ulong) : Team</text>
+<rect x="680" y="860" width="260" height="151" fill="#141414" stroke="#E3E3E3"/>
+<text x="810" y="876" text-anchor="middle" font-size="12" font-weight="700">LimbControlBinder</text>
+<text x="810" y="889" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LobbyManager}</text>
+<line x1="680" y1="897" x2="940" y2="897" stroke="#E3E3E3"/>
+<text x="687" y="912" font-size="11">- selection : LimbSelection</text>
+<text x="687" y="927" font-size="11">- session : MatchSession</text>
+<text x="687" y="942" font-size="11">- camera : OrbitCamera</text>
+<line x1="680" y1="954" x2="940" y2="954" stroke="#E3E3E3"/>
+<text x="687" y="973" font-size="11">- OnAssignmentsChanged() : void</text>
+<text x="687" y="988" font-size="11">- Bind(robot : Robot, slot : LimbSlot) : void</text>
+<text x="687" y="1003" font-size="11">- OnPhaseChanged(phase : MatchPhase) : void</text>
+<rect x="1060" y="880" width="130" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="1125" y="896" text-anchor="middle" font-size="12" font-weight="700">LocalPlayerRobot</text>
+<text x="1125" y="909" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LocalRobotBinder}</text>
+<line x1="1060" y1="917" x2="1190" y2="917" stroke="#E3E3E3"/>
+<text x="1067" y="932" font-size="11">+ Robot : Robot</text>
+<text x="1067" y="947" font-size="11">+ Slot : LimbSlot</text>
+<text x="1067" y="962" font-size="11">+ Bound : event</text>
+<line x1="1060" y1="974" x2="1190" y2="974" stroke="#E3E3E3"/>
+<rect x="990" y="40" width="260" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="1120" y="55" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1120" y="69" text-anchor="middle" font-size="12" font-weight="700">BossModeRules</text>
+<text x="1120" y="82" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: GameFlowManager}</text>
+<line x1="990" y1="89" x2="1250" y2="89" stroke="#E3E3E3"/>
+<text x="997" y="104" font-size="11">- boss : EnemyHealth</text>
+<text x="997" y="119" font-size="11">- robot : Robot</text>
+<line x1="990" y1="131" x2="1250" y2="131" stroke="#E3E3E3"/>
+<text x="997" y="150" font-size="11">- OnBossDied() : void</text>
+<text x="997" y="165" font-size="11">- EvaluateDefeat() : void</text>
+<text x="997" y="180" font-size="11">- OnLimbStateChanged(limb : RobotLimb) : void</text>
+<rect x="990" y="240" width="160" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="1070" y="255" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1070" y="269" text-anchor="middle" font-size="12" font-weight="700">ParkourModeRules</text>
+<text x="1070" y="282" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: ParkourFlowManager}</text>
+<line x1="990" y1="289" x2="1150" y2="289" stroke="#E3E3E3"/>
+<text x="997" y="304" font-size="11">- robot : Robot</text>
+<text x="997" y="319" font-size="11">- peakHeight : float</text>
+<line x1="990" y1="331" x2="1150" y2="331" stroke="#E3E3E3"/>
+<text x="997" y="350" font-size="11">+ ServerReachGoal() : void</text>
+<text x="997" y="365" font-size="11">- TrackHeight() : void</text>
+<rect x="990" y="420" width="260" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="1120" y="435" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1120" y="449" text-anchor="middle" font-size="12" font-weight="700">PvpModeRules</text>
+<text x="1120" y="462" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PvpRobotTeam}</text>
+<line x1="990" y1="469" x2="1250" y2="469" stroke="#E3E3E3"/>
+<text x="997" y="484" font-size="11">- red : Robot</text>
+<text x="997" y="499" font-size="11">- blue : Robot</text>
+<line x1="990" y1="511" x2="1250" y2="511" stroke="#E3E3E3"/>
+<text x="997" y="530" font-size="11">- EvaluateDefeat() : void</text>
+<text x="997" y="545" font-size="11">- OnLimbStateChanged(limb : RobotLimb) : void</text>
+<rect x="320" y="250" width="260" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="450" y="266" text-anchor="middle" font-size="12" font-weight="700">MatchResultPanel</text>
+<text x="450" y="279" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: GameFlowManager}</text>
+<line x1="320" y1="287" x2="580" y2="287" stroke="#E3E3E3"/>
+<text x="327" y="302" font-size="11">- session : MatchSession</text>
+<line x1="320" y1="314" x2="580" y2="314" stroke="#E3E3E3"/>
+<text x="327" y="333" font-size="11">- OnPhaseChanged(phase : MatchPhase) : void</text>
+<text x="327" y="348" font-size="11">- Show(result : MatchResult) : void</text>
+<rect x="90" y="250" width="140" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="160" y="265" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Static&gt;&gt;</text>
+<text x="160" y="279" text-anchor="middle" font-size="12" font-weight="700">SceneNavigator</text>
+<text x="160" y="292" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="90" y1="299" x2="230" y2="299" stroke="#E3E3E3"/>
+<line x1="90" y1="311" x2="230" y2="311" stroke="#E3E3E3"/>
+<text x="97" y="330" font-size="11">+ RestartCurrent() : void</text>
+<text x="97" y="345" font-size="11">+ ExitToMenu() : void</text>
+<rect x="90" y="410" width="140" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="160" y="425" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="160" y="439" text-anchor="middle" font-size="12" font-weight="700">GameScenes</text>
+<text x="160" y="452" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="90" y1="459" x2="230" y2="459" stroke="#E3E3E3"/>
+<text x="97" y="474" font-size="11">+ menu : string</text>
+<text x="97" y="489" font-size="11">+ boss : string</text>
+<text x="97" y="504" font-size="11">+ parkour : string</text>
+<text x="97" y="519" font-size="11">+ pvp : string</text>
+<line x1="90" y1="531" x2="230" y2="531" stroke="#E3E3E3"/>
+<rect x="40" y="60" width="260" height="136" fill="#141414" stroke="#E3E3E3"/>
+<text x="170" y="76" text-anchor="middle" font-size="12" font-weight="700">SessionService</text>
+<text x="170" y="89" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: OnlineNetworkUI + ReturnToMenuOnHostLost}</text>
+<line x1="40" y1="97" x2="300" y2="97" stroke="#E3E3E3"/>
+<text x="47" y="112" font-size="11">- session : ISession</text>
+<text x="47" y="127" font-size="11">+ StateChanged : event</text>
+<line x1="40" y1="139" x2="300" y2="139" stroke="#E3E3E3"/>
+<text x="47" y="158" font-size="11">+ HostAsync(options : SessionOptions) : Task</text>
+<text x="47" y="173" font-size="11">+ JoinAsync(code : string) : Task</text>
+<text x="47" y="188" font-size="11">+ LeaveAsync() : Task</text>
+<rect x="3960" y="2120" width="160" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="4040" y="2135" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="4040" y="2149" text-anchor="middle" font-size="12" font-weight="700">ItemDefinition</text>
+<text x="4040" y="2162" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="3960" y1="2169" x2="4120" y2="2169" stroke="#E3E3E3"/>
+<text x="3967" y="2184" font-size="11">+ displayName : string</text>
+<text x="3967" y="2199" font-size="11">+ icon : Sprite</text>
+<text x="3967" y="2214" font-size="11">+ heldPrefab : GameObject</text>
+<text x="3967" y="2229" font-size="11">+ worldPrefab : GameObject</text>
+<line x1="3960" y1="2241" x2="4120" y2="2241" stroke="#E3E3E3"/>
+<rect x="3960" y="2340" width="220" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="4070" y="2355" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;ScriptableObject&gt;&gt;</text>
+<text x="4070" y="2369" text-anchor="middle" font-size="12" font-weight="700">ItemDatabase</text>
+<text x="4070" y="2382" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="3960" y1="2389" x2="4180" y2="2389" stroke="#E3E3E3"/>
+<text x="3967" y="2404" font-size="11">- items : List&lt;ItemDefinition&gt;</text>
+<line x1="3960" y1="2416" x2="4180" y2="2416" stroke="#E3E3E3"/>
+<text x="3967" y="2435" font-size="11">+ GetIndex(item : ItemDefinition) : int</text>
+<text x="3967" y="2450" font-size="11">+ GetByIndex(index : int) : ItemDefinition</text>
+<rect x="3480" y="2080" width="330" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="3645" y="2095" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3645" y="2109" text-anchor="middle" font-size="12" font-weight="700">PlayerInventory</text>
+<text x="3645" y="2122" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="3480" y1="2129" x2="3810" y2="2129" stroke="#E3E3E3"/>
+<text x="3487" y="2144" font-size="11">- slotItemIndices : NetworkList&lt;int&gt;</text>
+<text x="3487" y="2159" font-size="11">- equippedIndex : NetworkVariable&lt;int&gt;</text>
+<text x="3487" y="2174" font-size="11">+ OnSlotsChanged : event</text>
+<text x="3487" y="2189" font-size="11">+ OnEquippedChanged : event</text>
+<line x1="3480" y1="2201" x2="3810" y2="2201" stroke="#E3E3E3"/>
+<text x="3487" y="2220" font-size="11">+ RequestEquip(index : int) : void</text>
+<text x="3487" y="2235" font-size="11">+ RequestDrop(position : Vector3, direction : Vector3) : void</text>
+<text x="3487" y="2250" font-size="11">+ TryAddServerSide(item : ItemDefinition, out index : int) : bool</text>
+<rect x="3640" y="1860" width="210" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="3745" y="1875" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3745" y="1889" text-anchor="middle" font-size="12" font-weight="700">HandItemHolder</text>
+<text x="3745" y="1902" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3640" y1="1909" x2="3850" y2="1909" stroke="#E3E3E3"/>
+<text x="3647" y="1924" font-size="11">- holdPoint : Transform</text>
+<text x="3647" y="1939" font-size="11">+ Current : HeldItem</text>
+<line x1="3640" y1="1951" x2="3850" y2="1951" stroke="#E3E3E3"/>
+<text x="3647" y="1970" font-size="11">+ Hold(definition : ItemDefinition) : void</text>
+<text x="3647" y="1985" font-size="11">- ReadOwnerInput() : void {ใหม่}</text>
+<rect x="3900" y="1860" width="300" height="181" fill="#141414" stroke="#E3E3E3"/>
+<text x="4050" y="1876" text-anchor="middle" font-size="12" font-weight="700">HeldItem</text>
+<text x="4050" y="1889" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3900" y1="1897" x2="4200" y2="1897" stroke="#E3E3E3"/>
+<text x="3907" y="1912" font-size="11">+ Definition : ItemDefinition</text>
+<text x="3907" y="1927" font-size="11">+ Holder : HandItemHolder</text>
+<line x1="3900" y1="1939" x2="4200" y2="1939" stroke="#E3E3E3"/>
+<text x="3907" y="1958" font-size="11">+ OnEquipped() : void</text>
+<text x="3907" y="1973" font-size="11">+ OnUseStart() : void</text>
+<text x="3907" y="1988" font-size="11">+ OnUseHold(dt : float) : void</text>
+<text x="3907" y="2003" font-size="11">+ OnUseEnd() : void</text>
+<text x="3907" y="2018" font-size="11">+ ServerOnUseStart() : void {ใหม่}</text>
+<text x="3907" y="2033" font-size="11">+ ServerOnUseRelease(heldSeconds : float) : void {ใหม่}</text>
+<rect x="3060" y="2290" width="350" height="136" fill="#141414" stroke="#E3E3E3"/>
+<text x="3235" y="2306" text-anchor="middle" font-size="12" font-weight="700">ChargeGunHeldItem : HeldItem</text>
+<text x="3235" y="2319" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3060" y1="2327" x2="3410" y2="2327" stroke="#E3E3E3"/>
+<text x="3067" y="2342" font-size="11">- maxChargeTime : float</text>
+<text x="3067" y="2357" font-size="11">- minDamage : float</text>
+<text x="3067" y="2372" font-size="11">- maxDamage : float</text>
+<line x1="3060" y1="2384" x2="3410" y2="2384" stroke="#E3E3E3"/>
+<text x="3067" y="2403" font-size="11">+ ServerOnUseRelease(heldSeconds : float) : void {override} {ใหม่}</text>
+<text x="3067" y="2418" font-size="11">+ ExecuteFire(data : FireData) : void</text>
+<rect x="3060" y="2500" width="260" height="136" fill="#141414" stroke="#E3E3E3"/>
+<text x="3190" y="2516" text-anchor="middle" font-size="12" font-weight="700">SwordHeldItem : HeldItem, IStrikeSource</text>
+<text x="3190" y="2529" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3060" y1="2537" x2="3320" y2="2537" stroke="#E3E3E3"/>
+<text x="3067" y="2552" font-size="11">- damageMultiplier : float</text>
+<text x="3067" y="2567" font-size="11">- joint : FixedJoint</text>
+<line x1="3060" y1="2579" x2="3320" y2="2579" stroke="#E3E3E3"/>
+<text x="3067" y="2598" font-size="11">+ OnEquipped() : void {override}</text>
+<text x="3067" y="2613" font-size="11">+ CanDealDamage() : bool {ใหม่}</text>
+<text x="3067" y="2628" font-size="11">+ PeakSpeed() : float {ใหม่}</text>
+<rect x="3060" y="1880" width="240" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="3180" y="1896" text-anchor="middle" font-size="12" font-weight="700">GunHeldItem : HeldItem</text>
+<text x="3180" y="1909" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="3060" y1="1917" x2="3300" y2="1917" stroke="#E3E3E3"/>
+<text x="3067" y="1932" font-size="11">- damage : float</text>
+<text x="3067" y="1947" font-size="11">- fireRate : float</text>
+<line x1="3060" y1="1959" x2="3300" y2="1959" stroke="#E3E3E3"/>
+<text x="3067" y="1978" font-size="11">+ ServerOnUseStart() : void {override} {ใหม่}</text>
+<rect x="3500" y="2560" width="190" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="3595" y="2576" text-anchor="middle" font-size="12" font-weight="700">WorldItem</text>
+<text x="3595" y="2589" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="3500" y1="2597" x2="3690" y2="2597" stroke="#E3E3E3"/>
+<text x="3507" y="2612" font-size="11">- definition : ItemDefinition</text>
+<text x="3507" y="2627" font-size="11">+ Active : List&lt;WorldItem&gt; {static}</text>
+<line x1="3500" y1="2639" x2="3690" y2="2639" stroke="#E3E3E3"/>
+<text x="3507" y="2658" font-size="11">+ ConsumeFromWorld() : void</text>
+<rect x="3480" y="2340" width="270" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="3615" y="2355" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="3615" y="2369" text-anchor="middle" font-size="12" font-weight="700">ItemPickupInteractor</text>
+<text x="3615" y="2382" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="3480" y1="2389" x2="3750" y2="2389" stroke="#E3E3E3"/>
+<text x="3487" y="2404" font-size="11">- inventory : PlayerInventory</text>
+<text x="3487" y="2419" font-size="11">+ Focused : WorldItem</text>
+<line x1="3480" y1="2431" x2="3750" y2="2431" stroke="#E3E3E3"/>
+<text x="3487" y="2450" font-size="11">- RefreshFocus() : void</text>
+<text x="3487" y="2465" font-size="11">- PickupRpc(item : NetworkObjectReference) : void</text>
+<rect x="320" y="620" width="290" height="121" fill="#141414" stroke="#E3E3E3"/>
+<text x="465" y="636" text-anchor="middle" font-size="12" font-weight="700">LimbSelectionPanel</text>
+<text x="465" y="649" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LobbyManager}</text>
+<line x1="320" y1="657" x2="610" y2="657" stroke="#E3E3E3"/>
+<text x="327" y="672" font-size="11">- selection : LimbSelection</text>
+<line x1="320" y1="684" x2="610" y2="684" stroke="#E3E3E3"/>
+<text x="327" y="703" font-size="11">- TryRequestLimb(robotId : ulong, slot : LimbSlot) : void</text>
+<text x="327" y="718" font-size="11">- OnStartButtonClicked() : void</text>
+<text x="327" y="733" font-size="11">- OnAssignmentsChanged() : void</text>
+<rect x="1360" y="860" width="290" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="1505" y="875" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="1505" y="889" text-anchor="middle" font-size="12" font-weight="700">RespawnManager</text>
+<text x="1505" y="902" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="1360" y1="909" x2="1650" y2="909" stroke="#E3E3E3"/>
+<text x="1367" y="924" font-size="11">+ Instance : RespawnManager {static}</text>
+<text x="1367" y="939" font-size="11">- robot : Robot {ใหม่}</text>
+<text x="1367" y="954" font-size="11">- currentCheckpointPos : NetworkVariable&lt;Vector3&gt;</text>
+<text x="1367" y="969" font-size="11">- currentCheckpointRot : NetworkVariable&lt;Quaternion&gt;</text>
+<text x="1367" y="984" font-size="11">- respawnCooldown : float</text>
+<line x1="1360" y1="996" x2="1650" y2="996" stroke="#E3E3E3"/>
+<text x="1367" y="1015" font-size="11">+ SetCheckpoint(pos : Vector3, rot : Quaternion) : void</text>
+<text x="1367" y="1030" font-size="11">+ RespawnBody() : void</text>
+<rect x="1360" y="640" width="210" height="76" fill="#141414" stroke="#E3E3E3"/>
+<text x="1465" y="656" text-anchor="middle" font-size="12" font-weight="700">FallDeathZone</text>
+<text x="1465" y="669" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="1360" y1="677" x2="1570" y2="677" stroke="#E3E3E3"/>
+<line x1="1360" y1="689" x2="1570" y2="689" stroke="#E3E3E3"/>
+<text x="1367" y="708" font-size="11">- OnTriggerEnter(other : Collider) : void</text>
+<rect x="1620" y="640" width="210" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="1725" y="656" text-anchor="middle" font-size="12" font-weight="700">CheckpointZone</text>
+<text x="1725" y="669" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="1620" y1="677" x2="1830" y2="677" stroke="#E3E3E3"/>
+<text x="1627" y="692" font-size="11">- respawnPoint : Transform</text>
+<text x="1627" y="707" font-size="11">- alreadyTriggered : bool</text>
+<line x1="1620" y1="719" x2="1830" y2="719" stroke="#E3E3E3"/>
+<text x="1627" y="738" font-size="11">- OnTriggerEnter(other : Collider) : void</text>
+<rect x="320" y="900" width="220" height="103" fill="#141414" stroke="#E3E3E3"/>
+<text x="430" y="915" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="430" y="929" text-anchor="middle" font-size="12" font-weight="700">OrbitCamera</text>
+<text x="430" y="942" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PlayerCam}</text>
+<line x1="320" y1="949" x2="540" y2="949" stroke="#E3E3E3"/>
+<text x="327" y="964" font-size="11">+ followTarget : Transform</text>
+<line x1="320" y1="976" x2="540" y2="976" stroke="#E3E3E3"/>
+<text x="327" y="995" font-size="11">+ Follow(target : Transform) : void {ใหม่}</text>
+<rect x="90" y="600" width="190" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="185" y="615" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="185" y="629" text-anchor="middle" font-size="12" font-weight="700">MatchOutcome</text>
+<text x="185" y="642" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: GameFlowManager.GameState}</text>
+<line x1="90" y1="649" x2="280" y2="649" stroke="#E3E3E3"/>
+<text x="97" y="664" font-size="11">Victory</text>
+<text x="97" y="679" font-size="11">Defeat</text>
+<text x="97" y="694" font-size="11">Finished</text>
+<line x1="90" y1="706" x2="280" y2="706" stroke="#E3E3E3"/>
+<rect x="2920" y="560" width="120" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="2980" y="575" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="2980" y="589" text-anchor="middle" font-size="12" font-weight="700">EnemyAttack</text>
+<text x="2980" y="602" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: AttackType}</text>
+<line x1="2920" y1="609" x2="3040" y2="609" stroke="#E3E3E3"/>
+<text x="2927" y="624" font-size="11">None</text>
+<text x="2927" y="639" font-size="11">LightPunch</text>
+<text x="2927" y="654" font-size="11">BarragePunch</text>
+<text x="2927" y="669" font-size="11">Kick</text>
+<line x1="2920" y1="681" x2="3040" y2="681" stroke="#E3E3E3"/>
+<rect x="3080" y="560" width="150" height="193" fill="#141414" stroke="#E3E3E3"/>
+<text x="3155" y="575" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="3155" y="589" text-anchor="middle" font-size="12" font-weight="700">EnemyAttackDefinition</text>
+<text x="3155" y="602" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="3080" y1="609" x2="3230" y2="609" stroke="#E3E3E3"/>
+<text x="3087" y="624" font-size="11">+ type : EnemyAttack</text>
+<text x="3087" y="639" font-size="11">+ origin : Transform</text>
+<text x="3087" y="654" font-size="11">+ radius : float</text>
+<text x="3087" y="669" font-size="11">+ damage : float</text>
+<text x="3087" y="684" font-size="11">+ delay : float</text>
+<text x="3087" y="699" font-size="11">+ vfx : GameObject</text>
+<text x="3087" y="714" font-size="11">+ sfx : AudioClip</text>
+<text x="3087" y="729" font-size="11">+ animTrigger : string</text>
+<line x1="3080" y1="741" x2="3230" y2="741" stroke="#E3E3E3"/>
+<rect x="2260" y="300" width="230" height="163" fill="#141414" stroke="#E3E3E3"/>
+<text x="2375" y="315" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2375" y="329" text-anchor="middle" font-size="12" font-weight="700">EnemyController</text>
+<text x="2375" y="342" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว · ปรับ}</text>
+<line x1="2260" y1="349" x2="2490" y2="349" stroke="#E3E3E3"/>
+<text x="2267" y="364" font-size="11">- netState : NetworkVariable&lt;EnemyState&gt;</text>
+<text x="2267" y="379" font-size="11">- combat : EnemyCombat</text>
+<text x="2267" y="394" font-size="11">- health : EnemyHealth {ใหม่}</text>
+<text x="2267" y="409" font-size="11">- target : Robot {ใหม่}</text>
+<line x1="2260" y1="421" x2="2490" y2="421" stroke="#E3E3E3"/>
+<text x="2267" y="440" font-size="11">- ServerDecisionLoop() : IEnumerator</text>
+<text x="2267" y="455" font-size="11">- OnDied() : void {เดิม: ServerDie}</text>
+<rect x="2720" y="60" width="250" height="148" fill="#141414" stroke="#E3E3E3"/>
+<text x="2845" y="75" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="2845" y="89" text-anchor="middle" font-size="12" font-weight="700">EnemyUltimate</text>
+<text x="2845" y="102" text-anchor="middle" font-size="10" fill="#8AB4F8">{มีอยู่แล้ว}</text>
+<line x1="2720" y1="109" x2="2970" y2="109" stroke="#E3E3E3"/>
+<text x="2727" y="124" font-size="11">- netPhase : NetworkVariable&lt;UltimatePhase&gt;</text>
+<text x="2727" y="139" font-size="11">- controller : EnemyController</text>
+<text x="2727" y="154" font-size="11">- activeProjectile : BlackHoleProjectile</text>
+<text x="2727" y="169" font-size="11">+ IsRunning : bool</text>
+<line x1="2720" y1="181" x2="2970" y2="181" stroke="#E3E3E3"/>
+<text x="2727" y="200" font-size="11">+ ServerRequestUltimate() : void</text>
+</g>
+</svg>

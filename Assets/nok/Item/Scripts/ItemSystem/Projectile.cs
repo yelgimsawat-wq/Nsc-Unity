@@ -1,16 +1,11 @@
+using Nsc.Combat;
 using UnityEngine;
-using Unity.Netcode;
-using NscGame.Enemy;
-using NscGame.Pvp;
 
 namespace NscUnity.Items
 {
     /// <summary>
-    /// กระสุนที่พุ่งจริง มีระยะเวลาเดินทาง (ไม่ใช่ยิงติดทันทีแบบ Hitscan)
-    /// ถูกสร้างขึ้นตอนรันไทม์โดยไอเทมที่ยิงกระสุน (เช่น ChargeGunHeldItem) — ไม่ต้องเตรียม Prefab ของตัวนี้เอง
-    ///
-    /// ส่งดาเมจ 3 ทาง เรียงลำดับ: PvpRobotTeam (ยิงผู้เล่นในโหมด PVP) → EnemyHealth (บอส AI) → IHittable (ทั่วไป)
-    /// ⚠️ Multiplayer: คำนวณดาเมจแบบ local เหมือน GunHeldItem — ได้ผลจริงเฉพาะเครื่องที่เป็น Host/Server
+    /// กระสุนที่พุ่งจริง มีระยะเวลาเดินทาง (ไม่ใช่ hitscan) — ถูกสร้างตอนรันไทม์โดยไอเทมที่ยิงกระสุน
+    /// ทุกเครื่องจำลองเหมือนกันเพื่อภาพ ส่วนดาเมจผ่าน DamageRouter (server เท่านั้น กติกาทีมอยู่ที่นั่น)
     /// </summary>
     public class Projectile : MonoBehaviour
     {
@@ -22,12 +17,12 @@ namespace NscUnity.Items
         private float hitRadius;
         private LayerMask hitLayers;
         private GameObject impactEffectPrefab;
-        private PvpTeam shooterTeam;
-        private ulong shooterRobotId;
+        private Team shooterTeam;
 
         private float travelled;
 
-        public void Init(Vector3 direction, float speed, float damage, float knockback, float maxDistance, float hitRadius, LayerMask hitLayers, GameObject impactEffectPrefab, PvpTeam shooterTeam = PvpTeam.None, ulong shooterRobotId = 0)
+        public void Init(Vector3 direction, float speed, float damage, float knockback, float maxDistance,
+                         float hitRadius, LayerMask hitLayers, GameObject impactEffectPrefab, Team shooterTeam = Team.None)
         {
             this.direction = direction.normalized;
             this.speed = speed;
@@ -38,7 +33,6 @@ namespace NscUnity.Items
             this.hitLayers = hitLayers;
             this.impactEffectPrefab = impactEffectPrefab;
             this.shooterTeam = shooterTeam;
-            this.shooterRobotId = shooterRobotId;
 
             transform.rotation = Quaternion.LookRotation(this.direction);
         }
@@ -47,8 +41,9 @@ namespace NscUnity.Items
         {
             float step = speed * Time.deltaTime;
 
-            // ใช้ SphereCast แทน Raycast เส้นเดียว เพื่อกันกระสุนความเร็วสูงทะลุของบางๆ ไปโดยไม่โดนตรวจจับ
-            if (Physics.SphereCast(transform.position, hitRadius, direction, out RaycastHit hit, step, hitLayers, QueryTriggerInteraction.Ignore))
+            // SphereCast แทน Raycast เส้นเดียว — กันกระสุนเร็วทะลุของบางๆ
+            if (Physics.SphereCast(transform.position, hitRadius, direction, out RaycastHit hit, step, hitLayers,
+                                   QueryTriggerInteraction.Ignore))
             {
                 HandleHit(hit);
                 return;
@@ -56,58 +51,21 @@ namespace NscUnity.Items
 
             transform.position += direction * step;
             travelled += step;
-
-            if (travelled >= maxDistance)
-            {
-                Destroy(gameObject);
-            }
+            if (travelled >= maxDistance) Destroy(gameObject);
         }
 
         private void HandleHit(RaycastHit hit)
         {
-            ApplyDamage(hit);
+            var info = new DamageInfo(damage, hit.point, direction, DamageSource.Projectile, shooterTeam)
+            {
+                knockback = knockback
+            };
+            DamageRouter.TryApply(hit.collider, info);
 
             if (impactEffectPrefab != null)
-            {
                 Instantiate(impactEffectPrefab, hit.point, Quaternion.LookRotation(hit.normal));
-            }
 
             Destroy(gameObject);
-        }
-
-        /// <summary>ส่งดาเมจผ่านอินเทอร์เฟซที่โปรเจกต์นี้มีอยู่แล้ว — เหมือน GunHeldItem.ApplyDamage() แต่เพิ่มเส้นทาง PVP</summary>
-        private void ApplyDamage(RaycastHit hit)
-        {
-            bool isServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
-            if (!isServer) return;
-
-            // 1. ยิงหุ่นผู้เล่นในโหมด PVP — ต้องอยู่ในช่วงกำลังสู้กัน (Fighting)
-            //    ยิงโดนตัวเอง (หุ่นตัวเดียวกับที่ยิง) อนุญาต — ยิงโดนเพื่อนร่วมทีมคนอื่น (ทีมเดียวกันแต่คนละตัว) กันไว้
-            PvpRobotTeam targetRobot = PvpRobotTeam.FindByPart(hit.collider.transform);
-            if (targetRobot != null)
-            {
-                bool isFighting = PvpTeamManager.Instance != null && PvpTeamManager.Instance.IsFighting;
-                bool isSelf = shooterRobotId != 0 && targetRobot.NetworkObjectId == shooterRobotId;
-                bool isTeammate = !isSelf && shooterTeam != PvpTeam.None && targetRobot.Team == shooterTeam;
-
-                if (isFighting && !isTeammate)
-                {
-                    targetRobot.ServerApplyBodyDamage(damage, AttackType.LightPunch, direction, hit.point);
-                }
-                return; // เป็นหุ่น PVP แล้ว ไม่ต้องตกไปเช็ค EnemyHealth/IHittable ต่อ
-            }
-
-            // 2. บอส AI (PvE)
-            EnemyHealth enemyHealth = hit.collider.GetComponentInParent<EnemyHealth>();
-            if (enemyHealth != null)
-            {
-                enemyHealth.ServerTakeHit(damage, direction, knockback, hit.point);
-                return;
-            }
-
-            // 3. อะไรก็ตามที่รับดาเมจได้แบบทั่วไป
-            IHittable hittable = hit.collider.GetComponentInParent<IHittable>();
-            hittable?.ServerTakeDamage(damage, AttackType.LightPunch, direction);
         }
     }
 }

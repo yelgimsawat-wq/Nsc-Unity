@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1540 1094" width="1540" height="1094" font-family="Arial, Helvetica, sans-serif" fill="#F2F2F2">
+<title>Robot aggregate และวงจรชีวิตของแขนขา</title>
+<rect width="100%" height="100%" fill="#141414"/>
+<g class="banner"><rect x="40" y="10" width="424.5" height="22" rx="11" fill="#141414" stroke="#8AB4F8"/><circle cx="52" cy="21" r="4" fill="#8AB4F8"/><text x="62" y="25" font-size="11" font-weight="700" fill="#8AB4F8">ข้อเสนอ · ยังไม่มีในโค้ด · ป้าย {เดิม: X} คือคลาสในโค้ดตอนนี้ที่ส่วนนี้มาจาก</text></g>
+<g transform="translate(0,36)">
+<polyline points="430,153 340,153" fill="none" stroke="#E3E3E3"/>
+<polygon points="430.0,153.0 422.0,147.0 414.0,153.0 422.0,159.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="355.2" y="138.0" width="13.6" height="14" fill="#141414"/><text x="362.0" y="149.0" text-anchor="middle" font-size="10" fill="#BDBDBD">1</text>
+<polyline points="560,266 560,330" fill="none" stroke="#E3E3E3"/>
+<polygon points="560.0,266.0 554.0,274.0 560.0,282.0 566.0,274.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<rect x="565.2" y="300.0" width="13.6" height="14" fill="#141414"/><text x="572.0" y="311.0" text-anchor="middle" font-size="10" fill="#BDBDBD">4</text>
+<polyline points="690,443 770,443" fill="none" stroke="#E3E3E3"/>
+<polyline points="760.0,448.0 770,443 760.0,438.0" fill="none" stroke="#E3E3E3"/>
+<polyline points="560,556 560,600 200,600 200,640" fill="none" stroke="#E3E3E3"/>
+<polygon points="560.0,556.0 554.0,564.0 560.0,572.0 566.0,564.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<polyline points="560,556 560,600 500,600 500,640" fill="none" stroke="#E3E3E3"/>
+<polygon points="560.0,556.0 554.0,564.0 560.0,572.0 566.0,564.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<polyline points="560,556 560,600 795,600 795,640" fill="none" stroke="#E3E3E3"/>
+<polygon points="560.0,556.0 554.0,564.0 560.0,572.0 566.0,564.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<polyline points="500,863 500,900" fill="none" stroke="#E3E3E3"/>
+<polygon points="500.0,863.0 494.0,871.0 500.0,879.0 506.0,871.0" fill="#E3E3E3" stroke="#E3E3E3"/>
+<polyline points="690,530 1088,530 1088,662" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polygon points="1088.0,662.0 1081.0,649.0 1095.0,649.0" fill="#141414" stroke="#E3E3E3"/>
+<polyline points="1140,206 1140,662" fill="none" stroke="#E3E3E3" stroke-dasharray="6 4"/>
+<polygon points="1140.0,662.0 1133.0,649.0 1147.0,649.0" fill="#141414" stroke="#E3E3E3"/>
+<polyline points="1010,152 690,152" fill="none" stroke="#E3E3E3"/>
+<polyline points="700.0,147.0 690,152 700.0,157.0" fill="none" stroke="#E3E3E3"/>
+<rect x="816.0" y="144.0" width="68.0" height="14" fill="#141414"/><text x="850.0" y="155.0" text-anchor="middle" font-size="10" fill="#BDBDBD">หาชิ้นที่ใกล้สุด</text>
+<polyline points="430,428 410,428" fill="none" stroke="#A9A9A9" stroke-dasharray="6 4"/>
+<polyline points="1270,153 1300,153" fill="none" stroke="#A9A9A9" stroke-dasharray="6 4"/>
+<polyline points="390,836 330,836" fill="none" stroke="#A9A9A9" stroke-dasharray="6 4"/>
+<polyline points="795,818 795,856" fill="none" stroke="#A9A9A9" stroke-dasharray="6 4"/>
+<rect x="430" y="40" width="260" height="226" fill="#141414" stroke="#E3E3E3"/>
+<text x="560" y="56" text-anchor="middle" font-size="12" font-weight="700">Robot</text>
+<text x="560" y="69" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="430" y1="77" x2="690" y2="77" stroke="#E3E3E3"/>
+<text x="437" y="92" font-size="11">- team : Team</text>
+<text x="437" y="107" font-size="11">- torso : TorsoBalance</text>
+<text x="437" y="122" font-size="11">- limbs : RobotLimb[4]</text>
+<text x="437" y="137" font-size="11">+ LimbStateChanged : event</text>
+<line x1="430" y1="149" x2="690" y2="149" stroke="#E3E3E3"/>
+<text x="437" y="168" font-size="11">+ GetLimb(slot : LimbSlot) : RobotLimb</text>
+<text x="437" y="183" font-size="11">+ Limbs() : IEnumerable&lt;RobotLimb&gt;</text>
+<text x="437" y="198" font-size="11">+ DetachedCount() : int</text>
+<text x="437" y="213" font-size="11">+ SetSimulationEnabled(on : bool) : void</text>
+<text x="437" y="228" font-size="11">+ ServerResetForRespawn(spawn : Pose) : void</text>
+<text x="437" y="243" font-size="11">+ FromCollider(hit : Collider) : Robot {static}</text>
+<text x="437" y="258" font-size="11">- OnLimbStateChanged(limb : RobotLimb) : void</text>
+<rect x="770" y="376.5" width="150" height="133" fill="#141414" stroke="#E3E3E3"/>
+<text x="845" y="391.5" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Enumeration&gt;&gt;</text>
+<text x="845" y="405.5" text-anchor="middle" font-size="12" font-weight="700">LimbSlot</text>
+<text x="845" y="418.5" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: LimbStatusUI.LimbSlot}</text>
+<line x1="770" y1="425.5" x2="920" y2="425.5" stroke="#E3E3E3"/>
+<text x="777" y="440.5" font-size="11">LeftArm</text>
+<text x="777" y="455.5" font-size="11">RightArm</text>
+<text x="777" y="470.5" font-size="11">LeftLeg</text>
+<text x="777" y="485.5" font-size="11">RightLeg</text>
+<line x1="770" y1="497.5" x2="920" y2="497.5" stroke="#E3E3E3"/>
+<rect x="430" y="330" width="260" height="226" fill="#141414" stroke="#E3E3E3"/>
+<text x="560" y="346" text-anchor="middle" font-size="12" font-weight="700">RobotLimb</text>
+<text x="560" y="359" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="430" y1="367" x2="690" y2="367" stroke="#E3E3E3"/>
+<text x="437" y="382" font-size="11">- slot : LimbSlot</text>
+<text x="437" y="397" font-size="11">- owner : Robot</text>
+<text x="437" y="412" font-size="11">- attachment : LimbAttachment</text>
+<text x="437" y="427" font-size="11">- health : LimbHealth</text>
+<text x="437" y="442" font-size="11">- controller : LimbController</text>
+<text x="437" y="457" font-size="11">+ IsAttached : bool</text>
+<text x="437" y="472" font-size="11">+ StateChanged : event</text>
+<line x1="430" y1="484" x2="690" y2="484" stroke="#E3E3E3"/>
+<text x="437" y="503" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="437" y="518" font-size="11">+ ServerForceDetach() : void</text>
+<text x="437" y="533" font-size="11">- OnHealthDepleted() : void</text>
+<text x="437" y="548" font-size="11">- OnAttachmentChanged(attached : bool) : void</text>
+<rect x="390" y="640" width="220" height="223" fill="#141414" stroke="#E3E3E3"/>
+<text x="500" y="655" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="500" y="669" text-anchor="middle" font-size="12" font-weight="700">LimbAttachment</text>
+<text x="500" y="682" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: JointPullAndReconnect}</text>
+<line x1="390" y1="689" x2="610" y2="689" stroke="#E3E3E3"/>
+<text x="397" y="704" font-size="11">- isAttached : NetworkVariable&lt;bool&gt;</text>
+<text x="397" y="719" font-size="11">- socket : Rigidbody</text>
+<text x="397" y="734" font-size="11">- savedJoint : SavedJointSettings</text>
+<text x="397" y="749" font-size="11">- reconnectCooldown : float = 3</text>
+<text x="397" y="764" font-size="11">- reconnectDistance : float = 2</text>
+<text x="397" y="779" font-size="11">+ IsAttached : bool</text>
+<text x="397" y="794" font-size="11">+ AttachmentChanged : event</text>
+<line x1="390" y1="806" x2="610" y2="806" stroke="#E3E3E3"/>
+<text x="397" y="825" font-size="11">+ ServerDetach() : void</text>
+<text x="397" y="840" font-size="11">+ RequestPullBackRpc(held : bool) : void</text>
+<text x="397" y="855" font-size="11">- ServerReconnect() : void</text>
+<rect x="400" y="900" width="200" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="500" y="915" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Struct&gt;&gt;</text>
+<text x="500" y="929" text-anchor="middle" font-size="12" font-weight="700">SavedJointSettings</text>
+<text x="500" y="942" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: SavedConfigurableJointSettings}</text>
+<line x1="400" y1="949" x2="600" y2="949" stroke="#E3E3E3"/>
+<text x="407" y="964" font-size="11">+ anchor, connectedAnchor : Vector3</text>
+<text x="407" y="979" font-size="11">+ axis, secondaryAxis : Vector3</text>
+<text x="407" y="994" font-size="11">+ motions, limits, drives</text>
+<line x1="400" y1="1006" x2="600" y2="1006" stroke="#E3E3E3"/>
+<rect x="680" y="640" width="230" height="178" fill="#141414" stroke="#E3E3E3"/>
+<text x="795" y="655" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="795" y="669" text-anchor="middle" font-size="12" font-weight="700">LimbHealth</text>
+<text x="795" y="682" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: RobotHealth}</text>
+<line x1="680" y1="689" x2="910" y2="689" stroke="#E3E3E3"/>
+<text x="687" y="704" font-size="11">- hp : NetworkVariable&lt;float&gt;</text>
+<text x="687" y="719" font-size="11">- maxHp : NetworkVariable&lt;float&gt;</text>
+<text x="687" y="734" font-size="11">+ Depleted : event</text>
+<line x1="680" y1="746" x2="910" y2="746" stroke="#E3E3E3"/>
+<text x="687" y="765" font-size="11">+ ServerTakeDamage(amount : float) : void</text>
+<text x="687" y="780" font-size="11">+ ServerDeplete() : void</text>
+<text x="687" y="795" font-size="11">+ ServerRefill() : void</text>
+<text x="687" y="810" font-size="11">- Regenerate() : void</text>
+<rect x="1010" y="662" width="260" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="1140" y="677" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;Interface&gt;&gt;</text>
+<text x="1140" y="691" text-anchor="middle" font-size="12" font-weight="700">IDamageable</text>
+<text x="1140" y="704" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: IHittable}</text>
+<line x1="1010" y1="711" x2="1270" y2="711" stroke="#E3E3E3"/>
+<line x1="1010" y1="723" x2="1270" y2="723" stroke="#E3E3E3"/>
+<text x="1017" y="742" font-size="11">+ Kind() : DamageTargetKind</text>
+<text x="1017" y="757" font-size="11">+ Team() : Team</text>
+<text x="1017" y="772" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<rect x="1010" y="100" width="260" height="106" fill="#141414" stroke="#E3E3E3"/>
+<text x="1140" y="116" text-anchor="middle" font-size="12" font-weight="700">RobotBodyDamageRelay</text>
+<text x="1140" y="129" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: PvpRobotTeam}</text>
+<line x1="1010" y1="137" x2="1270" y2="137" stroke="#E3E3E3"/>
+<text x="1017" y="152" font-size="11">- robot : Robot</text>
+<line x1="1010" y1="164" x2="1270" y2="164" stroke="#E3E3E3"/>
+<text x="1017" y="183" font-size="11">+ ServerApplyDamage(info : DamageInfo) : bool</text>
+<text x="1017" y="198" font-size="11">- NearestAttachedLimb(p : Vector3) : RobotLimb</text>
+<rect x="80" y="94" width="260" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="210" y="109" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="210" y="123" text-anchor="middle" font-size="12" font-weight="700">TorsoBalance</text>
+<text x="210" y="136" text-anchor="middle" font-size="10" fill="#8AB4F8">{เดิม: TorsoMovement}</text>
+<line x1="80" y1="143" x2="340" y2="143" stroke="#E3E3E3"/>
+<text x="87" y="158" font-size="11">- state : NetworkVariable&lt;TorsoState&gt;</text>
+<line x1="80" y1="170" x2="340" y2="170" stroke="#E3E3E3"/>
+<text x="87" y="189" font-size="11">+ ServerKnockDown(reason : FallReason) : void</text>
+<text x="87" y="204" font-size="11">+ ServerResetForRespawn() : void</text>
+<rect x="80" y="640" width="240" height="118" fill="#141414" stroke="#E3E3E3"/>
+<text x="200" y="655" text-anchor="middle" font-size="11" font-weight="700">&lt;&lt;NetworkBehaviour&gt;&gt;</text>
+<text x="200" y="669" text-anchor="middle" font-size="12" font-weight="700" font-style="italic">LimbController</text>
+<text x="200" y="682" text-anchor="middle" font-size="10" fill="#8AB4F8">{ใหม่}</text>
+<line x1="80" y1="689" x2="320" y2="689" stroke="#E3E3E3"/>
+<text x="87" y="704" font-size="11"># limb : RobotLimb</text>
+<text x="87" y="719" font-size="11"># body : Rigidbody</text>
+<line x1="80" y1="731" x2="320" y2="731" stroke="#E3E3E3"/>
+<text x="87" y="750" font-size="11">+ ServerResetForRespawn() : void {abstract}</text>
+<path d="M130,385 H400 L410,395 V471 H130 Z M400,385 V395 H410" fill="#141414" stroke="#81C995"/>
+<text x="140" y="404" font-size="10.5" font-weight="700" fill="#81C995">กติการะดับชิ้น เหมือนโค้ดตอนนี้ (server):</text>
+<text x="140" y="418" font-size="10.5" fill="#BDBDBD">ชิ้นที่หลุดไม่รับดาเมจ และไม่มีเอฟเฟคโดนตี</text>
+<text x="140" y="432" font-size="10.5" fill="#BDBDBD">Hp = 0 หรือโดนท่าไม้ตายบอส → หลุด + เพดานเลือดลด</text>
+<text x="140" y="446" font-size="10.5" fill="#BDBDBD">ต่อกลับ → เลือดเต็มตามเพดานปัจจุบัน</text>
+<text x="140" y="460" font-size="10.5" fill="#BDBDBD">ทุกเครื่อง: ยิง StateChanged(this)</text>
+<path d="M1300,117 H1490 L1500,127 V189 H1300 Z M1490,117 V127 H1500" fill="#141414" stroke="#81C995"/>
+<text x="1310" y="136" font-size="10.5" font-weight="700" fill="#81C995">เหมือน PvP ตอนนี้:</text>
+<text x="1310" y="150" font-size="10.5" fill="#BDBDBD">ลำตัวไม่มีเลือดของตัวเอง</text>
+<text x="1310" y="164" font-size="10.5" fill="#BDBDBD">ดาเมจที่ลำตัวลงชิ้นที่ใกล้จุดปะทะที่สุด</text>
+<text x="1310" y="178" font-size="10.5" fill="#BDBDBD">และยังต่ออยู่ (ไม่หารให้ทุกชิ้น)</text>
+<path d="M60,800 H320 L330,810 V872 H60 Z M320,800 V810 H330" fill="#141414" stroke="#81C995"/>
+<text x="70" y="819" font-size="10.5" font-weight="700" fill="#81C995">หลุดและดึงกลับแบบเดิม:</text>
+<text x="70" y="833" font-size="10.5" fill="#BDBDBD">หลุด = ทำลาย joint อย่างเดียว ตัวชิ้นและฟิสิกส์ยังอยู่</text>
+<text x="70" y="847" font-size="10.5" fill="#BDBDBD">ขาที่หลุดยังคลานตามจุดเล็ง แขนที่หลุดนิ่ง</text>
+<text x="70" y="861" font-size="10.5" fill="#BDBDBD">กด R ค้างได้หลังหลุด 3 วิ ต่อเมื่อห่าง socket ≤ 2 ม.</text>
+<path d="M680,856 H950 L960,866 V928 H680 Z M950,856 V866 H960" fill="#141414" stroke="#81C995"/>
+<text x="690" y="875" font-size="10.5" font-weight="700" fill="#81C995">ค่าจาก prefab ที่ฉากเกมใช้จริง:</text>
+<text x="690" y="889" font-size="10.5" fill="#BDBDBD">เลือดเริ่ม 500 หลุดแต่ละครั้งเพดานลด 125 (ต่ำสุด 50)</text>
+<text x="690" y="903" font-size="10.5" fill="#BDBDBD">ไม่โดนตี 7.5 วิ แล้ว regen 2 ต่อวิ ไม่เกินเพดาน</text>
+<text x="690" y="917" font-size="10.5" fill="#BDBDBD">โดนตีแล้วชิ้นนั้นกระเด็น (แรง = ดาเมจ × 2)</text>
+</g>
+</svg>

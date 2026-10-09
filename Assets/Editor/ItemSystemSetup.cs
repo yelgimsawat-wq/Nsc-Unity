@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using Nsc.Limbs;
+using Nsc.Robots;
 using Unity.Netcode;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -10,7 +12,7 @@ namespace NscUnity.Items.Editor
     /// <summary>
     /// ติดตั้งระบบไอเทมให้หุ่นทุกตัวในฉากแบบอัตโนมัติ
     ///
-    /// เกมนี้ "ผู้เล่น 1 คน = แขน 1 ข้าง" — LobbyManager โอน ownership ของ NetworkObject แต่ละ limb
+    /// เกมนี้ "ผู้เล่น 1 คน = แขน 1 ข้าง" — LimbSelection โอน ownership ของ NetworkObject แต่ละ limb
     /// ให้ผู้เล่นที่จองไว้ ดังนั้นระบบไอเทมทั้งชุดต้องอยู่ที่ "แขน" ไม่ใช่ลำตัว เพราะ:
     ///   • ลำตัวมีเจ้าของแค่คนเดียว ถ้าเอากระเป๋าไปไว้ที่นั่น ผู้เล่นคนอื่นจะเปิดวงล้อของตัวเองไม่ได้เลย (IsOwner = false)
     ///   • แต่ละคนต้องมีกระเป๋า/วงล้อ/ปุ่มเก็บของ ของตัวเอง แยกอิสระจากกันสมบูรณ์
@@ -32,7 +34,7 @@ namespace NscUnity.Items.Editor
             if (robots.Count == 0)
             {
                 EditorUtility.DisplayDialog("Item System Setup",
-                    "หาหุ่นในฉากไม่เจอเลย (นับจาก TorsoMovement ที่ active อยู่)",
+                    "หาหุ่นในฉากไม่เจอเลย (นับจาก Robot ที่ active อยู่)",
                     "เข้าใจแล้ว");
                 return;
             }
@@ -103,10 +105,10 @@ namespace NscUnity.Items.Editor
 
         #region Steps
 
-        /// <summary>หา root ของหุ่นทุกตัวในฉาก โดยนับจาก TorsoMovement (ตรรกะเดียวกับ PvpSceneSetup)</summary>
+        /// <summary>หา root ของหุ่นทุกตัวในฉาก โดยนับจาก Robot (อยู่ที่ลำตัว)</summary>
         private static List<Transform> FindRobotRoots()
         {
-            return Object.FindObjectsByType<TorsoMovement>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+            return Object.FindObjectsByType<Robot>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
                 .Select(t => ResolveRobotRoot(t.transform))
                 .Distinct()
                 .OrderBy(t => t.name)
@@ -119,7 +121,7 @@ namespace NscUnity.Items.Editor
 
             for (Transform t = from; t != null; t = t.parent)
             {
-                if (t.GetComponentsInChildren<TorsoMovement>(true).Length > 1) break;
+                if (t.GetComponentsInChildren<Robot>(true).Length > 1) break;
                 best = t;
             }
 
@@ -130,15 +132,15 @@ namespace NscUnity.Items.Editor
         {
             SetupResult result = new SetupResult();
 
-            PlayerHandMovement[] arms = root.GetComponentsInChildren<PlayerHandMovement>(true);
+            ArmController[] arms = root.GetComponentsInChildren<ArmController>(true);
             if (arms.Length == 0)
             {
-                Debug.LogWarning($"[Item Setup] หุ่น '{root.name}' ไม่มี PlayerHandMovement เลย — ไม่มีแขนให้ถือของ", root);
+                Debug.LogWarning($"[Item Setup] หุ่น '{root.name}' ไม่มี ArmController เลย — ไม่มีแขนให้ถือของ", root);
                 return result;
             }
 
             // ติดตั้งให้แขน "ทุกข้าง" เพราะแต่ละข้างคือผู้เล่นคนละคน ต้องมีของตัวเองแยกกันสมบูรณ์
-            foreach (PlayerHandMovement arm in arms)
+            foreach (ArmController arm in arms)
             {
                 if (SetupArm(arm.transform, database, out bool missingNetworkObject))
                 {

@@ -1,47 +1,46 @@
-using NscGame.Pvp;
+using Nsc.Combat;
+using Nsc.Robots;
 using UnityEngine;
 
 namespace NscUnity.Items
 {
     /// <summary>
-    /// ดาบ (หรืออาวุธประชิดตัวชนิดอื่น) — ดาเมจมาจาก "แรงกระแทกจริง" ตอนสวิงไปชน ไม่ใช่กดปุ่มสั่งฟัน
-    /// ใช้ระบบเดียวกับหมัด/เตะที่มีอยู่แล้ว (PvpDamageSender คำนวณดาเมจจากแรงปะทะจริง F = ma)
-    /// ฟาดแรง = ดาเมจเยอะ ฟาดเบา = แทบไม่รู้สึกอะไร เป็นฟิสิกส์จริง ไม่ใช่เลขตายตัวเหมือนปืน
+    /// ดาบ (อาวุธประชิด) — ดาเมจมาจากการสวิงไปชนจริง ไม่ใช่กดปุ่มสั่งฟัน
+    /// ตอนถือขึ้นมาสร้าง FixedJoint ยึดดาบกับ Rigidbody ของมือ ดาบจึงสวิงตามมือจริง
+    /// LimbStrike บนใบดาบถามท่านี้ (IStrikeSource) ว่าความเร็วสวิงพีคเท่าไหร่ แล้วคิดดาเมจแบบเดียวกับหมัด
     ///
-    /// วิธีทำงาน: ตอนถือขึ้นมา จะสร้าง FixedJoint ยึดดาบไว้กับ Rigidbody ของมือ ให้ดาบสวิงตามการขยับมือ
-    /// จริงๆ (ไม่ใช่แค่เกาะตำแหน่งเฉยๆ แบบไอเทมทั่วไป) พอไปชนอะไร Unity จะคำนวณแรงกระแทกจากความเร็วจริง
-    /// แล้ว PvpDamageSender ที่แปะอยู่บนใบดาบจะแปลงแรงนั้นเป็นดาเมจให้เอง — ไม่ต้องเขียนสูตรดาเมจเพิ่มเลย
-    ///
-    /// ⚠️ ต้องสั่งไม่ให้ Physics คิดชนกันระหว่างดาบกับตัวหุ่นเราเอง ไม่งั้นตอนสวิงใบดาบจะไปโดนแขน/ลำตัว/ขา
-    /// ของตัวเอง แรงชนนั้นจะดันผ่าน FixedJoint เข้าไปรบกวน Joint ของแขน (JointPullAndReconnect) จนหมุนเพี้ยน
+    /// ⚠️ ต้องปิดการชนระหว่างดาบกับหุ่นตัวเอง ไม่งั้นแรงชนดันผ่าน FixedJoint ไปรบกวนข้อต่อแขน
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public class SwordHeldItem : HeldItem
+    public class SwordHeldItem : HeldItem, IStrikeSource
     {
-        [Tooltip("ความแข็งของข้อต่อที่ยึดดาบไว้กับมือ ปล่อยเป็น Infinity ไว้ได้ (ไม่มีวันหลุดจากมือ)")]
+        // ความเร็วพีคของการสวิงจำไว้ช่วงสั้นๆ — ชนกลางวงสวิงหรือปลายวงก็ได้ดาเมจจากความเร็วสูงสุดของวงนั้น
+        private const float SwingMemorySeconds = 0.25f;
+
+        [Tooltip("ความแข็งของข้อต่อที่ยึดดาบกับมือ ปล่อยเป็น Infinity ไว้ได้ (ไม่มีวันหลุดจากมือ)")]
         [SerializeField] private float jointBreakForce = Mathf.Infinity;
 
-        [Tooltip("ให้ข้อต่อมองว่าดาบเบากว่าความจริงกี่เท่า — ยิ่งสูงยิ่งไม่ถ่วงแขน\n" +
-                 "แขนขยับด้วยมอเตอร์ที่มีแรงจำกัด ถ้าดาบถ่วงเต็มน้ำหนักจะขยับแขนแทบไม่ไหว")]
+        [Tooltip("ให้ข้อต่อมองว่าดาบเบากว่าความจริงกี่เท่า — แขนขยับด้วยมอเตอร์ที่มีแรงจำกัด ดาบหนักจะถ่วงจนขยับไม่ไหว")]
         [SerializeField, Min(1f)] private float weightRelief = 20f;
 
         [Header("ความแรง")]
-        [Tooltip("ดาบแรงกว่าต่อยมือเปล่ากี่เท่า — 2.5 = ฟาดด้วยความเร็วเท่ากับต่อย แต่เจ็บกว่า 2.5 เท่า")]
+        [Tooltip("ดาบแรงกว่าต่อยมือเปล่ากี่เท่า — 2.5 = สวิงเร็วเท่าหมัดแต่เจ็บกว่า 2.5 เท่า")]
         [SerializeField, Min(1f)] private float damageMultiplier = 2.5f;
 
-        [Tooltip("เพดานดาเมจต่อการฟาดหนึ่งครั้ง — ตั้งสูงกว่าหมัดเพราะดาบควรแรงกว่า")]
+        [Tooltip("เพดานดาเมจต่อการฟาดหนึ่งครั้ง — สูงกว่าหมัดเพราะดาบควรแรงกว่า")]
         [SerializeField] private float maxDamagePerHit = 180f;
 
         private FixedJoint joint;
+        private Rigidbody swordBody;
+        private float peakSpeed;
+        private float peakSpeedTime;
 
         public override void OnEquipped()
         {
-            Rigidbody swordBody = GetComponent<Rigidbody>();
+            swordBody = GetComponent<Rigidbody>();
 
-            // GetComponentInParent เช็คตัวเองก่อนเสมอ ดาบมี Rigidbody ของตัวเองอยู่แล้ว
-            // ถ้าเรียกจาก transform ตรงๆ จะเจอ Rigidbody ของดาบเอง ไม่ใช่ของมือ — ต้องเริ่มค้นจาก parent แทน
+            // GetComponentInParent เช็คตัวเองก่อนเสมอ — ต้องเริ่มค้นจาก parent ไม่งั้นได้ Rigidbody ของดาบเอง
             Rigidbody handBody = transform.parent != null ? transform.parent.GetComponentInParent<Rigidbody>() : null;
-
             if (handBody == null || handBody == swordBody)
             {
                 Debug.LogError($"[SwordHeldItem] หา Rigidbody ของมือไม่เจอ (ไต่จาก parent) — " +
@@ -49,56 +48,43 @@ namespace NscUnity.Items
                 return;
             }
 
-            // ดาบต้องไม่เป็น kinematic ไม่งั้นมันจะกลายเป็น "สมอ" ตรึงแขนไว้กับที่จนขยับไม่ได้เลย
+            // ดาบเป็น kinematic = "สมอ" ตรึงแขนไว้กับที่จนขยับไม่ได้
             if (swordBody.isKinematic)
             {
                 swordBody.isKinematic = false;
                 Debug.LogWarning($"[SwordHeldItem] Rigidbody ของ '{name}' ตั้ง Is Kinematic ไว้ — " +
-                                 "ปิดให้อัตโนมัติแล้ว (ถ้าเปิดค้างไว้จะตรึงแขนจนขยับไม่ได้) แนะนำให้แก้ที่ prefab ด้วย", this);
+                                 "ปิดให้อัตโนมัติแล้ว แนะนำให้แก้ที่ prefab ด้วย", this);
             }
 
             joint = gameObject.AddComponent<FixedJoint>();
             joint.connectedBody = handBody;
             joint.breakForce = jointBreakForce;
             joint.breakTorque = jointBreakForce;
-
-            // บอกให้ solver มองว่าดาบเบากว่าความจริง — แขนขยับด้วยมอเตอร์ที่มีแรงจำกัด
-            // ถ้าปล่อยให้ดาบถ่วงเต็มน้ำหนัก มอเตอร์จะแบกไม่ไหวจนแขนขยับแทบไม่ได้
             joint.massScale = 1f;
             joint.connectedMassScale = weightRelief;
 
             IgnoreCollisionsWithOwnRobot();
-            ConfigureDamage(handBody);
+            ConfigureStrike(handBody);
         }
 
         /// <summary>
-        /// ตั้งค่า PvpDamageSender บนดาบให้แรงกว่าต่อยมือเปล่า
-        ///
-        /// ปกติ PvpDamageSender บนชิ้นที่ไม่มี PlayerHandCombat จะคิดดาเมจจาก impulse (แบบเท้า)
-        /// ซึ่งดาบจะได้ดาเมจน้อยมากเพราะมวลเบา — เลยยืมค่าจาก PvpDamageSender ของ "มือ" ที่ถือดาบอยู่
-        /// (ซึ่งคิดจากความเร็วพีคของหมัด) แล้วคูณเพิ่มด้วย damageMultiplier
+        /// ยืมค่าจาก LimbStrike ของมือที่ถือ (ซึ่งจูนไว้สำหรับหมัด) แล้วคูณให้แรงกว่า
+        /// ฟาดเบาๆ เข้าง่ายกว่าต่อย เพราะคมดาบไม่ต้องใช้แรงเท่าหมัด
         /// </summary>
-        private void ConfigureDamage(Rigidbody handBody)
+        private void ConfigureStrike(Rigidbody handBody)
         {
-            PvpDamageSender swordDamage = GetComponent<PvpDamageSender>();
-            if (swordDamage == null) return;
+            LimbStrike strike = GetComponent<LimbStrike>();
+            if (strike == null) return;
+            strike.SetSource(this);
 
-            PvpDamageSender handDamage = handBody.GetComponent<PvpDamageSender>();
-            if (handDamage == null)
+            LimbStrike handStrike = handBody.GetComponent<LimbStrike>();
+            if (handStrike == null)
             {
-                Debug.LogWarning($"[SwordHeldItem] มือ '{handBody.name}' ไม่มี PvpDamageSender — " +
-                                 "ดาบจะใช้ค่าดาเมจที่ตั้งไว้ใน prefab ตรงๆ แทนการอิงจากหมัด", this);
+                Debug.LogWarning($"[SwordHeldItem] มือ '{handBody.name}' ไม่มี LimbStrike — ใช้ค่าดาเมจที่ตั้งไว้ใน prefab ตรงๆ", this);
                 return;
             }
 
-            // ดาบไม่มี PlayerHandCombat ของตัวเอง เลยคิดดาเมจจาก impulse ซึ่งมวลเบาทำให้ได้น้อย
-            // ชดเชยด้วยการดันตัวคูณ impulse ขึ้นตามสัดส่วนที่อยากให้แรงกว่าหมัด
-            swordDamage.forceToDamage = handDamage.forceToDamage * damageMultiplier;
-            swordDamage.speedToDamage = handDamage.speedToDamage * damageMultiplier;
-            swordDamage.maxDamagePerHit = maxDamagePerHit;
-
-            // ฟาดเบาๆ ควรเข้าง่ายกว่าต่อย เพราะคมดาบไม่ต้องใช้แรงเท่าหมัด
-            swordDamage.minVelocityThreshold = handDamage.minVelocityThreshold * 0.6f;
+            strike.Configure(handStrike, damageMultiplier, 0.6f, maxDamagePerHit);
         }
 
         public override void OnUnequipped()
@@ -106,27 +92,50 @@ namespace NscUnity.Items
             if (joint != null) Destroy(joint);
         }
 
+        private void FixedUpdate()
+        {
+            if (swordBody == null) return;
+
+            float speed = swordBody.linearVelocity.magnitude;
+            if (speed >= peakSpeed || Time.time - peakSpeedTime > SwingMemorySeconds)
+            {
+                peakSpeed = speed;
+                peakSpeedTime = Time.time;
+            }
+        }
+
+        // ================================================================
+        //  IStrikeSource — ดาบไม่มีจังหวะท่า: สวิงเร็วพอเมื่อไหร่ก็ทำดาเมจได้
+        // ================================================================
+
+        public bool CanDealDamage() => joint != null;
+        public float PeakSpeed() => peakSpeed;
+        public DamageSource Source() => DamageSource.MeleeWeapon;
+
+        /// <summary>เข้าเป้าแล้วล้างความเร็วพีค — หนึ่งวงสวิง = หนึ่งดาเมจ ครูดต่อไม่นับซ้ำ</summary>
+        public void ResolveStrike(bool landed)
+        {
+            if (!landed) return;
+            peakSpeed = 0f;
+            peakSpeedTime = Time.time;
+        }
+
         /// <summary>
-        /// สั่งให้ Collider ของดาบ "มองไม่เห็น" Collider ทุกชิ้นของหุ่นตัวเราเอง (แขน/ลำตัว/ขา)
-        /// ไม่กระทบการชนศัตรู/สิ่งแวดล้อม เพราะจำกัดแค่ collider ที่อยู่ใต้ root ของหุ่นตัวนี้เท่านั้น
-        /// ไม่ต้องคืนค่าตอน Unequip — Unity ล้าง ignore-collision ให้เองอัตโนมัติตอน GameObject ถูกทำลาย
+        /// ให้ Collider ของดาบ "มองไม่เห็น" collider ทุกชิ้นของหุ่นตัวเอง — ไม่กระทบการชนศัตรู/สิ่งแวดล้อม
+        /// ไม่ต้องคืนค่าตอน Unequip — Unity ล้าง ignore-collision ให้เองตอน GameObject ถูกทำลาย
         /// </summary>
         private void IgnoreCollisionsWithOwnRobot()
         {
             Collider swordCollider = GetComponent<Collider>();
             if (swordCollider == null) return;
 
-            PvpRobotTeam ownRobot = PvpRobotTeam.FindByPart(transform);
-            Transform root = ownRobot != null ? ownRobot.RobotRoot : transform.root;
+            Robot ownRobot = Robot.FromTransform(transform);
+            Transform root = ownRobot != null ? ownRobot.Root : transform.root;
             if (root == null) return;
 
             foreach (Collider ownCollider in root.GetComponentsInChildren<Collider>(true))
-            {
                 if (ownCollider != null && ownCollider != swordCollider)
-                {
                     Physics.IgnoreCollision(swordCollider, ownCollider, true);
-                }
-            }
         }
     }
 }

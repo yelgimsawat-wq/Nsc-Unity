@@ -2085,6 +2085,7 @@ GameObject:
   - component: {fileID: 4248211370010982664}
   - component: {fileID: 1704656288668336095}
   - component: {fileID: 8768736998638396944}
+  - component: {fileID: 4377555655321959404}
   m_Layer: 0
   m_Name: BossGameFlowUI
   m_TagString: Untagged
@@ -2212,26 +2213,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e560427068d5de4a88dbc290e9a4a4a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameFlowManager
-  ShowTopMostFoldoutHeaderGroup: 1
-  winPanel: {fileID: 5094918368139778164}
-  gameOverPanel: {fileID: 6803675424050080458}
-  winHostButtons: {fileID: 3534786341999683892}
-  winWaitingText: {fileID: 170213431844593539}
-  gameOverHostButtons: {fileID: 7275559313568653179}
-  gameOverWaitingText: {fileID: 8184209462754331400}
-  winRestartButton: {fileID: 601733346879002507}
-  winExitButton: {fileID: 1442830899280661361}
-  gameOverRestartButton: {fileID: 4395892797867917785}
-  gameOverExitButton: {fileID: 5586194429905942979}
-  winTimeText: {fileID: 1120842471550510027}
-  gameOverTimeText: {fileID: 1113017530215003120}
-  menuSceneName: -Menu
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.BossModeRules
+  boss: {fileID: 0}
   defeatDetachedLimbs: 4
   defeatCheckInterval: 1
-  endingCutscene: {fileID: 0}
-  victoryPanelDelay: 0
-  fadeDuration: 0.45
 --- !u!1 &7751906904141135266
 GameObject:
   m_ObjectHideFlags: 0
@@ -2773,3 +2758,43 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &4377555655321959404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7559425416177677156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d924588c9fb99ab429e88bcc47032747, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Match.MatchResultPanel
+  victoryView:
+    root: {fileID: 0}
+    group: {fileID: 5094918368139778164}
+    popTarget: {fileID: 0}
+    titleText: {fileID: 0}
+    subtitleText: {fileID: 0}
+    timeText: {fileID: 1120842471550510027}
+    heightText: {fileID: 0}
+    hostButtons: {fileID: 3534786341999683892}
+    waitingText: {fileID: 170213431844593539}
+    retryButton: {fileID: 601733346879002507}
+    exitButton: {fileID: 1442830899280661361}
+  defeatView:
+    root: {fileID: 0}
+    group: {fileID: 6803675424050080458}
+    popTarget: {fileID: 0}
+    titleText: {fileID: 0}
+    subtitleText: {fileID: 0}
+    timeText: {fileID: 1113017530215003120}
+    heightText: {fileID: 0}
+    hostButtons: {fileID: 7275559313568653179}
+    waitingText: {fileID: 8184209462754331400}
+    retryButton: {fileID: 4395892797867917785}
+    exitButton: {fileID: 5586194429905942979}
+  exitMode: 0
+  endingCutscene: {fileID: 0}
+  victoryPanelDelay: 0
+  fadeDuration: 0.45

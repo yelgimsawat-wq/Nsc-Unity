@@ -22,13 +22,14 @@ using UnityEngine.SceneManagement;
 public static class NetworkObjectCleanupTool
 {
     // เก็บ NetworkObject ไว้ถ้าตัวมันเอง หรือ "ตัวเอง/ลูก/หลาน" มีสคริปต์เหล่านี้อยู่
-    // (หุ่น = PlayerHandMovement/PlayerFootForRobot/TorsoMovement | ล็อบบี้ = LobbyManager | เมนู = OnlineNetworkUI)
+    // (หุ่น = ArmController/LegController/Robot | ล็อบบี้/แมตช์ = LimbSelection, MatchSession | เมนู = OnlineNetworkUI)
     private static readonly string[] KeepIfHasComponent =
     {
-        "PlayerHandMovement",
-        "PlayerFootForRobot",
-        "TorsoMovement",
-        "LobbyManager",
+        "ArmController",
+        "LegController",
+        "Robot",
+        "LimbSelection",
+        "MatchSession",
         "OnlineNetworkUI",
         "PlayerCam",
     };

@@ -32,26 +32,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Code Structure
 
-**Main Game Scripts** (`Assets/Scenes/TheBestFolder/Mynigga/`) — grouped into subfolders by role:
+**Gameplay core** (`Assets/_Game/Scripts/`) — matches `ArchitectureDiagram/uml/class-packages.drawio`:
 
-`Player/` - the robot limb control stack
-- `PlayerCam.cs` - Camera follow
-- `PlayerHandMovement.cs` - Arm IK/spring base class
-- `PlayerHandCombat.cs` - Punch (extends PlayerHandMovement)
-- `PlayerFootForRobot.cs` - Leg IK/spring, stepping, standing lock
-- `PlayerLegCombat.cs` - Charge Kick (wind-up → spring-driven strike)
-- `TorsoMovement.cs` - Balance, ragdoll, recovery
+`Robot/` (`Nsc.Robots`) - one robot = one `Robot` (NetworkBehaviour on the Torso) + four `RobotLimb`s
+- `Robot.cs` - team (`NetworkVariable<Team>`), limb lookup (`FromCollider`/`GetLimb`), knock-down, respawn reset
+- `RobotLimb.cs` - one per hand/foot GameObject: `LimbSlot`, links Controller/Attachment/Health
+- `TorsoBalance.cs` - balance springs, ragdoll (`isRagdoll`), jump, recovery; fall decisions live in `FallRules` (pure C#, unit-tested)
+- `LimbAttachment.cs` (detach/re-attach joint), `LimbHealth.cs` (`IDamageable`), `RobotBodyDamageRelay.cs` (torso hits → nearest limb, PVP)
 
-`UI/` - menus and lobby
-- `OnlineNetworkUI.cs` - Main menu multiplayer flow (Create/Join room, waiting lobby)
-- `LobbyManager.cs` - In-game part selection lobby (robot anatomy selection)
-- `SettingsManager.cs` - Settings UI with tabbed layout (Graphics/Audio/Gameplay)
+`Limbs/` (`Nsc.Limbs`) - control stack, split into server physics vs owner input
+- `LimbController.cs` - abstract spring/drive base; `ArmController.cs` + `PunchSkill`, `LegController.cs` + `KickSkill`
+- `ArmInput.cs` / `LegInput.cs` - owner-only mouse/keyboard → RPCs; `ArmGrip.cs` - grab joints; `LocalAim.cs` - shared virtual cursor
 
-`Combat/` - `PhysicsDamageSender.cs` (speed→damage), `RobotTeam.cs`, `RobotManager.cs`
-`Networking/` - `ClientNetworkTransform.cs`, `AutoStartHost.cs`, `ReturnToMenuOnHostLost.cs`, `TestNetwork.cs`
-`Utils/` - `Vector3Extensions.cs`
-`Prefabs/` - `Canvas.prefab`, `player1.prefab`, `Red.mat`
-`OutDated/` - superseded prototypes, not referenced by live scenes
+`Combat/` (`Nsc.Combat`) - `Team`, `DamageInfo`, `IDamageable`, `IStrikeSource`, `DamageRouter` (the only way damage is applied: server-only, match gate, team hostility), `LimbStrike` (speed→damage on limbs/weapons), `DestructibleBuilding`
+
+`Match/` (`Nsc.Match`) - `MatchSession` (phase + result), `LimbSelection` (who controls which limb, reconnect seats), `LimbControlBinder` (binds camera/input on Playing), `ModeRules` → `BossModeRules` / `ParkourModeRules` / `PvpModeRules`, `MatchResultPanel`, `SessionService` (UGS sign-in, host/join/leave, reconnect; lives for the whole app), `GameplayGate`
+
+`Respawn/` (`Nsc.Respawn`) - `RespawnManager`, `CheckpointZone`, `FallDeathZone`
+
+**Menus & misc** (`Assets/Scenes/TheBestFolder/Mynigga/`)
+- `Ui/` - `OnlineNetworkUI.cs` (main menu, talks to `SessionService`), `LobbyManager.cs` (part-selection UI over `LimbSelection`), `InMatchMenu.cs`, `SettingsManager.cs`
+- `Networking/` - `AutoStartHost.cs`, `TestNetwork.cs`, `VoiceChat.cs`; `Utils/`; `OutDated/` (superseded prototypes, not referenced by live scenes)
+- `PlayerCam.cs` - camera follow
 
 **Enemy AI System** (`Assets/nok/Enemy/Scripts/EnemyAI/`)
 - `EnemyController.cs` - Main AI brain (State machine: Idle → Walk → Roll → Attack → Dead)
@@ -146,7 +148,7 @@ Unity Editor: File → Build Settings → Select target platform → Build
 ## Coding Conventions
 
 ### Namespace Usage
-Enemy AI uses `namespace NscGame.Enemy` - other systems do not use namespaces currently
+Gameplay core uses `Nsc.Robots`, `Nsc.Limbs`, `Nsc.Combat`, `Nsc.Match`, `Nsc.Respawn`; Enemy AI uses `NscGame.Enemy`, items `NscUnity.Items`, PVP UI `NscGame.Pvp`. Menu/UI scripts in `Mynigga/` are global.
 
 ### Network Script Pattern
 ```csharp
@@ -221,14 +223,15 @@ private void OnDestroy()
 ## Scene Structure
 
 - **-Menu/** - Main menu scene with `OnlineNetworkUI`
-- **SelectPart** - Lobby scene with `LobbyManager` (loaded after room created)
+- **SelectPart** prefab (`Assets/เก็บไว้กัน/SelectPart.prefab`) - in-scene lobby: `LobbyManager` UI + `MatchSession` + `LimbSelection` + `LimbControlBinder` on one NetworkObject (PVP has its own `PvpMatch` object)
 - **TheBestFolder/** - Main gameplay scenes
 
 ## Assets Organization
 
 - `Assets/nok/` - Core gameplay (Enemy, Rope, Particle, Robot, Weapon)
 - `Assets/map/` - Environment (city, buildings, shaders, materials)
-- `Assets/Scenes/TheBestFolder/Mynigga/` - Main C# scripts (see Code Structure above for the subfolder layout)
+- `Assets/_Game/Scripts/` - Gameplay core (see Code Structure above)
+- `Assets/Scenes/TheBestFolder/Mynigga/` - Menus, settings, networking helpers
 - `Assets/MenuUI/` - Menu-specific UI prefabs
 - `Assets/Plugins/Demigiant/` - DOTween library
 - `Assets/Something/` - Shared resources (TMP, shaders, tutorials)
@@ -241,6 +244,7 @@ private void OnDestroy()
 4. **Animation not playing:** Check Animator parameter names match string constants in code (e.g., `"Speed"`, `"IsRolling"`)
 5. **Player count stuck:** Use `NetworkVariable<int>` with callbacks, not local state
 6. **Settings not saving:** Ensure `PlayerPrefs.Save()` is called after `PlayerPrefs.Set*()`
+7. **Damage not applying:** go through `DamageRouter.TryApply` — it rejects hits on clients, before `MatchSession` is Playing, and between same-team robots. Use Tools ▸ NSC ▸ PVP ▸ Diagnose while playing
 
 ## MCP Integration
 

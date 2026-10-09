@@ -1,4 +1,5 @@
-using NscGame.Pvp;
+using Nsc.Combat;
+using Nsc.Robots;
 using UnityEngine;
 
 namespace NscUnity.Items
@@ -73,6 +74,8 @@ namespace NscUnity.Items
 
         private Transform Muzzle => muzzle != null ? muzzle : transform;
 
+        public float FireCooldown => Mathf.Max(0f, fireCooldown);
+
         /// <summary>ทิศที่กระสุนจะพุ่งไปจริง = ทิศของ Muzzle บวกมุมแก้ที่ตั้งไว้ใน Inspector</summary>
         private Vector3 FireDirection => Muzzle.rotation * Quaternion.Euler(fireDirectionOffset) * Vector3.forward;
 
@@ -81,12 +84,15 @@ namespace NscUnity.Items
             CancelCharge();
         }
 
+        public override void OnUseCancelled() => CancelCharge();
+
         public override void OnUseStart()
         {
-            if (Time.time < nextFireTime) return;
+            if (isCharging || Time.time < nextFireTime || Holder == null || !Holder.IsSpawned || !Holder.IsOwner) return;
 
             isCharging = true;
             chargeStartTime = Time.time;
+            Holder.RequestUseStart();
 
             if (chargeEffectPrefab != null)
             {
@@ -111,7 +117,7 @@ namespace NscUnity.Items
             // ชาร์จเต็ม 100% แล้ว ยิงออกไปทันทีโดยไม่ต้องรอให้ปล่อยมือ — มีขีดจำกัด ชาร์จค้างไปเรื่อยๆ ไม่ได้
             if (chargePercent >= 1f)
             {
-                CompleteCharge(chargePercent);
+                CompleteCharge();
             }
         }
 
@@ -126,36 +132,45 @@ namespace NscUnity.Items
                 return;
             }
 
-            CompleteCharge(chargePercent);
+            CompleteCharge();
         }
 
         /// <summary>
         /// จบการชาร์จ ไม่ว่าจะมาจากปล่อยมือเองหรือชาร์จเต็มแล้วยิงอัตโนมัติ
-        /// คำนวณค่าทั้งหมดที่นี่ (ฝั่งเจ้าของเท่านั้น) แล้วส่งผ่าน HandItemHolder ให้ทุกเครื่องยิงพร้อมกัน
-        /// (ดู HandItemHolder.RequestFire/FireRpc — ดาเมจจริงคิดเฉพาะฝั่ง Server ผ่าน Projectile.ApplyDamage)
+        /// The owner ends the local effect; the server validates the charge and builds the shot.
         /// </summary>
-        private void CompleteCharge(float chargePercent)
+        private void CompleteCharge()
         {
             isCharging = false;
             ClearChargeEffect();
 
+            Holder.RequestUseRelease();
+            nextFireTime = Time.time + FireCooldown;
+        }
+
+        /// <summary>[SERVER] ปล่อยชาร์จ — เวลาชาร์จวัดบน server แล้วสร้างนัดจากตำแหน่งปืนฝั่ง server</summary>
+        public override void ServerOnUseRelease(float heldSeconds)
+        {
+            if (TryBuildFireData(heldSeconds, out FireData data))
+                Holder.ServerBroadcastShot(data, FireCooldown);
+        }
+
+        public override void OnShot(FireData data) => ExecuteFire(data);
+
+        internal bool TryBuildFireData(float chargeSeconds, out FireData data)
+        {
+            data = default;
+            if (float.IsNaN(chargeSeconds) || float.IsInfinity(chargeSeconds) || chargeSeconds < 0f) return false;
+            float chargePercent = Mathf.Clamp01(chargeSeconds / Mathf.Max(0.01f, maxChargeTime));
+            if (chargePercent < minChargeToFire) return false;
+
             Transform origin = Muzzle;
             float size = ResolveSize(chargePercent);
 
-            // หาว่าเรายิงในนามหุ่นทีมไหน (ถ้าอยู่ในแมตช์ PVP) — ส่งไปกับกระสุนเพื่อกันยิงเพื่อนร่วมทีม (รวมถึงตัวเอง)
-            // ต้องหาจาก Holder (HandItemHolder ที่อยู่บนแขนจริงในฉากตั้งแต่ต้น) ไม่ใช่จาก Muzzle
-            // เพราะ Muzzle เป็นลูกของปืนที่เพิ่ง Instantiate ขึ้นมาใหม่ ลำดับชั้นอาจไต่ไปไม่ถึง root ที่ลงทะเบียนไว้
-            // (ทำให้หาทีมไม่เจอ กลายเป็น None แล้วเช็คกันยิงตัวเอง/เพื่อนร่วมทีมพลาดไป)
-            PvpRobotTeam shooterRobot = PvpRobotTeam.FindByPart(Holder.transform);
+            // ทีมของคนยิง — หาจาก Holder (มือที่อยู่ในหุ่นตั้งแต่ต้น) ไม่ใช่จาก Muzzle ที่เพิ่ง Instantiate
+            Robot shooterRobot = Holder != null ? Robot.FromTransform(Holder.transform) : null;
 
-            if (shooterRobot == null && PvpTeamManager.Instance != null && PvpTeamManager.Instance.IsFighting)
-            {
-                Debug.LogWarning($"[ChargeGunHeldItem] หาทีมของ '{Holder.name}' ไม่เจอทั้งที่กำลังสู้กันอยู่ — " +
-                                  "จะยิงโดยไม่มีทีม (shooterTeam = None) เสี่ยงยิงเพื่อนร่วมทีม/ตัวเองเข้าโดยไม่ตั้งใจ " +
-                                  "เช็คว่า Holder อยู่ใต้ robotRoot ที่ PvpRobotTeam ลงทะเบียนไว้จริงไหม", Holder);
-            }
-
-            FireData data = new FireData
+            data = new FireData
             {
                 origin = origin.position,
                 direction = FireDirection,
@@ -165,12 +180,10 @@ namespace NscUnity.Items
                 maxDistance = maxDistance,
                 hitRadius = baseHitRadius * (size / Mathf.Max(0.01f, minSize * sizeMultiplier)),
                 visualSize = size,
-                shooterTeam = shooterRobot != null ? shooterRobot.Team : PvpTeam.None,
-                shooterRobotId = shooterRobot != null ? shooterRobot.NetworkObjectId : 0
+                shooterTeam = shooterRobot != null ? shooterRobot.GetTeam() : Team.None
             };
 
-            Holder.RequestFire(data);
-            nextFireTime = Time.time + fireCooldown;
+            return true;
         }
 
         /// <summary>สัดส่วนชาร์จ 0-1 มีเพดานเสมอที่ Max Charge Time — ใช้ทั้งขนาด ดาเมจ น็อคแบ็ก และเงื่อนไขต่ำสุดที่จะยิงได้</summary>
@@ -187,8 +200,9 @@ namespace NscUnity.Items
         }
 
         /// <summary>ยกเลิกการชาร์จกลางคัน (สลับไอเทมก่อนปล่อยมือ) — ทำลาย Charge Effect ที่ค้างอยู่</summary>
-        private void CancelCharge()
+        public void CancelCharge()
         {
+            if (isCharging && Holder != null) Holder.RequestUseCancel();
             isCharging = false;
             ClearChargeEffect();
         }
@@ -200,8 +214,8 @@ namespace NscUnity.Items
         }
 
         /// <summary>
-        /// ยิงจริง — เรียกจาก HandItemHolder.FireRpc บนทุกเครื่อง (รวมเครื่องเจ้าของเอง) พร้อมค่าที่เจ้าของคำนวณไว้แล้ว
-        /// ดาเมจจริงจะถูกคิดเฉพาะฝั่ง Server เท่านั้น (Projectile เช็ค IsServer เองอยู่แล้วก่อนเรียก TakeDamage)
+        /// ยิงจริง — ทุกเครื่องสร้างกระสุนจากค่าที่ server ประกาศ (HandItemHolder → OnShot)
+        /// ดาเมจคิดเฉพาะฝั่ง server ผ่าน DamageRouter
         /// </summary>
         public void ExecuteFire(FireData data)
         {
@@ -209,7 +223,7 @@ namespace NscUnity.Items
             projectileRoot.transform.SetPositionAndRotation(data.origin, Quaternion.LookRotation(data.direction));
 
             Projectile projectile = projectileRoot.AddComponent<Projectile>();
-            projectile.Init(data.direction, data.speed, data.damage, data.knockback, data.maxDistance, data.hitRadius, hitLayers, impactEffectPrefab, data.shooterTeam, data.shooterRobotId);
+            projectile.Init(data.direction, data.speed, data.damage, data.knockback, data.maxDistance, data.hitRadius, hitLayers, impactEffectPrefab, data.shooterTeam);
 
             if (shotEffectPrefab != null)
             {

@@ -109,19 +109,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 4569852715850010622}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd432d0e2269b8248935828901c1b47f, type: 3}
+  m_Script: {fileID: 11500000, guid: c379b53b221e9b7498c9f647ec111e23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NscGame.Pvp.PvpDamageSender
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Combat.LimbStrike
   minVelocityThreshold: 5
   speedToDamage: 0.6
-  kickSpeedToDamage: 1.2
   forceToDamage: 0.025
   maxDamagePerHit: 180
-  limbDamageMultiplier: 1.3
-  bodyDamageMultiplier: 1
-  friendlyFire: 0
-  debugLog: 1
-  logEnvironmentHits: 0
 --- !u!1001 &6826283575083865176
 PrefabInstance:
   m_ObjectHideFlags: 0
