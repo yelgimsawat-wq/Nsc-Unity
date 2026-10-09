@@ -1,0 +1,8 @@
+### 2026-10-09 — Q-20261009-folder-cleanup — จัดโฟลเดอร์ Assets ให้เป็นระเบียบ
+- Status: waiting
+- Owner: Claude Code (Opus 5.5) / session e4f42754-d497-482e-bee8-7411aa092957
+- Goal: ของที่เกมใช้จริงอยู่ใน `Assets/_Game/` ตามประเภท (Scripts, Prefabs, Scenes, Art, Audio, Editor), DOTween/TextMesh Pro อยู่ที่มาตรฐาน, ไฟล์ขยะถูกลบ, โฟลเดอร์ชื่อคนเหลือเป็น sandbox ของที่ยังทดลอง; เกม compile ผ่านและทุกโหมดยังเล่นได้
+- Files: Assets/_Game/, Assets/Editor/, Assets/nok/, Assets/petong/, Assets/Yelmee/, Assets/เก็บไว้กัน/, Assets/Scenes/, Assets/MenuUI/, Assets/Fonts/, Assets/Game/, Assets/_Recovery/, Assets/_ArmFeelTest/, Assets/Learn/, Assets/Plugins/, Assets/TextMesh Pro/, Assets/Resources/, ไฟล์หลวมที่ราก Assets/, ProjectSettings/EditorBuildSettings.asset
+- Context: ผู้ใช้เลือกใน chat 2026-10-09: commit refactor ก่อน (ทำแล้วเป็น 2f7a6d6f), ลบไฟล์ขยะ, เก็บโฟลเดอร์ชื่อคนเป็น sandbox, ไม่ย้ายแพ็ก Asset Store (JMO Assets, map, Hierarchy Designer)
+- Validation: 2026-10-09 ใน Unity ที่เปิดอยู่: compile ไม่มี error, EditMode 101/101, prefab ใน `_Game` 55 ตัวไม่มี missing script, Play MAPBOSS เริ่มเกม/ลุก/ต่อยบอสได้; Parkour/PVP ยังไม่ได้เล่นหลังย้าย; `dotnet build` ใช้ไม่ได้แล้วเพราะ DOTween ย้ายเข้า Plugins (firstpass) แต่ csproj เก่ายังไม่ถูก Unity regenerate
+- Next action: รอผู้ใช้ตัดสินเรื่อง commit และการแก้ path ใน CLAUDE.md (ทับกับ Q-20261009-ai-setup); ที่เหลือตั้งใจเก็บไว้: ของทดลองใน nok/petong/Yelmee/เก็บไว้กัน, `Assets/Scenes/map.unity` และ `Something/Tree_Textures` (ไม่ชัดว่าใครใช้)

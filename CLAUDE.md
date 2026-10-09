@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## AI Workflow (read first)
+
+Start every session from [README.md](README.md) (read order, Quest Board). AI rules shared by every agent:
+
+@AGENTS.md
+
 ## Project Overview
 
 **Nsc-Unity** is a Unity 6 multiplayer robot combat game using Unity Netcode for GameObjects. Players connect via Unity Gaming Services Multiplayer, select robot parts in a lobby, then battle with Enemy AI. The project uses DOTween for UI animations and follows a networked architecture with Server-authoritative gameplay.
