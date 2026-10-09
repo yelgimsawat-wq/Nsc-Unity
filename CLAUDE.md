@@ -56,12 +56,13 @@ Start every session from [README.md](README.md) (read order, Quest Board). AI ru
 
 `Respawn/` (`Nsc.Respawn`) - `RespawnManager`, `CheckpointZone`, `FallDeathZone`
 
-**Menus & misc** (`Assets/Scenes/TheBestFolder/Mynigga/`)
-- `Ui/` - `OnlineNetworkUI.cs` (main menu, talks to `SessionService`), `LobbyManager.cs` (part-selection UI over `LimbSelection`), `InMatchMenu.cs`, `SettingsManager.cs`
-- `Networking/` - `AutoStartHost.cs`, `TestNetwork.cs`, `VoiceChat.cs`; `Utils/`; `OutDated/` (superseded prototypes, not referenced by live scenes)
-- `PlayerCam.cs` - camera follow
+**Menus & misc** (also under `Assets/_Game/Scripts/`)
+- `UI/` - `OnlineNetworkUI.cs` (main menu, talks to `SessionService`), `LobbyManager.cs` (part-selection UI over `LimbSelection`), `InMatchMenu.cs`, `SettingsManager.cs`, HUD widgets
+- `Net/` - `AutoStartHost.cs`, `TestNetwork.cs`, `VoiceChat.cs`, `NetworkCheck.cs`; `Utils/`
+- `Camera/PlayerCam.cs` - camera follow
+- Also `Items/`, `Cinematics/`, `Tutorial/`, `Dev/` (test props); editor tools and EditMode tests live in `Assets/_Game/Editor/` (`Tests/`)
 
-**Enemy AI System** (`Assets/nok/Enemy/Scripts/EnemyAI/`)
+**Enemy AI System** (`Assets/_Game/Scripts/Enemy/`)
 - `EnemyController.cs` - Main AI brain (State machine: Idle → Walk → Roll → Attack → Dead)
 - `EnemyCombat.cs` - Attack execution
 - `EnemyHealth.cs` - Health and damage system
@@ -154,7 +155,7 @@ Unity Editor: File → Build Settings → Select target platform → Build
 ## Coding Conventions
 
 ### Namespace Usage
-Gameplay core uses `Nsc.Robots`, `Nsc.Limbs`, `Nsc.Combat`, `Nsc.Match`, `Nsc.Respawn`; Enemy AI uses `NscGame.Enemy`, items `NscUnity.Items`, PVP UI `NscGame.Pvp`. Menu/UI scripts in `Mynigga/` are global.
+Gameplay core uses `Nsc.Robots`, `Nsc.Limbs`, `Nsc.Combat`, `Nsc.Match`, `Nsc.Respawn`; Enemy AI uses `NscGame.Enemy`, items `NscUnity.Items`, PVP UI `NscGame.Pvp`. Scripts in `UI/`, `Net/`, `Camera/`, `Utils/` are global (except `PvpTeamSelectUI` in `NscGame.Pvp`).
 
 ### Network Script Pattern
 ```csharp
@@ -228,19 +229,19 @@ private void OnDestroy()
 
 ## Scene Structure
 
-- **-Menu/** - Main menu scene with `OnlineNetworkUI`
-- **SelectPart** prefab (`Assets/เก็บไว้กัน/SelectPart.prefab`) - in-scene lobby: `LobbyManager` UI + `MatchSession` + `LimbSelection` + `LimbControlBinder` on one NetworkObject (PVP has its own `PvpMatch` object)
-- **TheBestFolder/** - Main gameplay scenes
+Game scenes are in `Assets/_Game/Scenes/` (build list: `ProjectSettings/EditorBuildSettings.asset`):
+- **-MenuNOk** - Main menu with `OnlineNetworkUI` (`_Lighting/-Menu` is an old menu kept only because `-MenuNOk` uses its baked lighting)
+- **MAPBOSS** (Boss), **MAPPAKUAR** (Parkour), **PVP** - gameplay scenes; the menu loads the intro-cutscene scenes **MAPBOSS 1** / **MAPPAKUAR 1** by name, which then load MAPBOSS / MAPPAKUAR
+- **SelectPart** prefab (`Assets/_Game/Prefabs/Match/SelectPart.prefab`) - in-scene lobby: `LobbyManager` UI + `MatchSession` + `LimbSelection` + `LimbControlBinder` on one NetworkObject (PVP has its own `PvpMatch` object)
+- Robot prefabs: `Assets/_Game/Prefabs/Robot/` (base `Base/RobotContainer.prefab`, variant `RobotContainer.prefab`)
 
 ## Assets Organization
 
-- `Assets/nok/` - Core gameplay (Enemy, Rope, Particle, Robot, Weapon)
-- `Assets/map/` - Environment (city, buildings, shaders, materials)
-- `Assets/_Game/Scripts/` - Gameplay core (see Code Structure above)
-- `Assets/Scenes/TheBestFolder/Mynigga/` - Menus, settings, networking helpers
-- `Assets/MenuUI/` - Menu-specific UI prefabs
-- `Assets/Plugins/Demigiant/` - DOTween library
-- `Assets/Something/` - Shared resources (TMP, shaders, tutorials)
+- `Assets/_Game/` - Everything the game uses, by type: `Scripts/`, `Prefabs/`, `Scenes/`, `Art/`, `Audio/`, `Data/`, `Editor/`
+- `Assets/nok/`, `Assets/petong/`, `Assets/Yelmee/`, `Assets/เก็บไว้กัน/` - Personal sandboxes for experiments (not the live game)
+- `Assets/map/`, `Assets/JMO Assets/`, `Assets/Hierarchy Designer/` - Asset Store packs (environment, VFX, editor tool), kept in place
+- `Assets/Plugins/Demigiant/` - DOTween library; `Assets/TextMesh Pro/` - TMP
+- `Assets/Settings/` - URP render pipeline assets; `Assets/Resources/` - DOTween settings
 
 ## Common Pitfalls
 

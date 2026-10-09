@@ -26,8 +26,8 @@
 | เปลี่ยนอะไร | ตรวจขั้นต่ำ |
 |---|---|
 | เอกสาร / Context | ลิงก์ relative ชี้ไฟล์ที่มีอยู่จริง และไม่ขัดกับเอกสารเจ้าของ |
-| C# script | compile ผ่าน: Unity Console ไม่มี error หรือ `dotnet build Assembly-CSharp.csproj` (csproj ที่ Unity generate ไว้ ไม่อยู่ใน git) |
-| logic ที่มี EditMode test | Unity Test Runner เฉพาะ test ที่เกี่ยวข้อง (`Assets/Editor/*Tests.cs`) |
+| C# script | compile ผ่าน: Unity Console ไม่มี error หรือ `dotnet build Assembly-CSharp.csproj` (csproj ที่ Unity generate ไว้ ไม่อยู่ใน git ถ้าเก่ากว่าโครงโฟลเดอร์ปัจจุบันให้ Unity regenerate ก่อน) |
+| logic ที่มี EditMode test | Unity Test Runner เฉพาะ test ที่เกี่ยวข้อง (`Assets/_Game/Editor/Tests/`) |
 | scene, prefab, networking | Play Mode โหมดที่กระทบ (วิธีทดสอบหลายเครื่องอยู่ใน [../CLAUDE.md](../CLAUDE.md)) |
 | `tools/context/*.py` | รันจริงกับโฟลเดอร์ชั่วคราวผ่าน `--context-dir` |
 

@@ -15,7 +15,7 @@
 | ภาพรวมโปรเจกต์, สถาปัตยกรรมโค้ด, conventions, คำสั่ง dev, pitfalls, MCP | [../CLAUDE.md](../CLAUDE.md) | ก่อนแก้โค้ดหรือ scene |
 | class diagram ปัจจุบัน (โค้ดใน `Assets/_Game/Scripts` ยึดตามนี้) | [../ArchitectureDiagram/uml/class-packages.drawio](../ArchitectureDiagram/uml/class-packages.drawio) | งานที่กระทบโครงสร้าง class |
 | ระบบ PVP | [../Assets/nok/PVP/README_PVP.md](../Assets/nok/PVP/README_PVP.md) | งาน PVP |
-| Settings UI | [../Assets/Scenes/TheBestFolder/Mynigga/Ui/SettingsManager_README.md](../Assets/Scenes/TheBestFolder/Mynigga/Ui/SettingsManager_README.md) | งานหน้า Settings |
+| Settings UI | [../Assets/_Game/Scripts/UI/SettingsManager_README.md](../Assets/_Game/Scripts/UI/SettingsManager_README.md) | งานหน้า Settings |
 | เครื่องมือ Context | [../tools/context/](../tools/context/) | `log-edit.py` (Edit Log), `board.py` (Board) |
 
 ## Snapshot (ห้ามใช้ยืนยัน runtime ปัจจุบัน)
