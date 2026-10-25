@@ -21,6 +21,9 @@ namespace Nsc.Match
 
         public static LimbControlBinder Current { get; private set; }
 
+        [Tooltip("[ทดสอบ] กดเพื่อสลับไปคุมชิ้นถัดไปที่ว่างกลางแมตช์ — ใช้ได้เฉพาะ Editor / Development Build")]
+        [SerializeField] private KeyCode debugCycleLimbKey = KeyCode.C;
+
         private LimbSelection selection;
         private MatchSession session;
         private Robot localRobot;
@@ -59,6 +62,15 @@ namespace Nsc.Match
         {
             if (phase == MatchPhase.Playing) RequestBind();
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void Update()
+        {
+            if (!IsBound || selection == null || session == null || !session.IsPlaying || UiFocus.IsCaptured) return;
+            // server สลับการจองแล้ว AssignmentsChanged → OnAssignmentsChanged ผูกกล้อง/คอนโทรลใหม่ให้เอง
+            if (Input.GetKeyDown(debugCycleLimbKey)) selection.DebugCycleLimbRpc();
+        }
+#endif
 
         /// <summary>ต่อกลับกลางเกมแล้วได้ชิ้นเดิมคืน → ผูกใหม่</summary>
         private void OnAssignmentsChanged()

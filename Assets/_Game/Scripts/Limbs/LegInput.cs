@@ -6,8 +6,9 @@ using UnityEngine;
 namespace Nsc.Limbs
 {
     /// <summary>
-    /// input ของขาฝั่งเจ้าของเท่านั้น: เมาส์ = ทิศก้าว, ล้อ = ระยะก้าว, คลิกซ้ายค้าง = ยกขาก้าว,
+    /// input ของขาฝั่งเจ้าของเท่านั้น: ชี้เมาส์ที่พื้น = จุดวางเท้า, คลิกซ้าย = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเมาส์),
     /// Space = กระโดด, Q ค้าง = ยันตัวลุก, Shift = ชาร์จเตะ, R ค้าง = ดึงขาที่หลุดกลับ
+    /// (ปิด pointAndClick = โหมดเดิม: ล็อกเมาส์ ขยับเมาส์หมุนทิศ ล้อเลือกระยะ)
     /// ส่งแค่เจตนาผ่าน RPC ของ LegController / LimbAttachment
     ///
     /// ไฟล์นี้ใช้ GUID เดิมของ PlayerLegCombat (คอมโพเนนต์บนเท้าตัวเดิม) — ค่าจูนท่าเตะย้ายไป LegController.kick
@@ -23,18 +24,17 @@ namespace Nsc.Limbs
         [Header("Camera (LimbControlBinder ใส่ให้ตอนเริ่มแมตช์)")]
         [SerializeField] private Camera playerCamera;
 
-        [Header("Camera-Independent Aim")]
+        [Header("Point & Click (ค่าเริ่มต้น)")]
+        [Tooltip("เมาส์ชี้พื้นตรงไหน เท้าไปตรงนั้น — เคอร์เซอร์ไม่ล็อก ไม่ต้องใช้ล้อ เหมาะกับกล้องมุมสูง\n" +
+                 "ปิด = โหมดเดิมข้างล่าง")]
+        [SerializeField] private bool pointAndClick = true;
+
+        [Header("Camera-Independent Aim (โหมดเดิม เมื่อปิด Point & Click)")]
         [Tooltip("ล็อกเคอร์เซอร์กลางจอแล้วใช้ mouse delta หมุนทิศเท้าในแกนโลก — หันกล้องแล้วทิศไม่กวาดตาม")]
         [SerializeField] private bool useVirtualCursor = true;
         [SerializeField] private float mouseSensitivity = 1.5f;
         [Tooltip("วาด marker ที่จุดเล็งเท้า")]
         [SerializeField] private bool showCrosshair = false;
-
-        [Header("Step (คลิกซ้ายค้าง)")]
-        [Tooltip("ความเร็วยกเท้า 'กี่เท่าของ clickLiftHeight ต่อวินาที' — เวลายกเท่ากันทุกสเกลหุ่น")]
-        [Min(0.1f)] [SerializeField] private float stepLiftSpeed = 8f;
-        [Tooltip("ความสูงที่เท้าลอยพ้นพื้นระหว่างก้าว — ปล่อยคลิกแล้วเป้ากลับลงพื้นแล้วปักเท้า")]
-        [Min(0f)] [SerializeField] private float clickLiftHeight = 0.35f;
 
         [Header("Keys")]
         [SerializeField] private KeyCode kickKey = KeyCode.LeftShift;
@@ -49,7 +49,6 @@ namespace Nsc.Limbs
         private Vector3 footDirection = Vector3.forward;
         private Vector3 footAimStick;
         private float footDistance;
-        private float liftOffset;
         private Vector3 footMarkerWorld;
 
         private Vector3 lastSentTarget, lastSentBalance, lastSentDetached;
@@ -66,6 +65,7 @@ namespace Nsc.Limbs
         private static GUIStyle reachStyle;
 
         public Camera PlayerCamera => playerCamera;
+        private bool LocksCursor => useVirtualCursor && !pointAndClick;
         public string PullKeyLabel => pullKey.ToString();
         public Vector3 FootDirection => footDirection;
         /// <summary>[เจ้าของ] กดคลิกซ้ายค้างยกขาก้าวอยู่ — รู้ทันทีไม่ต้องรอ server</summary>
@@ -86,7 +86,23 @@ namespace Nsc.Limbs
         public float EffectiveNormalizedKickCharge => NormalizedKickCharge * leg.Kick.HealthPowerMultiplier;
 
         /// <summary>LimbControlBinder ผูกกล้อง = เปิดให้ขานี้รับ input / null = ปิด</summary>
-        public void Bind(Camera camera) => playerCamera = camera;
+        public void Bind(Camera camera)
+        {
+            // ถูกถอดกลางแมตช์ (สลับไปคุมชิ้นอื่น) — ปล่อยปุ่มที่ค้างก่อน ไม่งั้น server ไม่มีวันได้คำสั่งหยุด เท้าลอยค้าง
+            if (camera == null && playerCamera != null && IsSpawned && IsOwner)
+            {
+                SetStepping(false);
+                SetPushingUp(false);
+                if (localCharging)
+                {
+                    localCharging = false;
+                    leg.CancelKickRpc();
+                }
+            }
+            playerCamera = camera;
+            // ชี้แล้วคลิกต้องเห็นเมาส์ — สลับมาจากแขน (ล็อกเมาส์กลางจอ) ต้องปลดให้
+            if (camera != null && pointAndClick && IsOwner) LocalAim.Release();
+        }
 
         private void Awake()
         {
@@ -117,7 +133,7 @@ namespace Nsc.Limbs
 
         private void ReleaseCursorIfOwner()
         {
-            if (IsOwner && useVirtualCursor && playerCamera != null) LocalAim.Release();
+            if (IsOwner && LocksCursor && playerCamera != null) LocalAim.Release();
         }
 
         private void Update()
@@ -137,15 +153,15 @@ namespace Nsc.Limbs
 
         private void HandleFootInput()
         {
-            if (useVirtualCursor && LocalAim.HandleCursorLock())
+            if (LocksCursor && LocalAim.HandleCursorLock())
             {
                 SeedAimFromFootPose();
                 ignoreStepUntilRelease = true; // คลิกนี้ใช้ดึงเมาส์กลับ ห้ามเริ่มก้าว
             }
 
-            // เคอร์เซอร์ปลดอยู่ (Esc ไปเมนู) → หยุดรับ input เท้า
+            // เคอร์เซอร์ปลดอยู่ (Esc ไปเมนู) / ชี้แล้วคลิกแต่มีเมนูเปิด → หยุดรับ input เท้า
             // ✅ เคลียร์ state ที่ค้างก่อน ไม่งั้น server ไม่มีวันได้คำสั่งหยุด เท้าเดินค้างตลอดที่อยู่ในเมนู
-            if (useVirtualCursor && !LocalAim.IsLocked)
+            if (LocksCursor ? !LocalAim.IsLocked : pointAndClick && !PointerInGame())
             {
                 SetStepping(false);
                 SetPushingUp(false);
@@ -206,36 +222,26 @@ namespace Nsc.Limbs
                 holdingClick = false;
             }
 
-            // คลิกซ้ายค้าง = ยกขาแล้วเคลื่อนเท้าไปยังเป้า | ปล่อย = ปักเท้าลง
-            if (holdingClick != stepping)
-            {
-                SetStepping(holdingClick);
-                liftOffset = 0f; // เริ่มจากระดับพื้นแล้วไต่ขึ้นเอง ไม่ snap
-            }
-
-            if (stepping)
-            {
-                // ⬆️ [Auto Lift] ผู้เล่นเลือกแค่ทิศกับระยะ ส่วนแกน Y เป็นหน้าที่ของระบบ
-                float liftTarget = Mathf.Clamp(clickLiftHeight, 0f, leg.MaxLegLength);
-                liftOffset = Mathf.MoveTowards(liftOffset, liftTarget, liftTarget * stepLiftSpeed * Time.deltaTime);
-
-                Vector3 planar = hip + aimOffset;
-                Vector3 target = Physics.Raycast(planar + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 50f, ground)
-                    ? new Vector3(planar.x, hit.point.y + liftOffset + leg.FootThickness, planar.z)
-                    : planar + Vector3.down * leg.MaxLegLength;
-                SendFootTarget(target);
-            }
+            // คลิก = ก้าวเป็นเส้นโค้งไปที่เป้า (server ยกเท้าและปักให้เอง) | กดค้าง = เท้าลอยตามเป้า ปล่อยแล้วลง
+            // ⬆️ ส่งเป้าเป็นจุดบนพื้น — ความสูงของโค้งเป็นหน้าที่ของ server
+            if (holdingClick && !stepping) SendFootTarget(StepTarget(hip, aimOffset, ground), force: true); // เป้าต้องถึงก่อนเริ่มก้าว
+            if (holdingClick != stepping) SetStepping(holdingClick);
+            if (stepping) SendFootTarget(StepTarget(hip, aimOffset, ground));
 
             SetPushingUp(false);
         }
 
+        private Vector3 StepTarget(Vector3 hip, Vector3 aimOffset, LayerMask ground)
+        {
+            Vector3 planar = hip + aimOffset;
+            return Physics.Raycast(planar + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 50f, ground)
+                ? new Vector3(planar.x, hit.point.y + leg.FootThickness, planar.z)
+                : planar + Vector3.down * leg.StandingHipHeight;
+        }
+
         private void HandleDownedFoot(Vector3 hip, Vector3 aimOffset, LayerMask ground)
         {
-            if (stepping)
-            {
-                SetStepping(false);
-                liftOffset = 0f;
-            }
+            if (stepping) SetStepping(false);
 
             // + ความหนาเท้า ไม่งั้นเท้ามุดพื้นตอนล้ม
             Vector3 target = Physics.Raycast(hip + aimOffset + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f, ground)
@@ -247,9 +253,9 @@ namespace Nsc.Limbs
             SetPushingUp(Input.GetKey(recoveryKey) && leg.IsGrounded);
         }
 
-        private void SendFootTarget(Vector3 target)
+        private void SendFootTarget(Vector3 target, bool force = false)
         {
-            if ((target - lastSentTarget).sqrMagnitude <= RpcSendThresholdSqr) return;
+            if (!force && (target - lastSentTarget).sqrMagnitude <= RpcSendThresholdSqr) return;
             lastSentTarget = target;
             leg.SetFootTargetRpc(target);
         }
@@ -258,7 +264,6 @@ namespace Nsc.Limbs
         {
             if (stepping == on) return;
             stepping = on;
-            if (!on) liftOffset = 0f;
             leg.SetSteppingRpc(on);
         }
 
@@ -275,6 +280,12 @@ namespace Nsc.Limbs
         /// </summary>
         private void UpdateFootAim()
         {
+            if (pointAndClick)
+            {
+                UpdatePointAim();
+                return;
+            }
+
             Transform cameraTransform = playerCamera.transform;
             Vector3 cameraForward = cameraTransform.forward; cameraForward.y = 0f;
             Vector3 cameraRight = cameraTransform.right; cameraRight.y = 0f;
@@ -325,6 +336,31 @@ namespace Nsc.Limbs
             footDistance = Mathf.Clamp(footDistance, leg.MinFootReach, leg.MaxFootReach);
         }
 
+        /// <summary>
+        /// ชี้แล้วคลิก: ยิง ray จากกล้องผ่านเมาส์ลงพื้น → ทิศ+ระยะจากสะโพกถึงจุดนั้น (ระยะถูกตัดที่ขาเอื้อมถึง)
+        /// คลิกขวาค้าง (หมุนกล้อง) = จุดเล็งค้างไว้ ไม่กวาดตามเมาส์
+        /// </summary>
+        private void UpdatePointAim()
+        {
+            if (LocalAim.CameraModeHeld) return;
+
+            Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+            if (!Physics.Raycast(ray, out RaycastHit hit, playerCamera.farClipPlane, leg.GroundLayer)) return;
+
+            Vector3 offset = hit.point - leg.Pivot.position;
+            offset.y = 0f;
+            if (offset.sqrMagnitude > 0.0001f) footDirection = offset.normalized;
+            footDistance = Mathf.Clamp(offset.magnitude, leg.MinFootReach, leg.MaxFootReach);
+        }
+
+        /// <summary>เมาส์อยู่ในจอเกมและไม่มีเมนูเปิด — ไม่งั้นคลิกปุ่มเมนูจะกลายเป็นก้าว</summary>
+        private static bool PointerInGame()
+        {
+            if (!GameplayGate.CanAct || UiFocus.IsCaptured) return false;
+            Vector3 mouse = Input.mousePosition;
+            return mouse.x >= 0f && mouse.y >= 0f && mouse.x <= Screen.width && mouse.y <= Screen.height;
+        }
+
         /// <summary>เริ่มทิศ+ระยะจากท่าเท้าจริง ณ ตอนล็อกเมาส์ — เท้าไม่กระโดดตำแหน่ง</summary>
         private void SeedAimFromFootPose()
         {
@@ -340,7 +376,6 @@ namespace Nsc.Limbs
         private void ResetFootAim()
         {
             footDistance = Mathf.Lerp(leg.MinFootReach, leg.MaxFootReach, leg.DefaultFootReach);
-            liftOffset = 0f;
 
             Vector3 forward = leg.Pivot != null ? leg.Pivot.forward : transform.forward;
             forward.y = 0f;
@@ -402,7 +437,7 @@ namespace Nsc.Limbs
         private bool CanKickLocally()
         {
             if (!GameplayGate.CanAct) return false;
-            if (useVirtualCursor && !LocalAim.IsLocked) return false;
+            if (LocksCursor ? !LocalAim.IsLocked : pointAndClick && !PointerInGame()) return false;
             if (!limb.IsAttached || leg.TorsoDown) return false;
 
             // วงจร กด→ชาร์จ→ปล่อย บังคับให้ต้องปล่อย Shift ก่อนเตะใหม่อยู่แล้ว server ยังกันซ้ำอีกชั้น
@@ -437,7 +472,10 @@ namespace Nsc.Limbs
 
         private void OnGUI()
         {
-            if (!IsOwner || !useVirtualCursor || !showCrosshair || playerCamera == null || !LocalAim.IsLocked) return;
+            if (!IsOwner || playerCamera == null) return;
+            // ชี้แล้วคลิก: โชว์เสมอ — marker คือจุดที่เท้าจะลงจริง (ตัดที่ระยะเอื้อมแล้ว) ต่างจากเคอร์เซอร์ได้
+            bool show = pointAndClick ? PointerInGame() : useVirtualCursor && showCrosshair && LocalAim.IsLocked;
+            if (!show) return;
 
             markerStyle ??= new GUIStyle(GUI.skin.label)
                 { fontSize = 26, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };

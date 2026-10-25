@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9e118655a6d39344abf8f2db6c9926b, type: 3}
+  m_Name: FeelConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Feel.FeelConfig
+  shakePosition: 0.6
+  shakeRotation: 1.4
+  shakeFrequency: 22
+  shakeFalloffDistance: 45
+  footstepClips:
+  - {fileID: 8300000, guid: 2bc3f8b14be2e5844997f2e55086948f, type: 3}
+  footstepVolume: 0.9
+  footstepPitch: {x: 0.62, y: 0.74}
+  footstepShake: 0.45
+  footstepShakeDuration: 0.32
+  footstepFullSpeed: 12
+  footstepMinStrength: 0.45
+  dustPrefab: {fileID: 6813416509558619124, guid: 3b7f2c753d435d647a80f1f047a113e3, type: 3}
+  dustScale: 5
+  heavyHitDamage: 30
+  lightHitClips:
+  - {fileID: 8300000, guid: 666af707623fc1d4a9cdf39643e8877d, type: 3}
+  heavyHitClips:
+  - {fileID: 8300000, guid: 666af707623fc1d4a9cdf39643e8877d, type: 3}
+  hitVolume: 1
+  hitPitch: {x: 0.78, y: 0.9}
+  heavyHitPitch: {x: 0.55, y: 0.66}
+  heavyHitBoomClips:
+  - {fileID: 8300000, guid: 69efb2b4ae5897e42a816a9126527020, type: 3}
+  heavyHitBoomVolume: 0.45
+  heavyHitBoomPitch: {x: 0.5, y: 0.6}
+  lightHitFreeze: 0.045
+  heavyHitFreeze: 0.085
+  lightHitShake: 0.7
+  heavyHitShake: 1.25
+  hitShakeDuration: 0.4
+  lightFovKick: 1.5
+  heavyFovKick: 4
+  sparkMaterial: {fileID: 2100000, guid: 4678e3a0ef1db254c889daab52483930, type: 2}
+  lightSparkCount: 18
+  heavySparkCount: 40
+  sparkSpeed: 32
+  sparkSize: 0.7
+  audioMinDistance: 30
+  audioMaxDistance: 450
+  audioSpatialBlend: 0.65

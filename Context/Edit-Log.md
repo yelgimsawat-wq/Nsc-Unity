@@ -4,6 +4,15 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-13 17:35 +07:00 · Q-20261009-smooth-walk · files: Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Limbs/LegInput.cs, Assets/_Game/Scripts/Robot/TorsoBalance.cs, Context/Game-Design.md, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Scripts/Match/LimbSelection.cs, Assets/_Game/Scripts/Match/LimbControlBinder.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs
+  - แก้: คืนกล้องเป็นแบบล็อกมุม+คลิกขวาหมุนได้ (ผู้ใช้ไม่ชอบกล้องหันตามทิศ); เพิ่มปุ่มทดสอบ C สลับไปคุมชิ้นถัดไปกลางแมตช์ (Editor/Dev build)
+  - ตรวจ: 2026-10-13 compile ผ่าน; Play TestArena: สลับ LeftLeg/RightLeg/แขน ผ่าน DebugCycleLimbRpc ได้ input ผูกชิ้นใหม่ กล้องมุมเดิม; ยังไม่ได้กดปุ่มจริง
+- 2026-10-09 15:59 +07:00 · Q-20261009-giant-feel · files: Assets/_Game/Scripts/Feel/, Assets/_Game/Scripts/Combat/IImpactFeedback.cs, Assets/_Game/Scripts/Combat/LimbStrike.cs, Assets/_Game/Scripts/Limbs/LimbController.cs, Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Robot/LimbHealth.cs, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Resources/FeelConfig.asset, Assets/_Game/Art/VFX/Feel/, Assets/_Game/Audio/SFX/
+  - แก้: ระบบ Feel: เท้าปักพื้น/หมัดเข้า/โดนบอส ส่ง RPC ให้ทุกเครื่องเล่นกล้องสั่น กล้องค้าง FOV kick ฝุ่น ประกายไฟ เสียง ค่าจูนอยู่ใน FeelConfig
+  - ตรวจ: 2026-10-09 compile ผ่าน, Play TestArena เอฟเฟกต์ทำงาน, ยังไม่ได้จูนด้วยตาและยังไม่ได้ทดสอบ client
+- 2026-10-09 15:34 +07:00 · Q-20261009-test-scene · files: Assets/_Game/Scenes/Test/, ProjectSettings/EditorBuildSettings.asset
+  - แก้: สร้างฉากทดสอบ TestArena จากสำเนา MAPBOSS: ตัดแมพทิ้ง ใส่พื้นเรียบ เสาทดสอบมือจับ ดาบ ย้ายปืนใกล้หุ่น bake NavMesh ใหม่ เพิ่มเข้า build list
+  - ตรวจ: 2026-10-09 Play: เริ่มเกม/ลุก/บอสเดินมาตี/ต่อย/จับเสา/ฆ่าบอสขึ้น WIN ผ่าน ไม่มี error ใหม่
 - 2026-10-09 15:17 +07:00 · Q-20261009-game-design · files: Context/Game-Design.md, Context/README.md
   - แก้: จดทิศทางเกมจาก chat: ฟีล Pacific Rim, ทำต่อบนระบบเดิม, 3 เรื่องที่ต้องพิสูจน์, ไอเดียความสนุกและทางไปขาย แยกตัดสินใจแล้ว/ยังเป็นไอเดีย
   - ตรวจ: 2026-10-09: ลิงก์ relative ตรวจแล้วมีไฟล์จริง

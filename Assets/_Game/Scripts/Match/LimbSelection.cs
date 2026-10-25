@@ -403,6 +403,47 @@ namespace Nsc.Match
         //  Server internals
         // ================================================================
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>
+        /// [ทดสอบ] สลับไปคุมชิ้นถัดไปที่ยังว่างกลางแมตช์ (แขนซ้าย → แขนขวา → ขาซ้าย → ขาขวา → วน)
+        /// เล่นคนเดียวแล้วเดินสลับซ้ายขวาได้ — ไม่มีใน build ที่ปล่อยจริง
+        /// </summary>
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        public void DebugCycleLimbRpc(RpcParams rpcParams = default)
+        {
+            if (IsPreparing()) return;
+            ulong sender = rpcParams.Receive.SenderClientId;
+
+            int index = -1;
+            for (int i = 0; i < assignments.Count; i++)
+                if (assignments[i].clientId == sender) { index = i; break; }
+            if (index < 0) return;
+
+            LimbAssignment mine = assignments[index];
+            Robot robot = Robot.FindById(mine.robotId);
+            if (robot == null) return;
+
+            for (int step = 1; step < LimbSlots.Count; step++)
+            {
+                LimbSlot next = (LimbSlot)(((int)mine.slot + step) % LimbSlots.Count);
+                if (robot.GetLimb(next) == null || GetController(mine.robotId, next) != NoClient) continue;
+
+                // ปล่อยปุ่มที่ค้างของชิ้นเดิมฝั่ง server เอง — client ที่เสียสิทธิ์เจ้าของไปแล้วส่งคำสั่งปล่อยไม่ได้
+                RobotLimb previous = robot.GetLimb(mine.slot);
+                if (previous != null && previous.Controller is Nsc.Limbs.LegController leg) leg.ServerReleaseInput();
+                if (previous != null && previous.Controller is Nsc.Limbs.ArmController arm && arm.Grip != null) arm.Grip.ServerRelease();
+
+                // ชิ้นเดิมคืน Host (เจ้าของ default ของชิ้นที่ไม่มีใครคุม) แล้วโอนชิ้นใหม่ — LimbControlBinder ผูกใหม่เอง
+                GiveOwnership(new LimbAssignment { robotId = mine.robotId, slot = mine.slot, clientId = NetworkManager.ServerClientId });
+                mine.slot = next;
+                assignments[index] = mine;
+                GiveOwnership(mine);
+                Debug.Log($"[LimbSelection] 🔁 [ทดสอบ] Client {sender} สลับไปคุม {next.DisplayName()}");
+                return;
+            }
+        }
+#endif
+
         private bool IsPreparing() => session == null || session.Phase == MatchPhase.Preparing;
 
         private static SelectionPlayer NewPlayer(ulong clientId) =>

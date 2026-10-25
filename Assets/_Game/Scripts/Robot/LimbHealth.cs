@@ -126,6 +126,10 @@ namespace Nsc.Robots
             if (ShowsHitEffects(info.source))
                 PlayHitEffectsClientRpc(info.point, info.direction);
 
+            // โดนบอส = กล้องสั่น/ประกายไฟฝั่งเรา (หมัดของผู้เล่นส่งเอฟเฟกต์จาก LimbStrike อยู่แล้ว ไม่ส่งซ้ำ)
+            if (info.source == DamageSource.EnemyMelee || info.source == DamageSource.EnemyUltimate)
+                GetComponent<IImpactFeedback>()?.ServerBroadcastHit(info.point, -info.direction, info.amount);
+
             hp.Value -= info.amount;
             regenerating = false;
             timeSinceHit = 0f;

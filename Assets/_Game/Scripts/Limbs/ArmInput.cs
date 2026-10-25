@@ -84,7 +84,12 @@ namespace Nsc.Limbs
             : 0f;
 
         /// <summary>LimbControlBinder ผูกกล้อง = เปิดให้แขนนี้รับ input / null = ปิด</summary>
-        public void Bind(Camera camera) => playerCamera = camera;
+        public void Bind(Camera camera)
+        {
+            // ถูกถอดกลางแมตช์ (สลับไปคุมชิ้นอื่น) — ปล่อยของที่จับ/หมัดที่ค้าง ไม่งั้นไม่มีใครส่งคำสั่งปล่อย
+            if (camera == null && playerCamera != null && IsSpawned && IsOwner) CancelHeldActions();
+            playerCamera = camera;
+        }
 
         private void Awake()
         {

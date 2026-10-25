@@ -27,6 +27,9 @@ namespace Nsc.Robots
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         [Header("Fake Hover & Posture")]
+        [Tooltip("ตั้ง targetTorsoHeight จากความยาวขาจริง + ท่ายืนย่อเข่าของ LegController ตอนเริ่มเกม\n" +
+                 "ปิด = ใช้ค่าที่ตั้งมือ (สูงกว่าที่ขาเอื้อมถึง = สปริงดึงขาตึงตลอด ก้าวไม่ออก)")]
+        [SerializeField] private bool autoTargetHeightFromLegs = true;
         [SerializeField] private float targetTorsoHeight = 1.6f;
         [SerializeField] private float heightSpringForce = 300f;
         [SerializeField] private float heightDamper = 30f;
@@ -34,6 +37,12 @@ namespace Nsc.Robots
         [SerializeField] private float uprightDamper = 60f;
         [SerializeField] private float autoCenterGravityForce = 250f;
         [SerializeField] private float minCenterForceMultiplier = 0.15f;
+        [Tooltip("ระหว่างก้าว ดึงลำตัวไปหาจุดที่เท้าจะลงแรงกว่าตอนยืนกี่เท่า — ลำตัวไหลไปข้างหน้าทันเท้า = ก้าวยาว\n" +
+                 "(เทสต์ TestArena 2026-10-13: ×2 เดิน 4 ก้าวได้ 14 m, ×1 ได้ 8 m)")]
+        [SerializeField] private float stepCenterMultiplier = 2f;
+        [Tooltip("ดึงลำตัวให้หันตามทิศเท้าที่ปักอยู่ — ไม่มีแรงนี้ลำตัวบิดซ้ายขวาราว 50° ทุกก้าว ดูไม่มั่นคง (0 = ปิด)")]
+        [SerializeField] private float headingSpring = 400f;
+        [SerializeField] private float headingDamper = 10f;
 
         [Header("Fall Rules")]
         [SerializeField] private FallRules rules = new FallRules();
@@ -81,6 +90,8 @@ namespace Nsc.Robots
         private float lastRecoveryTick = -1f;
         private bool? lastHipJointRagdoll;
         private Vector3 groundedFootCenter;
+        private bool supportIncludesStep;
+        private bool targetHeightCalibrated;
 
         /// <summary>ยิงบนทุกเครื่องเมื่อหุ่นล้ม (true) หรือลุกขึ้น (false)</summary>
         public event Action<bool> RagdollChanged;
@@ -118,6 +129,7 @@ namespace Nsc.Robots
             if (!IsServer || torsoRb == null) return;
 
             float dt = Time.fixedDeltaTime;
+            if (autoTargetHeightFromLegs && !targetHeightCalibrated) CalibrateTargetHeight();
             stress = Mathf.Max(0f, stress - stressDecayRate * dt);
             TickJumpAndLanding(dt);
 
@@ -155,7 +167,11 @@ namespace Nsc.Robots
                 handSupport = HasSupportingHandGrab()
             };
 
-            Vector3 footSum = Vector3.zero;
+            // จุดที่ลำตัวไหลไปอยู่เหนือ = เท้าที่ยืนอยู่ + "จุดที่เท้ากำลังก้าวไปลง"
+            // 🚶 ถ่ายน้ำหนักไปข้างหน้าระหว่างก้าว — ไม่งั้นลำตัวโดนดึงกลับมาเหนือขาที่ยืน เท้าที่ก้าวเอื้อมได้นิดเดียว
+            Vector3 centerSum = Vector3.zero;
+            int centerCount = 0;
+            supportIncludesStep = false;
             foreach (LimbSlot slot in LegSlots)
             {
                 if (!TryGetCountedLeg(slot, out LegController leg)) continue;
@@ -166,14 +182,26 @@ namespace Nsc.Robots
                 // ไม่งั้นกด Shift ค้างจะกลายเป็นเกราะกันล้มถาวร
                 if (leg.IsKickMotionActive) input.kickInProgress = true;
                 if (leg.IsBalanced) input.balancedFeet++;
+
+                bool stepping = leg.TryGetStepDestination(out Vector3 destination);
+                if (stepping)
+                {
+                    centerSum += destination;
+                    centerCount++;
+                    supportIncludesStep = true;
+                }
                 if (!leg.IsGrounded || leg.Body == null) continue;
 
                 input.groundedFeet++;
-                footSum += leg.Body.position;
+                if (!stepping)
+                {
+                    centerSum += leg.Body.position;
+                    centerCount++;
+                }
                 if (leg.CanActAsSupport) input.supportFoot = true;
             }
 
-            groundedFootCenter = input.groundedFeet > 0 ? footSum / input.groundedFeet : Vector3.zero;
+            groundedFootCenter = centerCount > 0 ? centerSum / centerCount : Vector3.zero;
             return input;
         }
 
@@ -227,6 +255,7 @@ namespace Nsc.Robots
                 Vector3 flatError = new Vector3(groundedFootCenter.x - torsoRb.position.x, 0f,
                                                 groundedFootCenter.z - torsoRb.position.z);
                 float centerScale = Mathf.Lerp(1f, minCenterForceMultiplier, ClimbPull());
+                if (supportIncludesStep) centerScale *= stepCenterMultiplier;
                 torsoRb.AddForce(flatError * (autoCenterGravityForce * centerScale), ForceMode.Acceleration);
             }
 
@@ -242,6 +271,56 @@ namespace Nsc.Robots
 
             if (TryGetUprightCorrection(out float angle, out Vector3 axis))
                 torsoRb.AddTorque((axis * (angle * uprightSpring)) - (torsoRb.angularVelocity * uprightDamper), ForceMode.Acceleration);
+
+            // 🧭 ลำตัวหันตามเท้าที่ยืน — เลี้ยวได้ด้วยการวางเท้าเฉียง (LegController) ไม่ใช่ลำตัวบิดเอง
+            if (headingSpring > 0f && TryGetStanceTorsoYaw(out float targetYaw))
+            {
+                float yawError = Mathf.DeltaAngle(torsoRb.rotation.eulerAngles.y, targetYaw) * Mathf.Deg2Rad;
+                torsoRb.AddTorque(Vector3.up * (yawError * headingSpring - torsoRb.angularVelocity.y * headingDamper),
+                                  ForceMode.Acceleration);
+            }
+        }
+
+        /// <summary>ทิศเฉลี่ยของเท้าที่ปักอยู่ (เฉลี่ยแบบวงกลม — 350° กับ 10° ได้ 0° ไม่ใช่ 180°)</summary>
+        private bool TryGetStanceTorsoYaw(out float yaw)
+        {
+            Vector2 sum = Vector2.zero;
+            foreach (LimbSlot slot in LegSlots)
+            {
+                if (!TryGetCountedLeg(slot, out LegController leg) || !leg.TryGetPlantedTorsoYaw(out float legYaw)) continue;
+                float radians = legYaw * Mathf.Deg2Rad;
+                sum += new Vector2(Mathf.Sin(radians), Mathf.Cos(radians));
+            }
+            yaw = Mathf.Atan2(sum.x, sum.y) * Mathf.Rad2Deg;
+            return sum.sqrMagnitude > 0.01f;
+        }
+
+        /// <summary>
+        /// ความสูงจุดยิง ray เหนือพื้นตอนยืนย่อเข่า = (จุดยิง → สะโพก) + ความสูงสะโพกตามท่ายืน + ความหนาเท้า
+        /// เฉลี่ยสองขา — วัดตามแกนลำตัวเพราะหุ่นเกิดมานอนอยู่
+        /// </summary>
+        private void CalibrateTargetHeight()
+        {
+            if (groundRaycastOrigin == null)
+            {
+                targetHeightCalibrated = true;
+                return;
+            }
+
+            float sum = 0f;
+            int count = 0;
+            foreach (LimbSlot slot in LegSlots)
+            {
+                if (!TryGetCountedLeg(slot, out LegController leg) || !leg.IsSpawned || leg.Pivot == null) continue;
+                float originAboveHip = Vector3.Dot(groundRaycastOrigin.position - leg.Pivot.position, torsoRb.transform.up);
+                sum += originAboveHip + leg.StandingHipHeight + leg.FootThickness;
+                count++;
+            }
+            if (count == 0) return; // ขายังไม่ spawn — ลองใหม่ tick หน้า
+
+            targetTorsoHeight = sum / count;
+            targetHeightCalibrated = true;
+            Debug.Log($"[TorsoBalance] 📏 Auto targetTorsoHeight = {targetTorsoHeight:F2}m ({name})");
         }
 
         private bool TryGetGroundHeight(out float height)

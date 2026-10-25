@@ -119,6 +119,7 @@ namespace Nsc.Combat
                 Debug.Log($"🥊 HIT! '{collision.collider.name}' | {info.source} | PeakSpeed: {peakSpeed:F1} m/s | " +
                           $"Damage: {info.amount:F1} | Knockback: {info.knockback:F1}");
                 SpawnImpactEffects(contact.point, direction);
+                BroadcastFeel(contact.point, contact.normal, info.amount);
             }
 
             // เข้าเป้า → ล็อกดาเมจ + จบท่า (หนึ่งท่าหนึ่งดาเมจ)
@@ -142,6 +143,14 @@ namespace Nsc.Combat
             float top = Mathf.Max(knockbackReferenceSpeed, minVelocityThreshold + 0.01f);
             float t = Mathf.InverseLerp(minVelocityThreshold, top, speed);
             return Mathf.Lerp(minKnockbackForce, maxKnockbackForce, Mathf.Pow(t, knockbackCurve));
+        }
+
+        /// <summary>ฟีลหมัดหนัก (กล้องค้าง+สั่น ประกายไฟ เสียงเหล็ก) ทุกเครื่อง — ดาบหาช่องส่งจากมือที่ถือ</summary>
+        private void BroadcastFeel(Vector3 point, Vector3 surfaceNormal, float damage)
+        {
+            IImpactFeedback channel = GetComponentInParent<IImpactFeedback>();
+            if (channel != null) channel.ServerBroadcastHit(point, surfaceNormal, damage);
+            else Nsc.Feel.ImpactFeel.PlayHit(point, surfaceNormal, damage);
         }
 
         private void SpawnImpactEffects(Vector3 position, Vector3 normal)

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Nsc.Combat;
+using Nsc.Feel;
 using Nsc.Robots;
 using Unity.Netcode;
 using UnityEngine;
@@ -16,7 +18,7 @@ namespace Nsc.Limbs
     /// ลำดับชั้นลึกหนึ่งระดับ ห้ามสืบทอดต่อจาก ArmController/LegController
     /// </summary>
     [RequireComponent(typeof(RobotLimb))]
-    public abstract class LimbController : NetworkBehaviour
+    public abstract class LimbController : NetworkBehaviour, IImpactFeedback
     {
         [Header("References")]
         [FormerlySerializedAs("handRb"), FormerlySerializedAs("footRb")]
@@ -96,5 +98,31 @@ namespace Nsc.Limbs
             if (IsSpawned) ResetAimRpc();
             else AimResetRequested?.Invoke();
         }
+
+        // ================================================================
+        //  ฟีลของหนัก — server ตัดสินว่าเกิดอะไร แล้วให้ทุกเครื่องเล่นเอฟเฟกต์เอง (ไม่แตะเกมเพลย์)
+        // ================================================================
+
+        /// <summary>[SERVER] หมัด/เตะ/ดาบเข้าเป้า หรือชิ้นนี้โดนบอสตี</summary>
+        public void ServerBroadcastHit(Vector3 point, Vector3 surfaceNormal, float damage)
+        {
+            if (IsSpawned) FeelHitRpc(point, surfaceNormal, damage);
+            else ImpactFeel.PlayHit(point, surfaceNormal, damage);
+        }
+
+        /// <summary>[SERVER] เท้าปักพื้น — strength 0..1</summary>
+        protected void ServerBroadcastFootstep(Vector3 point, float strength)
+        {
+            if (IsSpawned) FeelFootstepRpc(point, strength);
+            else ImpactFeel.PlayFootstep(point, strength);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
+        private void FeelHitRpc(Vector3 point, Vector3 surfaceNormal, float damage) =>
+            ImpactFeel.PlayHit(point, surfaceNormal, damage);
+
+        // ก้าวเท้าเกิดบ่อย หายบ้างไม่เป็นไร → unreliable
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
+        private void FeelFootstepRpc(Vector3 point, float strength) => ImpactFeel.PlayFootstep(point, strength);
     }
 }

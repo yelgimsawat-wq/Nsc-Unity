@@ -20,7 +20,7 @@ namespace Nsc.Limbs
         private const float SnapSpeedThreshold = 0.1f;
         private const float JumpHoldDuration = 0.3f;
         private const float ServerReachMargin = 1.5f;
-        // จุดปักเท้าอยู่ในระยะ 90% ของรัศมีที่ขาเอื้อม — maxFootReach แบบ auto ใช้ค่าเดียวกัน
+        // จุดปักเท้าอยู่ในระยะ 90% ของรัศมีที่ขาเอื้อม — maxFootReach แบบ auto ไม่เกินค่านี้
         // ผู้เล่นจึงเลื่อนล้อไปยังระยะที่พอปล่อยคลิกแล้วโดนดึงกลับไม่ได้
         private const float PlantReachSafety = 0.9f;
         private static readonly LimbSlot[] ArmSlots = { LimbSlot.LeftArm, LimbSlot.RightArm };
@@ -35,6 +35,36 @@ namespace Nsc.Limbs
         [Tooltip("รัศมีของจุดถ่ายน้ำหนัก (และเพดาน validate ฝั่ง server) — ไม่ได้กำหนดระยะก้าว")]
         [SerializeField] private float mouseReachX = 2f;
         [SerializeField] private float mouseReachY = 2f;
+
+        [Header("Leg Length & Stance")]
+        [Tooltip("วัดความยาวขาจากข้อต่อจริงตอน spawn แล้วเขียนทับ maxLegLength — ปรับสเกลหุ่นแล้วไม่ต้องจูนใหม่")]
+        [SerializeField] private bool autoMeasureLegLength = true;
+        [Tooltip("ความสูงสะโพกที่ดึงไปตอนยืน เป็นสัดส่วนของความยาวขา (TorsoBalance ใช้ตั้งความสูงลำตัวด้วย)\n" +
+                 "ต้องต่ำกว่า 1 — ดึงเกินความยาวขาแล้วขาตึงเป็นเชือก ก้าวไม่ออก\n" +
+                 "หุ่นยักษ์ตอนนี้ข้อเท้าจำกัด −20..30° เข่าเลยงอจริงได้น้อย ส่วนที่เกินจะเป็นแรงกดลำตัวลงแทน")]
+        [Range(0.6f, 1f)] [SerializeField] private float standingHeightRatio = 0.85f;
+        [Tooltip("มุมเป้าของ HingeJoint ข้อเข่าตอนยืน/ก้าว — ต้องเลยมุมที่ขาเหยียดตรง (หุ่นยักษ์ ~30°)\n" +
+                 "ไม่มีแรงนี้เข่าโดนน้ำหนักกดเข้าลิมิตแล้วล็อกตรง ลำตัวย่อลงไม่ได้ ความสูงจริงให้ TorsoBalance ตัดสิน")]
+        [Range(0f, 120f)] [SerializeField] private float kneeBendAngle = 70f;
+        [Tooltip("ความแรงสปริงข้อเข่าตอนยืน (0 = ปิด ใช้ค่าใน HingeJoint เดิม) — 500 อ่อนเกิน เข่าไม่ขยับ")]
+        [Min(0f)] [SerializeField] private float kneeSpring = 5000f;
+        [Min(0f)] [SerializeField] private float kneeDamper = 100f;
+
+        [Header("Step Swing (คลิก = ก้าวเป็นเส้นโค้งจนเท้าปักเอง)")]
+        [Tooltip("เวลาเหวี่ยงเท้าหนึ่งก้าว (วินาที) — ยาวขึ้น = ดูหนักขึ้น")]
+        [Min(0.1f)] [SerializeField] private float stepSwingTime = 0.6f;
+        [Tooltip("ความสูงยอดโค้งของก้าว เป็นสัดส่วนของความยาวขา")]
+        [Range(0f, 0.5f)] [SerializeField] private float stepArcHeightRatio = 0.2f;
+        [Tooltip("เท้าเกาะเส้นโค้งแน่นแค่ไหน — ต่ำ = เท้าย้วยตามหลัง สูง = เกาะเส้นเป๊ะ")]
+        [Min(0.1f)] [SerializeField] private float swingTrackSpeed = 12f;
+
+        [Header("Foot Facing (ท่าองอาจ)")]
+        [Tooltip("เท้าชี้ไปทางลำตัวเสมอ: ลอยอยู่ค่อยๆ หมุนกลับ ลงพื้นแล้วตรงเป๊ะ — ปิดแล้วเท้าหมุนไปตามแรง ขาบิดเอง")]
+        [SerializeField] private bool lockFootYaw = true;
+        [Tooltip("ความเร็วหมุนเท้ากลับหาทิศลำตัวระหว่างก้าว (ต่อวินาที ต่อหน่วยมุมที่เหลือ)")]
+        [Min(0f)] [SerializeField] private float footTurnSpeed = 8f;
+        [Tooltip("ก้าวเฉียงไปทางไหน เท้าลงหันไปทางนั้นครึ่งหนึ่ง ไม่เกินค่านี้ต่อก้าว — ลำตัวหันตามเท้า = เลี้ยว (0 = เดินทิศเดิมตลอด)")]
+        [Range(0f, 60f)] [SerializeField] private float maxTurnPerStep = 25f;
 
         [Header("Foot Reach (ล้อเมาส์ = ระยะใกล้/ไกล)")]
         [Tooltip("คำนวณ min/maxFootReach จากความยาวขาให้อัตโนมัติ")]
@@ -107,6 +137,25 @@ namespace Nsc.Limbs
         private bool legJointsUnbreakableApplied;
         private NetworkTransform footNetworkTransform;
 
+        // ก้าวเป็นเส้นโค้ง (server) — เริ่มตอนเจ้าของกดคลิก จบตอนเท้าลงถึงพื้นแม้ปล่อยคลิกไปแล้ว
+        private bool swingActive;
+        private float swingProgress;
+        private float swingLift01;
+        private Vector3 swingStart;
+        private Vector3 lastSwingPoint;
+
+        private float footYawOffset;
+        private bool footYawOffsetSet;
+        private float plantedYaw;
+        private bool landingFromSwing;
+        private float facingYawOffset;
+        private bool facingYawOffsetSet;
+
+        private HingeJoint knee;
+        private JointSpring kneeRestSpring;
+        private bool kneeRestUseSpring;
+        private bool kneeBraced;
+
         public LegMode Mode => mode;
         /// <summary>[SERVER] เจ้าของกดคลิกซ้ายค้างอยู่ (ยกขาก้าว)</summary>
         public bool IsStepping => stepping;
@@ -122,7 +171,7 @@ namespace Nsc.Limbs
         /// "ก้าวเดิน" ในความหมายของกฎการล้มเท่านั้น — ไม่นับกระโดด เตะ หรือยันตัวลุก
         /// (ธงก้าวดิบถูกเซ็ตจากหลายระบบที่ไม่ใช่การเดิน ใช้ตัดสินล้มตรงๆ ไม่ได้)
         /// </summary>
-        public bool IsWalkStepping => stepping && !jumping && !pushingUp && !kick.IsControllingFoot;
+        public bool IsWalkStepping => (stepping || swingActive) && !jumping && !pushingUp && !kick.IsControllingFoot;
 
         /// <summary>เท้านี้ทำหน้าที่ "ขายัน" ได้ไหม (ไม่รวมการเช็คพื้น — ลำตัวเช็คเองครั้งเดียวต่อ tick)</summary>
         public bool CanActAsSupport =>
@@ -139,6 +188,8 @@ namespace Nsc.Limbs
 
         // ค่าที่ LegInput ใช้คำนวณเป้า — ต้องตรงกับที่ server ใช้ตรวจ
         public float MaxLegLength => maxLegLength;
+        /// <summary>ความสูงสะโพกเหนือจุดกลางเท้าตอนยืนย่อเข่า</summary>
+        public float StandingHipHeight => maxLegLength * standingHeightRatio;
         public float FootThickness => footThicknessOffset;
         public LayerMask GroundLayer => groundLayer;
         public float BalanceReach => Mathf.Max(mouseReachX, mouseReachY);
@@ -158,6 +209,25 @@ namespace Nsc.Limbs
             if (strike != null) strike.SetSource(kick);
         }
 
+        /// <summary>
+        /// จับทิศเท้าและทิศหน้าหุ่นเทียบลำตัว ณ ท่าที่โมเดลวางไว้ — Start มาก่อน FixedUpdate แรก ฟิสิกส์ยังไม่ขยับ
+        /// (หุ่นเกิดมาล้มนอน จับทีหลังท่านอนบิดจนค่าเพี้ยน) และตอนนี้ Robot ผูกขาครบสองข้างแล้ว
+        /// </summary>
+        private void Start()
+        {
+            Rigidbody torsoBody = TorsoBody;
+            if (body == null || torsoBody == null) return;
+
+            float torsoYaw = torsoBody.rotation.eulerAngles.y;
+            footYawOffset = Mathf.DeltaAngle(torsoYaw, body.rotation.eulerAngles.y);
+            footYawOffsetSet = true;
+            if (TryGetHipFacing(out Vector3 facing))
+            {
+                facingYawOffset = Mathf.DeltaAngle(torsoYaw, Quaternion.LookRotation(facing).eulerAngles.y);
+                facingYawOffsetSet = true;
+            }
+        }
+
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
@@ -165,6 +235,7 @@ namespace Nsc.Limbs
 
             // รันทุกเครื่อง — ฝั่ง owner ใช้ความหนาเท้าและระยะก้าวคำนวณเป้าด้วย
             if (autoMeasureFootThickness) MeasureFootThickness();
+            if (autoMeasureLegLength) MeasureLegLength();
             ApplyAutoFootReach();
 
             // ✅ [Rest Pose] กันเป้าเท้าเริ่มที่ (0,0,0) — หุ่นล้มก่อน RPC แรกมาถึงแล้วเท้าพุ่งไปจุดกำเนิดโลก
@@ -198,7 +269,40 @@ namespace Nsc.Limbs
             }
         }
 
-        /// <summary>ผูกช่วงระยะก้าวเข้ากับความยาวขาจริง — หุ่นสเกล 1.5 หรือ 14 ใช้ค่าเดียวกันได้</summary>
+        /// <summary>
+        /// ความยาวขา = ระยะจากเท้าไล่ anchor ของข้อต่อ (ข้อเท้า → เข่า → สะโพก) ตอนเหยียดตรง
+        /// ไม่ขึ้นกับท่าตอน spawn (หุ่นเกิดมานอนอยู่)
+        /// </summary>
+        private void MeasureLegLength()
+        {
+            if (body == null) return;
+
+            List<Rigidbody> chain = CollectChainBodies();
+            Vector3 previous = body.position;
+            float length = 0f;
+            foreach (Rigidbody chainBody in chain)
+            {
+                Joint joint = null;
+                foreach (Joint candidate in chainBody.GetComponents<Joint>())
+                    if (candidate != null && candidate.connectedBody != null) { joint = candidate; break; }
+                if (joint == null) return;
+
+                Vector3 anchor = chainBody.transform.TransformPoint(joint.anchor);
+                length += Vector3.Distance(previous, anchor);
+                previous = anchor;
+            }
+
+            if (length > minLegLength + 0.05f && length < 200f)
+            {
+                maxLegLength = length;
+                Debug.Log($"[Foot] 📏 Auto-measured maxLegLength = {length:F2}m ({name})");
+            }
+        }
+
+        /// <summary>
+        /// ผูกช่วงระยะก้าวเข้ากับความยาวขาจริง — หุ่นสเกล 1.5 หรือ 14 ใช้ค่าเดียวกันได้
+        /// ก้าวไกลสุดเกือบเต็มช่วงขา: ระหว่างก้าวลำตัวไหลไปหาจุดที่เท้าจะลง (TorsoBalance) เท้าจึงเอื้อมถึง
+        /// </summary>
         private void ApplyAutoFootReach()
         {
             if (!autoFootReachFromLegLength) return;
@@ -255,7 +359,24 @@ namespace Nsc.Limbs
         }
 
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable, InvokePermission = RpcInvokePermission.Owner)]
-        public void SetSteppingRpc(bool on) => stepping = on;
+        public void SetSteppingRpc(bool on)
+        {
+            if (on && !Nsc.Match.GameplayGate.CanAct) return;
+            stepping = on;
+            // เริ่มโค้งที่นี่ด้วย ไม่งั้นคลิกสั้นที่กด+ปล่อยมาถึงใน tick เดียวกันจะไม่เกิดก้าวเลย
+            // ก้าวที่ยังลอยอยู่ไม่เริ่มใหม่ — กดซ้ำระหว่างเท้ากำลังลง = ยกค้างต่อจากตรงนั้น
+            if (on && !swingActive && body != null) BeginSwing();
+        }
+
+        /// <summary>[SERVER] คนคุมขานี้เปลี่ยนไป — ปล่อยปุ่มที่ค้าง (ก้าวที่ลอยอยู่ลงพื้นเอง, ยกเลิกชาร์จเตะ)</summary>
+        public void ServerReleaseInput()
+        {
+            if (!IsServer) return;
+            stepping = false;
+            pushingUp = false;
+            if (kick.State == KickState.Charging) kick.CancelCharge();
+            SyncKickState();
+        }
 
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Reliable, InvokePermission = RpcInvokePermission.Owner)]
         public void SetPushingUpRpc(bool on) => pushingUp = on;
@@ -339,7 +460,15 @@ namespace Nsc.Limbs
                 else if (!kick.IsControllingFoot) UpdateClimbRelease();
             }
 
+            // กระโดด/ปีนใช้สปริงก้าวเดิม — กดคลิกค้างอยู่ตอนกลับมายืน = เริ่มโค้งใหม่จากตรงนั้น
+            if (jumping || releasedForClimb) swingActive = false;
+            else if (stepping && !swingActive) BeginSwing();
+
             mode = ResolveMode();
+            // เตะ ล้ม ขาหลุด = ทิ้งก้าวที่ค้างอยู่ ไม่งั้นพอกลับมายืนเท้าจะไหลต่อโค้งเก่า
+            if (mode != LegMode.Stepping) swingActive = false;
+            SetKneeBraced(mode == LegMode.Planted || mode == LegMode.Stepping);
+
             switch (mode)
             {
                 case LegMode.Detached:
@@ -361,7 +490,8 @@ namespace Nsc.Limbs
                     break;
                 case LegMode.Stepping:
                     isPlantedSet = false;
-                    DriveStep();
+                    if (swingActive) DriveSwing();
+                    else DriveStep();
                     break;
                 default:
                     Plant();
@@ -379,7 +509,7 @@ namespace Nsc.Limbs
             if (!limb.IsAttached) return LegMode.Detached;
             if (IsTorsoDown) return pushingUp ? LegMode.PushingUp : LegMode.Limp;
             if (kick.IsControllingFoot) return LegMode.Kicking;
-            if (releasedForClimb || stepping || jumping) return LegMode.Stepping;
+            if (releasedForClimb || stepping || swingActive || jumping) return LegMode.Stepping;
             return LegMode.Planted;
         }
 
@@ -435,6 +565,22 @@ namespace Nsc.Limbs
                 torsoBody.AddForce(Vector3.up * upwardRecoveryBoost, ForceMode.Acceleration);
         }
 
+        /// <summary>เท้าเพิ่งปักใหม่ → ทุกเครื่องได้ยินเสียงตึ้ง เห็นฝุ่น กล้องสั่น (กันยิงถี่ตอนเท้าเด้งปักซ้ำ)</summary>
+        private void BroadcastFootstep(float landingSpeed)
+        {
+            if (Time.time - lastFootstepTime < FootstepMinInterval) return;
+            lastFootstepTime = Time.time;
+
+            Nsc.Feel.FeelConfig config = Nsc.Feel.FeelConfig.Instance;
+            float fullSpeed = config != null ? Mathf.Max(0.1f, config.footstepFullSpeed) : 12f;
+            float minStrength = config != null ? config.footstepMinStrength : 0.45f;
+            float strength = Mathf.Lerp(minStrength, 1f, Mathf.Clamp01(landingSpeed / fullSpeed));
+            ServerBroadcastFootstep(plantedPosition, strength);
+        }
+
+        private const float FootstepMinInterval = 0.2f;
+        private float lastFootstepTime = -10f;
+
         private void FreezeFoot(bool isRecovering)
         {
             if (!isPlantedSet)
@@ -482,18 +628,205 @@ namespace Nsc.Limbs
             body.AddForce(force, ForceMode.Acceleration);
         }
 
+        /// <summary>สปริงไล่เป้าตรงๆ — ใช้ตอนกระโดดและปีน (ก้าวเดินใช้ DriveSwing)</summary>
         private void DriveStep()
         {
             body.isKinematic = false;
-            Vector3 target = targetFootPos;
+            DriveToward(ClampToLegReach(targetFootPos), footMoveSpeed, legDamper);
+        }
+
+        /// <summary>
+        /// ยืน/ก้าว = สปริงข้อเข่าดันไปทางงอ (ฝั่งที่ลิมิตเปิดให้) | ล้ม/หลุด/เตะ = คืนค่าเดิมของ HingeJoint ขาปวกเปียกตามเดิม
+        /// ตั้งเฉพาะตอนสถานะเปลี่ยน — เซ็ต spring ทุก tick ปลุก rigidbody ทั้งโซ่
+        /// </summary>
+        private void SetKneeBraced(bool braced)
+        {
+            if (kneeSpring <= 0f) braced = false;
+            if (braced == kneeBraced) return;
+
+            if (knee == null)
+            {
+                if (!braced) return;
+                knee = FindKneeHinge();
+                if (knee == null) { kneeSpring = 0f; return; }
+                kneeRestSpring = knee.spring;
+                kneeRestUseSpring = knee.useSpring;
+            }
+
+            kneeBraced = braced;
+            if (braced)
+            {
+                // ลิมิตบอกทิศงอของเข่าตัวนี้ (หุ่นนี้ 0..220 = งอทางบวก)
+                float bend = knee.useLimits && knee.limits.max <= 0f ? -kneeBendAngle : kneeBendAngle;
+                knee.spring = new JointSpring { spring = kneeSpring, damper = kneeDamper, targetPosition = bend };
+                knee.useSpring = true;
+            }
+            else
+            {
+                knee.spring = kneeRestSpring;
+                knee.useSpring = kneeRestUseSpring;
+            }
+        }
+
+        private HingeJoint FindKneeHinge()
+        {
+            if (body == null) return null;
+            foreach (Rigidbody chainBody in CollectChainBodies())
+                if (chainBody.TryGetComponent(out HingeJoint hinge)) return hinge;
+            return null;
+        }
+
+        private Vector3 ClampToLegReach(Vector3 target)
+        {
             Vector3 fromPivot = target - pivot.position;
             float distance = fromPivot.magnitude;
             if (distance < minLegLength)
-                target = pivot.position + (distance > 0.01f ? fromPivot.normalized : pivot.forward) * minLegLength;
-            else if (distance > maxLegLength)
-                target = pivot.position + fromPivot.normalized * maxLegLength;
+                return pivot.position + (distance > 0.01f ? fromPivot.normalized : pivot.forward) * minLegLength;
+            if (distance > maxLegLength)
+                return pivot.position + fromPivot.normalized * maxLegLength;
+            return target;
+        }
 
-            DriveToward(target, footMoveSpeed, legDamper);
+        private void BeginSwing()
+        {
+            swingActive = true;
+            swingProgress = 0f;
+            swingLift01 = 0f;
+            swingStart = body.position;
+            lastSwingPoint = body.position;
+        }
+
+        /// <summary>
+        /// 🦶 [Step Swing] ก้าวเป็นเส้นโค้ง: แนวราบไหลจากจุดเริ่มไปเป้าแบบ ease in-out ส่วนความสูงยกแล้วกระแทกลง
+        /// คลิกสั้น = ก้าวครบโค้งแล้วปักเอง | กดค้าง = ลอยค้างที่ยอดโค้งตามเป้า ปล่อยแล้วค่อยลง
+        /// ผู้เล่นเลือกแค่ "ไปไหน" ระบบเป็นคนทำให้ก้าวสวย
+        /// </summary>
+        private void DriveSwing()
+        {
+            body.isKinematic = false;
+            float dt = Time.fixedDeltaTime;
+
+            swingProgress = Mathf.MoveTowards(swingProgress, 1f, dt / stepSwingTime);
+            bool rising = stepping || swingProgress < 0.5f;
+            swingLift01 = Mathf.MoveTowards(swingLift01, rising ? 1f : 0f, dt / (stepSwingTime * 0.5f));
+
+            if (!stepping && swingProgress >= 1f && swingLift01 <= 0f)
+            {
+                swingActive = false; // เท้าถึงพื้นแล้ว — tick หน้า Plant() ปักและยิงเสียงตึ้ง
+                landingFromSwing = true;
+                return;
+            }
+
+            float travel = Mathf.SmoothStep(0f, 1f, swingProgress);
+            // sin ¼ รอบ: ยกเร็วแล้วชะลอที่ยอด ขาลงกลับกัน = ค้างที่ยอดแล้วเร่งกระแทกพื้นเหมือนของหนัก
+            float lift = Mathf.Sin(swingLift01 * Mathf.PI * 0.5f) * maxLegLength * stepArcHeightRatio;
+            Vector3 point = ClampSwingReach(Vector3.Lerp(swingStart, targetFootPos, travel) + Vector3.up * lift);
+
+            // feed-forward ความเร็วของเส้นโค้ง — สปริงอย่างเดียวเท้าจะลากตามหลังจุดบนเส้นจนโค้งแบน
+            Vector3 pathVelocity = Vector3.ClampMagnitude((point - lastSwingPoint) / dt, maxFootVelocity);
+            lastSwingPoint = point;
+
+            Vector3 desiredVelocity = pathVelocity + (point - body.position) * swingTrackSpeed;
+            body.AddForce((desiredVelocity - body.linearVelocity) * legDamper, ForceMode.Acceleration);
+
+            if (lockFootYaw) TurnFootToward(DesiredFootYaw());
+        }
+
+        /// <summary>
+        /// ตัดเส้นโค้งแค่ระยะแนวราบ ไม่ใช่ทรงกลมความยาวขา — ขาหุ่นงอแทบไม่ได้ ตัดด้วยทรงกลมแล้วเท้าโดนดึงกลับมาใต้ตัวทุกก้าว
+        /// เท้าที่เอื้อมไปข้างหน้าพร้อมกับลำตัวที่ไหลตาม = ก้าวยาว
+        /// </summary>
+        private Vector3 ClampSwingReach(Vector3 point)
+        {
+            Vector3 flat = point - pivot.position;
+            flat.y = 0f;
+            float maxFlat = maxLegLength * PlantReachSafety;
+            if (flat.magnitude <= maxFlat) return point;
+            Vector3 clamped = pivot.position + flat.normalized * maxFlat;
+            return new Vector3(clamped.x, point.y, clamped.z);
+        }
+
+        /// <summary>[SERVER] กำลังก้าว — จุดที่เท้าจะลง ให้ TorsoBalance ถ่ายน้ำหนักลำตัวไปหา</summary>
+        public bool TryGetStepDestination(out Vector3 destination)
+        {
+            destination = default;
+            if (!swingActive || jumping || body == null || pivot == null) return false;
+            destination = ClampSwingReach(targetFootPos);
+            return true;
+        }
+
+        // ================================================================
+        //  ทิศเท้า — เท้าชี้ไปทางเดียวกับลำตัวเสมอ ขาไม่บิดหมุนเอง
+        // ================================================================
+
+        private float DesiredFootYaw()
+        {
+            Rigidbody torsoBody = TorsoBody;
+            if (torsoBody == null || !footYawOffsetSet) return body.rotation.eulerAngles.y;
+            return torsoBody.rotation.eulerAngles.y + footYawOffset;
+        }
+
+        /// <summary>
+        /// ทิศเท้าตอนลงพื้น = ทิศลำตัว + หันตามทิศที่ก้าวไปครึ่งหนึ่ง (ไม่เกิน maxTurnPerStep)
+        /// ก้าวตรง = ไม่หัน | ก้าวเฉียง = ค่อยๆ เลี้ยว | ก้าวสั้นหรือถอยหลัง = ไม่หัน
+        /// </summary>
+        private float LandingYaw()
+        {
+            float yaw = DesiredFootYaw();
+            if (!landingFromSwing || maxTurnPerStep <= 0f || !TryGetRobotFacingYaw(out float facingYaw)) return yaw;
+
+            Vector3 step = plantedPosition - swingStart;
+            step.y = 0f;
+            if (step.magnitude < maxLegLength * 0.2f) return yaw;
+
+            float angle = Vector3.SignedAngle(Quaternion.Euler(0f, facingYaw, 0f) * Vector3.forward, step, Vector3.up);
+            if (Mathf.Abs(angle) > 110f) return yaw;
+            return yaw + Mathf.Clamp(angle * 0.5f, -maxTurnPerStep, maxTurnPerStep);
+        }
+
+        /// <summary>
+        /// ทิศหน้าหุ่น = ทิศลำตัว + ส่วนต่างที่จับจากท่าโมเดล (TorsoBalance คุมลำตัวไม่ให้บิดแล้ว ค่านี้จึงนิ่ง)
+        /// ไม่ใช้แนวสะโพกตรงๆ — จุดอ้างอิงสะโพกอยู่บนต้นขา แกว่ง ±45° ตามขาที่เหวี่ยง
+        /// </summary>
+        public bool TryGetRobotFacingYaw(out float yaw)
+        {
+            Rigidbody torsoBody = TorsoBody;
+            yaw = torsoBody != null ? torsoBody.rotation.eulerAngles.y + facingYawOffset : 0f;
+            return facingYawOffsetSet && torsoBody != null;
+        }
+
+        /// <summary>ทิศหน้าจากแนวสะโพกซ้าย→ขวา — ใช้แค่ตอนจับค่าจากท่าโมเดล (forward ของลำตัวโมเดลนี้ชี้ด้านข้าง)</summary>
+        private bool TryGetHipFacing(out Vector3 facing)
+        {
+            facing = Vector3.zero;
+            Robot robot = limb.Owner;
+            if (robot == null) return false;
+            LegController left = robot.GetLimb(LimbSlot.LeftLeg)?.Controller as LegController;
+            LegController right = robot.GetLimb(LimbSlot.RightLeg)?.Controller as LegController;
+            if (left == null || right == null || left.pivot == null || right.pivot == null) return false;
+
+            Vector3 hipRight = right.pivot.position - left.pivot.position;
+            hipRight.y = 0f;
+            if (hipRight.sqrMagnitude < 0.0001f) return false;
+            facing = Vector3.Cross(hipRight, Vector3.up).normalized;
+            return true;
+        }
+
+        /// <summary>[SERVER] เท้าปักอยู่ — ทิศที่ลำตัวควรหัน (ทิศเท้าลบส่วนต่างจากท่าโมเดล) ให้ TorsoBalance คุมไม่ให้ลำตัวบิด</summary>
+        public bool TryGetPlantedTorsoYaw(out float torsoYaw)
+        {
+            torsoYaw = plantedYaw - footYawOffset;
+            return lockFootYaw && isPlantedSet && mode == LegMode.Planted;
+        }
+
+        /// <summary>เท้าลอยอยู่ (dynamic) — หมุนกลับหาทิศลำตัวด้วยความเร็วเชิงมุม ไม่ snap</summary>
+        private void TurnFootToward(float yaw)
+        {
+            Quaternion error = Quaternion.Euler(0f, yaw, 0f) * Quaternion.Inverse(body.rotation);
+            error.ToAngleAxis(out float angle, out Vector3 axis);
+            if (angle > 180f) angle -= 360f;
+            if (float.IsNaN(axis.x) || Mathf.Abs(angle) < 0.01f) return;
+            body.angularVelocity = axis * (angle * Mathf.Deg2Rad * footTurnSpeed);
         }
 
         /// <summary>
@@ -505,6 +838,8 @@ namespace Nsc.Limbs
             Rigidbody torsoBody = TorsoBody;
             if (torsoBody == null || IsTorsoDown) return;
 
+            // ความเร็วตอนเท้าลง ต้องอ่านก่อนสลับเป็น kinematic
+            float landingSpeed = body.isKinematic ? 0f : Mathf.Max(0f, -body.linearVelocity.y);
             body.isKinematic = true;
 
             if (!isPlantedSet)
@@ -519,15 +854,21 @@ namespace Nsc.Limbs
 
                 // จุดปักต้องอยู่ในระยะที่ขาเอื้อมถึงเสมอ — กันขาเหยียดค้างตั้งแต่แรก
                 plantedPosition = ClampPlantWithinReach(groundPos);
+                // เท้าลงพื้นชี้ตรงไปทางลำตัว แล้วค้างทิศนั้นจนกว่าจะก้าวใหม่ — ทิศเดิมที่ไหลมาจากก้าวก่อนสะสมจนขาบิด
+                plantedYaw = lockFootYaw ? LandingYaw() : body.rotation.eulerAngles.y;
+                landingFromSwing = false;
+                body.rotation = Quaternion.Euler(0f, plantedYaw, 0f);
                 isPlantedSet = true;
                 TeleportFootTo(plantedPosition + Vector3.up * footThicknessOffset);
+                BroadcastFootstep(landingSpeed);
             }
 
             body.MovePosition(plantedPosition + Vector3.up * footThicknessOffset);
-            body.rotation = Quaternion.Euler(0f, body.rotation.eulerAngles.y, 0f);
+            body.rotation = Quaternion.Euler(0f, plantedYaw, 0f);
 
             Vector3 offset = (balanceShiftPos - pivot.position) * balanceShiftMultiplier;
-            Vector3 pullDir = (body.position + Vector3.up * maxLegLength + offset) - pivot.position;
+            // ดึงสะโพกไปที่ความสูงยืนย่อเข่า — ดึงถึงความยาวขาเต็มแล้วขาเหยียดตรงตลอด ก้าวไม่ออก
+            Vector3 pullDir = (body.position + Vector3.up * StandingHipHeight + offset) - pivot.position;
             torsoBody.AddForceAtPosition(pullDir * standingUpwardPull, pivot.position, ForceMode.Acceleration);
 
             // 🪢 [Anchor Tether] ลำตัวถูกลากเกินระยะขาที่ปัก → สปริงดึงกลับ + หน่วงเฉพาะความเร็วขาออก
@@ -647,6 +988,7 @@ namespace Nsc.Limbs
             isPlantedSet = false;
             releasedForClimb = false;
             stepping = false;
+            swingActive = false;
             jumping = false;
             pushingUp = false;
             jumpCooldownTimer = 0f;
