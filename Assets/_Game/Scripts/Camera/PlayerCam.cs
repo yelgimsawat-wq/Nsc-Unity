@@ -77,6 +77,7 @@ public class PlayerCam : NetworkBehaviour
     private float robotDeadZone;
     private Vector3 deadZoneAnchor;
     private bool deadZoneAnchorSet;
+    private readonly RaycastHit[] occlusionHits = new RaycastHit[16];
 
     public override void OnNetworkSpawn()
     {
@@ -286,9 +287,16 @@ public class PlayerCam : NetworkBehaviour
         Transform self = robotBody != null ? robotBody : followTarget;
         int mask = occlusionMask & ~(1 << self.gameObject.layer);
         Vector3 direction = toCamera / length;
-        if (!Physics.Raycast(pivot, direction, out RaycastHit hit, length, mask, QueryTriggerInteraction.Ignore))
-            return desired;
-        return pivot + direction * Mathf.Max(minDistance, hit.distance - minDistance);
+        int count = Physics.RaycastNonAlloc(pivot, direction, occlusionHits, length, mask, QueryTriggerInteraction.Ignore);
+        float nearest = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            // ชิ้นของหุ่นตัวเองที่อยู่คนละ layer (เช่นหัว) ไม่นับว่าบังกล้อง
+            if (occlusionHits[i].transform.root == self.root) continue;
+            nearest = Mathf.Min(nearest, occlusionHits[i].distance);
+        }
+        if (nearest == float.MaxValue) return desired;
+        return pivot + direction * Mathf.Max(minDistance, nearest - minDistance);
     }
 
     /// <summary>ท่ากล้องจริง = ท่าฐาน + แรงสั่นจากก้าวเท้า/การปะทะ (CameraShake) + ซูมเข้าแวบหนึ่งตอนหมัดหนัก</summary>

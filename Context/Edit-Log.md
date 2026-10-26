@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-26 14:21 +07:00 · Q-20261026-nsc-robot-model · files: Assets/_Game/Art/Models/Robot/NSC/, Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/_Game/Scripts/Camera/PlayerCam.cs, Context/quests/Q-20261026-nsc-robot-model.md
+  - แก้: ใส่โมเดลหุ่น ROBOTNSC แทนหุ่นเดิมในฉาก TestItem: ย้าย body/joint/collider ตามข้อต่อโมเดล, เปิด Interpolate แก้ภาพกระตุก, PlayerCam ไม่นับหุ่นตัวเองเป็นสิ่งบังกล้อง
+  - ตรวจ: 2026-10-26 Play ใน TestItem: compile ผ่าน, ไม่กระตุก, เดิน/ต่อยไม่ล้มหลังยืนนิ่ง แต่โยกกว่าสัดส่วนก่อน และล้ม 1 ครั้งตอนเดินทันทีหลังลุก; ยังไม่ทดสอบเตะ/ปีน/หลายเครื่อง
 - 2026-10-13 17:35 +07:00 · Q-20261009-smooth-walk · files: Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Limbs/LegInput.cs, Assets/_Game/Scripts/Robot/TorsoBalance.cs, Context/Game-Design.md, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Scripts/Match/LimbSelection.cs, Assets/_Game/Scripts/Match/LimbControlBinder.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs
   - แก้: คืนกล้องเป็นแบบล็อกมุม+คลิกขวาหมุนได้ (ผู้ใช้ไม่ชอบกล้องหันตามทิศ); เพิ่มปุ่มทดสอบ C สลับไปคุมชิ้นถัดไปกลางแมตช์ (Editor/Dev build)
   - ตรวจ: 2026-10-13 compile ผ่าน; Play TestArena: สลับ LeftLeg/RightLeg/แขน ผ่าน DebugCycleLimbRpc ได้ input ผูกชิ้นใหม่ กล้องมุมเดิม; ยังไม่ได้กดปุ่มจริง

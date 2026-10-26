@@ -1,0 +1,8 @@
+### 2026-10-26 — Q-20261026-nsc-robot-model — ใส่โมเดลหุ่นใหม่ (ROBOTNSC) แทนหุ่นเดิมในฉาก TestItem
+- Status: waiting
+- Owner: Claude Code (Opus 5.5) / session 59276bed-5fc1-4cbf-a763-04348b4a1cf1
+- Goal: หุ่นในฉาก TestItem ใช้โมเดลจาก Blender (ROBOTNSC.blend ไฟล์นอก repo) หน้าตาตรงกับใน Blender, แขนขาขยับปกติไม่สั่น, เดิน/ต่อยได้ไม่ล้ม
+- Files: Assets/_Game/Art/Models/Robot/NSC/ (ใหม่), Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/_Game/Scripts/Camera/PlayerCam.cs
+- Context: แก้เฉพาะ instance ของ RobotContainer ในฉาก TestItem (prefab ยังเป็นหุ่นเดิม) — ชิ้นใหม่เป็น child `NSC_Visual` ของแต่ละ limb, ซ่อนชิ้นเดิมไว้ไม่ได้ลบ; ย้าย body/joint/collider/pivot ให้ตรงข้อต่อของโมเดล; maxArmLength/extraReach ตามสัดส่วนแขนใหม่; เปิด Rigidbody Interpolate ที่ลำตัว/ขา/หัว (แก้ภาพกระตุก); PlayerCam ไม่นับ collider ของหุ่นตัวเองว่าบังกล้อง (หัวอยู่ layer Default ทำให้กล้องมุดเข้าตัว). ยืดต้นแขน 20% ต้นขา 40% ย่อมือ 15% ใน Blender แล้ว (สัดส่วนก่อนหน้าอยู่ใน ROBOTNSC.blend1). PlayerCam.cs อยู่ใน Files ของ Q-20261009-giant-feel และ Q-20261009-smooth-walk ด้วย (แก้ทับไปแล้วโดยไม่ได้ถามก่อน — แก้แค่ AvoidOcclusion)
+- Validation: 2026-10-26 Play ใน TestItem (ปิดบอส, สั่งผ่าน RPC แบบเดียวกับปุ่ม): compile ผ่าน ไม่มี error ใหม่; ภาพไม่กระตุก (เฟรมค้างกลางการเคลื่อนที่ 0/316 จากเดิม 93/160); สัดส่วนล่าสุดเดิน 10 ก้าวไม่ล้ม (ลำตัวตั้งต่ำสุด 0.59), ต่อย 4 หมัดไม่ล้ม (0.47) — โยกมากกว่าสัดส่วนก่อนหน้า (0.84 / 0.74) และล้ม 1 ครั้งตอนเริ่มเดินทันทีหลังลุก. ยังไม่ได้ทดสอบ: เตะ, ปีน/จับ, หลายเครื่อง, กดปุ่มจริงด้วยมือ
+- Next action: รอผู้ใช้ลองเล่นเองแล้วตัดสินว่าเก็บสัดส่วนใหม่หรือย้อน; ถ้าเก็บ → จูนการทรงตัว (ถ้าต้องการ) และ Apply เข้า prefab RobotContainer ให้ทุกฉากใช้; ยังไม่ commit (MAP.unity กับ PC_Renderer.asset ขึ้นว่าถูกแก้แต่ไม่ใช่งานนี้)
