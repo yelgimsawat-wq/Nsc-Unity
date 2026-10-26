@@ -4,9 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
-- 2026-10-26 22:25 +07:00 · Q-20261026-robot-heavy-feel · files: Assets/_Game/Scripts/Limbs/ArmController.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs, Assets/_Game/Scripts/Dev/ArmStepTest.cs, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261026-robot-heavy-feel.md
-  - แก้: หุ่น TestItem หนักแน่นขึ้น: เป้ามือยึดกับไหล่ + ท่าพักห้อย (แก้แขนกางตอนเทสคนเดียว), ArmInput ตั้งจุดเล็งใหม่ตอนสลับแขน, ในซีน: มวลลำตัว 50 ขา 5 แขน 2, angular damping 5/2, ศอกซ้ายเปิด limit, มือไล่เป้าช้าลง (0.2 วิ, 30 m/s), mouseReach 4->2, uprightSpring 15
-  - ตรวจ: 2026-10-26 compile ผ่าน; Play TestItem ผ่าน MCP: ยืนเอียง 37->4.5 องศา, มือเหวี่ยง 8 ม. ลำตัวหมุน 1.46->0.31 rad/s, ศอกสั่น 0.10->0.014, ปุ่ม C สลับชิ้นได้; ยังไม่ตรวจเดินด้วยมือจริง/ต่อย/หลายเครื่อง; ซีนยังไม่ได้ save
+- 2026-10-26 22:46 +07:00 · Q-20261026-robot-heavy-feel · files: Assets/_Game/Scripts/Limbs/ArmController.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs, Assets/_Game/Scripts/Dev/ArmStepTest.cs, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261026-robot-heavy-feel.md
+  - แก้: หุ่น TestItem หนักแน่นขึ้น (เป้ามือยึดไหล่, มวล/damping ใหม่, มือช้าลง, เมาส์ไวน้อยลง) + ลบ Torso (1) ที่ duplicate ซ้อนใน RobotContainer ซึ่งแย่งผูกแขนขาจนกด Q ลุกไม่ได้
+  - ตรวจ: 2026-10-26 compile ผ่าน; Play TestItem: ยืนเอียง 37->4.5 องศา, มือเหวี่ยงลำตัวหมุน 1.46->0.31 rad/s, ปุ่ม C สลับชิ้นได้, ขาซ้ายกด Q ค้างลุกใน 0.5 วิ ยืนเอียง 15-23; ยังไม่ตรวจ Q จากแขน/เดินด้วยมือจริง/ต่อย/หลายเครื่อง
 - 2026-10-26 14:21 +07:00 · Q-20261026-nsc-robot-model · files: Assets/_Game/Art/Models/Robot/NSC/, Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/_Game/Scripts/Camera/PlayerCam.cs, Context/quests/Q-20261026-nsc-robot-model.md
   - แก้: ใส่โมเดลหุ่น ROBOTNSC แทนหุ่นเดิมในฉาก TestItem: ย้าย body/joint/collider ตามข้อต่อโมเดล, เปิด Interpolate แก้ภาพกระตุก, PlayerCam ไม่นับหุ่นตัวเองเป็นสิ่งบังกล้อง
   - ตรวจ: 2026-10-26 Play ใน TestItem: compile ผ่าน, ไม่กระตุก, เดิน/ต่อยไม่ล้มหลังยืนนิ่ง แต่โยกกว่าสัดส่วนก่อน และล้ม 1 ครั้งตอนเดินทันทีหลังลุก; ยังไม่ทดสอบเตะ/ปีน/หลายเครื่อง
