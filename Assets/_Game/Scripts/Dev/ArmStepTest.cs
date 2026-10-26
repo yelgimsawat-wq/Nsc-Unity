@@ -17,7 +17,7 @@ public class ArmStepTest : MonoBehaviour
     public float stepFraction = 0.55f;
 
     private static readonly FieldInfo TargetField = typeof(ArmController)
-        .GetField("targetHandPosition", BindingFlags.NonPublic | BindingFlags.Instance);
+        .GetField("targetHandOffset", BindingFlags.NonPublic | BindingFlags.Instance);
 
     private class Probe
     {
@@ -39,7 +39,7 @@ public class ArmStepTest : MonoBehaviour
     {
         if (TargetField == null)
         {
-            Debug.LogError("[ArmStepTest] field 'targetHandPosition' not found — harness cannot run.");
+            Debug.LogError("[ArmStepTest] field 'targetHandOffset' not found — harness cannot run.");
             enabled = false;
             return;
         }
@@ -106,21 +106,21 @@ public class ArmStepTest : MonoBehaviour
         if (reported)
         {
             // Keep holding the step target so the steady state can be inspected live.
-            foreach (var p in probes) TargetField.SetValue(p.hand, p.stepTarget);
+            foreach (var p in probes) TargetField.SetValue(p.hand, p.stepTarget - p.hand.PivotPosition);
             return;
         }
         t += Time.fixedDeltaTime;
 
         if (!stepped)
         {
-            foreach (var p in probes) TargetField.SetValue(p.hand, p.restTarget);
+            foreach (var p in probes) TargetField.SetValue(p.hand, p.restTarget - p.hand.PivotPosition);
             if (t >= settleTime) { stepped = true; t = 0f; }
             return;
         }
 
         foreach (var p in probes)
         {
-            TargetField.SetValue(p.hand, p.stepTarget);
+            TargetField.SetValue(p.hand, p.stepTarget - p.hand.PivotPosition);
             p.err.Add(Vector3.Distance(p.hand.Body.position, p.stepTarget));
         }
 

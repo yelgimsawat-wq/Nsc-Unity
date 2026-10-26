@@ -88,6 +88,8 @@ namespace Nsc.Limbs
         {
             // ถูกถอดกลางแมตช์ (สลับไปคุมชิ้นอื่น) — ปล่อยของที่จับ/หมัดที่ค้าง ไม่งั้นไม่มีใครส่งคำสั่งปล่อย
             if (camera == null && playerCamera != null && IsSpawned && IsOwner) CancelHeldActions();
+            // ได้คุมแขนนี้ (รวมสลับมาจากแขนอีกข้าง) — จุดเล็งที่แชร์กันยังชี้ฝั่งแขนเดิม ต้องเริ่มจากท่ามือนี้
+            if (camera != null && playerCamera == null && IsSpawned && IsOwner) SeedAimFromCurrentHandPose();
             playerCamera = camera;
         }
 

@@ -18,6 +18,8 @@ namespace Nsc.Limbs
     {
         // จุดอ้างอิงของ server ตอนตรวจเป้าที่ client ส่งมา — ยอมให้เกินระยะแขนได้ 50%
         private const float ServerReachMargin = 1.5f;
+        // ท่าพัก = มือห้อยใต้ไหล่ (สัดส่วนความยาวแขน) — ไม่ใช้ท่าตอน spawn เพราะโมเดลวางท่า T-pose
+        private const float RestHangRatio = 0.85f;
 
         [Header("Offsets (ปรับจุดศูนย์กลางได้อิสระ)")]
         [SerializeField] private Vector3 pivotOffset = Vector3.zero;
@@ -78,8 +80,9 @@ namespace Nsc.Limbs
             0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private ArmGrip grip;
-        private Vector3 targetHandPosition;
-        private Vector3 smoothedHandTarget;
+        // เป้ามือเก็บเป็นระยะจากหัวไหล่ (แกนโลก) — ตัวเดินไปไหนมือไปด้วย ไม่ค้างจุดเดิมในโลกแล้วดึงแขนจนกาง
+        private Vector3 targetHandOffset;
+        private Vector3 smoothedHandOffset;
         private Vector3 smoothVelocity;
         private CollisionDetectionMode originalCollisionMode;
         private PunchState appliedPunchState;
@@ -124,11 +127,8 @@ namespace Nsc.Limbs
         {
             base.OnNetworkSpawn();
 
-            // ✅ [Rest Pose] เป้าเริ่มต้น = ตำแหน่งมือตอน spawn แขนจึงนิ่งข้างลำตัวตั้งแต่เฟรมแรก
-            Vector3 restPose = body != null ? body.position : PivotPosition + Vector3.down * (maxArmLength * 0.5f);
-            targetHandPosition = restPose;
-            smoothedHandTarget = restPose;
-            smoothVelocity = Vector3.zero;
+            // ✅ [Rest Pose] แขนที่ไม่มีใครคุม (เทสคนเดียว) ห้อยข้างลำตัว — ไม่ค้างท่า T-pose ของโมเดล
+            ResetHandTargetToRest();
 
             if (!IsServer || body == null) return;
 
@@ -161,9 +161,16 @@ namespace Nsc.Limbs
 
             float limit = maxArmLength * ServerReachMargin;
             Vector3 fromPivot = target - PivotPosition;
-            if (fromPivot.magnitude > limit) target = PivotPosition + fromPivot.normalized * limit;
+            if (fromPivot.magnitude > limit) fromPivot = fromPivot.normalized * limit;
 
-            targetHandPosition = target;
+            targetHandOffset = fromPivot;
+        }
+
+        private void ResetHandTargetToRest()
+        {
+            targetHandOffset = Vector3.down * (maxArmLength * RestHangRatio);
+            smoothedHandOffset = body != null ? body.position - PivotPosition : targetHandOffset;
+            smoothVelocity = Vector3.zero;
         }
 
         /// <summary>กดคลิกซ้าย = เริ่มหมัด / ปล่อย = หยุดบูสต์ — server ตัดสิน state เองทั้งหมด</summary>
@@ -193,14 +200,14 @@ namespace Nsc.Limbs
             if (!IsServer || body == null) return;
 
             SyncPunchState();
-            smoothedHandTarget = Vector3.SmoothDamp(smoothedHandTarget, targetHandPosition, ref smoothVelocity,
+            smoothedHandOffset = Vector3.SmoothDamp(smoothedHandOffset, targetHandOffset, ref smoothVelocity,
                                                     smoothTime, Mathf.Infinity, Time.fixedDeltaTime);
 
             if (limb.IsAttached)
             {
                 ArmMotion normal = new ArmMotion
                 {
-                    target = smoothedHandTarget,
+                    target = PivotPosition + smoothedHandOffset,
                     velocityCap = maxHandVelocity,
                     damper = handDamper,
                     brakeDamping = brakeDamping,
@@ -428,11 +435,7 @@ namespace Nsc.Limbs
             punch.Reset();
             SyncPunchState();
             ClimbPull = 0f;
-
-            Vector3 rest = body != null ? body.position : PivotPosition;
-            targetHandPosition = rest;
-            smoothedHandTarget = rest;
-            smoothVelocity = Vector3.zero;
+            ResetHandTargetToRest();
 
             RequestOwnerAimReset();
         }
@@ -455,7 +458,7 @@ namespace Nsc.Limbs
             float range = Mathf.Max(0.01f, maxArmLength + punch.extraReach);
             // ก่อน spawn เป้ายังเป็นจุดกำเนิดโลก — ใช้ทิศไหล่→มือจริงแทน กรวยจะได้ไม่ชี้ถอยหลัง
             Vector3 rawDirection = Application.isPlaying
-                ? smoothedHandTarget - origin
+                ? smoothedHandOffset
                 : (body != null ? body.position - origin : transform.position - origin);
             if (rawDirection.sqrMagnitude < 0.0001f) rawDirection = transform.forward;
             rawDirection.Normalize();
