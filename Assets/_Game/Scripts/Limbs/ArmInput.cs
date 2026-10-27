@@ -1,3 +1,4 @@
+using Nsc.Combat;
 using Nsc.Robots;
 using Unity.Netcode;
 using UnityEngine;
@@ -5,7 +6,8 @@ using UnityEngine;
 namespace Nsc.Limbs
 {
     /// <summary>
-    /// input ของแขนฝั่งเจ้าของเท่านั้น: เมาส์ = ลากมือบนระนาบจอ, ล้อ = ยื่นออก/ดึงเข้า,
+    /// input ของแขนฝั่งเจ้าของเท่านั้น: เมาส์ = ลากมือบนระนาบจอ, ล้อ = ยื่นออก/ดึงเข้า
+    /// (เปิด pointAndClick = โหมดต่อสู้: ชี้เมาส์ = มือยกการ์ดหันไปทางนั้น),
     /// คลิกซ้าย = ต่อย, F ค้าง = จับ, Q = ลุก, R ค้าง = ดึงแขนที่หลุดกลับ
     /// ส่งแค่เจตนาผ่าน RPC ของ ArmController / ArmGrip / LimbAttachment — ไม่แตะฟิสิกส์เอง
     ///
@@ -23,6 +25,13 @@ namespace Nsc.Limbs
 
         [Header("Camera (LimbControlBinder ใส่ให้ตอนเริ่มแมตช์)")]
         [SerializeField] private Camera playerCamera;
+
+        [Header("Combat: ชี้แล้วต่อย (แบบเดียวกับขา)")]
+        [Tooltip("ชี้เมาส์ที่ไหน มือยกการ์ดหันไปทางนั้น คลิก = ต่อยไปตรงนั้น — เคอร์เซอร์ไม่ล็อก ไม่ต้องลากมือเอง\n" +
+                 "สำหรับโหมดต่อสู้ ปิด = โหมดเดิม (ลากมือบนระนาบจอ + ล้อ) ที่ยังต้องใช้ปีน/จับของ")]
+        [SerializeField] private bool pointAndClick = false;
+        [Tooltip("สิ่งที่ ray จากเมาส์ชนได้ (ชิ้นส่วนหุ่นตัวเองถูกข้ามให้เอง)")]
+        [SerializeField] private LayerMask aimLayers = ~0;
 
         [Header("Virtual Cursor")]
         [Tooltip("ล็อกเคอร์เซอร์จริงไว้กลางจอแล้วใช้ mouse delta ขยับจุดเล็งเสมือน — ไม่มีขอบจอ")]
@@ -72,9 +81,19 @@ namespace Nsc.Limbs
         private float punchRequestExpireTime;
         private float nextPunchRequestTime;
         private bool pullRequested;
+        private Vector3 guardDirection = Vector3.forward;
+        // เป้าเล็งโหมดต่อสู้ (HUD): ชี้โดนของที่ตีได้ไหม / อยู่ในระยะหมัดไหม / กดง้างมานานเท่าไหร่
+        private bool aimOnTarget;
+        private bool aimInReach;
+        private float chargeStartTime = -1f;
+        private static readonly RaycastHit[] AimHits = new RaycastHit[16];
         private static GUIStyle crosshairStyle;
 
+        private bool LocksCursor => useVirtualCursor && !pointAndClick;
+
         public Camera PlayerCamera => playerCamera;
+        /// <summary>แขนนี้อยู่โหมดต่อสู้ (ชี้แล้วต่อย) — PlayerCam ใช้มุมกล้องต่อสู้เฉพาะตอนนี้</summary>
+        public bool IsCombatMode => pointAndClick;
         public string PullKeyLabel => pullKey.ToString();
 
         /// <summary>ระยะไหล่ถึงเป้ามือตอนนี้ (เมตร) และในสเกล 0..1 — สำหรับ HUD</summary>
@@ -91,6 +110,14 @@ namespace Nsc.Limbs
             // ได้คุมแขนนี้ (รวมสลับมาจากแขนอีกข้าง) — จุดเล็งที่แชร์กันยังชี้ฝั่งแขนเดิม ต้องเริ่มจากท่ามือนี้
             if (camera != null && playerCamera == null && IsSpawned && IsOwner) SeedAimFromCurrentHandPose();
             playerCamera = camera;
+            // ชี้แล้วต่อยต้องเห็นเมาส์ — สลับมาจากชิ้นที่ล็อกเมาส์กลางจอต้องปลดให้
+            if (camera != null && pointAndClick && IsOwner)
+            {
+                LocalAim.Release();
+                // เริ่มการ์ดหันไปทางที่กล้องมอง (กล้องอยู่หลังหุ่น) จนกว่าจะขยับเมาส์
+                Vector3 forward = Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up);
+                if (forward.sqrMagnitude > 0.0001f) guardDirection = forward.normalized;
+            }
         }
 
         private void Awake()
@@ -125,7 +152,7 @@ namespace Nsc.Limbs
 
         private void ReleaseCursorIfOwner()
         {
-            if (IsOwner && useVirtualCursor && playerCamera != null) LocalAim.Release();
+            if (IsOwner && LocksCursor && playerCamera != null) LocalAim.Release();
         }
 
         private void Update()
@@ -137,26 +164,30 @@ namespace Nsc.Limbs
             HandlePullBack();
 
             if (playerCamera == null || !limb.IsAttached) return;
-            if (useVirtualCursor && LocalAim.HandleCursorLock())
+            if (LocksCursor && LocalAim.HandleCursorLock())
             {
                 // คลิกนี้ใช้ดึงเมาส์กลับเข้าเกม ห้ามนับเป็นหมัด — ต้องปล่อยคลิกก่อน
                 SeedAimFromCurrentHandPose();
                 ignoreClickUntilRelease = true;
             }
 
-            // เคอร์เซอร์ปลดอยู่ (Esc ไปเมนู) → หยุดรับ input มือทั้งหมด
+            // เคอร์เซอร์ปลดอยู่ (Esc ไปเมนู) / ชี้แล้วต่อยแต่มีเมนูเปิด → หยุดรับ input มือทั้งหมด
             // ✅ ต้องปล่อยของที่จับค้างและหมัดที่ค้างก่อน ไม่งั้นปล่อยนิ้วตอนอยู่ในเมนูแล้วเราไม่เห็น KeyUp = ค้างถาวร
-            if (useVirtualCursor && !LocalAim.IsLocked)
+            if (LocksCursor ? !LocalAim.IsLocked : pointAndClick && !LegInput.PointerInGame())
             {
                 CancelHeldActions();
                 return;
             }
 
-            LocalAim.UpdateVirtualCursor(mouseSensitivity); // ปืน/ขาอ่านผ่าน LocalAim.AimNormalized
-            UpdateHandAim();
+            if (pointAndClick) UpdateGuardAim(Input.mousePosition);
+            else
+            {
+                LocalAim.UpdateVirtualCursor(mouseSensitivity); // ปืน/ขาอ่านผ่าน LocalAim.AimNormalized
+                UpdateHandAim();
+            }
+            HandlePunchInput(); // ก่อนส่งเป้า — เฟรมที่คลิก เป้าที่ส่งต้องเป็นแนวหมัดแล้ว
             SendHandTarget();
             HandleGrabInput();
-            HandlePunchInput();
 
             if (Input.GetKeyDown(recoveryKey) && limb.Owner != null && limb.Owner.Torso != null &&
                 limb.Owner.Torso.IsRagdoll)
@@ -232,9 +263,49 @@ namespace Nsc.Limbs
             return cameraDistance / Mathf.Max(0.1f, aimReferenceCameraDistance);
         }
 
+        /// <summary>
+        /// ชี้แล้วต่อย: ray จากกล้องผ่านเมาส์ → ทิศการ์ดจากไหล่ไปจุดนั้น (หมัดพุ่งตามแนวการ์ด = ต่อยไปตรงที่ชี้)
+        /// คลิกขวาค้าง (หมุนกล้อง) = การ์ดค้างทิศเดิม ไม่กวาดตามเมาส์
+        /// </summary>
+        private void UpdateGuardAim(Vector3 screenPoint)
+        {
+            if (LocalAim.CameraModeHeld) return;
+
+            Vector3 pivot = arm.PivotPosition;
+            Ray ray = playerCamera.ScreenPointToRay(screenPoint);
+            Vector3 aimPoint = ray.GetPoint(playerCamera.farClipPlane);
+            bool onTarget = false;
+            float nearest = float.MaxValue;
+            Robot self = limb.Owner;
+
+            int count = Physics.RaycastNonAlloc(ray, AimHits, playerCamera.farClipPlane, aimLayers, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit hit = AimHits[i];
+                // ข้ามหุ่นตัวเอง — เทียบด้วย Robot ไม่ใช่ transform.root (ฉากที่หุ่นหลายตัวอยู่ใต้ parent เดียวกันจะข้ามศัตรูไปด้วย)
+                if (hit.distance >= nearest || (self != null && Robot.FromCollider(hit.collider) == self)) continue;
+                nearest = hit.distance;
+                aimPoint = hit.point;
+                onTarget = hit.collider.GetComponentInParent<IDamageable>() != null;
+            }
+
+            // ชี้พื้น = ต่อยระดับไหล่ (กล้องก้ม ~55° ไม่งั้นทุกหมัดทุบดิน) | ชี้ของที่ตีได้ = ต่อยไปที่ตัวมันจริง
+            if (!onTarget) aimPoint.y = pivot.y;
+            Vector3 direction = aimPoint - pivot;
+            if (direction.sqrMagnitude > 0.0001f) guardDirection = direction.normalized;
+            aimOnTarget = onTarget;
+            aimInReach = direction.magnitude <= arm.PunchReach;
+        }
+
         private void SendHandTarget()
         {
             Vector3 target = arm.PivotPosition + LocalAim.ArmOffsetWorld;
+            if (pointAndClick)
+            {
+                // ต่อยอยู่ = ส่งแนวหมัดตรงไปที่เล็ง (การ์ดยก/หุบมือ ถ้าใช้เป็นทิศหมัด หมัดจะเฉียงขึ้นและเข้ากลางตัว)
+                bool punching = punchHeld || arm.CurrentPunchState != PunchState.Idle;
+                target = arm.PivotPosition + (punching ? guardDirection * arm.MaxArmLength : arm.GuardOffset(guardDirection));
+            }
 
             // กันมือทะลุพื้น
             if (Physics.Raycast(target + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f, groundLayer) &&
@@ -374,7 +445,12 @@ namespace Nsc.Limbs
 
         private void OnGUI()
         {
-            if (!IsOwner || !useVirtualCursor || !showCrosshair || playerCamera == null) return;
+            if (IsOwner && pointAndClick && playerCamera != null && limb.IsAttached && LegInput.PointerInGame())
+            {
+                DrawCombatReticle();
+                return;
+            }
+            if (!IsOwner || !LocksCursor || !showCrosshair || playerCamera == null) return;
             if (!LocalAim.IsLocked || !LocalAim.TryClaimCrosshairFrame()) return;
 
             if (crosshairStyle == null)
@@ -389,6 +465,35 @@ namespace Nsc.Limbs
             GUI.Label(new Rect(x - 19f, y - 19f, 40f, 40f), "+", crosshairStyle);
             GUI.color = Color.white;
             GUI.Label(new Rect(x - 20f, y - 20f, 40f, 40f), "+", crosshairStyle);
+        }
+
+        /// <summary>
+        /// เป้าเล็งโหมดต่อสู้ที่เมาส์: แดง = ชี้โดนเป้าในระยะหมัด, ขาว = ในระยะ, ส้มจาง = ไกลเกินหมัดถึง
+        /// กล้องหลังหุ่นกะระยะหน้า-หลังด้วยตาไม่ได้ ตัวนี้บอกแทน | กดค้างโหมดชาร์จ = แถบแรงใต้เป้า
+        /// </summary>
+        private void DrawCombatReticle()
+        {
+            if (crosshairStyle == null)
+                crosshairStyle = new GUIStyle(GUI.skin.label)
+                    { fontSize = 30, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+
+            float x = Input.mousePosition.x, y = Screen.height - Input.mousePosition.y;
+            Color color = !aimInReach ? new Color(1f, 0.6f, 0.2f, 0.6f) : aimOnTarget ? new Color(1f, 0.25f, 0.2f) : Color.white;
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.Label(new Rect(x - 29f, y - 29f, 60f, 60f), "◎", crosshairStyle);
+            GUI.color = color;
+            GUI.Label(new Rect(x - 30f, y - 30f, 60f, 60f), "◎", crosshairStyle);
+
+            bool charging = arm.ChargeMode && punchHeld;
+            if (charging && chargeStartTime < 0f) chargeStartTime = Time.time;
+            if (!charging) { chargeStartTime = -1f; GUI.color = Color.white; return; }
+
+            float charge = Mathf.Clamp01((Time.time - chargeStartTime) / Mathf.Max(arm.FullChargeTime, 0.01f));
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.DrawTexture(new Rect(x - 30f, y + 26f, 60f, 8f), Texture2D.whiteTexture);
+            GUI.color = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(1f, 0.2f, 0.1f), charge);
+            GUI.DrawTexture(new Rect(x - 30f, y + 26f, 60f * charge, 8f), Texture2D.whiteTexture);
+            GUI.color = Color.white;
         }
     }
 }

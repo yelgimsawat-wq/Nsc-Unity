@@ -354,7 +354,7 @@ namespace Nsc.Limbs
         }
 
         /// <summary>เมาส์อยู่ในจอเกมและไม่มีเมนูเปิด — ไม่งั้นคลิกปุ่มเมนูจะกลายเป็นก้าว</summary>
-        private static bool PointerInGame()
+        internal static bool PointerInGame()
         {
             if (!GameplayGate.CanAct || UiFocus.IsCaptured) return false;
             Vector3 mouse = Input.mousePosition;

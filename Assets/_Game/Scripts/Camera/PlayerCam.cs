@@ -30,6 +30,25 @@ public class PlayerCam : NetworkBehaviour
     [Tooltip("หุ่นขยับไม่เกินระยะนี้ (สัดส่วนความสูงหุ่น) กล้องอยู่นิ่ง — ตัวโยกตอนก้าวไม่ลากกล้องตาม")]
     [Range(0f, 1f)] public float followDeadZone = 0.25f;
 
+    [Header("Combat View (ตอนคุมแขน)")]
+    [Tooltip("มุมก้มตอนคุมแขน — ต่ำกว่าขา เห็นศัตรูที่ระดับหมัด (ขาใช้ startPitch)")]
+    public float armPitch = 30f;
+    [Tooltip("ระยะกล้องตอนคุมแขน = ความสูงหุ่น × ค่านี้ (ขาใช้ distancePerRobotHeight)")]
+    public float armDistancePerRobotHeight = 2.0f;
+    [Tooltip("ตอนคุมแขน จุดมองต่ำกว่าลำตัวกี่ส่วนของความสูงหุ่น — ขาใช้ 0.45 ให้พื้นที่เท้าลงอยู่กลางจอ")]
+    [Range(0f, 1f)] public float armLookDropRatio = 0.1f;
+    [Tooltip("ตอนคุมแขน เลื่อนกล้องไปทางไหล่ข้างที่คุม (× ความสูงหุ่น) — อยู่ตรงหลังพอดีแล้วตัวหุ่นบังศัตรู")]
+    [Range(0f, 1f)] public float armShoulderShift = 0.35f;
+    [Tooltip("ความเร็วเลื่อนกล้องไปมุมใหม่ตอนสลับชิ้น (สูง = ถึงเร็ว)")]
+    public float reframeSpeed = 6f;
+    [Tooltip("หุ่นที่แขนอยู่โหมดต่อสู้: กล้องอยู่หลังหุ่นเสมอ หันตามทิศหน้าหุ่น — ซ้ายขวาบนจอตรงกับซ้ายขวาของหุ่นทุกคน\n" +
+             "หันเฉพาะตอนเท้านิ่งทั้งคู่ (ระหว่างก้าวหัน = จุดใต้เมาส์เลื่อน เท้าที่เล็งแกว่ง) และค้างทิศเดิมตอนล้ม")]
+    public bool followBehindInCombat = true;
+    [Tooltip("ความเร็วหันกล้องตามหุ่น (สูง = ตามทันเร็ว)")]
+    public float followBehindSpeed = 2f;
+    [Tooltip("เท้านิ่งครบกี่วินาทีถึงเริ่มหันตาม — กันกล้องหันแทรกระหว่างก้าวติดกัน")]
+    public float followSettleDelay = 0.3f;
+
     [Header("Orbit Settings")]
     [Tooltip("Mouse sensitivity for orbiting")]
     public float mouseSensitivity = 3f;
@@ -78,6 +97,22 @@ public class PlayerCam : NetworkBehaviour
     private Vector3 deadZoneAnchor;
     private bool deadZoneAnchorSet;
     private readonly RaycastHit[] occlusionHits = new RaycastHit[16];
+
+    // มุมกล้องแยกตามชิ้นที่คุม — สลับชิ้นของหุ่นตัวเดิมแล้วเลื่อนไปหามุมใหม่แบบนุ่ม
+    private Robot framedRobot;
+    private float robotHeight;
+    private bool armView;
+    private float armSide; // +1 แขนขวา / −1 แขนซ้าย
+    private bool reframing;
+    private float shoulderShift;
+    private float pitchGoal, distanceGoal, lookDropGoal, shoulderGoal;
+
+    // กล้องหลังหุ่น — อ่านแต่สิ่งที่ client มี (ท่าลำตัว/เท้าที่ sync มา + IsRagdoll) ไม่ใช่สถานะก้าวฝั่ง server
+    private bool combatRobot;
+    private LegController headingLeg;
+    private Transform leftFoot, rightFoot;
+    private Vector3 lastLeftFoot, lastRightFoot;
+    private float lastFootMoveTime;
 
     public override void OnNetworkSpawn()
     {
@@ -134,7 +169,11 @@ public class PlayerCam : NetworkBehaviour
             yaw   += Input.GetAxis("Mouse X") * sens;
             pitch -= Input.GetAxis("Mouse Y") * sens;
             pitch  = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
+            reframing = false; // ผู้เล่นหมุนเอง = เลิกเลื่อนไปมุมอัตโนมัติ
         }
+
+        if (combatRobot && robotBody != null) UpdateFollowBehind();
+        if (reframing) Reframe();
 
         // Zoom with scroll wheel
         // 🖱️ [Scroll Ownership] ล้อเมาส์ถูก limb ที่ผู้เล่นคุมจองไว้ (ดู MouseWheelFocus):
@@ -151,8 +190,10 @@ public class PlayerCam : NetworkBehaviour
 
         // [Camera Fix 1] Smooth pivot แยกก่อน ลด stutter จาก Rigidbody/FixedUpdate
         // [Optimization] followTarget การันตีไม่ null แล้วจาก guard ด้านบน ดึง position ครั้งเดียว
+        // วงนิ่งตามลำตัว แล้วค่อยลดจุดมอง — สลับชิ้นแล้วจุดมองเลื่อนครบระยะ ไม่ค้างที่ขอบวงนิ่ง
         Vector3 rawPivot = robotBody != null
-            ? FollowWithDeadZone(robotBody.position + Vector3.down * robotLookDrop + targetOffset)
+            ? FollowWithDeadZone(robotBody.position + targetOffset) + Vector3.down * robotLookDrop +
+              Quaternion.Euler(0f, yaw, 0f) * Vector3.right * shoulderShift
             : followTarget.position + targetOffset;
         Transform camT = playercam.transform;
         if (!_baseInitialized)
@@ -214,23 +255,35 @@ public class PlayerCam : NetworkBehaviour
         Robot robot = followTarget.TryGetComponent(out RobotLimb limb) ? limb.Owner : null;
         if (robot == null) return;
         robotBody = robot.Torso != null && robot.Torso.Body != null ? robot.Torso.Body.transform : robot.transform;
-        // สลับไปคุมชิ้นอื่นของหุ่นตัวเดิม — กล้องอยู่ที่เดิม ไม่กระโดดมุม
-        if (robotBody == previousBody) return;
+        framedRobot = robot;
+        // มุมต่อสู้เฉพาะแขนโหมดชี้แล้วต่อย — แขนโหมดลากมือ (Parkour/ปีน) ยังใช้มุมสูงแบบขา
+        armView = limb.TryGetComponent(out ArmInput armInput) && armInput.IsCombatMode;
+        armSide = limb.Slot == LimbSlot.LeftArm ? -1f : 1f;
 
+        // สลับไปคุมชิ้นอื่นของหุ่นตัวเดิม — ทิศกล้องเดิม แค่เลื่อนมุมก้ม/ระยะไปของชิ้นใหม่แบบนุ่ม
+        if (robotBody == previousBody)
+        {
+            SetViewGoals(snap: false);
+            return;
+        }
+
+        combatRobot = false; // หุ่นตัวใหม่ — ตั้งใหม่ด้านล่างเมื่อหาขาเจอ
         LegController left = robot.GetLimb(LimbSlot.LeftLeg)?.Controller as LegController;
         LegController right = robot.GetLimb(LimbSlot.RightLeg)?.Controller as LegController;
         LegController anyLeg = left != null ? left : right;
         if (anyLeg == null) return;
 
-        float robotHeight = anyLeg.MaxLegLength * RobotHeightPerLegLength;
-        robotLookDrop = robotHeight * RobotLookDropRatio;
+        headingLeg = anyLeg;
+        leftFoot = left != null ? left.transform : null;
+        rightFoot = right != null ? right.transform : null;
+        lastFootMoveTime = Time.time;
+        combatRobot = followBehindInCombat && HasCombatArm(robot);
+
+        robotHeight = anyLeg.MaxLegLength * RobotHeightPerLegLength;
         robotDeadZone = robotHeight * followDeadZone;
         deadZoneAnchorSet = false;
         if (distancePerRobotHeight > 0f)
-        {
-            distance = robotHeight * distancePerRobotHeight;
-            maxDistance = Mathf.Max(maxDistance, distance * 1.5f);
-        }
+            maxDistance = Mathf.Max(maxDistance, robotHeight * distancePerRobotHeight * 1.5f);
 
         if (left != null && right != null && left.Pivot != null && right.Pivot != null)
         {
@@ -239,9 +292,77 @@ public class PlayerCam : NetworkBehaviour
             forward.y = 0f;
             if (forward.sqrMagnitude > 0.0001f) yaw = Quaternion.LookRotation(forward).eulerAngles.y;
         }
-        pitch = Mathf.Clamp(startPitch, minVerticalAngle, maxVerticalAngle);
+        SetViewGoals(snap: true);
         yaw = FindClearYaw(robotBody.position + Vector3.down * robotLookDrop + targetOffset, yaw);
         _pivotInitialized = false; // กระโดดไปมุมใหม่ทันที ไม่ไหลข้ามฉากจากท่าเดิม
+    }
+
+    /// <summary>มุมก้ม/ระยะ/จุดมองของชิ้นที่คุม — ขา = มุมสูงเห็นพื้น | แขน = ต่ำหลังไหล่เห็นศัตรูระดับหมัด</summary>
+    private void SetViewGoals(bool snap)
+    {
+        if (robotHeight <= 0f) return; // ยังไม่เคยวัดหุ่น (ไม่มีขา) — คงค่าเดิม
+        pitchGoal = Mathf.Clamp(armView ? armPitch : startPitch, minVerticalAngle, maxVerticalAngle);
+        float perHeight = armView ? armDistancePerRobotHeight : distancePerRobotHeight;
+        distanceGoal = perHeight > 0f ? robotHeight * perHeight : distance;
+        lookDropGoal = robotHeight * (armView ? armLookDropRatio : RobotLookDropRatio);
+        shoulderGoal = armView ? armSide * robotHeight * armShoulderShift : 0f;
+
+        reframing = !snap;
+        if (!snap) return;
+        pitch = pitchGoal;
+        distance = distanceGoal;
+        robotLookDrop = lookDropGoal;
+        shoulderShift = shoulderGoal;
+    }
+
+    private void Reframe()
+    {
+        float t = 1f - Mathf.Exp(-reframeSpeed * Time.deltaTime);
+        pitch = Mathf.Lerp(pitch, pitchGoal, t);
+        distance = Mathf.Lerp(distance, distanceGoal, t);
+        robotLookDrop = Mathf.Lerp(robotLookDrop, lookDropGoal, t);
+        shoulderShift = Mathf.Lerp(shoulderShift, shoulderGoal, t);
+        if (Mathf.Abs(pitch - pitchGoal) < 0.1f && Mathf.Abs(distance - distanceGoal) < 0.05f &&
+            Mathf.Abs(shoulderShift - shoulderGoal) < 0.05f) SetViewGoals(snap: true);
+    }
+
+    private static bool HasCombatArm(Robot robot)
+    {
+        foreach (LimbSlot slot in new[] { LimbSlot.LeftArm, LimbSlot.RightArm })
+        {
+            RobotLimb arm = robot.GetLimb(slot);
+            if (arm != null && arm.TryGetComponent(out ArmInput input) && input.IsCombatMode) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// กล้องหลังหุ่น: เท้านิ่งทั้งคู่ครบ followSettleDelay แล้วค่อยๆ หันตามทิศหน้าหุ่น
+    /// เท้าขยับ (ก้าว/กดเล็งค้าง) = หยุดหัน | ล้มอยู่ = ค้างทิศเดิม | คลิกขวาค้าง = ผู้เล่นหมุนเอง ปล่อยแล้วกลับไปหลังหุ่น
+    /// ทิศหน้าหุ่นช่วงเท้านิ่ง = ทิศเท้าที่ปัก เพราะ TorsoBalance ดึงลำตัวให้หันตามเท้าอยู่แล้ว
+    /// </summary>
+    private void UpdateFollowBehind()
+    {
+        // ช้ากว่า 2% ของความสูงหุ่นต่อวินาที = นิ่ง — คิดเป็นความเร็ว ไม่ใช่ระยะต่อเฟรม
+        // (ต่อเฟรมแล้ว FPS สูง เท้าที่ลอยค้างช้าๆ ตอนกดเล็งจะถูกนับว่านิ่ง กล้องหันแทรก)
+        float stillStep = robotHeight * 0.02f * Time.deltaTime;
+        float stillSqr = stillStep * stillStep;
+        if (FootMoved(leftFoot, ref lastLeftFoot, stillSqr) | FootMoved(rightFoot, ref lastRightFoot, stillSqr))
+            lastFootMoveTime = Time.time;
+
+        if (Input.GetMouseButton(1) || Time.time - lastFootMoveTime < followSettleDelay) return;
+        if (framedRobot.Torso != null && framedRobot.Torso.IsRagdoll) return;
+        if (headingLeg == null || !headingLeg.TryGetRobotFacingYaw(out float facingYaw)) return;
+
+        yaw = Mathf.LerpAngle(yaw, facingYaw, 1f - Mathf.Exp(-followBehindSpeed * Time.deltaTime));
+    }
+
+    private static bool FootMoved(Transform foot, ref Vector3 lastPosition, float stillSqr)
+    {
+        if (foot == null) return false;
+        bool moved = (foot.position - lastPosition).sqrMagnitude > stillSqr;
+        lastPosition = foot.position;
+        return moved;
     }
 
     /// <summary>

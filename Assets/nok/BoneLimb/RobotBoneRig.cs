@@ -138,7 +138,7 @@ namespace Nsc.Limbs.Bones
                         Debug.LogWarning($"[RobotBoneRig] {slot}: หากระดูกในโมเดลไม่ครบ ข้ามชิ้นนี้ (ใส่เองในช่อง Rigged Limbs ได้)", riggedModel);
                         continue;
                     }
-                    rig = new SkinnedRig(limb, chain, bones, torso, pole);
+                    rig = new SkinnedRig(limb, chain, bones, torso, pole, riggedModel);
                 }
                 else
                 {
@@ -163,12 +163,17 @@ namespace Nsc.Limbs.Bones
                 bool useBones = !ragdoll && rig.Limb != null && rig.Limb.IsAttached;
                 rig.SetBonesShown(useBones, showPhysicsParts);
                 if (useBones) rig.Solve(torso, poleMode, iterations, resetModelPose, alignHandsAndFeet);
+                else rig.UpdateDetached();
             }
         }
 
         private void OnDisable()
         {
-            foreach (LimbRig rig in rigs) rig.SetBonesShown(false, true);
+            foreach (LimbRig rig in rigs)
+            {
+                rig.ClearDetached();
+                rig.SetBonesShown(false, true);
+            }
             if (UsesRiggedModel && robot != null) SetModelShown(false);
         }
 
@@ -348,6 +353,10 @@ namespace Nsc.Limbs.Bones
 
             public abstract void SetBonesShown(bool shown, bool keepPhysicsVisible);
             public abstract void Solve(Transform torso, PoleMode poleMode, int iterations, bool resetPose, bool alignEnd);
+            /// <summary>ชิ้นหลุด/ตอนไม่ได้ใช้กระดูก — ให้ภาพของชิ้นที่หลุดตามชิ้นฟิสิกส์ (ค่าเริ่ม: ไม่ทำอะไร โชว์ชิ้นฟิสิกส์เอง)</summary>
+            public virtual void UpdateDetached() { }
+            /// <summary>ทิ้งภาพชิ้นหลุดที่สร้างไว้ (ปิดคอมโพเนนต์/ปิดซีน)</summary>
+            public virtual void ClearDetached() { }
             public virtual void Destroy() => SetBonesShown(false, true);
 
             protected Vector3 Pole(Transform torso, PoleMode mode, Vector3 root, Vector3 goal) =>
@@ -517,9 +526,17 @@ namespace Nsc.Limbs.Bones
             private readonly Vector3 rootScale;
             private readonly List<Renderer> physicsRenderers = new List<Renderer>();
             private bool physicsHidden;
+            // ชิ้นหลุด: สำเนาโมเดลที่เหลือแค่แขน/ขานี้ ตามชิ้นฟิสิกส์ที่หลุดไป (ชิ้นฟิสิกส์เป็นโมเดลเก่า ไม่ต้องโชว์)
+            private readonly Transform modelRoot;
+            private Transform proxyRoot;
+            private Transform[] proxyBones;
+            private readonly List<Transform> proxyCollapsed = new List<Transform>();
+            private bool proxyUnavailable; // หากระดูกในสำเนาไม่ครบครั้งหนึ่งแล้ว ไม่ต้องสร้าง-ทิ้งซ้ำทุกเฟรม
 
-            public SkinnedRig(RobotLimb limb, PhysicsChain chain, Transform[] modelBones, Transform torso, Vector3 fallbackPole)
+            public SkinnedRig(RobotLimb limb, PhysicsChain chain, Transform[] modelBones, Transform torso, Vector3 fallbackPole,
+                              Transform model)
             {
+                modelRoot = model;
                 Limb = limb;
                 Chain = chain;
                 bones = modelBones;
@@ -545,16 +562,102 @@ namespace Nsc.Limbs.Bones
             {
                 if (shown != Shown)
                 {
-                    // ชิ้นหลุด: ยุบแขน/ขาของโมเดลทิ้ง (scale 0) แล้วให้ชิ้นฟิสิกส์ที่หลุดออกไปโชว์แทน
+                    // ชิ้นหลุด: ยุบแขน/ขาของโมเดลทิ้ง (scale 0) แล้วโชว์สำเนาแขน/ขาของโมเดลที่ตามชิ้นที่หลุดแทน
                     if (bones[0] != null) bones[0].localScale = shown ? rootScale : Vector3.zero;
                     Shown = shown;
+                    if (shown) DestroyProxy();
                 }
 
-                bool hidePhysics = shown && !keepPhysicsVisible;
+                // หลุดจริงและมีสำเนาโมเดลแล้ว (สร้างใน UpdateDetached) → ซ่อนชิ้นฟิสิกส์ | ล้มทั้งตัว → ชิ้นฟิสิกส์ตามเดิม
+                bool hidePhysics = (shown && !keepPhysicsVisible) || (!shown && proxyRoot != null);
                 if (hidePhysics == physicsHidden) return;
                 SetHidden(physicsRenderers, hidePhysics);
                 physicsHidden = hidePhysics;
             }
+
+            /// <summary>วางกระดูกของสำเนาตามข้อต่อของชิ้นที่หลุด: โคน → ข้อศอก/เข่า → ข้อมือ/ข้อเท้า แล้วหมุนมือ/เท้าตามชิ้นฟิสิกส์</summary>
+            public override void ClearDetached() => DestroyProxy();
+
+            public override void UpdateDetached()
+            {
+                // ไม่ใช้กระดูกเพราะล้มทั้งตัว (ชิ้นยังติด) → ไม่ต้องมีสำเนา
+                if (Limb == null || Limb.IsAttached) { DestroyProxy(); return; }
+                if (Chain.Tip == null || !EnsureProxy()) return;
+                int n = proxyBones.Length;
+                proxyBones[0].position = Chain.Point(0);
+                // ผิวที่ผูกกับไหล่/สะโพกปนกับกระดูกที่ยุบ → ยุบไว้ที่โคนชิ้นนี้ ไม่ยืดกลับไปหาตัวหุ่น
+                foreach (Transform collapsed in proxyCollapsed) collapsed.position = proxyBones[0].position;
+                for (int i = 0; i < n - 1; i++)
+                {
+                    Vector3 current = proxyBones[i + 1].position - proxyBones[i].position;
+                    Vector3 wanted = Chain.Point(Mathf.Min(i + 1, Chain.Segments.Length)) - proxyBones[i].position;
+                    if (current.sqrMagnitude < 1e-10f || wanted.sqrMagnitude < 1e-10f) continue;
+                    proxyBones[i].rotation = Quaternion.FromToRotation(current, wanted) * proxyBones[i].rotation;
+                }
+                proxyBones[n - 1].rotation = Chain.Tip.rotation * endOffset;
+            }
+
+            /// <summary>
+            /// สร้างสำเนาโมเดลครั้งแรกที่ชิ้นนี้หลุด: ย้ายกระดูกโคนแขน/ขาไปเป็นลูกของรากสำเนา แล้วยุบกระดูกอื่นทั้งหมด (scale 0)
+            /// เหลือ mesh เฉพาะชิ้นนี้ — ไม่ยืดผิวจากไหล่/สะโพกตามชิ้นที่ปลิวไปไกล
+            /// </summary>
+            private bool EnsureProxy()
+            {
+                if (proxyRoot != null) return true;
+                if (proxyUnavailable || modelRoot == null || bones[0] == null) return false;
+
+                GameObject clone = UnityEngine.Object.Instantiate(modelRoot.gameObject, null);
+                clone.name = $"{modelRoot.name} (detached {Limb.Slot})";
+                foreach (Animator animator in clone.GetComponentsInChildren<Animator>(true)) UnityEngine.Object.Destroy(animator);
+                proxyRoot = clone.transform;
+                proxyRoot.SetPositionAndRotation(modelRoot.position, modelRoot.rotation);
+                proxyRoot.localScale = modelRoot.lossyScale;
+
+                proxyBones = new Transform[bones.Length];
+                for (int i = 0; i < bones.Length; i++) proxyBones[i] = FindByPath(proxyRoot, RelativePath(modelRoot, bones[i]));
+                if (Array.Exists(proxyBones, b => b == null))
+                {
+                    Debug.LogWarning($"[RobotBoneRig] {Limb.Slot}: หากระดูกในสำเนาโมเดลไม่ครบ ชิ้นที่หลุดจะโชว์ชิ้นฟิสิกส์แทน", modelRoot);
+                    DestroyProxy();
+                    proxyUnavailable = true;
+                    return false;
+                }
+
+                // ตัวต้นแบบยุบชิ้นนี้ไปแล้วตอนสำเนา → คืนขนาดจริงในโลก (ขนาดพ่อเดิม × rootScale) หลังย้ายมาเป็นลูกของรากสำเนา
+                Vector3 worldScale = Vector3.Scale(bones[0].parent != null ? bones[0].parent.lossyScale : Vector3.one, rootScale);
+                proxyBones[0].SetParent(proxyRoot, true);
+                Vector3 rootLossy = proxyRoot.lossyScale;
+                proxyBones[0].localScale = new Vector3(worldScale.x / rootLossy.x, worldScale.y / rootLossy.y, worldScale.z / rootLossy.z);
+                foreach (Transform child in proxyRoot)
+                    if (child != proxyBones[0] && child.GetComponent<SkinnedMeshRenderer>() == null)
+                    {
+                        child.localScale = Vector3.zero;
+                        proxyCollapsed.Add(child);
+                    }
+                foreach (SkinnedMeshRenderer skin in clone.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skin.updateWhenOffscreen = true; // ชิ้นหลุดปลิวออกนอก bounds เดิม ไม่งั้นโดน cull หาย
+                    skin.forceRenderingOff = false;
+                }
+                return true;
+            }
+
+            private void DestroyProxy()
+            {
+                if (proxyRoot != null) UnityEngine.Object.Destroy(proxyRoot.gameObject);
+                proxyRoot = null;
+                proxyBones = null;
+                proxyCollapsed.Clear();
+            }
+
+            private static string RelativePath(Transform root, Transform t)
+            {
+                string path = t.name;
+                for (Transform p = t.parent; p != null && p != root; p = p.parent) path = p.name + "/" + path;
+                return path;
+            }
+
+            private static Transform FindByPath(Transform root, string path) => root.Find(path);
 
             public override void Solve(Transform torso, PoleMode poleMode, int iterations, bool resetPose, bool alignEnd)
             {
@@ -591,6 +694,7 @@ namespace Nsc.Limbs.Bones
             public override void Destroy()
             {
                 base.Destroy();
+                DestroyProxy();
                 if (bones[0] != null) bones[0].localScale = rootScale;
             }
         }
