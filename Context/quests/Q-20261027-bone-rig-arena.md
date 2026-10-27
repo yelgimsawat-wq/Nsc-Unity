@@ -1,0 +1,8 @@
+### 2026-10-27 — Q-20261027-bone-rig-arena — ระบบแขนขาด้วยกระดูก (IK) + แมพอารีน่าหุ่นยักษ์
+- Status: waiting
+- Owner: Claude Code (Opus 5.5) / session 01FCuosT4TvRKUM6vGi84K8P
+- Goal: (1) แมพอารีน่าไฮเทคขนาดใหญ่ (สเกลหุ่นยักษ์ กลางสนามไม่มีสนามบอล) ในโฟลเดอร์ซีนของ nok (2) ระบบกระดูกที่ทำให้ท่อนแขน/ขาแข็งตามกระดูก แทนท่อนฟิสิกส์ที่แกว่งเหมือนยาง โดยไม่แก้โค้ดเดิม พร้อมเครื่องมือเซ็ทอัพ
+- Files: Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/ (ใหม่), Assets/nok/BoneLimb/ (ใหม่)
+- Context: ผู้ใช้สั่งใน chat 2026-10-27 ให้ลงที่ branch `refactor/class-diagram` (รอบแรกทำบน `main` ผิด branch — commit `28b9dad` + `9e4f7e4` ยังอยู่ใน `main`). Files ทับ `Assets/nok/` ของ Q-20261009-folder-cleanup แต่เป็นไฟล์ใหม่ล้วนตามที่ผู้ใช้สั่งที่อยู่ไว้ ไม่แตะซีน/โค้ดของ Quest อื่น
+- Validation: 2026-10-27 (เครื่อง cloud ไม่มี Unity) — compile โค้ดใหม่ทั้งหมดด้วย dotnet 8 กับ stub ของ UnityEngine/UnityEditor/Robot (ไม่ใช่ Unity จริง); รัน EditMode tests 4 ตัว + ทดสอบ RobotBoneRig กับหุ่นจำลอง 24 ข้อผ่านหมด (สร้างกระดูกแขน+ขา ข้ามโซ่ที่ไม่ถึงลำตัว, สำเนาเฉพาะ mesh ที่เห็น, ท่าพักทับท่อนฟิสิกส์พอดี, เอื้อมถึงข้อมือ ความยาวคงที่, ไหล่ตามลำตัว, หลุด/ragdoll/ปิดคอมโพเนนต์ → กลับโชว์ฟิสิกส์). ซีน: YAML parse ได้ 11048 docs fileID ไม่ซ้ำ ไม่มี ref ขาด; layer Ground 221 ชิ้น, grabLayer+kinematic Rigidbody 102 ชิ้น. ยังไม่ได้ตรวจ: เปิดใน Unity, Play กับหุ่นจริง (scale ไม่เท่ากันทุกแกน, ทิศ pole ของโมเดล NSC), หลายเครื่อง, ความสว่าง/Bloom ของซีน
+- Next action: ผู้ใช้เปิด Unity → Tools ▸ NSC ▸ Bone Rig ▸ Add To Selected Robot ในซีนที่มีหุ่น แล้ว Play ดูทิศศอก/เข่า (ปรับ Pole Direction ถ้าผิด); เปิด `Assets/nok/scene/RobotArena.unity` ดูแมพ (ยังไม่มีหุ่น/ระบบแมตช์ — ถ้าจะเล่นในแมพนี้ต้องยกของจาก TestItem มาใส่ เป็นงานแยก)

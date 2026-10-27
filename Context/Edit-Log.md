@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-27 13:06 +00:00 · Q-20261027-bone-rig-arena · files: Assets/nok/BoneLimb/, Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/, Context/quests/Q-20261027-bone-rig-arena.md
+  - แก้: เพิ่มระบบกระดูก RobotBoneRig (ท่อนแขนขาเป็นกระดูกแข็ง IK ตามมือ/เท้าฟิสิกส์ ไม่แตะโค้ดเดิม) + เมนูเซ็ทอัพ + EditMode tests และแมพ RobotArena ในโฟลเดอร์ซีนของ nok
+  - ตรวจ: 2026-10-27 compile+test ด้วย dotnet กับ stub ผ่าน (4 EditMode + 24 ข้อ), ซีน YAML ตรวจโครงสร้างผ่าน; ยังไม่ได้เปิด/Play ใน Unity
 - 2026-10-27 19:30 +07:00 · Q-20261027-robot-bone-rig · files: Assets/nok/robot/newROBOT/RobotNSC_Rigged.fbx, Context/quests/Q-20261027-robot-bone-rig.md
   - แก้: export หุ่น Mixamo rig เข้า newROBOT; แก้โมเดลใน ROBOT.blend (ย้าย arm2_R กลับตำแหน่งกระจก + apply scale 8 ชิ้นที่ scale ติดลบ) แล้ว export ใหม่; อัปเดต Next action หลังพบว่า .blend ถูก save แล้ว
   - ตรวจ: 2026-10-27 UnityMCP หลังแก้: skinned 28, Avatar isValid, negative-scale = 0, arm2_R สมมาตร arm2_L, bbox 16.50x14.78x3.32; .blend save 18:57 หลัง export 17:22 ถ้าแก้เพิ่มต้อง export ใหม่ — ยังไม่ได้วางในฉากจริง
