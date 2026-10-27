@@ -4,7 +4,8 @@ using UnityEngine;
 
 namespace Nsc.Limbs
 {
-    public enum PunchState : byte { Idle, Punching, Recovering }
+    // Charging ต่อท้าย — ค่า byte ของสถานะเดิมต้องไม่เปลี่ยน (sync ผ่าน NetworkVariable)
+    public enum PunchState : byte { Idle, Punching, Recovering, Charging }
 
     /// <summary>
     /// ท่าต่อย (คลิกซ้าย = คันเร่งของหมัด) — ลอจิกฝั่ง server ของหมัดหนึ่งครั้ง
@@ -33,6 +34,17 @@ namespace Nsc.Limbs
         [Tooltip("สเกลเบรกปลายทางตอนต่อย 0 = ปิดเบรก / 1 = เบรกเท่าปกติ")]
         [Range(0f, 1f)] public float brakeScale = 0.05f;
 
+        [Header("Charge (โหมดต่อสู้: กดค้าง = ง้างชาร์จ / ปล่อย = ต่อย)")]
+        [Tooltip("เปิด = กดค้างง้างหมัดสะสมแรง ปล่อยแล้วพุ่ง (หมัดหุ่นยักษ์แบบ Pacific Rim) | ปิด = แบบเดิม กดค้างเร่งจนปล่อย")]
+        public bool chargeToRelease = false;
+        [Tooltip("ง้างนานเท่านี้ (หลัง windupTime) = ชาร์จเต็ม")]
+        public float chargeTime = 0.8f;
+        [Tooltip("ตัวคูณความเร็ว/ความเร่งหมัด ตอนแตะแล้วปล่อยทันที → ตอนชาร์จเต็ม")]
+        public float tapSpeedScale = 0.75f;
+        public float fullChargeSpeedScale = 1.3f;
+        [Tooltip("ปล่อยแล้วอัดความเร่งนานเท่านี้ (โหมดชาร์จ ไม่ขึ้นกับการกดค้าง)")]
+        public float thrustTime = 0.3f;
+
         [Header("Recovery Blend")]
         [Tooltip("เวลาที่ damper/reach ค่อยๆ กลับสู่ค่าปกติหลังหมัดจบ — เป็น cooldown ระหว่างหมัดไปในตัว")]
         public float recoveryBlendDuration = 0.25f;
@@ -60,9 +72,18 @@ namespace Nsc.Limbs
         [NonSerialized] private bool hasHitThisPunch;
         [NonSerialized] private LimbStrike strike;
         [NonSerialized] private string ownerName;
+        [NonSerialized] private Nsc.Robots.Robot self;
+        [NonSerialized] private float chargeTimer;
+        [NonSerialized] private bool fireQueued;
+        [NonSerialized] private float speedScale = 1f;
 
         public PunchState State => state;
         public bool IsActive => state == PunchState.Punching;
+        /// <summary>แรงชาร์จ 0..1 — ตอนง้างคือที่สะสมอยู่ ตอนพุ่งคือที่ปล่อยออกไป</summary>
+        public float Charge01 { get; private set; }
+
+        /// <summary>หุ่นเจ้าของ — ใช้ข้ามชิ้นตัวเองและเลือกเป้าตามทีม (null = เล็งเฉพาะ Team.Enemy แบบเดิม)</summary>
+        public void SetOwner(Nsc.Robots.Robot owner) => self = owner;
 
         /// <summary>ArmController เรียกตอน Awake</summary>
         public void Init(LimbStrike limbStrike, string owner)
@@ -100,11 +121,36 @@ namespace Nsc.Limbs
         {
             if (state != PunchState.Idle) return false;
 
-            state = PunchState.Punching;
-            punchTimer = maxDuration;
             peakSpeed = 0f;
             hasHitThisPunch = false;
+            if (chargeToRelease)
+            {
+                state = PunchState.Charging;
+                chargeTimer = 0f;
+                fireQueued = false;
+                Charge01 = 0f;
+                return true;
+            }
+
+            state = PunchState.Punching;
+            punchTimer = maxDuration;
+            speedScale = 1f;
             return true;
+        }
+
+        /// <summary>ผู้เล่นปล่อยคลิก — โหมดชาร์จ: ยิงหมัด (รอให้ง้างครบ windupTime ก่อน) | โหมดเดิม: หยุดบูสต์</summary>
+        public void ReleaseInput()
+        {
+            if (state == PunchState.Charging) fireQueued = true;
+            else if (!chargeToRelease) Release();
+        }
+
+        private void Fire()
+        {
+            Charge01 = Mathf.Clamp01((chargeTimer - windupTime) / Mathf.Max(chargeTime, 0.01f));
+            speedScale = Mathf.Lerp(tapSpeedScale, fullChargeSpeedScale, Charge01);
+            state = PunchState.Punching;
+            punchTimer = thrustTime;
         }
 
         /// <summary>ปล่อยคลิก/หมดเวลา/ชน → เข้า Recovering</summary>
@@ -130,6 +176,8 @@ namespace Nsc.Limbs
         public void Reset()
         {
             state = PunchState.Idle;
+            fireQueued = false;
+            Charge01 = 0f;
             punchTimer = 0f;
             recoveryTimer = 0f;
             peakSpeed = 0f;
@@ -147,6 +195,7 @@ namespace Nsc.Limbs
 
             switch (state)
             {
+                case PunchState.Charging:
                 case PunchState.Punching:
                 {
                     // ทิศพุ่ง = เส้นตรงจากหัวไหล่ผ่านจุดที่ผู้เล่นเล็ง
@@ -164,11 +213,12 @@ namespace Nsc.Limbs
 
                     ArmMotion motion = normal;
                     motion.extraReach = extraReach;
-                    motion.velocityCap = maxSpeed;
+                    motion.velocityCap = maxSpeed * speedScale;
 
-                    // ✅ [Wind-up] ช่วงแรก: ดึงมือกลับเข้าใกล้ไหล่ก่อน (ง้าง) — แขนเหยียดค้างแล้วต่อยไม่ออก
+                    // ✅ [Wind-up] ดึงมือกลับเข้าใกล้ไหล่ก่อน (ง้าง) — แขนเหยียดค้างแล้วต่อยไม่ออก
+                    // โหมดชาร์จ: ง้างค้างตลอดที่กด / โหมดเดิม: ง้างแค่ช่วง windupTime แรก
                     float elapsed = maxDuration - punchTimer;
-                    if (elapsed < windupTime)
+                    if (state == PunchState.Charging || (!chargeToRelease && elapsed < windupTime))
                     {
                         motion.target = pivot + punchDir * (maxArmLength * 0.25f);
                         return motion;
@@ -180,8 +230,8 @@ namespace Nsc.Limbs
                     motion.brakeDamping = normal.brakeDamping * brakeScale;
 
                     // ⚡ [F = ma] อัดความเร่งเข้ากำปั้นตรงๆ — ความเร็วปะทะเกิดจาก v = a·t จริงๆ
-                    if (handVelocity.magnitude < maxSpeed)
-                        accelerationOut = punchDir * acceleration;
+                    if (handVelocity.magnitude < maxSpeed * speedScale)
+                        accelerationOut = punchDir * (acceleration * speedScale);
                     return motion;
                 }
 
@@ -205,7 +255,14 @@ namespace Nsc.Limbs
         /// <summary>เดินเวลาของหมัดหลังขยับแขนใน tick นั้น — จำความเร็วพีคไว้เป็นฐานคิดดาเมจ</summary>
         public void Tick(float handSpeed, float dt)
         {
-            if (state == PunchState.Punching)
+            if (state == PunchState.Charging)
+            {
+                chargeTimer += dt;
+                Charge01 = Mathf.Clamp01((chargeTimer - windupTime) / Mathf.Max(chargeTime, 0.01f));
+                // ค้างเต็มเกิน 2 วิ = ปล่อยเอง — กันง้างค้างถาวรเมื่อคำสั่งปล่อยหาย (สลับคนคุมกลางง้าง RPC ของเจ้าของเก่าถูกปฏิเสธ)
+                if ((fireQueued && chargeTimer >= windupTime) || chargeTimer > windupTime + chargeTime + 2f) Fire();
+            }
+            else if (state == PunchState.Punching)
             {
                 peakSpeed = Mathf.Max(peakSpeed, handSpeed);
                 punchTimer -= dt;
@@ -219,7 +276,7 @@ namespace Nsc.Limbs
         }
 
         /// <summary>
-        /// หาศัตรู (ทีม Enemy) ในกรวยรอบทิศหมัด แล้วเบนทิศเข้าหาเป้าที่มุมแคบสุด
+        /// หาศัตรู (ดู IsAssistTarget) ในกรวยรอบทิศหมัด แล้วเบนทิศเข้าหาเป้าที่มุมแคบสุด
         /// buffer 64 + กรองด้วย aimAssistLayer — ฉากเมือง prop เยอะ buffer เล็กจะเต็มด้วยกำแพงก่อน
         /// </summary>
         public bool TryFindAimAssistTarget(Vector3 pivot, Vector3 punchDir, float maxArmLength,
@@ -240,7 +297,7 @@ namespace Nsc.Limbs
                 if (candidate == null) continue;
 
                 IDamageable target = candidate.GetComponentInParent<IDamageable>();
-                if (target == null || target.GetTeam() != Team.Enemy) continue;
+                if (target == null || !IsAssistTarget(candidate, target.GetTeam())) continue;
 
                 Vector3 candidatePosition = candidate.bounds.center;
                 Vector3 toEnemy = candidatePosition - pivot;
@@ -257,6 +314,17 @@ namespace Nsc.Limbs
             }
 
             return found;
+        }
+
+        /// <summary>
+        /// ช่วยเล็งเฉพาะฝ่ายตรงข้ามจริง: รู้เจ้าของ = ข้ามชิ้นหุ่นตัวเอง แล้วเอาทุกทีมที่เป็นศัตรู (บอส + หุ่นอีกทีมใน PVP)
+        /// ไม่รู้เจ้าของ = Team.Enemy อย่างเดียวแบบเดิม | ทีม None (ตึก/กระสอบทราย) ไม่ช่วยเล็ง
+        /// </summary>
+        private bool IsAssistTarget(Collider candidate, Team team)
+        {
+            if (team == Team.None) return false;
+            if (self == null) return team == Team.Enemy;
+            return Nsc.Robots.Robot.FromCollider(candidate) != self && self.GetTeam().IsHostileTo(team);
         }
     }
 
