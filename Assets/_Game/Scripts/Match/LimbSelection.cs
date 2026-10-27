@@ -406,12 +406,13 @@ namespace Nsc.Match
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         /// <summary>
         /// [ทดสอบ] สลับไปคุมชิ้นถัดไปที่ยังว่างกลางแมตช์ (แขนซ้าย → แขนขวา → ขาซ้าย → ขาขวา → วน)
+        /// targetSlot ≥ 0 = ไปชิ้นนั้นตรงๆ (ไม่ว่าง = ไม่ทำอะไร) | −1 = ชิ้นถัดไปที่ว่าง
         /// เล่นคนเดียวแล้วเดินสลับซ้ายขวาได้ — ไม่มีใน build ที่ปล่อยจริง
         /// </summary>
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        public void DebugCycleLimbRpc(RpcParams rpcParams = default)
+        public void DebugCycleLimbRpc(int targetSlot, RpcParams rpcParams = default)
         {
-            if (IsPreparing()) return;
+            if (IsPreparing() || targetSlot >= LimbSlots.Count) return;
             ulong sender = rpcParams.Receive.SenderClientId;
 
             int index = -1;
@@ -425,8 +426,12 @@ namespace Nsc.Match
 
             for (int step = 1; step < LimbSlots.Count; step++)
             {
-                LimbSlot next = (LimbSlot)(((int)mine.slot + step) % LimbSlots.Count);
-                if (robot.GetLimb(next) == null || GetController(mine.robotId, next) != NoClient) continue;
+                LimbSlot next = targetSlot >= 0 ? (LimbSlot)targetSlot : (LimbSlot)(((int)mine.slot + step) % LimbSlots.Count);
+                if (robot.GetLimb(next) == null || GetController(mine.robotId, next) != NoClient)
+                {
+                    if (targetSlot >= 0) return;
+                    continue;
+                }
 
                 // ปล่อยปุ่มที่ค้างของชิ้นเดิมฝั่ง server เอง — client ที่เสียสิทธิ์เจ้าของไปแล้วส่งคำสั่งปล่อยไม่ได้
                 RobotLimb previous = robot.GetLimb(mine.slot);

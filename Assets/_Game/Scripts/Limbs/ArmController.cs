@@ -349,8 +349,9 @@ namespace Nsc.Limbs
             // ป้องกันแขนกดตัวเองจมพื้นเวลาล้มหรือกำลังพยายามลุก
             if (pullVertical.y < 0f && IsTorsoDown) pullVertical.y *= 0.1f;
 
-            torsoBody.AddForceAtPosition((pullVertical + pullHorizontal * horizontalScale) * torsoPullForce,
-                                         PivotPosition, ForceMode.Acceleration);
+            // Force × mass ไม่ใช่ Acceleration — เหตุผลเดียวกับ LegController (แรงบิดต้องหารความเฉื่อยลำตัว)
+            torsoBody.AddForceAtPosition((pullVertical + pullHorizontal * horizontalScale) * (torsoPullForce * torsoBody.mass),
+                                         PivotPosition, ForceMode.Force);
             Torso.ServerAddStress(torsoPullForce * Time.fixedDeltaTime * 0.5f);
         }
 

@@ -786,6 +786,10 @@ PrefabInstance:
       value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 520730294378528469, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: handDamper
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 520730294378528469, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: smoothTime
       value: 0.2
       objectReference: {fileID: 0}
@@ -1313,6 +1317,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3905546791085401226, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: standingHeightRatio
+      value: 0.92
+      objectReference: {fileID: 0}
     - target: {fileID: 3960644884977775751, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -1653,6 +1661,10 @@ PrefabInstance:
       propertyPath: m_ConnectedAnchor.z
       value: -5.791549
       objectReference: {fileID: 0}
+    - target: {fileID: 6581628576880973017, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: standingHeightRatio
+      value: 0.92
+      objectReference: {fileID: 0}
     - target: {fileID: 6612100947581054193, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_Mass
       value: 2
@@ -1774,6 +1786,10 @@ PrefabInstance:
       value: 3.312683
       objectReference: {fileID: 0}
     - target: {fileID: 7537799851686360565, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: handDamper
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 7537799851686360565, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: smoothTime
       value: 0.2
       objectReference: {fileID: 0}
@@ -1860,6 +1876,18 @@ PrefabInstance:
     - target: {fileID: 7979243785470149374, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_ConnectedAnchor.z
       value: -2.7153518
+      objectReference: {fileID: 0}
+    - target: {fileID: 8033344796215442852, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: m_AngularXMotion
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8033344796215442852, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: m_AngularYMotion
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8033344796215442852, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: m_AngularZMotion
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8064946730267362007, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: GlobalObjectIdHash

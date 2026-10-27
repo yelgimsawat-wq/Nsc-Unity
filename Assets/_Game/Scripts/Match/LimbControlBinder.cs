@@ -23,6 +23,8 @@ namespace Nsc.Match
 
         [Tooltip("[ทดสอบ] กดเพื่อสลับไปคุมชิ้นถัดไปที่ว่างกลางแมตช์ — ใช้ได้เฉพาะ Editor / Development Build")]
         [SerializeField] private KeyCode debugCycleLimbKey = KeyCode.C;
+        [Tooltip("[ทดสอบ] กดเพื่อไปคุมชิ้นนั้นตรงๆ เรียงตาม LimbSlot: แขนซ้าย, แขนขวา, ขาซ้าย, ขาขวา (1–4 ใช้กับ DebugLimbBreaker แล้ว)")]
+        [SerializeField] private KeyCode[] debugSelectLimbKeys = { KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4 };
 
         private LimbSelection selection;
         private MatchSession session;
@@ -68,7 +70,9 @@ namespace Nsc.Match
         {
             if (!IsBound || selection == null || session == null || !session.IsPlaying || UiFocus.IsCaptured) return;
             // server สลับการจองแล้ว AssignmentsChanged → OnAssignmentsChanged ผูกกล้อง/คอนโทรลใหม่ให้เอง
-            if (Input.GetKeyDown(debugCycleLimbKey)) selection.DebugCycleLimbRpc();
+            if (Input.GetKeyDown(debugCycleLimbKey)) selection.DebugCycleLimbRpc(-1);
+            for (int i = 0; i < debugSelectLimbKeys.Length; i++)
+                if (Input.GetKeyDown(debugSelectLimbKeys[i])) selection.DebugCycleLimbRpc(i);
         }
 #endif
 

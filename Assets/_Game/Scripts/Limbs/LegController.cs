@@ -869,7 +869,8 @@ namespace Nsc.Limbs
             Vector3 offset = (balanceShiftPos - pivot.position) * balanceShiftMultiplier;
             // ดึงสะโพกไปที่ความสูงยืนย่อเข่า — ดึงถึงความยาวขาเต็มแล้วขาเหยียดตรงตลอด ก้าวไม่ออก
             Vector3 pullDir = (body.position + Vector3.up * StandingHipHeight + offset) - pivot.position;
-            torsoBody.AddForceAtPosition(pullDir * standingUpwardPull, pivot.position, ForceMode.Acceleration);
+            // Force × mass ไม่ใช่ Acceleration: โหมด Acceleration ใส่แรงบิดจากจุดสะโพกโดยไม่หารความเฉื่อย → ลำตัวหมุนติ้ว
+            torsoBody.AddForceAtPosition(pullDir * (standingUpwardPull * torsoBody.mass), pivot.position, ForceMode.Force);
 
             // 🪢 [Anchor Tether] ลำตัวถูกลากเกินระยะขาที่ปัก → สปริงดึงกลับ + หน่วงเฉพาะความเร็วขาออก
             Vector3 plantedWorld = plantedPosition + Vector3.up * footThicknessOffset;
