@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-27 19:30 +07:00 · Q-20261027-robot-bone-rig · files: Assets/nok/robot/newROBOT/RobotNSC_Rigged.fbx, Context/quests/Q-20261027-robot-bone-rig.md
+  - แก้: export หุ่น Mixamo rig เข้า newROBOT; แก้โมเดลใน ROBOT.blend (ย้าย arm2_R กลับตำแหน่งกระจก + apply scale 8 ชิ้นที่ scale ติดลบ) แล้ว export ใหม่; อัปเดต Next action หลังพบว่า .blend ถูก save แล้ว
+  - ตรวจ: 2026-10-27 UnityMCP หลังแก้: skinned 28, Avatar isValid, negative-scale = 0, arm2_R สมมาตร arm2_L, bbox 16.50x14.78x3.32; .blend save 18:57 หลัง export 17:22 ถ้าแก้เพิ่มต้อง export ใหม่ — ยังไม่ได้วางในฉากจริง
 - 2026-10-26 22:46 +07:00 · Q-20261026-robot-heavy-feel · files: Assets/_Game/Scripts/Limbs/ArmController.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs, Assets/_Game/Scripts/Dev/ArmStepTest.cs, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261026-robot-heavy-feel.md
   - แก้: หุ่น TestItem หนักแน่นขึ้น (เป้ามือยึดไหล่, มวล/damping ใหม่, มือช้าลง, เมาส์ไวน้อยลง) + ลบ Torso (1) ที่ duplicate ซ้อนใน RobotContainer ซึ่งแย่งผูกแขนขาจนกด Q ลุกไม่ได้
   - ตรวจ: 2026-10-26 compile ผ่าน; Play TestItem: ยืนเอียง 37->4.5 องศา, มือเหวี่ยงลำตัวหมุน 1.46->0.31 rad/s, ปุ่ม C สลับชิ้นได้, ขาซ้ายกด Q ค้างลุกใน 0.5 วิ ยืนเอียง 15-23; ยังไม่ตรวจ Q จากแขน/เดินด้วยมือจริง/ต่อย/หลายเครื่อง
