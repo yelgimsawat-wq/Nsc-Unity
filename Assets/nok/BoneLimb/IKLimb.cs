@@ -31,12 +31,15 @@ namespace Nsc.BoneLimb
         /// <summary>มุมเป้าตอนเริ่ม เทียบตัวหุ่น — ใช้วางเท้าให้ราบ</summary>
         public Quaternion RestRotation { get; private set; }
         public float Grip { get; set; }
+        /// <summary>ทิศศอก/เข่าในแกนตัวหุ่นที่บังคับ (เช่นศอกชี้ลงตอนตั้งการ์ด) — ศูนย์ = ทิศตามท่าตั้งต้นแบบเดิม</summary>
+        public Vector3 PoleOverride { get; set; }
         public bool Lifted { get; set; }
         /// <summary>แขน: ระยะระนาบมือหน้าไหล่</summary>
         public float Depth { get; set; }
 
         // ท่าตั้งต้นในแกนตัวหุ่น — ใช้หมุนทิศศอก/เข่าและข้อมือตามการแกว่งแบบต่อเนื่อง
         private Vector3 restDir, restPole, restFingerDir;
+        private Vector3 palmLocal; // ทิศฝ่ามือในแกนของกระดูกมือ (หาจากท่ากำ: ปลายนิ้วงอเข้าหาฝ่ามือ) — ศูนย์ = ไม่รู้
         private Quaternion restTipRotation;
         // บานพับ: แกน local ของกระดูกกลางที่โมเดลออกแบบให้พับ
         private Vector3 hingeAxis;
@@ -96,7 +99,7 @@ namespace Nsc.BoneLimb
 
             Vector3 axis = toTarget.normalized;
             Quaternion swing = Quaternion.FromToRotation(restDir, Quaternion.Inverse(bodyRot) * axis);
-            Vector3 pole = Vector3.ProjectOnPlane(bodyRot * (swing * restPole), axis);
+            Vector3 pole = Vector3.ProjectOnPlane(bodyRot * (PoleOverride != Vector3.zero ? PoleOverride : swing * restPole), axis);
             Vector3 joint = Vector3.ProjectOnPlane(mid.position - s, axis);
             if (pole.sqrMagnitude > 1e-6f && joint.sqrMagnitude > 1e-6f)
                 root.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(joint, pole, axis), axis) * root.rotation;
@@ -105,10 +108,21 @@ namespace Nsc.BoneLimb
         }
 
         /// <summary>ข้อมือหันไปทางที่แขนเอื้อม (ไหล่ → มือ) หมุนจากท่าตั้งต้นแบบสั้นที่สุด ฝ่ามือจึงไม่บิดมั่ว</summary>
-        public void OrientHand(Quaternion bodyRot)
+        public void OrientHand(Quaternion bodyRot) => OrientHand(bodyRot, target.position - root.position);
+
+        /// <summary>
+        /// ข้อมือหันตามทิศที่กำหนด เช่นแนวท่อนแขนล่าง (ข้อมือตรง ไม่หักเป็นมือแมวตอนตั้งการ์ด)
+        /// palmToward (ไม่บังคับ): หมุนกำปั้นรอบแนวแขนให้ฝ่ามือหันไปทางนั้นมากที่สุด
+        /// </summary>
+        public void OrientHand(Quaternion bodyRot, Vector3 along, Vector3 palmToward = default)
         {
-            Vector3 dir = (target.position - root.position).normalized;
-            target.rotation = Quaternion.FromToRotation(bodyRot * restFingerDir, dir) * (bodyRot * restTipRotation);
+            Vector3 dir = along.normalized;
+            Quaternion rot = Quaternion.FromToRotation(bodyRot * restFingerDir, dir) * (bodyRot * restTipRotation);
+            Vector3 palmNow = Vector3.ProjectOnPlane(rot * palmLocal, dir);
+            Vector3 palmWant = Vector3.ProjectOnPlane(palmToward, dir);
+            if (palmNow.sqrMagnitude > 1e-6f && palmWant.sqrMagnitude > 1e-6f)
+                rot = Quaternion.AngleAxis(Vector3.SignedAngle(palmNow, palmWant, dir), dir) * rot;
+            target.rotation = rot;
         }
 
         /// <summary>นิ้ว: ทับหลังแก้ IK (นิ้วเป็นลูกของมือ ใช้ local rotation)</summary>
@@ -136,6 +150,12 @@ namespace Nsc.BoneLimb
             }
             midRest = rest;
             restBend = 180f - Vector3.Angle(root.position - mid.position, tip.position - mid.position);
+
+            // ท่าตั้งต้นงอสวนทางบานพับ (เช่นเข่าแอ่นไปหลังนิดๆ) → มุมตั้งต้นติดลบ ไม่งั้นพับขาดไป 2 เท่าของมุมนั้น ปลายไม่ถึงเป้า
+            mid.localRotation = rest * Quaternion.AngleAxis(hingeSign, hingeAxis);
+            float bentMore = 180f - Vector3.Angle(root.position - mid.position, tip.position - mid.position);
+            mid.localRotation = rest;
+            if (bentMore < restBend) restBend = -restBend;
         }
 
         // เก็บท่านิ้วตอนแบ/กำจากคลิปไว้ครั้งเดียว ตอนเล่นแค่ Slerp ระหว่างสองท่า (ไม่ต้องมี Animator)
@@ -150,10 +170,13 @@ namespace Nsc.BoneLimb
             closed = new Quaternion[fingers.Length];
 
             model.transform.GetLocalPositionAndRotation(out Vector3 pos, out Quaternion rot);
+            Transform fingertip = FindChild(tip, "Middle3");
             gripClip.SampleAnimation(model, 0f);
             for (int i = 0; i < fingers.Length; i++) open[i] = fingers[i].localRotation;
+            Vector3 openTip = fingertip ? tip.InverseTransformPoint(fingertip.position) : Vector3.zero;
             gripClip.SampleAnimation(model, gripClip.length);
             for (int i = 0; i < fingers.Length; i++) closed[i] = fingers[i].localRotation;
+            if (fingertip) palmLocal = (tip.InverseTransformPoint(fingertip.position) - openTip).normalized;
             gripClip.SampleAnimation(model, 0f);
             model.transform.SetLocalPositionAndRotation(pos, rot);
         }
