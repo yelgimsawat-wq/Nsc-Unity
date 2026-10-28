@@ -817,6 +817,10 @@ PrefabInstance:
       propertyPath: punch.extraReach
       value: 1.4586042
       objectReference: {fileID: 0}
+    - target: {fileID: 520730294378528469, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: punch.chargeToRelease
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 616947369322952112, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_Size.x
       value: 3.4623413
@@ -1884,6 +1888,10 @@ PrefabInstance:
     - target: {fileID: 7537799851686360565, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: punch.extraReach
       value: 1.5469102
+      objectReference: {fileID: 0}
+    - target: {fileID: 7537799851686360565, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
+      propertyPath: punch.chargeToRelease
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7690402399881053591, guid: 45acbd86d88a876468534b08dd724e17, type: 3}
       propertyPath: m_Mass
@@ -4699,6 +4707,9 @@ MonoBehaviour:
   riggedModel: {fileID: 2105157548}
   riggedLimbs: []
   alignHandsAndFeet: 1
+  hingeIK: 1
+  leftGripClip: {fileID: 3474312839938400345, guid: f3f665bc238766744821474b30c9b62a, type: 3}
+  rightGripClip: {fileID: 6233655385849560413, guid: f3f665bc238766744821474b30c9b62a, type: 3}
   poleMode: 0
   armPoleDirection: {x: 0, y: -1, z: -1}
   legPoleDirection: {x: 0, y: 0, z: 1}
@@ -7327,15 +7338,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8028729752870558221, guid: f3f665bc238766744821474b30c9b62a, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.91941077
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8028729752870558221, guid: f3f665bc238766744821474b30c9b62a, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9194108
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8028729752870558221, guid: f3f665bc238766744821474b30c9b62a, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.9194108
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -7239507436085175931, guid: f3f665bc238766744821474b30c9b62a, type: 3}
       propertyPath: m_LocalRotation.w

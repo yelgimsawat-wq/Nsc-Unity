@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Nsc.BoneLimb;
 using Nsc.Robots;
 using UnityEngine;
 
@@ -51,6 +52,12 @@ namespace Nsc.Limbs.Bones
         [SerializeField] private RiggedLimb[] riggedLimbs = Array.Empty<RiggedLimb>();
         [Tooltip("หมุนมือ/เท้าของโมเดลตามชิ้นฟิสิกส์")]
         [SerializeField] private bool alignHandsAndFeet = true;
+        [Tooltip("ใช้ IK บานพับของ nok (IKLimb): ศอก/เข่าพับรอบแกนที่โมเดลออกแบบไว้ ไม่บิดทะลุโมเดล | ปิด = FABRIK เดิม")]
+        [SerializeField] private bool hingeIK = true;
+        [Tooltip("ย่อ/ขยายแขนขาของโมเดลตอนเริ่มให้ยาวเท่าโซ่ฟิสิกส์ — ไม่งั้นขาโมเดลที่ยาวกว่าต้องงอเข่ามากจนดูขาโก่ง")]
+        [SerializeField] private bool matchLimbLength = true;
+        [Tooltip("ท่ากำมือจากโมเดล (เฟรมแรก = แบ, เฟรมท้าย = กำ) เช่น Hand_Grip_L / Hand_Grip_R ใน RobotNSC_Rigged — ว่าง = นิ้วตามท่าในซีน")]
+        [SerializeField] private AnimationClip leftGripClip, rightGripClip;
 
         [Header("ทิศศอก / เข่า")]
         [SerializeField] private PoleMode poleMode = PoleMode.TorsoDirection;
@@ -138,7 +145,8 @@ namespace Nsc.Limbs.Bones
                         Debug.LogWarning($"[RobotBoneRig] {slot}: หากระดูกในโมเดลไม่ครบ ข้ามชิ้นนี้ (ใส่เองในช่อง Rigged Limbs ได้)", riggedModel);
                         continue;
                     }
-                    rig = new SkinnedRig(limb, chain, bones, torso, pole, riggedModel);
+                    AnimationClip grip = slot == LimbSlot.LeftArm ? leftGripClip : slot == LimbSlot.RightArm ? rightGripClip : null;
+                    rig = new SkinnedRig(limb, chain, bones, torso, pole, riggedModel, hingeIK, grip, matchLimbLength);
                 }
                 else
                 {
@@ -532,10 +540,21 @@ namespace Nsc.Limbs.Bones
             private Transform[] proxyBones;
             private readonly List<Transform> proxyCollapsed = new List<Transform>();
             private bool proxyUnavailable; // หากระดูกในสำเนาไม่ครบครั้งหนึ่งแล้ว ไม่ต้องสร้าง-ทิ้งซ้ำทุกเฟรม
+            // IK บานพับของ nok: เป้า = ข้อมือ/ข้อเท้าฟิสิกส์ (null = ใช้ FABRIK เดิม)
+            private readonly IKLimb hinge;
+            private readonly Transform hingeTarget;
 
             public SkinnedRig(RobotLimb limb, PhysicsChain chain, Transform[] modelBones, Transform torso, Vector3 fallbackPole,
-                              Transform model)
+                              Transform model, bool useHinge, AnimationClip gripClip, bool matchLength)
             {
+                if (matchLength)
+                {
+                    float modelLength = 0f, physicsLength = 0f;
+                    for (int i = 0; i < modelBones.Length - 1; i++) modelLength += Vector3.Distance(modelBones[i].position, modelBones[i + 1].position);
+                    for (int i = 0; i < chain.Segments.Length; i++) physicsLength += Vector3.Distance(chain.Point(i), chain.Point(i + 1));
+                    if (modelLength > 1e-4f && physicsLength > 1e-4f) modelBones[0].localScale *= physicsLength / modelLength;
+                }
+
                 modelRoot = model;
                 Limb = limb;
                 Chain = chain;
@@ -556,6 +575,27 @@ namespace Nsc.Limbs.Bones
                 PoleLocal = PoleFromBind(Points, TotalLength, torso, fallbackPole);
 
                 foreach (Rigidbody body in chain.Bodies) PhysicsChain.AddOwnRenderers(body, physicsRenderers);
+
+                if (!useHinge || n != 3) return;
+                // แกนอ้างอิง = ตัวโมเดล (หันหน้าตามหุ่นเสมอ) ไม่ใช่ลำตัวฟิสิกส์ที่แกนอาจไม่ตรงทิศหน้า
+                hingeTarget = new GameObject($"{limb.Slot} hinge target") { hideFlags = HideFlags.HideAndDontSave }.transform;
+                hingeTarget.SetPositionAndRotation(bones[2].position, bones[2].rotation);
+                hinge = new IKLimb
+                {
+                    name = limb.Slot.ToString(), isArm = limb.Slot.IsArm(),
+                    root = bones[0], mid = bones[1], tip = bones[2], target = hingeTarget, gripClip = gripClip,
+                };
+                // Init เล่นคลิปกำมือบนโมเดล — คลิปนี้ขยับกระดูกทั้งตัว (แขน ขา ลำตัว) จึงคืนท่าในซีนหลังอ่านเสร็จ
+                Transform[] all = model.GetComponentsInChildren<Transform>(true);
+                var pose = new (Vector3 pos, Quaternion rot, Vector3 scale)[all.Length];
+                for (int i = 0; i < all.Length; i++) pose[i] = (all[i].localPosition, all[i].localRotation, all[i].localScale);
+                hinge.Init(model, 0f, hinge.isArm ? new ShoulderLimit() : new HipLimit(), model.gameObject);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    all[i].SetLocalPositionAndRotation(pose[i].pos, pose[i].rot);
+                    all[i].localScale = pose[i].scale;
+                }
+                if (gripClip != null) hinge.Grip = 1f; // หุ่นกำหมัดตลอด
             }
 
             public override void SetBonesShown(bool shown, bool keepPhysicsVisible)
@@ -667,6 +707,15 @@ namespace Nsc.Limbs.Bones
                 if (resetPose)
                     for (int i = 0; i < n; i++) bones[i].localRotation = bindLocal[i];
 
+                if (hinge != null)
+                {
+                    hingeTarget.SetPositionAndRotation(Chain.Wrist, alignEnd ? Chain.Tip.rotation * endOffset : bones[n - 1].rotation);
+                    hinge.Solve(modelRoot.rotation);
+                    hinge.ApplyFingers();
+                    for (int i = 0; i < n; i++) Points[i] = bones[i].position; // ให้ gizmo วาดตามกระดูกจริง
+                    return;
+                }
+
                 TotalLength = 0f;
                 for (int i = 0; i < n; i++) Points[i] = bones[i].position;
                 for (int i = 0; i < n - 1; i++)
@@ -695,6 +744,7 @@ namespace Nsc.Limbs.Bones
             {
                 base.Destroy();
                 DestroyProxy();
+                if (hingeTarget != null) UnityEngine.Object.Destroy(hingeTarget.gameObject);
                 if (bones[0] != null) bones[0].localScale = rootScale;
             }
         }
