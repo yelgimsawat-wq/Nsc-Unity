@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using Nsc.Feel;
 using Nsc.Match;
 using Nsc.Robots;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace Nsc.BoneLimb
@@ -13,7 +15,7 @@ namespace Nsc.BoneLimb
     /// ไฟล์นี้ทำแค่: ใครคุมชิ้นไหน, แปลงเคอร์เซอร์เป็นเป้า, เดินตามเท้า, ซิงก์ และ UI
     ///
     /// แขน: มือตามเคอร์เซอร์ (ระนาบหน้าไหล่, Shift+ล้อ ดัน/ดึง), คลิกซ้ายค้าง = กำ
-    /// ขา: คลิกซ้ายค้าง = ยกเท้าไปที่เคอร์เซอร์ ปล่อย = วางลงพื้น | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | Q/E หมุนตัว
+    /// ขา (แบบหุ่นเดิม): ชี้พื้น + คลิก = ก้าวเป็นเส้นโค้งไปตรงนั้น, ค้าง = ลอยตามเคอร์เซอร์ ปล่อย = วาง (ก้าวเฉียง = เลี้ยว) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง
     ///
     /// ใครคุมชิ้นไหน = หน้าเลือกชิ้นส่วนเดิม (LimbSelection บน SelectPart) — หุ่นนี้มี Robot + RobotLimb 4 ช่องให้มันรู้จัก
     /// เข้าห้อง: AutoStartHost ในฉาก (เปิดฉากตรงๆ) หรือ Join code จากเมนู | ไม่มี NetworkManager = เล่นคนเดียว กด 1-4 สลับชิ้น
@@ -31,12 +33,13 @@ namespace Nsc.BoneLimb
         [Header("การคุม")]
         [Tooltip("Shift + ล้อเมาส์: ดัน/ดึงมือ (สัดส่วนความยาวแขนต่อหน่วยล้อ)")]
         [SerializeField] private float depthSpeed = 0.001f;
-        [Tooltip("ยกเท้าสูงจากพื้นเท่าไรตอนกดค้าง")]
-        [SerializeField] private float footLift = 2f;
+        [Tooltip("เวลาเหวี่ยงเท้าหนึ่งก้าว (วินาที) — ยาวขึ้น = ดูหนักขึ้น (หุ่นเดิม stepSwingTime 0.6)")]
+        [SerializeField] private float stepSwingTime = 0.6f;
+        [Tooltip("ความสูงยอดโค้งของก้าว เป็นสัดส่วนของความยาวขา (หุ่นเดิม stepArcHeightRatio 0.2)")]
+        [Range(0f, 0.5f)] [SerializeField] private float stepArcHeight = 0.2f;
         [Tooltip("มือ/เท้าไหลตามเคอร์เซอร์เร็วแค่ไหน (มาก = ติดเมาส์, น้อย = นุ่ม)")]
         [SerializeField] private float follow = 12f;
         [SerializeField] private float gripSpeed = 8f;
-        [SerializeField] private float turnSpeed = 60f;
 
         [Header("ตัวหุ่น")]
         [Tooltip("ย่อตัวลงจากท่ายืนตรง — ขายาวแบบนี้ 0.15 ≈ เข่างอ 27°, 0.6 ≈ 54°")]
@@ -54,14 +57,21 @@ namespace Nsc.BoneLimb
         [Header("ความหนัก: ก้าว, น้ำหนักตัว, เอฟเฟกต์")]
         [SerializeField] private IKFeel feel = new IKFeel();
 
-        // ขา (เฉพาะเครื่องที่คุมขา): จุด/ทิศเท้าตอนเริ่มยก, การกระทืบลงหลังปล่อย (dropT < 0 = ไม่ได้กระทืบ)
-        private Vector3[] liftFrom, dropFrom, dropTo;
-        private float[] liftYaw, dropT;
+        [Header("ล้ม: ragdoll บนกระดูก + กฎล้มเดียวกับหุ่นเดิม")]
+        [SerializeField] private IKRagdoll ragdoll = new IKRagdoll();
+        // สองเท้ายกพร้อมกันได้ 0.3 วิก่อนล้ม (หุ่นเดิม 0.15) — ผู้ใช้ขอให้ล้มยากขึ้นนิดหนึ่ง
+        // ต้องขยายทั้งสองกฎ: หุ่น IK สองเท้าลอย = ไม่มีเท้าสมดุลด้วย กฎ BothFeetOffBalance จะตัดที่ 0.15 ก่อน
+        [SerializeField] private FallRules fallRules = new FallRules { bothSteppingGrace = 0.3f, bothOffBalanceGrace = 0.3f };
+
+        // ขา (เฉพาะเครื่องที่คุมขา): ก้าวเป็นเส้นโค้งแบบหุ่นเดิม — จุดเริ่ม, จุดวางเท้าที่เล็ง, ความคืบหน้าแนวราบ/ความสูง
+        private Vector3[] liftFrom, stepAim, footMark;   // footMark = จุดที่เท้าจะลงถ้าคลิกตอนนี้ (โชว์เป็น ◈)
+        private float[] swingT, swingLift;
         private bool[] airborne;              // เท้ายกอยู่ (ทุกเครื่องดูจากเป้า) — ใช้จับจังหวะเท้าลง
-        private Vector3[] planted;            // ที่เท้าปักอยู่ล่าสุด — ตัวหุ่นไหลตามเท้าที่ปักเท่านั้น (เท้าลอยไม่ดึงตัว)
         private Vector3 lastBodyPos, leanVel;
+        private Vector3[] planted;            // ที่เท้าปักล่าสุด (ทุกเครื่อง) — ทิศก้าว = เท้าที่ลอยอยู่เทียบจุดนี้
         private Vector2 lean;
         private Vector3 bodyVel;
+        private float yawVel;
         private static readonly Collider[] hitBuffer = new Collider[8];
 
         private IKCombat.Arm[] arms;          // ช่องเดียวกับ limbs, ขา = null
@@ -80,6 +90,19 @@ namespace Nsc.BoneLimb
         private int selected;
         private Vector3 bodyPos;
         private Quaternion bodyRot;
+
+        // ล้ม: Server ตัดสินแล้วซิงก์ | สะโพกประกาศก่อน fallen ให้ client ได้ท่าสุดท้ายก่อนลุก
+        private NetworkVariable<Vector3> fallHipsPos = new NetworkVariable<Vector3>();
+        private NetworkVariable<Quaternion> fallHipsRot = new NetworkVariable<Quaternion>(Quaternion.identity);
+        private NetworkVariable<bool> fallen = new NetworkVariable<bool>();
+        private NetworkVariable<int> standVotes = new NetworkVariable<int>(); // คนที่คุมชิ้นอยู่และกด Q แล้ว — โชว์บนจอ
+        private bool down;              // นอนอยู่ (ragdoll คุม) — ทุกเครื่อง
+        private bool votedStand;        // เครื่องนี้กด Q ขอลุกแล้ว
+        private readonly HashSet<ulong> standVoters = new HashSet<ulong>(); // Server: ใครกด Q แล้ว
+        private float getUp = -1f;      // กำลังลุก 0..1, -1 = ไม่ได้ลุก
+        private Vector3[] legRest;      // เท้าตอนยืนในแกนตัวหุ่น — วางเท้าใหม่ตอนลุก
+        private Collider bodyCollider;
+        private NetworkTransform netTransform;
 
         private bool Online => IsSpawned;
         private bool DrivesBody => !Online || IsServer;
@@ -111,24 +134,56 @@ namespace Nsc.BoneLimb
                 foreach (IKLimb limb in limbs)
                     if (limb.isArm) limb.PoleOverride = new Vector3(combat.elbowPole.x * limb.Side, combat.elbowPole.y, combat.elbowPole.z);
             liftFrom = new Vector3[limbs.Length];
-            dropFrom = new Vector3[limbs.Length];
-            dropTo = new Vector3[limbs.Length];
-            liftYaw = new float[limbs.Length];
-            dropT = new float[limbs.Length];
-            for (int i = 0; i < limbs.Length; i++) dropT[i] = -1f;
+            stepAim = new Vector3[limbs.Length];
+            footMark = new Vector3[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++) footMark[i] = limbs[i].target.position;
+            swingT = new float[limbs.Length];
+            swingLift = new float[limbs.Length];
             airborne = new bool[limbs.Length];
+            lastBodyPos = transform.position;
             planted = new Vector3[limbs.Length];
             for (int i = 0; i < limbs.Length; i++) planted[i] = limbs[i].target.position;
-            lastBodyPos = transform.position;
             foreach (Transform t in model.GetComponentsInChildren<Transform>(true))
                 if (t.name.EndsWith("Spine1")) { spine = t; spineRest = t.localRotation; break; }
 
             // IK บานพับของเราเองแทน TwoBoneIK (ตัวนั้นเลือกระนาบพับเอง ทำให้ศอก/เข่าพับผิดแกนจนทะลุโมเดล)
             var rigBuilder = model.GetComponent<UnityEngine.Animations.Rigging.RigBuilder>();
             if (rigBuilder) rigBuilder.enabled = false;
+            // กรอบตัดการวาดของ skinned mesh ค้างท่า T-pose — IK ย้ายมือไปที่อื่นแล้วกล้องอยู่ด้านหน้า กรอบหลุดจอ มือหายทั้งที่อยู่ในจอ
+            foreach (SkinnedMeshRenderer skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true)) skin.updateWhenOffscreen = true;
+
+            bodyCollider = GetComponent<Collider>();
+            netTransform = GetComponent<NetworkTransform>();
+            // เท้าเทียบกึ่งกลางเท้า (ตัวหุ่นยืนตรงกึ่งกลางเท้าเสมอ) ในแกนตัวหุ่น
+            Vector3 feetMid = (limbs[2].target.position + limbs[3].target.position) * 0.5f;
+            legRest = new Vector3[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++) legRest[i] = Quaternion.Inverse(transform.rotation) * (limbs[i].target.position - feetMid);
+            var ignore = new List<Collider>(GetComponents<Collider>());
+            foreach (IKLimb limb in limbs)
+                if (limb.hit) ignore.AddRange(limb.hit.GetComponentsInChildren<Collider>());
+            ragdoll.Build(transform, model, limbs, ignore);
+            if (robot) robot.KnockDownRequested += ServerKnockDown;
         }
 
-        public override void OnNetworkSpawn() => EnsureStates();
+        public override void OnDestroy()
+        {
+            if (robot) robot.KnockDownRequested -= ServerKnockDown;
+            base.OnDestroy();
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            EnsureStates();
+            fallen.OnValueChanged += OnFallenChanged;
+            if (!IsServer && fallen.Value) SetDown(true); // เข้าห้องมาตอนหุ่นนอนอยู่
+        }
+
+        public override void OnNetworkDespawn() => fallen.OnValueChanged -= OnFallenChanged;
+
+        private void OnFallenChanged(bool was, bool now)
+        {
+            if (!IsServer && now != down) SetDown(now);
+        }
 
         // เติมใหม่ทุกครั้งที่ว่าง — พบว่ารายการถูกล้างตอนแมตช์เริ่ม (หลัง OnNetworkSpawn) แล้วหุ่นจะคุมไม่ได้
         private void EnsureStates()
@@ -159,7 +214,7 @@ namespace Nsc.BoneLimb
             if (Online && states.Count < limbs.Length) return; // client: ยังไม่ได้ซิงก์รอบแรก
 
             // ออนไลน์: ขยับได้เมื่อแมตช์เริ่ม (Host กด Start ในหน้าเลือกชิ้นส่วน)
-            bool canAct = !Online || MatchSession.Current == null || MatchSession.Current.IsPlaying;
+            bool canAct = (!Online || MatchSession.Current == null || MatchSession.Current.IsPlaying) && !down && getUp < 0f;
             if (input.pressedSlot >= 0)
             {
                 if (!Online) selected = input.pressedSlot;
@@ -168,28 +223,50 @@ namespace Nsc.BoneLimb
                 else if (LimbSelection.Current != null && canAct) LimbSelection.Current.DebugCycleLimbRpc(input.pressedSlot);
 #endif
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (input.knockDown && canAct)
+            {
+                if (Online) KnockDownRpc();
+                else ServerKnockDown(FallReason.KnockedDown);
+            }
+#endif
+            // ล้มแล้วนอนไปเรื่อยๆ จนทุกคนที่คุมชิ้นกด Q (เล่นคนเดียว = กดเองลุกเลย)
+            if (down && input.standUp && !votedStand)
+            {
+                votedStand = true;
+                if (Online) StandVoteRpc();
+                else StandUp();
+            }
 
+            // กล้องหมุนด้วยคลิกขวาเท่านั้น ไม่หันตามหุ่นเอง (ทุกชิ้น) — หันตาม = จุดเล็งบนพื้นเลื่อน/ผู้เล่นคุมมุมเองไม่ได้
             if (input.looking) orbit.Look(input.lookDelta);
-            else orbit.Follow(transform.eulerAngles.y, Time.deltaTime);
             if (!input.shift) orbit.Zoom(input.scroll);              // ล้อเมาส์ = ซูม | Shift + ล้อ = ดัน/ดึงมือ
             float push = input.shift ? input.scroll * depthSpeed : 0f;
 
-            bool controlsAny = false;
             aimArm = -1;
             float remoteT = 1f - Mathf.Exp(-remoteSmoothing * Time.deltaTime);
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
+                if (down)
+                {
+                    if (IsMine(i))
+                    {
+                        DriveDown(limb, input);
+                        if (Online) SendLimbRpc(i, LimbNetState.Capture(limb));
+                    }
+                    else if (Online)
+                    {
+                        states[i].ApplyTo(limb, remoteT);
+                        if (!HasController(i)) limb.Pull = false; // คนคุมหลุดเน็ตกลางคลิกค้าง — ไม่ให้ชิ้นนั้นดึงค้างไปถึงตอนลุก
+                    }
+                    continue;
+                }
                 if (IsMine(i) && canAct)
                 {
-                    controlsAny = true;
                     if (limb.isArm && combat.pointAndClick && cam) DriveCombatArm(i, input); // หมัดต้องจบท่าแม้กำลังหันกล้อง
-                    else if (!input.looking && cam)
-                    {
-                        if (limb.isArm) DriveArm(limb, input.ray, push, input.held);
-                        else DriveLeg(i, input.ray, input.held);
-                    }
-                    if (!limb.isArm) Stomp(i); // กระทืบต้องจบแม้กำลังหันกล้อง
+                    else if (!limb.isArm) DriveLeg(i, input); // ก้าวต้องจบแม้กำลังหันกล้อง
+                    else if (!input.looking && cam) DriveArm(limb, input.ray, push, input.held);
                     if (Online) SendLimbRpc(i, LimbNetState.Capture(limb));
                 }
                 else if (limb.isArm && combat.idleGuard && !HasController(i))
@@ -201,9 +278,16 @@ namespace Nsc.BoneLimb
                 else
                 {
                     if (arms[i] != null) combat.Release(limb, arms[i]); // ไม่ให้หมัดที่ชาร์จค้างไว้พุ่งเองตอนได้คุมคืน
-                    dropT[i] = -1f;
+                    limb.Lifted = false; // ได้คุมคืนทีหลัง = เริ่มก้าวใหม่ ไม่ต่อโค้งเก่า
                     if (limb.isArm && !Online) limb.Grip = Mathf.MoveTowards(limb.Grip, 0f, gripSpeed * Time.deltaTime);
                     if (Online) states[i].ApplyTo(limb, remoteT);
+                    if (!limb.isArm && DrivesBody && !HasController(i))
+                    {
+                        // คนคุมปล่อยขากลางก้าว (สลับชิ้น/หลุดเน็ต) → วางเท้าลงตรงนั้น — ค้างกลางอากาศแล้วนับเป็นเท้ายกตลอด ยกอีกข้างเมื่อไรก็ล้ม
+                        bool dropped = airborne[i];
+                        if (dropped) limb.target.position = OnGround(limb, limb.target.position);
+                        if ((PivotIdleFoot(limb) || dropped) && Online) states[i] = LimbNetState.Capture(limb);
+                    }
                 }
                 if (limb.isArm && combat.Enabled) // กำปั้นตรงแนวแขน ฝ่ามือหันหน้า-เข้าใน (ตั้งการ์ด) / คว่ำลง (ตอนเหยียดหมัด)
                     limb.OrientHand(transform.rotation, limb.tip.position - limb.mid.position,
@@ -211,22 +295,13 @@ namespace Nsc.BoneLimb
                 else if (limb.isArm) limb.OrientHand(transform.rotation);
             }
 
-            float turn = input.turn * turnSpeed * Time.deltaTime;
-            if (turn != 0f && feel.footTurn)
-            {
-                // บิดเท้าที่คุมอยู่ (ปักอยู่กับพื้น) — ตัวหันตามเท้าเองใน UpdateBody, คุมแขนหมุนตัวไม่ได้
-                for (int i = 0; i < limbs.Length; i++)
-                    if (!limbs[i].isArm && IsMine(i) && canAct && !limbs[i].Lifted && dropT[i] < 0f)
-                        limbs[i].target.rotation = Quaternion.Euler(0f, FootYaw(limbs[i]) + turn, 0f) * limbs[i].RestRotation;
-            }
-            else if (turn != 0f && controlsAny)
-            {
-                if (Online) TurnRpc(turn);
-                else Turn(turn);
-            }
+            if (getUp >= 0f) getUp = Mathf.Min(1f, getUp + Time.deltaTime / ragdoll.getUpTime); // จบใน LateUpdate หลังไล่ท่าเฟรมสุดท้าย
 
-            DetectLandings();
-            if (DrivesBody) UpdateBody();
+            if (!down)
+            {
+                DetectLandings(); // นอนอยู่: เป้าเท้าขึ้นลงไม่ใช่ก้าวเท้า (ไม่เล่นเสียงกระทืบ)
+                if (DrivesBody) UpdateBody();
+            }
         }
 
         private void FixedUpdate()
@@ -237,12 +312,36 @@ namespace Nsc.BoneLimb
                 body.MovePosition(bodyPos);
                 body.MoveRotation(bodyRot);
             }
+            ragdoll.Enforce(down, !DrivesBody);
+            if (down)
+            {
+                // ทุกเครื่องออกแรงเอง: client เห็นแขนขาที่ตัวเองคุมขยับทันที | ตัวหุ่นเคลื่อนจริงตามฟิสิกส์ของ Server
+                foreach (IKLimb limb in limbs)
+                    if (limb.Pull) ragdoll.Pull(limb, limb.target.position);
+                FixedDown();
+            }
+            else if (DrivesBody && getUp < 0f && (!Online || MatchSession.Current == null || MatchSession.Current.IsPlaying)) EvaluateFall();
             foreach (IKLimb limb in limbs)
                 if (limb.hit) limb.hit.MovePosition(limb.tip.position);
         }
 
         private void LateUpdate()
         {
+            if (down)
+            {
+                // ragdoll คุมกระดูก — ไม่แก้ IK, กล้องตามสะโพก (ตัวหุ่นยังอยู่ที่เดิมจนกว่าจะลุก)
+                foreach (IKLimb limb in limbs) limb.ApplyFingers();
+                lastBodyPos = transform.position;
+                Vector3 hips = ragdoll.Hips.transform.position;
+                if (cam) orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true);
+                return;
+            }
+            if (getUp >= 0f)
+            {
+                ragdoll.RestoreRest();
+                lastBodyPos = transform.position; // ตัวหุ่นเพิ่ง Teleport ไปที่สะโพก — ไม่ให้นับเป็นความเร็วแล้วลำตัวโน้มกระตุก
+            }
+
             // ลำตัวบิด/โน้มตามหมัด + เอียงตามทิศที่ตัวเคลื่อน ก่อนแก้ IK (ไหล่ขยับตามลำตัว แล้ว IK พามือไปถึงเป้าเหมือนเดิม)
             UpdateLean();
             if (spine && (combat.Enabled || feel.leanPerSpeed > 0f))
@@ -259,8 +358,19 @@ namespace Nsc.BoneLimb
             }
             foreach (IKLimb limb in limbs)
             {
-                limb.Solve(transform.rotation);
+                // ขา: เข่าชี้ตามทิศเท้า (ไม่ใช่ทิศลำตัว) — เท้าเฉียงแล้วขาไม่บิดที่ข้อเท้า
+                limb.Solve(limb.isArm ? transform.rotation : Quaternion.Euler(0f, FootYaw(limb), 0f));
                 limb.ApplyFingers();
+            }
+            if (getUp >= 0f)
+            {
+                ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp));
+                if (getUp >= 1f)
+                {
+                    getUp = -1f;
+                    if (bodyCollider) bodyCollider.enabled = true;
+                    fallRules.Reset(); // ลุกปุ๊บไม่ล้มซ้ำจากตัวจับเวลาเก่า
+                }
             }
             if (cam) orbit.Apply(cam, transform.position, ControlledArmSide());
         }
@@ -365,84 +475,265 @@ namespace Nsc.BoneLimb
             return 0f;
         }
 
-        // คลิกค้าง = ยกเท้า แล้วเท้าตามจุดที่เคอร์เซอร์ชี้บนพื้น | ปล่อย = วางลงพื้นตรงนั้น (stompTime > 0 = กระทืบลง)
-        private void DriveLeg(int i, Ray ray, bool held)
+        // หุ่นเดิม (LegInput + LegController): เคอร์เซอร์ชี้พื้น = จุดวางเท้า (แนวราบจากสะโพกไม่เกิน 90% ของขา)
+        // กดคลิก = ก้าวเป็นเส้นโค้งไปที่นั่น — คลิกสั้น = ก้าวครบโค้งแล้วปักเอง | กดค้าง = ลอยค้างที่ยอดโค้งตามเคอร์เซอร์ ปล่อยแล้วค่อยลง
+        // แนวราบ ease in-out, ความสูง sin ¼ รอบ = ยกเร็วชะลอที่ยอด แล้วเร่งกระแทกพื้นเหมือนของหนัก | คลิกขวาหันกล้อง = จุดเล็งค้างไว้
+        private void DriveLeg(int i, IKInput input)
         {
             IKLimb leg = limbs[i];
-            if (held && dropT[i] < 0f)
+            // จุดเล็งตามเมาส์ทุกเฟรม (◈ บอกว่าคลิกแล้วเท้าจะลงตรงไหน) — คลิกขวาหันกล้อง = จุดเล็งค้าง (หุ่นเดิม UpdatePointAim)
+            if (!input.looking && cam && Physics.Raycast(input.ray, out RaycastHit hit, 1000f)) footMark[i] = ClampStep(leg, hit.point);
+            // ส่งเป้าเฉพาะตอนกดค้าง (หุ่นเดิม) — ปล่อยแล้วเท้าลงตรงจุดสุดท้าย ไม่ไหลตามเมาส์
+            if (input.held) stepAim[i] = footMark[i];
+            if (input.held && !leg.Lifted)
             {
-                if (!leg.Lifted) { liftFrom[i] = leg.target.position; liftYaw[i] = FootYaw(leg); }
-                float height = GroundY(leg.target.position) + leg.RestHeight + footLift;
-                var plane = new Plane(Vector3.up, new Vector3(0f, height, 0f));
-                if (plane.Raycast(ray, out float enter))
-                {
-                    Vector3 goal = leg.Limits.Limit(leg, transform.rotation, ray.GetPoint(enter));
-                    leg.target.position = Vector3.Lerp(leg.target.position, goal, 1f - Mathf.Exp(-follow * Time.deltaTime));
-                }
-                if (feel.footTurn) leg.target.rotation = Quaternion.Euler(0f, StepYaw(i, leg), 0f) * leg.RestRotation;
+                liftFrom[i] = leg.target.position;
+                swingT[i] = 0f;
+                swingLift[i] = 0f;
                 leg.Lifted = true;
             }
-            else if (leg.Lifted)
+            if (!leg.Lifted) return;
+
+            float dt = Mathf.Min(Time.deltaTime, 0.05f); // เฟรมกระตุกยาวไม่กระโดดข้ามช่วงยก (เท้าจะไถลไปกับพื้น)
+            swingT[i] = Mathf.MoveTowards(swingT[i], 1f, dt / stepSwingTime);
+            bool rising = input.held || swingT[i] < 0.5f;
+            swingLift[i] = Mathf.MoveTowards(swingLift[i], rising ? 1f : 0f, dt / (stepSwingTime * 0.5f));
+            if (!input.held && swingT[i] >= 1f && swingLift[i] <= 0f)
             {
-                Vector3 p = leg.target.position;
-                p.y = GroundY(p) + leg.RestHeight;
-                Vector3 land = leg.Limits.Limit(leg, transform.rotation, p);
-                land.y = GroundY(land) + leg.RestHeight; // ไกลเกินขา Limit ดึงเป้าลอยขึ้น → วางบนพื้นเสมอ แล้วตัวไหลตามเท้าเอง
-                Quaternion rot = feel.footTurn ? leg.target.rotation : transform.rotation * leg.RestRotation;
-                if (feel.stompTime > 0f) { dropFrom[i] = leg.target.position; dropTo[i] = land; dropT[i] = 0f; leg.target.rotation = rot; }
-                else leg.target.SetPositionAndRotation(land, rot);
+                // เท้าถึงพื้น: ปักตรงจุดที่เล็ง หันตามก้าว (DetectLandings เล่นเสียง/ฝุ่น/จอสั่น)
+                leg.target.SetPositionAndRotation(OnGround(leg, stepAim[i]), Quaternion.Euler(0f, LandingYaw(i, leg), 0f) * leg.RestRotation);
                 leg.Lifted = false;
+                return;
             }
+            Vector3 flat = Vector3.Lerp(liftFrom[i], stepAim[i], Mathf.SmoothStep(0f, 1f, swingT[i]));
+            leg.target.position = OnGround(leg, flat) + Vector3.up * (Mathf.Sin(swingLift[i] * Mathf.PI * 0.5f) * leg.Reach * stepArcHeight);
+            // ลอยอยู่: เท้าค่อยๆ หมุนกลับชี้ทิศลำตัว (หุ่นเดิม) — หันตามก้าวตอนวางลง
+            leg.target.rotation = Quaternion.Slerp(leg.target.rotation, transform.rotation * leg.RestRotation, 1f - Mathf.Exp(-feel.footTurnSpeed * dt));
         }
 
-        // หุ่นเดิม: ยกเท้าไปเฉียง/ข้าง → เท้าหันตามครึ่งหนึ่งของมุมก้าว (ไม่เกิน maxTurnPerStep) | ก้าวสั้น/ถอยหลัง = ทิศเดิม
-        private float StepYaw(int i, IKLimb leg)
+        // หุ่นเดิม (ClampPlantWithinReach): ตัดแค่ระยะแนวราบจากสะโพก ไม่ใช่ทรงกลมความยาวขา — ตัดทรงกลมแล้วเท้าโดนดึงมาใต้ตัวทุกก้าว
+        // ระหว่างก้าวลำตัวไหลไปหาเท้า (UpdateBody) เท้าจึงเอื้อมถึง
+        private static Vector3 ClampStep(IKLimb leg, Vector3 point)
         {
-            Vector3 step = Vector3.ProjectOnPlane(leg.target.position - liftFrom[i], Vector3.up);
+            Vector3 hip = leg.root.position;
+            Vector3 flat = Vector3.ClampMagnitude(new Vector3(point.x - hip.x, 0f, point.z - hip.z), leg.Reach * 0.9f);
+            return new Vector3(hip.x + flat.x, point.y, hip.z + flat.z);
+        }
+
+        private static Vector3 OnGround(IKLimb leg, Vector3 p) => new Vector3(p.x, GroundY(p) + leg.RestHeight, p.z);
+
+        // หุ่นเดิม (LegController.LandingYaw): เท้าลงหันตามทิศลำตัว + ครึ่งหนึ่งของมุมก้าว (ไม่เกิน maxTurnPerStep)
+        // ก้าวสั้นกว่า 20% ของขา หรือถอยหลัง/เฉียงเกิน 110° = ทิศลำตัว | ตัวหันตามเท้าที่ปัก (UpdateBody) = เลี้ยว
+        private float LandingYaw(int i, IKLimb leg) => transform.eulerAngles.y + StepTurn(leg, liftFrom[i], stepAim[i]);
+
+        // ครึ่งหนึ่งของมุมก้าว (from → to) เทียบทิศหน้าหุ่นตอนนี้ ไม่เกิน maxTurnPerStep | ก้าวสั้น/ถอยหลัง/เฉียงเกิน 110° = 0
+        private float StepTurn(IKLimb leg, Vector3 from, Vector3 to)
+        {
+            Vector3 step = Vector3.ProjectOnPlane(to - from, Vector3.up);
             float angle = Vector3.SignedAngle(transform.forward, step, Vector3.up);
-            if (step.magnitude <= leg.Reach * 0.2f || Mathf.Abs(angle) > 110f) return liftYaw[i];
-            return liftYaw[i] + Mathf.Clamp(Mathf.DeltaAngle(liftYaw[i], transform.eulerAngles.y + angle) * 0.5f, -feel.maxTurnPerStep, feel.maxTurnPerStep);
-        }
-
-        // ปล่อยเท้าแล้วกระทืบลงแบบเร่ง (ไม่ลอยลงนุ่มๆ) — จบแล้ว DetectLandings เล่นเสียง/ฝุ่น/จอสั่น
-        private void Stomp(int i)
-        {
-            if (dropT[i] < 0f) return;
-            dropT[i] = Mathf.Min(1f, dropT[i] + Time.deltaTime / feel.stompTime);
-            limbs[i].target.position = Vector3.Lerp(dropFrom[i], dropTo[i], dropT[i] * dropT[i]);
-            if (dropT[i] >= 1f) dropT[i] = -1f;
+            if (step.magnitude <= leg.Reach * 0.2f || Mathf.Abs(angle) > 110f) return 0f;
+            return Mathf.Clamp(angle * 0.5f, -feel.maxTurnPerStep, feel.maxTurnPerStep);
         }
 
         // ================================================================ ตัวหุ่น
 
-        // ตัวหุ่นไหลไปกลางระหว่างเท้า → ก้าวเท้าทีละข้าง = เดิน
+        // หุ่นเดิม (TorsoBalance): ตัวหุ่นไหลไปกลางระหว่างเท้าที่ปัก + เท้าที่กำลังก้าว (ถ่ายน้ำหนักไปข้างหน้าระหว่างก้าว
+        // ไม่งั้นตัวโดนดึงกลับมาเหนือขาที่ยืน เท้าที่ก้าวเอื้อมได้นิดเดียว) → ก้าวเท้าทีละข้าง = เดิน
         private void UpdateBody()
         {
             Vector3 mid = Vector3.zero;
             int legs = 0;
+            bool stepping = false;
             for (int i = 0; i < limbs.Length; i++)
-                if (!limbs[i].isArm) { mid += feel.bodyFrequency > 0f ? planted[i] : limbs[i].target.position; legs++; } // แบบเดิม = ตามเท้าแม้ลอย
+                if (!limbs[i].isArm) { mid += limbs[i].target.position; legs++; stepping |= airborne[i]; }
             if (legs == 0) return;
             mid /= legs;
 
             Vector3 goal = new Vector3(mid.x, 0f, mid.z);
             goal.y = GroundY(goal) - crouch;
-            if (feel.bodyFrequency > 0f) IKFeel.Spring(ref bodyPos, ref bodyVel, goal, feel.bodyFrequency, feel.bodyDamping, Time.deltaTime);
+            // หุ่นเดิม stepCenterMultiplier 2: ระหว่างก้าวดึงตัวแรงขึ้นสองเท่า (แรงสปริง ×2 = ความถี่ ×√2) ตัวไหลทันเท้า = ก้าวยาว
+            float frequency = feel.bodyFrequency * (stepping ? 1.414f : 1f);
+            if (feel.bodyFrequency > 0f) IKFeel.Spring(ref bodyPos, ref bodyVel, goal, frequency, feel.bodyDamping, Time.deltaTime);
             else bodyPos = Vector3.Lerp(bodyPos, goal, 1f - Mathf.Exp(-bodyFollow * Time.deltaTime));
 
-            if (!feel.footTurn) return;
-            // ตัวหันตามค่าเฉลี่ยทิศเท้า (ทิศเท้าซิงก์มากับเป้าเท้าทุกเครื่อง) — ช้าๆ แบบตัวหนัก
+            // หุ่นเดิม (TorsoBalance heading): ตัวหันตามค่าเฉลี่ยทิศเท้าที่ปักอยู่ด้วยสปริง (ทิศเท้าซิงก์มากับเป้าเท้าทุกเครื่อง)
+            // + ระหว่างก้าวตัวบิดไปทางที่เท้ากำลังจะลง (หุ่นเดิมเกิดจากแรงดึงสะโพกในฟิสิกส์ — วัดได้ ~25° ตอนก้าวเฉียง 60°)
+            // เท้าจึงลงหันเพิ่มจากตัวที่บิดแล้ว (LandingYaw) = เลี้ยวตามจุดที่วางเท้า
             Vector3 facing = Vector3.zero;
+            float twist = 0f;
             for (int i = 0; i < limbs.Length; i++)
-                if (!limbs[i].isArm) facing += Quaternion.Euler(0f, FootYaw(limbs[i]), 0f) * Vector3.forward;
-            if (facing.sqrMagnitude > 1e-4f)
-                bodyRot = Quaternion.Slerp(bodyRot, Quaternion.LookRotation(facing), 1f - Mathf.Exp(-feel.bodyTurnSpeed * Time.deltaTime));
+            {
+                if (limbs[i].isArm) continue;
+                if (!airborne[i]) facing += Quaternion.Euler(0f, FootYaw(limbs[i]), 0f) * Vector3.forward;
+                else twist += StepTurn(limbs[i], planted[i], limbs[i].target.position);
+            }
+            if (facing.sqrMagnitude < 1e-2f) return;
+            float yaw = bodyRot.eulerAngles.y;
+            Vector3 x = new Vector3(yaw, 0f, 0f), v = new Vector3(yawVel, 0f, 0f);
+            Vector3 face = new Vector3(yaw + Mathf.DeltaAngle(yaw, Quaternion.LookRotation(facing).eulerAngles.y) + twist, 0f, 0f);
+            IKFeel.Spring(ref x, ref v, face, feel.headingFrequency, feel.headingDamping, Time.deltaTime);
+            yawVel = v.x;
+            bodyRot = Quaternion.Euler(0f, x.x, 0f);
+        }
+
+        // ================================================================ ล้ม / ลุก
+
+        // กฎล้มเดียวกับหุ่นเดิม (FallRules): สองเท้ายกพร้อมกันนานเกิน grace = ล้ม | หุ่น IK ไม่มีกระโดด/มือจับ/แรงดึงให้กันล้ม
+        private void EvaluateFall()
+        {
+            int legs = 0, grounded = 0;
+            for (int i = 0; i < limbs.Length; i++)
+                if (!limbs[i].isArm) { legs++; if (!airborne[i]) grounded++; }
+            var balance = new BalanceInput
+            {
+                footCount = legs, groundedFeet = grounded, walkSteppingFeet = legs - grounded,
+                balancedFeet = grounded, supportFoot = grounded > 0,
+            };
+            FallReason reason = fallRules.Evaluate(balance, Time.fixedDeltaTime);
+            if (reason != FallReason.None) ServerKnockDown(reason);
+        }
+
+        /// <summary>[SERVER / เล่นคนเดียว] ล้ม — จากกฎล้ม, บอส (Robot.ServerKnockDown), ปุ่มทดสอบ B | ระหว่างลุกล้มซ้ำไม่ได้</summary>
+        public void ServerKnockDown(FallReason reason)
+        {
+            if (!DrivesBody || down || getUp >= 0f) return;
+            Debug.Log($"[RobotIKControl] ล้ม: {reason}");
+            standVoters.Clear();
+            if (Online)
+            {
+                fallHipsPos.Value = ragdoll.Hips.position;
+                fallHipsRot.Value = ragdoll.Hips.rotation;
+                standVotes.Value = 0; // ไม่ให้จอโชว์ยอดโหวตของรอบล้มที่แล้ว
+                fallen.Value = true;
+            }
+            SetDown(true);
+        }
+
+        // นอนอยู่: Server ประกาศท่าสะโพก + นับโหวตลุก (เช็กทุกรอบ: คนที่ยังไม่กดออกจากห้อง/ปล่อยชิ้น = ไม่ต้องรอเขาแล้ว)
+        // client สะโพกตามที่ประกาศ
+        private void FixedDown()
+        {
+            if (!DrivesBody)
+            {
+                ragdoll.FollowHips(fallHipsPos.Value, fallHipsRot.Value, 1f - Mathf.Exp(-remoteSmoothing * Time.fixedDeltaTime));
+                return;
+            }
+            if (!Online) return; // เล่นคนเดียว: ลุกตอนกด Q ใน Update
+            fallHipsPos.Value = ragdoll.Hips.position;
+            fallHipsRot.Value = ragdoll.Hips.rotation;
+
+            int controllers = Controllers(out int voted);
+            standVotes.Value = voted;
+            if (controllers > 0 && voted == controllers) StandUp(); // ไม่มีใครคุมชิ้นเลย = นอนต่อ
+        }
+
+        // คนที่คุมชิ้นของหุ่นนี้ (คนละชิ้นนับครั้งเดียว) และในนั้นกด Q แล้วกี่คน (voted รู้เฉพาะ Server)
+        private int Controllers(out int voted)
+        {
+            int count = 0;
+            voted = 0;
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                ulong c = ControllerOf(i);
+                bool repeat = false;
+                for (int j = 0; j < i; j++) repeat |= ControllerOf(j) == c;
+                if (c == LimbSelection.NoClient || repeat) continue;
+                count++;
+                if (standVoters.Contains(c)) voted++;
+            }
+            return count;
+        }
+
+        // [SERVER / เล่นคนเดียว] ลุก — ทุกเครื่องเริ่มไล่ท่ากลับยืน
+        private void StandUp()
+        {
+            if (Online) fallen.Value = false;
+            SetDown(false);
+        }
+
+        // ทุกเครื่อง: เริ่มนอน (ragdoll คุม) / เริ่มลุก (ตัวหุ่นย้ายไปที่สะโพก, เท้าวางข้างตัว, ไล่ท่าจากท่านอนกลับเป็นท่ายืน)
+        private void SetDown(bool value)
+        {
+            down = value;
+            votedStand = false;
+            for (int i = 0; i < limbs.Length; i++) { limbs[i].Lifted = false; limbs[i].Pull = false; }
+            if (value)
+            {
+                if (bodyCollider) bodyCollider.enabled = false; // กล่องลำตัวค้างที่เดิม ไม่ให้ขวางของ/ศัตรูตอนนอน
+                Vector3 push = Vector3.ProjectOnPlane(bodyVel, Vector3.up);
+                if (push.sqrMagnitude < 0.25f) push = -transform.forward; // ยืนนิ่ง = หงายหลัง
+                ragdoll.Enforce(true, !DrivesBody);
+                ragdoll.SetPhysics(true, push.normalized * ragdoll.topple);
+                return;
+            }
+
+            Vector3 hips = DrivesBody ? ragdoll.Hips.position : fallHipsPos.Value;
+            Quaternion facing = DrivesBody ? bodyRot : transform.rotation;
+            ragdoll.BeginBlend();
+            ragdoll.Enforce(false, false);
+            ragdoll.SetPhysics(false, Vector3.zero);
+
+            Vector3 stand = new Vector3(hips.x, 0f, hips.z);
+            stand.y = GroundY(stand) - crouch;
+            if (DrivesBody)
+            {
+                bodyPos = stand;
+                bodyVel = Vector3.zero;
+                yawVel = 0f;
+                body.position = stand;
+                if (netTransform && netTransform.IsSpawned) netTransform.Teleport(stand, facing, transform.localScale); // client ไม่ไถลจากจุดเดิม
+                else transform.position = stand;
+            }
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                IKLimb limb = limbs[i];
+                if (limb.isArm)
+                {
+                    // ตอนนอนเป้าแขนถูกลากไปตามเคอร์เซอร์ — กลับท่าการ์ด/ท่าตั้งต้น แล้วสปริงมือเริ่มใหม่ที่ตัวหุ่นจุดใหม่
+                    limb.target.localPosition = arms[i].desired;
+                    combat.Release(limb, arms[i]);
+                    if (Online && IsServer) states[i] = LimbNetState.Capture(limb);
+                    continue;
+                }
+                Vector3 p = stand + facing * new Vector3(legRest[i].x, 0f, legRest[i].z);
+                p.y = GroundY(p) + limb.RestHeight;
+                limb.target.SetPositionAndRotation(p, facing * limb.RestRotation);
+                airborne[i] = false;
+                planted[i] = p;
+                if (Online && IsServer) states[i] = LimbNetState.Capture(limb); // ขาที่ไม่มีใครคุมไม่ไหลกลับไปที่เดิม
+            }
+            getUp = 0f;
+        }
+
+        // นอนอยู่ (ทุกชิ้นเหมือนกัน): เคอร์เซอร์ = จุดที่มือ/เท้าเอื้อมไป บนระนาบผ่านไหล่/สะโพกที่หันหากล้อง ไม่เกินความยาวแขนขา
+        // คลิกค้าง = ดึงจริง (แรงใน FixedUpdate) + กำมือ | ปล่อย = ห้อยตามฟิสิกส์ — ไว้ยันพื้น คลาน ปัดของ
+        private void DriveDown(IKLimb limb, IKInput input)
+        {
+            if (!input.looking && cam)
+            {
+                var plane = new Plane(cam.transform.forward, limb.root.position);
+                if (plane.Raycast(input.ray, out float enter))
+                {
+                    Vector3 goal = limb.root.position + Vector3.ClampMagnitude(input.ray.GetPoint(enter) - limb.root.position, limb.Reach);
+                    limb.target.position = Vector3.Lerp(limb.target.position, goal, 1f - Mathf.Exp(-follow * Time.deltaTime));
+                }
+            }
+            limb.Pull = input.held;
+            if (limb.isArm) limb.Grip = Mathf.MoveTowards(limb.Grip, input.held ? 1f : 0f, gripSpeed * Time.deltaTime);
+        }
+
+        // ขาที่ไม่มีคนคุม (Server/เล่นคนเดียว): เท้าที่ปักค่อยๆ บิดตามทิศลำตัว — ตัวหันตามค่าเฉลี่ยเท้า ถ้าเท้านี้นิ่ง
+        // ตัวหันได้แค่ครึ่งเดียวแล้วติด | คืน true เมื่อขยับ (หยุดเมื่อต่างไม่ถึง 0.5° ไม่ส่ง state ทุกเฟรม)
+        private bool PivotIdleFoot(IKLimb leg)
+        {
+            float delta = Mathf.DeltaAngle(FootYaw(leg), transform.eulerAngles.y);
+            if (feel.idleFootPivot <= 0f || leg.Lifted || Mathf.Abs(delta) < 0.5f) return false;
+            leg.target.rotation = Quaternion.Euler(0f, delta * (1f - Mathf.Exp(-feel.idleFootPivot * Time.deltaTime)), 0f) * leg.target.rotation;
+            return true;
         }
 
         // ทิศเท้าในโลก = มุมหมุนของเป้าเท้าเทียบท่าตั้งต้น
         private static float FootYaw(IKLimb leg) => (leg.target.rotation * Quaternion.Inverse(leg.RestRotation)).eulerAngles.y;
-
-        private void Turn(float degrees) => bodyRot = Quaternion.Euler(0f, degrees, 0f) * bodyRot;
 
         // หุ่นและ collider มือ/เท้าต้องอยู่ layer Ignore Raycast ไม่งั้นยิงโดนตัวเองแล้วตัวลอยขึ้นเรื่อยๆ
         private static float GroundY(Vector3 p) =>
@@ -459,21 +750,35 @@ namespace Nsc.BoneLimb
             // Server ตรวจซ้ำ — ไม่เชื่อเป้าจาก client ตรงๆ
             IKLimb limb = limbs[index];
             Vector3 world = limb.isArm ? transform.TransformPoint(s.pos) : s.pos;
-            world = limb.Limits.Limit(limb, transform.rotation, world);
+            // นอนอยู่: ไม่เกินความยาวแขนขาจากโคน | แขนตอนยืน: ข้อจำกัดข้อต่อ
+            // ขา (หุ่นเดิม SetFootTargetRpc ServerReachMargin 1.5): ก้าวยาวเป้าอยู่ไกลกว่าขาจริงได้ ตัวไหลตามไปเอง —
+            // ตัดที่ความยาวขาพอดีแล้วเท้าเครื่องอื่นลอยค้าง และ Server นับเป็นเท้ายก (กฎสองเท้ายก = ล้ม)
+            float reach = down ? limb.Reach : limb.Reach * 1.5f;
+            world = down || !limb.isArm ? limb.root.position + Vector3.ClampMagnitude(world - limb.root.position, reach)
+                                        : limb.Limits.Limit(limb, transform.rotation, world);
             s.pos = limb.isArm ? transform.InverseTransformPoint(world) : world;
             s.grip = Mathf.Clamp01(s.grip);
             states[index] = s;
         }
 
+        // ปุ่มทดสอบ B — RPC ต้องมีทุก build (ตาราง RPC ตรงกันทุกเครื่อง) แต่ build จริงไม่ทำอะไร กัน client แก้เกมสั่งล้มรัวๆ
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void TurnRpc(float degrees, RpcParams rpcParams = default)
+        private void KnockDownRpc(RpcParams rpcParams = default)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             for (int i = 0; i < limbs.Length; i++)
                 if (ControllerOf(i) == rpcParams.Receive.SenderClientId)
                 {
-                    Turn(Mathf.Clamp(degrees, -turnSpeed, turnSpeed));
+                    ServerKnockDown(FallReason.KnockedDown);
                     return;
                 }
+#endif
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void StandVoteRpc(RpcParams rpcParams = default)
+        {
+            if (down) standVoters.Add(rpcParams.Receive.SenderClientId); // นับเฉพาะคนที่คุมชิ้นอยู่ (FixedDown กรอง)
         }
 
         // ================================================================ UI
@@ -492,16 +797,51 @@ namespace Nsc.BoneLimb
                     if (IsMine(i)) mine = limbs[i].name;
                 GUILayout.Label($"คุณคุม: {mine}");
             }
+            if (down)
+            {
+                int need = Online ? Controllers(out _) : 1;
+                GUILayout.Label(!Online ? "หุ่นล้ม! คลิกค้าง = ดึงแขน/ขาไปที่เคอร์เซอร์ | กด Q เพื่อลุก"
+                    : votedStand ? $"หุ่นล้ม! คลิกค้าง = ดึงแขน/ขา | รอเพื่อนกด Q ({standVotes.Value}/{need})"
+                    : $"หุ่นล้ม! คลิกค้าง = ดึงแขน/ขาไปที่เคอร์เซอร์ | ทุกคนกด Q เพื่อลุก ({standVotes.Value}/{need})");
+            }
             string armHelp = combat.pointAndClick
                 ? "แขน: เคอร์เซอร์เล็ง, คลิกซ้ายค้าง = ชาร์จ ปล่อย = ต่อย"
                 : "แขน: มือตามเคอร์เซอร์, Shift+ล้อ = ดัน/ดึงมือ, คลิกซ้ายค้าง = กำ";
-            GUILayout.Label($"{armHelp} | ขา: คลิกซ้ายค้าง = ยกเท้าไปที่เคอร์เซอร์ ปล่อย = วาง | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | Q/E หมุนตัว");
+            GUILayout.Label($"{armHelp} | ขา: ชี้พื้น + คลิก = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเคอร์เซอร์ ปล่อย = วาง, ก้าวเฉียง = เลี้ยว) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | B = ทดสอบล้ม");
             GUILayout.EndArea();
 
             if (aimArm >= 0 && cam) DrawReticle();
+            if (!down && cam) DrawFootMarker();
         }
 
-        private GUIStyle reticleStyle;
+        private GUIStyle reticleStyle, markerStyle, reachStyle;
+
+        // หุ่นเดิม (LegInput.OnGUI): ◈ ที่จุดที่เท้าจะลง (ตัดที่ระยะเอื้อมแล้ว อาจต่างจากเคอร์เซอร์) + ระยะเป็น % ของที่ก้าวได้ไกลสุด
+        private void DrawFootMarker()
+        {
+            int i = 0;
+            while (i < limbs.Length && (limbs[i].isArm || !IsMine(i))) i++;
+            if (i == limbs.Length) return;
+            Vector3 mark = limbs[i].Lifted ? stepAim[i] : footMark[i];
+            Vector3 screen = cam.WorldToScreenPoint(new Vector3(mark.x, GroundY(mark), mark.z));
+            if (screen.z <= 0f) return;
+
+            markerStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+            reachStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+            float x = screen.x, y = Screen.height - screen.y;
+            Vector3 hip = limbs[i].root.position;
+            float reach = new Vector2(mark.x - hip.x, mark.z - hip.z).magnitude / (limbs[i].Reach * 0.9f);
+            string pct = $"{Mathf.RoundToInt(Mathf.Clamp01(reach) * 100f)}%";
+
+            Color old = GUI.color, shadow = new Color(0f, 0f, 0f, 0.6f), tint = new Color(0.5f, 0.85f, 1f);
+            GUI.color = shadow;
+            GUI.Label(new Rect(x - 13f, y - 13f, 30f, 30f), "◈", markerStyle);
+            GUI.Label(new Rect(x - 29f, y + 13f, 60f, 20f), pct, reachStyle);
+            GUI.color = tint;
+            GUI.Label(new Rect(x - 14f, y - 14f, 30f, 30f), "◈", markerStyle);
+            GUI.Label(new Rect(x - 30f, y + 12f, 60f, 20f), pct, reachStyle);
+            GUI.color = old;
+        }
 
         // ◎ ที่จุดเล็ง: แดง = เล็งโดนของที่ต่อยได้, ส้ม = ของที่เล็งอยู่ไกลเกินแขน, ขาว = ปกติ + แถบชาร์จใต้เป้า
         private void DrawReticle()

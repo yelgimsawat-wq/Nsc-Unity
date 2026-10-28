@@ -13,8 +13,9 @@ namespace Nsc.BoneLimb
         public bool pressed;         // เพิ่งกดคลิกซ้ายเฟรมนี้ (ไม่นับตอนหันกล้อง)
         public bool shift;
         public float scroll;
-        public float turn;           // E = +1, Q = -1
         public int pressedSlot;      // ปุ่ม 1-4 หรือ F1-F4 ที่เพิ่งกด (0-3), ไม่กด = -1
+        public bool knockDown;       // B = ทดสอบล้ม (Editor/Dev build)
+        public bool standUp;         // เพิ่งกด Q เฟรมนี้ — ตอนหุ่นล้ม = ขอลุก (กดค้างไว้ก่อนล้มไม่นับ)
 
         public static bool TryRead(Camera cam, int slotCount, out IKInput input)
         {
@@ -29,8 +30,9 @@ namespace Nsc.BoneLimb
             input.pressed = mouse.leftButton.wasPressedThisFrame && !input.looking;
             input.shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
             input.scroll = mouse.scroll.ReadValue().y;
-            input.turn = (kb.eKey.isPressed ? 1f : 0f) - (kb.qKey.isPressed ? 1f : 0f);
             input.ray = cam ? cam.ScreenPointToRay(mouse.position.ReadValue()) : default;
+            input.knockDown = kb.bKey.wasPressedThisFrame;
+            input.standUp = kb.qKey.wasPressedThisFrame;
 
             input.pressedSlot = -1;
             for (int i = 0; i < slotCount; i++)

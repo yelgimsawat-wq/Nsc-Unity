@@ -2021,8 +2021,8 @@ GameObject:
   - component: {fileID: 745832732}
   - component: {fileID: 745832731}
   - component: {fileID: 745832730}
-  - component: {fileID: 745832729}
   - component: {fileID: 745832733}
+  - component: {fileID: 745832729}
   - component: {fileID: 745832735}
   - component: {fileID: 745832734}
   - component: {fileID: 745832736}
@@ -2087,7 +2087,7 @@ MonoBehaviour:
     lookHeight: 4.5
     lookSensitivity: 0.2
     zoomSpeed: 0.02
-    followBehind: 2
+    followDeadZone: 2
     armView: 1
     armPitch: 18
     armDistance: 6
@@ -2095,11 +2095,14 @@ MonoBehaviour:
     armSideShift: 2.5
     reframeSpeed: 6
     startPitch: 55
+    downPitch: 45
+    downDistance: 16
+    downLookHeight: 2
   depthSpeed: 0.001
-  footLift: 2
+  stepSwingTime: 0.6
+  stepArcHeight: 0.2
   follow: 12
   gripSpeed: 8
-  turnSpeed: 60
   crouch: 0.15
   bodyFollow: 3
   remoteSmoothing: 15
@@ -2117,6 +2120,7 @@ MonoBehaviour:
     guard: {x: -0.2, y: 0.05, z: 0.55}
     elbowPole: {x: 0.35, y: -1, z: -0.2}
     straightPunch: 1
+    aimCone: 25
     chargeTime: 0.8
     autoFire: 2
     windup: 0.25
@@ -2131,10 +2135,11 @@ MonoBehaviour:
     handFrequency: 6
     handDamping: 0.75
   feel:
-    stompTime: 0.15
-    footTurn: 1
-    maxTurnPerStep: 30
-    bodyTurnSpeed: 2
+    maxTurnPerStep: 25
+    footTurnSpeed: 8
+    idleFootPivot: 2
+    headingFrequency: 3.2
+    headingDamping: 0.25
     bodyFrequency: 1.5
     bodyDamping: 0.55
     landingDip: 6
@@ -2143,6 +2148,20 @@ MonoBehaviour:
     footstepFeel: 1
     hitFeel: 1
     hitRadius: 1.2
+  ragdoll:
+    getUpTime: 1.2
+    topple: 3
+    totalMass: 120
+    thickness: 1
+    pullStrength: 25
+    pullDamping: 6
+  fallRules:
+    maxStress: 500
+    maxTiltAngle: 55
+    airborneGrace: 1
+    bothSteppingGrace: 0.3
+    bothOffBalanceGrace: 0.3
+    countDetachedLegs: 1
 --- !u!65 &745832730
 BoxCollider:
   m_ObjectHideFlags: 0
