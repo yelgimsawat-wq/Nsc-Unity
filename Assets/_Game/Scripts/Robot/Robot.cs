@@ -155,16 +155,20 @@ namespace Nsc.Robots
         {
             // ✅ ขาหลุด = ยืนต่อไม่ได้ — ล้มทันที ไม่งั้นแรงพยุงยังลอยตัวค้าง
             // แล้วขาที่หลุดเอื้อมกลับมาต่อไม่ถึง socket ที่ลอยอยู่
-            if (IsServer && !limb.IsAttached && limb.Slot.IsLeg() && Torso != null)
-                Torso.ServerKnockDown(FallReason.LegDetached);
+            if (IsServer && !limb.IsAttached && limb.Slot.IsLeg())
+                ServerKnockDown(FallReason.LegDetached);
 
             LimbStateChanged?.Invoke(limb);
         }
+
+        /// <summary>[SERVER] หุ่นที่ไม่มี TorsoBalance (หุ่น IK) รับคำสั่งล้มทางนี้</summary>
+        public event Action<FallReason> KnockDownRequested;
 
         /// <summary>[SERVER] ให้ลำตัวล้มด้วยเหตุผลที่ระบุ — ทางเดียวที่คนนอกหุ่นทำให้หุ่นล้มได้</summary>
         public void ServerKnockDown(FallReason reason)
         {
             if (Torso != null) Torso.ServerKnockDown(reason);
+            else KnockDownRequested?.Invoke(reason);
         }
 
         // ================================================================

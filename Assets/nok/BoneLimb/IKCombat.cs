@@ -22,6 +22,8 @@ namespace Nsc.BoneLimb
         public Vector3 elbowPole = new Vector3(0.35f, -1f, -0.2f);
         [Tooltip("เปิด = หมัดพุ่งตรงไปหน้าจากท่าการ์ด (แนวลึกอย่างเดียว) | ปิด = พุ่งไปทางที่เคอร์เซอร์เล็ง")]
         public bool straightPunch;
+        [Tooltip("หมัดตรงเบี่ยงไปทางที่เคอร์เซอร์เล็งได้ไม่เกินกี่องศา (ซ้าย-ขวา/บน-ล่าง) | 0 = ตรงไปหน้าอย่างเดียว")]
+        public float aimCone = 25f;
 
         [Header("หมัด")]
         public float chargeTime = 0.8f;
@@ -94,7 +96,7 @@ namespace Nsc.BoneLimb
                     break;
 
                 case State.Charging:
-                    Vector3 away = straightPunch ? Vector3.back : -(body.InverseTransformPoint(aim) - a.shoulder).normalized;
+                    Vector3 away = straightPunch ? -StraightDir(arm, a, body, aim) : -(body.InverseTransformPoint(aim) - a.shoulder).normalized;
                     a.desired = Vector3.Lerp(a.desired, guardPos + away * (windup * Charge01(a) * arm.Reach), smooth);
                     a.drive = -Charge01(a);
                     if (!held || a.t >= chargeTime + autoFire) Fire(arm, a, body, aim);
@@ -184,19 +186,23 @@ namespace Nsc.BoneLimb
             a.hit = false;
             a.from = a.desired;
             // จำกัดเทียบไหล่ท่าตั้งต้น ไม่ใช่ไหล่ที่บิดถอยตอนง้าง — ไม่งั้นหมัดชาร์จเต็มยื่นสั้นกว่าหมัดแตะ
-            if (straightPunch)
-            {
-                // ตรงไปหน้า: ปลายหมัดอยู่ระดับ/ฝั่งเดียวกับกำปั้นตอนการ์ด แค่ลึกออกไปจนแขนเหยียดสุด
-                Vector3 g = GuardLocal(arm, a, body) - Shoulder(arm, body);
-                float r = arm.Reach * punchReach;
-                a.dir = new Vector3(g.x, g.y, Mathf.Sqrt(Mathf.Max(0f, r * r - g.x * g.x - g.y * g.y))).normalized;
-            }
+            if (straightPunch) a.dir = StraightDir(arm, a, body, aim);
             else
             {
                 Vector3 shift = arm.root.position - body.TransformPoint(a.shoulder);
                 a.dir = (body.InverseTransformPoint(arm.Limits.Limit(arm, body.rotation, aim + shift) - shift) - a.shoulder).normalized;
             }
             Enter(a, State.Punching);
+        }
+
+        // ตรงไปหน้าจากท่าการ์ด (ระดับ/ฝั่งเดียวกับกำปั้น แค่ลึกออกไปจนแขนเหยียดสุด) แล้วเบี่ยงไปทางที่เล็งได้ไม่เกิน aimCone
+        private Vector3 StraightDir(IKLimb arm, Arm a, Transform body, Vector3 aim)
+        {
+            Vector3 sh = Shoulder(arm, body);
+            Vector3 g = GuardLocal(arm, a, body) - sh;
+            float r = arm.Reach * punchReach;
+            Vector3 straight = new Vector3(g.x, g.y, Mathf.Sqrt(Mathf.Max(0f, r * r - g.x * g.x - g.y * g.y))).normalized;
+            return Vector3.RotateTowards(straight, (body.InverseTransformPoint(aim) - sh).normalized, aimCone * Mathf.Deg2Rad, 0f);
         }
 
         private static void Enter(Arm a, State s)
