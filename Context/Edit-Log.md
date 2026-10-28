@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-28 18:24 +07:00 · Q-20261028-kaiju-enemy-feel · files: Assets/nok/Enemy/model/Newpanda.fbx.meta, Context/quests/Q-20261028-kaiju-enemy-feel.md, Assets/nok/Enemy/anim/, Assets/nok/Enemy/anim/mixamo/, Assets/nok/Enemy/KaijuRootMotion.cs, Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/nok/Enemy/KaijuPoseFix.cs, Assets/nok/Enemy/KaijuFeel.cs, Assets/_Game/Scripts/Enemy/EnemyCombat.cs, Assets/nok/Enemy/vfx/Kaiju Dust Cloud.prefab
+  - แก้: แพนด้าไคจูใน TestItem: Humanoid+Mixamo, พุ่งจริง, ragdoll, ฟีล, VFX + ฝุ่นหนัก (ก้าวตรงฝ่าเท้าตอนแตะพื้นจริง), แก้ลอย (scale root 9.57) + ปรับระยะ/VFX ×2.17, ตัวย้วยตอนเดิน; EnemyCombat เพิ่ม vfxOnAttackStart/vfxScale
+  - ตรวจ: 2026-10-28 Play ทีละเฟรม: ฝุ่นก้าวห่างกลางฝ่าเท้า 0.00 เกิดหลังเท้าถึงพื้น 1 เฟรม, เท้าติดพื้น, กระโดดทุบที่ระยะใหม่, ตัวเอียง ±6° ตอนเดิน; ยังไม่ได้ดูด้วยตา, ซีนยังไม่เซฟ
 - 2026-10-27 23:30 +07:00 · Q-20261027-robot-bone-rig · files: Assets/nok/robot/newROBOT/RobotNSC_Rigged.fbx, Context/quests/Q-20261027-robot-bone-rig.md, Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/IKTest.unity, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/nok/BoneLimb/ (ลบ RobotBoneRig/BoneChainSolver/Editor), ProjectSettings/EditorBuildSettings.asset, Assets/nok/BoneLimb/IKLimb.cs, Assets/nok/BoneLimb/JointLimit.cs, Assets/nok/BoneLimb/OrbitCamera.cs, Assets/nok/BoneLimb/IKInput.cs, Assets/nok/BoneLimb/LimbNetState.cs
   - แก้: ระบบ IK ใหม่บน RobotNSC_Rigged ใน IKTest (IK บานพับ, เคอร์เซอร์, ข้อต่อคน, หน้าเลือกชิ้นส่วนเดิม); จัดโค้ดเป็นคลาส OOP: IKLimb, JointLimit/ShoulderLimit/HipLimit, OrbitCamera, IKInput, LimbNetState; ลบ RobotBoneRig เก่า
   - ตรวจ: 2026-10-27 ก่อนจัด OOP: Play IKTest ศอก/เข่าพับตรงแกน ไม่ทะลุ มือตรงเคอร์เซอร์; หลังจัด OOP ยังไม่ได้คอมไพล์/Play เพราะ UnityMCP ต่อไม่ได้
@@ -31,6 +34,3 @@
 - 2026-10-09 15:09 +07:00 · Q-20261009-folder-cleanup · files: Assets/_Game/, Assets/Plugins/Demigiant/, Assets/TextMesh Pro/, Assets/Settings/, Assets/nok/, Assets/Yelmee/, Assets/petong/, Assets/Scenes/, ProjectSettings/EditorBuildSettings.asset, CLAUDE.md
   - แก้: ย้ายของที่เกมใช้จริงเข้า Assets/_Game ตามประเภท (คง GUID), ย้าย DOTween/TMP/URP settings ไปที่มาตรฐาน, ลบไฟล์ขยะ, ล้าง build list, แก้ path ใน Editor tools; แก้บรรทัดฉากเมนูใน CLAUDE.md
   - ตรวจ: 2026-10-09: compile ผ่าน, EditMode 101/101, prefab 55 ตัวไม่มี missing script, Play MAPBOSS ผ่าน; Parkour/PVP ยังไม่ได้เล่นหลังย้าย
-- 2026-10-09 15:00 +07:00 · Q-20261009-ai-setup · files: README.md, AGENTS.md, CLAUDE.md, .gitignore, Context/README.md, Context/Rules.md, Context/Status.md, Context/Agent-Handoff.md, Context/Edit-Log.md, Context/quests/Q-20261009-ai-setup.md, Context/archive/, tools/context/log-edit.py, tools/context/board.py, .claude/settings.local.json
-  - แก้: ปรับ path หลังย้ายโฟลเดอร์ (59762f00) ใน CLAUDE.md และ Context, เพิ่ม SessionStart hook แสดง Board (เฉพาะเครื่องนี้), ปิด Quest ตามที่ผู้ใช้สั่ง
-  - ตรวจ: 2026-10-09 ลิงก์/path 74 จุดครบ, path ใหม่ตรวจกับ git ls-files, hook รันได้ exit 0 (มีผลเมื่อเปิด session ใหม่), ไม่ได้รัน build เกม

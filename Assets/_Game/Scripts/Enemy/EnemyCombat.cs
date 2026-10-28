@@ -96,6 +96,10 @@ namespace NscGame.Enemy
         [SerializeField] private GameObject punchVfxPrefab;
         [SerializeField] private GameObject barrageVfxPrefab;
         [SerializeField] private GameObject kickVfxPrefab;
+        [Tooltip("เล่น VFX ข้างบนที่มือ/เท้าตอนเริ่มท่าด้วย (ปิดได้ถ้าศัตรูเล่น VFX ตามจังหวะท่าเอง เช่น KaijuFeel) — ตอนตีโดนยังเล่นเสมอ")]
+        [SerializeField] private bool vfxOnAttackStart = true;
+        [Tooltip("ขยาย VFX ตามขนาดศัตรู")]
+        [SerializeField] private float vfxScale = 1f;
 
         [Header("VFX Rotation Offset (degrees)")]
         [Tooltip("Additional rotation applied to VFX (X, Y, Z)")]
@@ -467,19 +471,19 @@ namespace NscGame.Enemy
             {
                 case AttackType.LightPunch:
                     animator.SetTrigger(EnemyAnimParam.LightPunch);
-                    SpawnVfx(type, punchVfxPrefab, vfxPosition, vfxRotation);
+                    if (vfxOnAttackStart) SpawnVfx(type, punchVfxPrefab, vfxPosition, vfxRotation);
                     PlaySfx(sfxPunch);
                     break;
 
                 case AttackType.BarragePunch:
                     animator.SetTrigger(EnemyAnimParam.BarragePunch);
-                    SpawnVfx(type, barrageVfxPrefab, vfxPosition, vfxRotation);
+                    if (vfxOnAttackStart) SpawnVfx(type, barrageVfxPrefab, vfxPosition, vfxRotation);
                     PlaySfx(sfxBarrage);
                     break;
 
                 case AttackType.Kick:
                     animator.SetTrigger(EnemyAnimParam.Kick);
-                    SpawnVfx(type, kickVfxPrefab, vfxPosition, vfxRotation);
+                    if (vfxOnAttackStart) SpawnVfx(type, kickVfxPrefab, vfxPosition, vfxRotation);
                     PlaySfx(sfxKick);
                     break;
             }
@@ -544,6 +548,15 @@ namespace NscGame.Enemy
 
             // Spawn new VFX
             GameObject vfx = Instantiate(prefab, position, rotation);
+            if (!Mathf.Approximately(vfxScale, 1f))
+            {
+                vfx.transform.localScale *= vfxScale;
+                foreach (ParticleSystem ps in vfx.GetComponentsInChildren<ParticleSystem>())
+                {
+                    ParticleSystem.MainModule main = ps.main;
+                    main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                }
+            }
             activeVfxByType[type] = vfx;
 
             // Start cleanup coroutine and track it

@@ -1185,7 +1185,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3227742048
+  GlobalObjectIdHash: 3236273089
   InScenePlacedSourceGlobalObjectIdHash: 1939429606
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1586,11 +1586,6 @@ MonoBehaviour:
   shotVfxPrefab: {fileID: 5244900642459055369, guid: a024b8784f71f9343aec84fd199bbae2, type: 3}
   chargeVfxScale: 4
   shotVfxScale: 5
-  shotVfxRotationOffset: {x: 0, y: 0, z: 0}
-  chargeVfxRotationOffset: {x: 0, y: 0, z: 0}
-  shotStreakSpeedMultiplier: 0.25
-  shotTrailsWorldSpace: 1
-  shotVfxWorldSpace: 0
   projectileSpeed: 55
   projectileGravity: 0
   projectileLifetime: 4.5
