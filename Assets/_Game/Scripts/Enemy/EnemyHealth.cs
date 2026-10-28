@@ -47,6 +47,9 @@ namespace NscGame.Enemy
         [Tooltip("Additional knockback when HP is below threshold")]
         [SerializeField] private float weakKnockbackBonus = 0.5f;
 
+        [Tooltip("ปิด = ไม่ผลักตำแหน่งตอนโดนตี (ตัวที่ถอยด้วยท่า root motion เอง เช่น KaijuFeel) — แรงยังส่งไปให้ตัวเอียงเหมือนเดิม")]
+        [SerializeField] private bool positionKnockback = true;
+
         [Header("Hit Reaction VFX/SFX")]
         [SerializeField] private GameObject hitVfxPrefab;
         [SerializeField] private AudioClip sfxHit;
@@ -181,6 +184,8 @@ namespace NscGame.Enemy
             // EnemyUltimate จะรอให้ knockback จบและ agent กลับขึ้น NavMesh ก่อนค่อยกระโดดถอย
             if (ultimate != null)
                 ultimate.ServerTryTrigger(hpRatio);
+
+            if (!positionKnockback) return;
 
             // Calculate knockback direction (horizontal + slight upward)
             Vector3 knockDir = pushDir;

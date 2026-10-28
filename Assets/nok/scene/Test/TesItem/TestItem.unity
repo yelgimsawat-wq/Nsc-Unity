@@ -6358,7 +6358,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NscGame.Enemy.KaijuRootMotion
   ShowTopMostFoldoutHeaderGroup: 1
   stateTag: RootMotion
-  stopNearTarget: 13.045357
+  stopNearTarget: 9
 --- !u!114 &1377000935
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6476,6 +6476,7 @@ MonoBehaviour:
   knockbackMultiplier: 2
   weakKnockbackThreshold: 0.3
   weakKnockbackBonus: 0.5
+  positionKnockback: 0
   hitVfxPrefab: {fileID: 100000, guid: a0ea627a63bb742458018eb7fd083532, type: 3}
   sfxHit: {fileID: 0}
   audioSource: {fileID: 0}
@@ -6497,17 +6498,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NscGame.Enemy.EnemyController
   ShowTopMostFoldoutHeaderGroup: 1
-  attackRange: 30.982721
+  attackRange: 13
   stopDistance: 91.3175
   rollTriggerDistance: 176.32973
   walkThreshold: 391.14325
-  walkSpeed: 5.435565
-  rollSpeed: 21.74226
+  walkSpeed: 6.8
+  rollSpeed: 18
   speedDampTime: 0.15
-  minAttackInterval: 1.5
-  maxAttackInterval: 3
-  postAttackCooldown: 1
-  comboRepeatGap: 0.5
+  minAttackInterval: 4
+  maxAttackInterval: 7
+  postAttackCooldown: 2.5
+  comboRepeatGap: 1.2
   lightPunchChance: 40
   barragePunchChance: 30
   kickChance: 30
@@ -6517,6 +6518,8 @@ MonoBehaviour:
   turnSpeed: 40
   attackTurnSpeed: 30
   rollTurnSpeed: 60
+  paceWhileOnCooldown: 0
+  backOffRangeRatio: 0.6
   pacingRangeMultiplier: 1.5
 --- !u!114 &1377000940
 MonoBehaviour:
@@ -6535,21 +6538,21 @@ MonoBehaviour:
   lightPunchOrigin: {fileID: 397727761}
   barragePunchOrigin: {fileID: 348112855}
   kickOrigin: {fileID: 1495415932}
-  lightPunchRadius: 15.219583
-  barragePunchRadius: 15.219583
-  kickRadius: 17.393808
+  lightPunchRadius: 15
+  barragePunchRadius: 15
+  kickRadius: 14
   playerLayer:
     serializedVersion: 2
     m_Bits: 8
-  maxStrikeReach: 34.787617
-  guaranteeHitInReach: 1
-  lightPunchHitDelay: 0.8
-  kickHitDelay: 1.9099998
+  maxStrikeReach: 18
+  guaranteeHitInReach: 0
+  lightPunchHitDelay: 1.2
+  kickHitDelay: 2.77
   lightPunchDamage: 20
   kickDamage: 40
   barrageTotalDamage: 48
-  barrageHitInterval: 0.1
-  barrageDuration: 1.5
+  barrageHitInterval: 1.4
+  barrageDuration: 1.4
   attackRecoverDelay: 0.25
   attackResetFade: 0.15
   punchVfxPrefab: {fileID: 6916079054828060493, guid: 91d63e05cd2bf024f9961e4926cc2347, type: 3}
@@ -6780,6 +6783,7 @@ MonoBehaviour:
   keepFeetAboveGround: 1
   model: {fileID: 0}
   liftSmoothing: 25
+  legsOnlyLayer: Hit Layer
 --- !u!114 &1377000948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6798,17 +6802,21 @@ MonoBehaviour:
   stepSpeedForFullShake: 32.61339
   footstepDust: {fileID: 3741257588182094228, guid: a593dc7a814598c4da52fe30a95006ac, type: 3}
   footstepDustScale: 3.2613392
+  footstepShakeScale: 2
+  fullWalkSpeed: 6.8
+  locomotionParameter: Speed
   stepSway: 8
   inertiaSway: 2.4
   maxInertiaAccel: 40
   attackLayer: 2
   speedParameter: AttackSpeed
+  attackPace: 0.7
   windups:
   - state: Attack_Light
     strikeTime: 0.28
     windupSpeed: 0.35
     strikeSpeed: 1.1
-    strikeVfx: {fileID: 1034935213373066521, guid: d2268aa9963d3d24aa4e9121e4efeafe, type: 3}
+    strikeVfx: {fileID: 0}
     strikeAtHand: 1
     vfxScale: 8.696904
   - state: Attack_Kick
@@ -6823,20 +6831,26 @@ MonoBehaviour:
   telegraphRumble: 0.15
   slamTag: RootMotion
   slamTime: 1.53
-  slamShake: 1.2
-  slamShakeDuration: 0.7
-  slamFovKick: 6
+  slamShake: 1.5
+  slamShakeDuration: 1.1
+  slamFovKick: 10
+  slamFreeze: 0.08
   slamVfx:
   - {fileID: 9181631073716312681, guid: 2daf5ee49c086a3449322358c6da277d, type: 3}
   - {fileID: 3741257588182094228, guid: a593dc7a814598c4da52fe30a95006ac, type: 3}
   slamVfxScale: 13.045357
+  slamWarningMaterial: {fileID: 2100000, guid: 233f5add0d4a7354b9094d08ae001044, type: 2}
+  slamRadius: 14
+  slamLunge: 17
+  slamWarningColor: {r: 1, g: 0.1, b: 0.05, a: 0.45}
   barrageState: Attack_Barrage
-  barrageVfx: {fileID: 2427786012956944610, guid: da0de216ad60c5d46a6b049d61961615, type: 3}
+  barrageVfx: {fileID: 0}
   barrageVfxScale: 6.5226784
   barrageMinHandSpeed: 26.090714
-  staggerDamage: 15
-  staggerDistance: 6.5226784
-  staggerTime: 0.35
+  hitLayer: Hit Layer
+  hitState: HitReact
+  hitRestartAfter: 0.35
+  hitRecoverTime: 0.6
 --- !u!4 &1380227588 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1018631901590436294, guid: 45acbd86d88a876468534b08dd724e17, type: 3}

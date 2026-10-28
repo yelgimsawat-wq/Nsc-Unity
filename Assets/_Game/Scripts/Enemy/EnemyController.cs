@@ -100,6 +100,13 @@ namespace NscGame.Enemy
         [SerializeField] private float rollTurnSpeed = 540f;
 
         [Header("Pacing (เดินวนระหว่างพักคอมโบ)")]
+        [Tooltip("ปิด = ระหว่างรอคูลดาวน์ในระยะตี ยืนนิ่งหันหาเป้า (ตัวใหญ่หนักๆ) แทนเดินวน")]
+        [SerializeField] private bool paceWhileOnCooldown = true;
+
+        [Tooltip("ใช้เมื่อปิดเดินวน: เป้าเข้ามาใกล้กว่า Attack Range × ค่านี้ → เดินถอยหลัง (หันหน้าเข้าหาเป้า) | 0 = ไม่ถอย")]
+        [Range(0f, 1f)]
+        [SerializeField] private float backOffRangeRatio = 0f;
+
         [Tooltip("ระยะถอยสูงสุดตอนเดินวน = Attack Range × ค่านี้\nยิ่งมากยิ่งถอยห่าง (1.5 = ถอยได้ไม่เกิน 1.5 เท่าของระยะตี)")]
         [Range(1.05f, 3f)]
         [SerializeField] private float pacingRangeMultiplier = 1.5f;
@@ -302,7 +309,7 @@ namespace NscGame.Enemy
                     ChooseAndExecuteAttack();
                 }
                 // Priority 1b: Close to the player but on attack cooldown - walk/circle around the player
-                else if (dist <= stopDistance && attackDecTimer > 0f)
+                else if (dist <= stopDistance && attackDecTimer > 0f && paceWhileOnCooldown)
                 {
                     pacingTimer -= Time.deltaTime;
                     // If pacing destination is reached or timer expired, pick a new spot
@@ -334,6 +341,18 @@ namespace NscGame.Enemy
                     agent.isStopped = false;
                     agent.speed = walkSpeed * 0.8f; // Move slightly slower while pacing
                     agent.SetDestination(pacingDestination);
+                    netSpeed.Value = 0.5f;
+                    SetState(EnemyState.Walk);
+                }
+                // Priority 1c: เป้าเข้ามาใกล้เกิน → ถอยหลังช้าๆ (หันหน้าตามเป้าอยู่แล้วจาก RotateTowardsTarget)
+                // ใช้ agent.Move แทน SetDestination เพราะ stoppingDistance (75% ระยะตี) ยาวกว่าระยะถอย = agent ไม่ยอมขยับ
+                else if (!paceWhileOnCooldown && dist < attackRange * backOffRangeRatio)
+                {
+                    Vector3 away = transform.position - playerTarget.position;
+                    away.y = 0f;
+                    if (away.sqrMagnitude < 0.01f) away = -transform.forward;
+                    agent.isStopped = true;
+                    agent.Move(away.normalized * walkSpeed * 0.6f * Time.deltaTime);
                     netSpeed.Value = 0.5f;
                     SetState(EnemyState.Walk);
                 }

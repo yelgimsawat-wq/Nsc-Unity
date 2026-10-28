@@ -16,6 +16,7 @@ namespace NscGame.Enemy
         [SerializeField] private string stateTag = "RootMotion";
         [Tooltip("พุ่งเข้าใกล้หุ่นได้สุดแค่นี้ (แนวพื้น) — ไม่พุ่งเลยตัวหุ่นไป")]
         [SerializeField] private float stopNearTarget = 6f;
+        public float StopNearTarget => stopNearTarget;
 
         private Animator animator;
         private NavMeshAgent agent;
