@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Nsc.Combat;
 using Nsc.Feel;
 using Nsc.Match;
 using Nsc.Robots;
@@ -15,7 +16,7 @@ namespace Nsc.BoneLimb
     /// ไฟล์นี้ทำแค่: ใครคุมชิ้นไหน, แปลงเคอร์เซอร์เป็นเป้า, เดินตามเท้า, ซิงก์ และ UI
     ///
     /// แขน: มือตามเคอร์เซอร์ (ระนาบหน้าไหล่, Shift+ล้อ ดัน/ดึง), คลิกซ้ายค้าง = กำ
-    /// ขา (แบบหุ่นเดิม): ชี้พื้น + คลิก = ก้าวเป็นเส้นโค้งไปตรงนั้น, ค้าง = ลอยตามเคอร์เซอร์ ปล่อย = วาง (ก้าวเฉียง = เลี้ยว) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง
+    /// ขา (แบบหุ่นเดิม): ชี้พื้น + คลิก = ก้าวเป็นเส้นโค้งไปตรงนั้น, ค้าง = ลอยตามเคอร์เซอร์ ปล่อย = วาง (ก้าวเฉียง = เลี้ยว, Shift = เตะสูงไปทาง ◈) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง
     ///
     /// ใครคุมชิ้นไหน = หน้าเลือกชิ้นส่วนเดิม (LimbSelection บน SelectPart) — หุ่นนี้มี Robot + RobotLimb 4 ช่องให้มันรู้จัก
     /// เข้าห้อง: AutoStartHost ในฉาก (เปิดฉากตรงๆ) หรือ Join code จากเมนู | ไม่มี NetworkManager = เล่นคนเดียว กด 1-4 สลับชิ้น
@@ -57,6 +58,40 @@ namespace Nsc.BoneLimb
         [Header("ความหนัก: ก้าว, น้ำหนักตัว, เอฟเฟกต์")]
         [SerializeField] private IKFeel feel = new IKFeel();
 
+        [Header("ดาเมจหมัด (แบบ LimbStrike เดิม: ดาเมจ = ความเร็วพีคของกำปั้น × speedToDamage)")]
+        [Tooltip("กำปั้นเร็วกว่านี้ (m/s) = กำลังต่อย — ช้ากว่านี้ชนอะไรก็ไม่มีดาเมจ")]
+        [SerializeField] private float strikeMinSpeed = 8f;
+        [Tooltip("ความเร็วพีค (m/s) × ค่านี้ = ดาเมจ — หุ่น IK กำปั้นช้ากว่า (หมัดแตะ ~18 m/s) ตั้ง 1.6 ให้ได้ ~30 ใกล้หมัดหุ่นเดิม (พีค 55 × 0.6 = 33)")]
+        [SerializeField] private float strikeSpeedToDamage = 1.6f;
+        [SerializeField] private float strikeMaxDamage = 60f;
+        [Tooltip("รัศมีกำปั้นที่นับว่าโดน")]
+        [SerializeField] private float strikeRadius = 1.2f;
+
+        [Header("ถีบแบบบาทาลูบพักตร์ (กด Shift = ยกเข่าแล้วถีบฝ่าเท้าไปทาง ◈ — ดาเมจคิดแบบหมัด)")]
+        [Tooltip("เวลายกเข่าก่อนถีบ (วินาที) — สั้น = กดแล้วออกเท้าไว")]
+        [SerializeField] private float kickChamberTime = 0.25f;
+        [Tooltip("ความเร็วเป้าเท้าตอนถีบ (m/s) × แรงที่เหลือตามเลือดขา — ปลายเท้าจริงเร็วกว่านี้ตอนเข่าเหยียด")]
+        [SerializeField] private float kickThrustSpeed = 35f;
+        [Tooltip("ความเร็วพีคของเท้า × ค่านี้ = ดาเมจถีบ (เพดาน strikeMaxDamage)")]
+        [SerializeField] private float kickSpeedToDamage = 1.2f;
+        [Tooltip("ยกเข่า: เท้าอยู่ต่ำกว่าสะโพกเท่านี้ (สัดส่วนความยาวขา) — น้อย = ยกเข่าสูง")]
+        [SerializeField] private float kickChamberDrop = 0.3f;
+        [Tooltip("ขาเหยียดชี้ขึ้นเหนือแนวราบกี่องศา — 25 = ถีบตรงไปข้างหน้าระดับหน้าคู่ต่อสู้ (บาทาลูบพักตร์), 55 = เตะสูงแบบคาราเต้")]
+        [SerializeField] private float kickHighAngle = 25f;
+        [Tooltip("ลำตัวเอนหนีเท้าที่ยกสูงสุดกี่องศา (เตะสูงแล้วตัวเอนถ่วงไว้)")]
+        [SerializeField] private float kickLean = 30f;
+        [Tooltip("ถีบได้แค่ข้างหน้า: ทิศ ◈ เบนจากหน้าหุ่นได้ไม่เกินกี่องศา (เล็งตามเคอร์เซอร์ได้ระหว่างยกเข่า แบบแขนที่เล็งได้ในกรอบข้อต่อ)")]
+        [SerializeField] private float kickAimLimit = 25f;
+        [Tooltip("ปลายเท้าเชิดขึ้นตอนถีบ (องศา) — ฝ่าเท้าหันเข้าเป้า")]
+        [SerializeField] private float kickSolePitch = 70f;
+        [Tooltip("ถีบสุดแล้วเท้าตกลงพื้นด้วยความเร่งนี้ (m/s²) — มาก = กระแทกลงไว")]
+        [SerializeField] private float kickFallGravity = 40f;
+        [Tooltip("แรงเตะที่เหลือตอนขาแทบไม่มีเลือด (หุ่นเดิม 0.3 → 100% ตามเลือด)")]
+        [Range(0f, 1f)] [SerializeField] private float kickPowerAtZeroHealth = 0.3f;
+
+        [Header("ชิ้นส่วนหลุด (ดึงกลับ: R ค้าง แบบหุ่นเดิม)")]
+        [SerializeField] private IKDetach detach = new IKDetach();
+
         [Header("ล้ม: ragdoll บนกระดูก + กฎล้มเดียวกับหุ่นเดิม")]
         [SerializeField] private IKRagdoll ragdoll = new IKRagdoll();
         // สองเท้ายกพร้อมกันได้ 0.3 วิก่อนล้ม (หุ่นเดิม 0.15) — ผู้ใช้ขอให้ล้มยากขึ้นนิดหนึ่ง
@@ -73,6 +108,17 @@ namespace Nsc.BoneLimb
         private Vector3 bodyVel;
         private float yawVel;
         private static readonly Collider[] hitBuffer = new Collider[8];
+        // ดาเมจหมัด (Server): ปลายแขนเฟรมก่อน, ความเร็วพีคของท่านี้, ท่านี้โดนไปแล้ว (หนึ่งท่าหนึ่งดาเมจ)
+        private Vector3[] lastTip;
+        private float[] strikePeak;
+        private bool[] struck;
+        private bool[] tracked;               // เฟรมก่อนนับหมัดได้ไหม — เฟรมแรกหลังลุก/ต่อชิ้น/เริ่มเกม ปลายแขนกระโดด ไม่ใช่การต่อย
+        // เตะ (เครื่องที่คุมขา): เวลายกเข่า (-1 = ไม่ได้ยก), ทิศเตะ, เท้าเทียบสะโพกตอนเริ่มท่า, ปลายท่า, ความเร็วเท้า
+        private float[] kickCharge;
+        private Vector3[] kickDir, kickFrom, kickEnd;
+        private float[] kickSpeed;            // ถีบ/ชักกลับ = ความเร็วเท้า, ตก = ความเร็วตก
+        private bool[] kickFall;              // ถีบสุดแล้วเท้ากำลังตกลงตรงนั้น
+        private Transform[] slots;            // ช่อง RobotLimb (มี LimbHealth) — ตามปลายแขนขา ให้ศัตรูเล็งชิ้นที่ใกล้ได้ถูก
 
         private IKCombat.Arm[] arms;          // ช่องเดียวกับ limbs, ขา = null
         private Transform spine;
@@ -96,6 +142,15 @@ namespace Nsc.BoneLimb
         private NetworkVariable<Quaternion> fallHipsRot = new NetworkVariable<Quaternion>(Quaternion.identity);
         private NetworkVariable<bool> fallen = new NetworkVariable<bool>();
         private NetworkVariable<int> standVotes = new NetworkVariable<int>(); // คนที่คุมชิ้นอยู่และกด Q แล้ว — โชว์บนจอ
+        // ชิ้นส่วนหลุด: สถานะจริงอยู่ที่ LimbAttachment ของแต่ละช่อง (ซิงก์เอง) | บิตละชิ้น = กำลังถูกดึงกลับ (ทุกเครื่องเล่นภาพลอยกลับ)
+        private NetworkVariable<byte> pullMask = new NetworkVariable<byte>();
+        private byte offlinePull;
+        private LimbAttachment[] attachments;
+        private bool[] attachedNow, pullHeld;
+        private float[] pullTimer;            // Server: ดึงมานานเท่าไร
+        private int myPull = -1;              // ชิ้นที่เครื่องนี้กำลังกด R ดึง
+        private float[] seat;                 // ต่อกลับแล้ว: ชิ้นเด้งแล้วยุบเข้าที่ 0..1 (1 = เสร็จ)
+        private Collider[] robotColliders;
         private bool down;              // นอนอยู่ (ragdoll คุม) — ทุกเครื่อง
         private bool votedStand;        // เครื่องนี้กด Q ขอลุกแล้ว
         private readonly HashSet<ulong> standVoters = new HashSet<ulong>(); // Server: ใครกด Q แล้ว
@@ -139,6 +194,13 @@ namespace Nsc.BoneLimb
             for (int i = 0; i < limbs.Length; i++) footMark[i] = limbs[i].target.position;
             swingT = new float[limbs.Length];
             swingLift = new float[limbs.Length];
+            kickCharge = new float[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++) kickCharge[i] = -1f;
+            kickDir = new Vector3[limbs.Length];
+            kickFrom = new Vector3[limbs.Length];
+            kickEnd = new Vector3[limbs.Length];
+            kickSpeed = new float[limbs.Length];
+            kickFall = new bool[limbs.Length];
             airborne = new bool[limbs.Length];
             lastBodyPos = transform.position;
             planted = new Vector3[limbs.Length];
@@ -162,7 +224,32 @@ namespace Nsc.BoneLimb
             foreach (IKLimb limb in limbs)
                 if (limb.hit) ignore.AddRange(limb.hit.GetComponentsInChildren<Collider>());
             ragdoll.Build(transform, model, limbs, ignore);
+            robotColliders = ignore.ToArray();
+            detach.Build(model, limbs.Length, robotColliders);
+            attachedNow = new bool[limbs.Length];
+            pullHeld = new bool[limbs.Length];
+            pullTimer = new float[limbs.Length];
+            seat = new float[limbs.Length];
+            lastTip = new Vector3[limbs.Length];
+            strikePeak = new float[limbs.Length];
+            struck = new bool[limbs.Length];
+            tracked = new bool[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++) seat[i] = 1f;
+            for (int i = 0; i < limbs.Length; i++) attachedNow[i] = true;
             if (robot) robot.KnockDownRequested += ServerKnockDown;
+        }
+
+        // RobotLimb หา LimbAttachment ของตัวเองใน Awake ของมัน — อ่านหลังทุก Awake จบ
+        private void Start()
+        {
+            attachments = new LimbAttachment[limbs.Length];
+            slots = new Transform[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                RobotLimb slot = robot ? robot.GetLimb((LimbSlot)i) : null;
+                attachments[i] = slot ? slot.Attachment : null;
+                slots[i] = slot ? slot.transform : null;
+            }
         }
 
         public override void OnDestroy()
@@ -230,8 +317,20 @@ namespace Nsc.BoneLimb
                 else ServerKnockDown(FallReason.KnockedDown);
             }
 #endif
-            // ล้มแล้วนอนไปเรื่อยๆ จนทุกคนที่คุมชิ้นกด Q (เล่นคนเดียว = กดเองลุกเลย)
-            if (down && input.standUp && !votedStand)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (input.detachTest && canAct)
+                for (int i = 0; i < limbs.Length; i++)
+                    if (IsMine(i))
+                    {
+                        if (Online) DetachTestRpc(i);
+                        else if (attachments[i]) attachments[i].ServerDetach();
+                        break;
+                    }
+#endif
+            UpdateDetach(input);
+
+            // ล้มแล้วนอนไปเรื่อยๆ จนทุกคนที่คุมชิ้นกด Q (เล่นคนเดียว = กดเองลุกเลย) — ขาหลุดอยู่ต้องดึงกลับก่อน
+            if (down && input.standUp && !votedStand && (Online || LegsAttached()))
             {
                 votedStand = true;
                 if (Online) StandVoteRpc();
@@ -248,6 +347,7 @@ namespace Nsc.BoneLimb
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
+                if (!Attached(i)) continue; // หลุดอยู่: คุมไม่ได้ (ภาพ/ดึงกลับอยู่ใน UpdateDetach)
                 if (down)
                 {
                     if (IsMine(i))
@@ -279,6 +379,7 @@ namespace Nsc.BoneLimb
                 {
                     if (arms[i] != null) combat.Release(limb, arms[i]); // ไม่ให้หมัดที่ชาร์จค้างไว้พุ่งเองตอนได้คุมคืน
                     limb.Lifted = false; // ได้คุมคืนทีหลัง = เริ่มก้าวใหม่ ไม่ต่อโค้งเก่า
+                    CancelKick(i);       // ชาร์จ/ถีบค้างไม่ไปต่อเอง (เครื่องอื่นได้ค่าจริงจาก ApplyTo ข้างล่าง)
                     if (limb.isArm && !Online) limb.Grip = Mathf.MoveTowards(limb.Grip, 0f, gripSpeed * Time.deltaTime);
                     if (Online) states[i].ApplyTo(limb, remoteT);
                     if (!limb.isArm && DrivesBody && !HasController(i))
@@ -356,12 +457,16 @@ namespace Nsc.BoneLimb
                                * Quaternion.AngleAxis(bodyPose.y + lean.x, transform.right)
                                * Quaternion.AngleAxis(lean.y, transform.forward) * spine.rotation;
             }
-            foreach (IKLimb limb in limbs)
+            for (int i = 0; i < limbs.Length; i++)
             {
+                IKLimb limb = limbs[i];
+                if (!Attached(i)) continue; // ซ่อนอยู่ (กระดูกย่อ) — แก้ IK แล้วทิศเป็นศูนย์
                 // ขา: เข่าชี้ตามทิศเท้า (ไม่ใช่ทิศลำตัว) — เท้าเฉียงแล้วขาไม่บิดที่ข้อเท้า
                 limb.Solve(limb.isArm ? transform.rotation : Quaternion.Euler(0f, FootYaw(limb), 0f));
                 limb.ApplyFingers();
+                if (slots != null && slots[i]) slots[i].position = limb.tip.position;
             }
+            if (DrivesBody) ServerStrikes();
             if (getUp >= 0f)
             {
                 ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp));
@@ -461,6 +566,17 @@ namespace Nsc.BoneLimb
             lastBodyPos = transform.position;
             Vector3 goal = new Vector3(Mathf.Clamp(v.z * feel.leanPerSpeed, -feel.maxLean, feel.maxLean),
                                        Mathf.Clamp(-v.x * feel.leanPerSpeed, -feel.maxLean, feel.maxLean), 0f);
+            // ถีบ: ลำตัวเอนหนีเท้าที่ยกสูง (แบบเตะสูงคาราเต้) — คิดจากเป้าเท้าที่ซิงก์ ทุกเครื่องได้ท่าเดียวกัน
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                IKLimb leg = limbs[i];
+                if (leg.isArm || !leg.KickPose) continue;
+                Vector3 d = transform.InverseTransformDirection(leg.target.position - leg.root.position);
+                Vector2 away = new Vector2(d.x, d.z).normalized;
+                float raise = kickLean * Mathf.Clamp01((leg.target.position.y - planted[i].y) / leg.Reach);
+                goal.x -= away.y * raise; // ถีบไปหน้า = เอนหลัง
+                goal.y += away.x * raise; // ถีบไปขวา = เอนซ้าย
+            }
             Vector3 now = lean;
             IKFeel.Spring(ref now, ref leanVel, goal, 2f, 0.5f, dt);
             lean = now;
@@ -484,6 +600,7 @@ namespace Nsc.BoneLimb
             // จุดเล็งตามเมาส์ทุกเฟรม (◈ บอกว่าคลิกแล้วเท้าจะลงตรงไหน) — คลิกขวาหันกล้อง = จุดเล็งค้าง (หุ่นเดิม UpdatePointAim)
             if (!input.looking && cam && Physics.Raycast(input.ray, out RaycastHit hit, 1000f)) footMark[i] = ClampStep(leg, hit.point);
             // ส่งเป้าเฉพาะตอนกดค้าง (หุ่นเดิม) — ปล่อยแล้วเท้าลงตรงจุดสุดท้าย ไม่ไหลตามเมาส์
+            if (DriveKick(i, leg, input, Mathf.Min(Time.deltaTime, 0.05f))) return;
             if (input.held) stepAim[i] = footMark[i];
             if (input.held && !leg.Lifted)
             {
@@ -509,6 +626,102 @@ namespace Nsc.BoneLimb
             leg.target.position = OnGround(leg, flat) + Vector3.up * (Mathf.Sin(swingLift[i] * Mathf.PI * 0.5f) * leg.Reach * stepArcHeight);
             // ลอยอยู่: เท้าค่อยๆ หมุนกลับชี้ทิศลำตัว (หุ่นเดิม) — หันตามก้าวตอนวางลง
             leg.target.rotation = Quaternion.Slerp(leg.target.rotation, transform.rotation * leg.RestRotation, 1f - Mathf.Exp(-feel.footTurnSpeed * dt));
+        }
+
+        // ถีบ (ผู้ใช้ 2026-10-28: เตะแนวพื้นแบบเดิมดูทำอะไรใครไม่ได้ → เปลี่ยนเป็นถีบ)
+        // กด Shift (ผู้ใช้ 2026-10-28 "กดแล้วถีบเลย" + "เอาแบบบาทาลูบพักตร์"): ยกเข่า kickChamberTime วิ แล้วถีบขาเหยียดชี้ขึ้น kickHighAngle
+        // ไปทาง ◈ เร็ว kickThrustSpeed × แรงที่เหลือของขา, ลำตัวเอนหนีเท้า (UpdateLean)
+        // ยืดขาสุดแล้วเท้าตกลงตรงที่อยู่ (ผู้ใช้ขอ) — ใต้เท้ามีของสูงกว่าเท้า (ศัตรู/ตึก) = ชักกลับวางที่เดิม ไม่ขึ้นไปยืนบนนั้น
+        // true = ท่าถีบคุมเท้าเฟรมนี้ (ไม่ก้าว)
+        // ซิงก์: leg.KickPose = อยู่ในท่า (ตัวหุ่นไม่ไหลตามเท้านี้), leg.Kick = ช่วงพุ่งออก (Server นับดาเมจเฉพาะช่วงนี้)
+        private bool DriveKick(int i, IKLimb leg, IKInput input, float dt)
+        {
+            Vector3 hip = leg.root.position;
+            if (kickCharge[i] < 0f && !leg.KickPose)
+            {
+                if (!input.kick) return false;
+                kickCharge[i] = 0f;
+                kickDir[i] = KickAim(i, leg, hip);
+                kickFrom[i] = leg.target.position - hip; // รวมความสูง — กดกลางก้าว (เท้าลอย) ยกเข่าต่อจากตรงนั้น ไม่วาร์ปลงพื้นก่อน
+                leg.Lifted = leg.KickPose = true;
+            }
+            // จุดเริ่มท่า ยกเท่ายอดโค้งก้าว — ชักกลับมาตรงนี้แล้วต่อช่วงลงของก้าวได้ไม่กระตุก
+            Vector3 home = OnGround(leg, hip + kickFrom[i]) + Vector3.up * (leg.Reach * stepArcHeight);
+            // ปลายเท้าเชิดตามมุมขา ไม่เกิน 85° — เกินแล้วมุม yaw ของเท้ากลับด้าน เข่าชี้ผิดทาง
+            Quaternion sole = Quaternion.AngleAxis(-Mathf.Min(kickSolePitch + kickHighAngle, 85f), Vector3.Cross(Vector3.up, kickDir[i]))
+                            * Quaternion.LookRotation(kickDir[i]) * leg.RestRotation;
+            if (kickCharge[i] < 0f && kickFall[i])
+            {
+                // ตก: เร่งลงตรงๆ จนถึงพื้น แล้วปักแบบก้าว (DetectLandings เล่นเสียง/ฝุ่น/จอสั่น) หันตามครึ่งมุมก้าวเหมือนก้าวปกติ
+                kickSpeed[i] += kickFallGravity * dt;
+                Vector3 land = OnGround(leg, ClampStep(leg, leg.target.position));
+                Quaternion flat = Quaternion.Euler(0f, transform.eulerAngles.y + StepTurn(leg, planted[i], land), 0f) * leg.RestRotation;
+                leg.target.position = new Vector3(land.x, Mathf.Max(land.y, leg.target.position.y - kickSpeed[i] * dt), land.z);
+                leg.target.rotation = Quaternion.Slerp(leg.target.rotation, flat, 1f - Mathf.Exp(-12f * dt));
+                if (leg.target.position.y > land.y) return true;
+                leg.target.rotation = flat;
+                CancelKick(i);
+                leg.Lifted = false;
+                return true;
+            }
+            if (kickCharge[i] < 0f)
+            {
+                if (!leg.Kick) kickEnd[i] = home; // ชักกลับ: ตัวหุ่นขยับระหว่างนั้น — ตามจุดเริ่มท่า
+                leg.target.position = Vector3.MoveTowards(leg.target.position, kickEnd[i], kickSpeed[i] * dt);
+                if (leg.Kick) leg.target.rotation = Quaternion.Slerp(leg.target.rotation, sole, 1f - Mathf.Exp(-20f * dt));
+                if (leg.target.position != kickEnd[i]) return true;
+                if (leg.Kick)
+                {
+                    leg.Kick = false;
+                    kickFall[i] = OnGround(leg, ClampStep(leg, leg.target.position)).y < leg.target.position.y;
+                    kickSpeed[i] = kickFall[i] ? 0f : kickSpeed[i] * 0.5f; // ตกเริ่มจากนิ่ง | ชักกลับช้าลงครึ่งหนึ่ง
+                    return true;
+                }
+                CancelKick(i);
+                liftFrom[i] = stepAim[i] = ClampStep(leg, leg.target.position);
+                swingT[i] = swingLift[i] = 1f; // ช่วงลงของก้าว + เท้าค่อยๆ หมุนกลับราบ
+                return true;
+            }
+            // ยกเข่า: เท้าจากพื้นขึ้นไปเก็บไว้หน้าตัวใน kickChamberTime วิ
+            kickCharge[i] += dt;
+            float t = Mathf.Clamp01(kickCharge[i] / kickChamberTime);
+            if (t < 1f)
+            {
+                kickDir[i] = KickAim(i, leg, hip); // ระหว่างยกเข่ายังเล็งเบนได้ — ปล่อยเท้าแล้วล็อกทิศ
+                Vector3 chamber = hip + kickDir[i] * (leg.Reach * 0.2f) - Vector3.up * (leg.Reach * kickChamberDrop);
+                leg.target.position = Vector3.Lerp(hip + kickFrom[i], chamber, Mathf.SmoothStep(0f, 1f, t));
+                leg.target.rotation = Quaternion.Slerp(Quaternion.LookRotation(kickDir[i]) * leg.RestRotation, sole, t * 0.5f);
+                return true;
+            }
+            kickCharge[i] = -1f;
+            kickSpeed[i] = kickThrustSpeed * KickHealthPower(i);
+            // ยืดสุด (0.98 ของขา — เหยียดตรงเป๊ะ IK หาทิศเข่าไม่ได้)
+            float e = kickHighAngle * Mathf.Deg2Rad;
+            kickEnd[i] = hip + (kickDir[i] * Mathf.Cos(e) + Vector3.up * Mathf.Sin(e)) * (leg.Reach * 0.98f);
+            leg.Kick = true;
+            return true;
+        }
+
+        // ถีบได้แค่ข้างหน้า: ทิศไป ◈ เบนจากหน้าหุ่นได้ไม่เกิน ±kickAimLimit | ◈ ใกล้สะโพกเกินไป = ตรงหน้า
+        private Vector3 KickAim(int i, IKLimb leg, Vector3 hip)
+        {
+            Vector3 front = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+            Vector3 aim = Vector3.ProjectOnPlane(footMark[i] - hip, Vector3.up);
+            if (aim.magnitude <= leg.Reach * 0.1f) return front;
+            float yaw = Mathf.Clamp(Vector3.SignedAngle(front, aim, Vector3.up), -kickAimLimit, kickAimLimit);
+            return Quaternion.AngleAxis(yaw, Vector3.up) * front;
+        }
+
+        private void CancelKick(int i)
+        {
+            limbs[i].Kick = limbs[i].KickPose = kickFall[i] = false;
+            kickCharge[i] = -1f;
+        }
+
+        private float KickHealthPower(int i)
+        {
+            LimbHealth health = robot ? robot.GetLimb((LimbSlot)i)?.Health : null;
+            return health ? Mathf.Lerp(kickPowerAtZeroHealth, 1f, Mathf.Clamp01(health.Hp / Mathf.Max(1f, health.StartingMaxHp))) : 1f;
         }
 
         // หุ่นเดิม (ClampPlantWithinReach): ตัดแค่ระยะแนวราบจากสะโพก ไม่ใช่ทรงกลมความยาวขา — ตัดทรงกลมแล้วเท้าโดนดึงมาใต้ตัวทุกก้าว
@@ -544,13 +757,22 @@ namespace Nsc.BoneLimb
             Vector3 mid = Vector3.zero;
             int legs = 0;
             bool stepping = false;
+            float floor = float.MaxValue;
             for (int i = 0; i < limbs.Length; i++)
-                if (!limbs[i].isArm) { mid += limbs[i].target.position; legs++; stepping |= airborne[i]; }
+            {
+                IKLimb leg = limbs[i];
+                if (leg.isArm) continue;
+                mid += leg.KickPose ? planted[i] : leg.target.position; // ถีบ = ยืนขาเดียว ตัวไม่ไหลตามเท้าที่ถีบ
+                legs++;
+                stepping |= airborne[i] && !leg.KickPose;
+                // ความสูงตัว = พื้นใต้เท้าที่ปักอยู่ข้างที่ต่ำสุด (เท้ายก/ถีบใช้จุดที่ปักล่าสุด) — ไม่ใช่พื้นใต้กลางตัว:
+                // ยืนบนกล่องสองใบ กลางตัวเป็นร่อง ตัวเคยทรุดจนขาพับ | ยืนต่างระดับ ขาข้างสูงงอเอาแบบขึ้นบันได
+                floor = Mathf.Min(floor, (airborne[i] || leg.KickPose ? planted[i].y : leg.target.position.y) - leg.RestHeight);
+            }
             if (legs == 0) return;
             mid /= legs;
 
-            Vector3 goal = new Vector3(mid.x, 0f, mid.z);
-            goal.y = GroundY(goal) - crouch;
+            Vector3 goal = new Vector3(mid.x, floor - crouch, mid.z);
             // หุ่นเดิม stepCenterMultiplier 2: ระหว่างก้าวดึงตัวแรงขึ้นสองเท่า (แรงสปริง ×2 = ความถี่ ×√2) ตัวไหลทันเท้า = ก้าวยาว
             float frequency = feel.bodyFrequency * (stepping ? 1.414f : 1f);
             if (feel.bodyFrequency > 0f) IKFeel.Spring(ref bodyPos, ref bodyVel, goal, frequency, feel.bodyDamping, Time.deltaTime);
@@ -574,6 +796,155 @@ namespace Nsc.BoneLimb
             IKFeel.Spring(ref x, ref v, face, feel.headingFrequency, feel.headingDamping, Time.deltaTime);
             yawVel = v.x;
             bodyRot = Quaternion.Euler(0f, x.x, 0f);
+        }
+
+        // ================================================================ ดาเมจ
+
+        // หุ่นเดิม (LimbStrike): กำปั้นเร็วเกิน strikeMinSpeed = กำลังต่อย → แตะของที่รับดาเมจได้ = ดาเมจตามความเร็วพีคของท่า
+        // หนึ่งท่าหนึ่งครั้ง (ช้าลงต่ำกว่าเกณฑ์ = จบท่า) | Server ดูกำปั้นที่แก้ IK แล้ว — แขนของ client มาจาก state ที่ซิงก์
+        private void ServerStrikes()
+        {
+            float dt = Time.deltaTime;
+            if (dt <= 0f) return;
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                IKLimb limb = limbs[i];
+                Vector3 tip = limb.tip.position, move = tip - lastTip[i];
+                lastTip[i] = tip;
+                bool wasTracked = tracked[i];
+                tracked[i] = Attached(i) && !down && getUp < 0f;
+                float speed = move.magnitude / dt;
+                // แขน: นับเฉพาะกำปั้นพุ่งออกจากไหล่ (ดึงหมัดกลับเร็วๆ ไม่ใช่การต่อย) | ขา: เฉพาะช่วงถีบ (ก้าวเดินไม่ใช่การเตะ)
+                bool striking = (limb.isArm || limb.Kick) && Vector3.Dot(move, tip - limb.root.position) > 0f;
+                if (!wasTracked || !tracked[i] || speed < strikeMinSpeed || !striking)
+                {
+                    strikePeak[i] = 0f;
+                    struck[i] = false;
+                    continue;
+                }
+                strikePeak[i] = Mathf.Max(strikePeak[i], speed);
+                if (struck[i]) continue;
+
+                int n = Physics.OverlapSphereNonAlloc(tip, strikeRadius, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                for (int k = 0; k < n; k++)
+                {
+                    Collider c = hitBuffer[k];
+                    if (Robot.FromCollider(c) == robot) continue;
+                    float damage = Mathf.Min(strikePeak[i] * (limb.isArm ? strikeSpeedToDamage : kickSpeedToDamage), strikeMaxDamage);
+                    var info = new DamageInfo(damage, c.ClosestPoint(tip), move.normalized, limb.isArm ? DamageSource.Punch : DamageSource.Kick, robot ? robot.GetTeam() : Team.None)
+                    {
+                        knockback = Mathf.Lerp(2f, 12f, Mathf.Pow(Mathf.InverseLerp(strikeMinSpeed, 55f, strikePeak[i]), 2f)),
+                    };
+                    if (!DamageRouter.TryApply(c, info)) continue;
+                    struck[i] = true;
+                    Debug.Log($"[RobotIKControl] {(limb.isArm ? "หมัด" : "เตะ")} {limb.name} โดน '{c.name}' ความเร็วพีค {strikePeak[i]:F1} m/s ดาเมจ {damage:F1}");
+                    break;
+                }
+            }
+        }
+
+        // ================================================================ ชิ้นส่วนหลุด
+
+        private bool Attached(int i) => attachments == null || attachments[i] == null || attachments[i].IsAttached;
+
+        private bool LegsAttached()
+        {
+            for (int i = 0; i < limbs.Length; i++)
+                if (!limbs[i].isArm && !Attached(i)) return false;
+            return true;
+        }
+
+        private bool Pulling(int i) => (((Online ? pullMask.Value : offlinePull) >> i) & 1) != 0;
+
+        // ทุกเครื่อง: สถานะหลุด/ต่อเปลี่ยน → ภาพ | ชิ้นที่ถูกดึงลอยกลับ | R ค้าง → ขอดึง | Server นับเวลาดึงแล้วสั่งต่อ
+        private void UpdateDetach(IKInput input)
+        {
+            if (attachments == null) return;
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                bool attached = Attached(i);
+                if (attached != attachedNow[i]) { attachedNow[i] = attached; OnAttachChanged(i, attached); }
+                detach.Tick(i, limbs[i], Pulling(i), Time.deltaTime);
+                if (seat[i] < 1f)
+                {
+                    seat[i] = Mathf.Min(1f, seat[i] + Time.deltaTime / detach.seatTime);
+                    float punch = 1f - seat[i];
+                    limbs[i].root.localScale = Vector3.one * (1f + detach.seatPunch * punch * punch);
+                }
+            }
+
+            int want = input.pull ? PullTarget() : -1;
+            if (want != myPull)
+            {
+                if (myPull >= 0) RequestPull(myPull, false);
+                if (want >= 0) RequestPull(want, true);
+                myPull = want;
+            }
+
+            if (!DrivesBody) return;
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                bool active = pullHeld[i] && !Attached(i) && attachments[i] && attachments[i].RemainingReconnectCooldown <= 0f;
+                pullTimer[i] = active ? pullTimer[i] + Time.deltaTime : 0f;
+                if (active && pullTimer[i] >= detach.pullTime)
+                {
+                    attachments[i].ServerReattach();
+                    pullHeld[i] = false;
+                    active = false;
+                    pullTimer[i] = 0f;
+                }
+                SetPullBit(i, active);
+            }
+        }
+
+        // R ดึงชิ้นของตัวเองถ้าหลุด ไม่งั้นชิ้นที่หลุดและไม่มีใครคุม (หุ่นเดิม: Host เป็นเจ้าของชิ้นที่ไม่มีใครเลือก)
+        private int PullTarget()
+        {
+            for (int i = 0; i < limbs.Length; i++) if (!Attached(i) && IsMine(i)) return i;
+            for (int i = 0; i < limbs.Length; i++) if (!Attached(i) && !HasController(i)) return i;
+            return -1;
+        }
+
+        private void RequestPull(int i, bool held)
+        {
+            if (Online) PullRpc(i, held);
+            else pullHeld[i] = held;
+        }
+
+        private void SetPullBit(int i, bool on)
+        {
+            byte mask = Online ? pullMask.Value : offlinePull;
+            byte next = on ? (byte)(mask | (1 << i)) : (byte)(mask & ~(1 << i));
+            if (next == mask) return;
+            if (Online) pullMask.Value = next;
+            else offlinePull = next;
+        }
+
+        private void OnAttachChanged(int i, bool attached)
+        {
+            IKLimb limb = limbs[i];
+            Vector3 outward = Vector3.ProjectOnPlane(limb.root.position - transform.position, Vector3.up).normalized;
+            if (attached)
+            {
+                detach.Reattach(i, limb);
+                ragdoll.SetFrozen(limb, false);
+                if (limb.hit) limb.hit.detectCollisions = true;
+                // เสียบเข้าล็อก: เสียงเหล็กหนัก + บูม + ประกายไฟ + หยุดภาพ + ซูม + จอสั่น, ลำตัวสะเทือน, ชิ้นเด้งแล้วยุบเข้าที่
+                ImpactFeel.PlayHit(limb.root.position, outward, detach.reattachImpact);
+                leanVel += new Vector3(8f, limb.Side * 14f, 0f);
+                if (DrivesBody && feel.bodyFrequency > 0f) bodyVel.y -= feel.landingDip;
+                seat[i] = 0f;
+                return;
+            }
+            seat[i] = 1f; // หลุดซ้ำระหว่างเด้งเข้าที่ — ไม่ให้ตัวเด้งตั้ง scale ทับการซ่อน
+            limb.Lifted = false;
+            limb.Pull = false;
+            CancelKick(i); // หลุดกลางท่าเตะ — ต่อกลับแล้วไม่ถีบต่อไปยังจุดเก่า
+            if (arms[i] != null) combat.Release(limb, arms[i]);
+            ImpactFeel.PlayHit(limb.root.position, outward, 30f);  // ประกายไฟ + จอสั่นที่ข้อต่อ
+            detach.Detach(i, limb, (outward + Vector3.up) * detach.flingSpeed);
+            ragdoll.SetFrozen(limb, true);
+            if (limb.hit) limb.hit.detectCollisions = false;   // มือ/เท้าที่หลุดไม่ดันของ
         }
 
         // ================================================================ ล้ม / ลุก
@@ -624,7 +995,7 @@ namespace Nsc.BoneLimb
 
             int controllers = Controllers(out int voted);
             standVotes.Value = voted;
-            if (controllers > 0 && voted == controllers) StandUp(); // ไม่มีใครคุมชิ้นเลย = นอนต่อ
+            if (controllers > 0 && voted == controllers && LegsAttached()) StandUp(); // ไม่มีใครคุมชิ้นเลย = นอนต่อ | ขาหลุด = ดึงกลับก่อน
         }
 
         // คนที่คุมชิ้นของหุ่นนี้ (คนละชิ้นนับครั้งเดียว) และในนั้นกด Q แล้วกี่คน (voted รู้เฉพาะ Server)
@@ -699,6 +1070,7 @@ namespace Nsc.BoneLimb
                 p.y = GroundY(p) + limb.RestHeight;
                 limb.target.SetPositionAndRotation(p, facing * limb.RestRotation);
                 airborne[i] = false;
+                CancelKick(i);
                 planted[i] = p;
                 if (Online && IsServer) states[i] = LimbNetState.Capture(limb); // ขาที่ไม่มีใครคุมไม่ไหลกลับไปที่เดิม
             }
@@ -775,6 +1147,26 @@ namespace Nsc.BoneLimb
 #endif
         }
 
+        // ดึงได้: ชิ้นที่ตัวเองคุม หรือชิ้นที่ไม่มีใครคุม
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void PullRpc(int index, bool held, RpcParams rpcParams = default)
+        {
+            if (index < 0 || index >= limbs.Length) return;
+            ulong controller = ControllerOf(index);
+            if (controller != LimbSelection.NoClient && controller != rpcParams.Receive.SenderClientId) return;
+            pullHeld[index] = held;
+        }
+
+        // ปุ่มทดสอบ X — RPC ต้องมีทุก build (ตาราง RPC ตรงกันทุกเครื่อง) แต่ build จริงไม่ทำอะไร
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void DetachTestRpc(int index, RpcParams rpcParams = default)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (index >= 0 && index < limbs.Length && ControllerOf(index) == rpcParams.Receive.SenderClientId && attachments[index])
+                attachments[index].ServerDetach();
+#endif
+        }
+
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void StandVoteRpc(RpcParams rpcParams = default)
         {
@@ -797,6 +1189,23 @@ namespace Nsc.BoneLimb
                     if (IsMine(i)) mine = limbs[i].name;
                 GUILayout.Label($"คุณคุม: {mine}");
             }
+            if (robot)
+            {
+                var hp = new System.Text.StringBuilder("เลือด: ");
+                for (int i = 0; i < limbs.Length; i++)
+                {
+                    LimbHealth health = robot.GetLimb((LimbSlot)i)?.Health;
+                    if (health) hp.Append($"{limbs[i].name} {Mathf.CeilToInt(health.Hp)}/{Mathf.CeilToInt(health.MaxHp)}{(Attached(i) ? "" : " (หลุด)")}   ");
+                }
+                if (hp.Length > "เลือด: ".Length) GUILayout.Label(hp.ToString());
+            }
+            for (int i = 0; i < limbs.Length; i++)
+                if (IsMine(i) && !Attached(i))
+                {
+                    float wait = attachments[i] ? attachments[i].RemainingReconnectCooldown : 0f;
+                    GUILayout.Label(wait > 0f ? $"{limbs[i].name} หลุด! รอ {wait:F1} วิ แล้วกด R ค้างดึงกลับ" : $"{limbs[i].name} หลุด! กด R ค้างดึงกลับ");
+                }
+            if (down && !LegsAttached()) GUILayout.Label("ขาหลุดอยู่ — ดึงขากลับ (R ค้าง) ก่อนถึงจะลุกได้");
             if (down)
             {
                 int need = Online ? Controllers(out _) : 1;
@@ -807,7 +1216,7 @@ namespace Nsc.BoneLimb
             string armHelp = combat.pointAndClick
                 ? "แขน: เคอร์เซอร์เล็ง, คลิกซ้ายค้าง = ชาร์จ ปล่อย = ต่อย"
                 : "แขน: มือตามเคอร์เซอร์, Shift+ล้อ = ดัน/ดึงมือ, คลิกซ้ายค้าง = กำ";
-            GUILayout.Label($"{armHelp} | ขา: ชี้พื้น + คลิก = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเคอร์เซอร์ ปล่อย = วาง, ก้าวเฉียง = เลี้ยว) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | B = ทดสอบล้ม");
+            GUILayout.Label($"{armHelp} | ขา: ชี้พื้น + คลิก = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเคอร์เซอร์ ปล่อย = วาง, ก้าวเฉียง = เลี้ยว, Shift = เตะสูงไปทาง ◈) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | R ค้าง = ดึงชิ้นที่หลุดกลับ | B = ทดสอบล้ม | X = ทดสอบหลุด");
             GUILayout.EndArea();
 
             if (aimArm >= 0 && cam) DrawReticle();

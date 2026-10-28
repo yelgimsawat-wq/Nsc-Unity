@@ -37,6 +37,10 @@ namespace Nsc.BoneLimb
         private Part[] parts;               // สะโพก (ตัวแรก) อก หัว แขน×2 ขา×2
         private readonly List<Collider> colliders = new List<Collider>();
         private readonly List<Collider> others = new List<Collider>();
+        // ชิ้นที่หลุด: กระดูกถูกย่อซ่อนอยู่ ห้ามฟิสิกส์จำลอง — collider จิ๋ว = ความเฉื่อยเกือบศูนย์ ทั้งตัวสั่น
+        private readonly HashSet<Rigidbody> frozen = new HashSet<Rigidbody>();
+        private readonly HashSet<Collider> frozenColliders = new HashSet<Collider>();
+        private bool physicsOn;
         private Vector3 hipsFrom;
         private Quaternion hipsFromRot;
 
@@ -92,7 +96,8 @@ namespace Nsc.BoneLimb
         /// <summary>เปิด/ปิดฟิสิกส์ — ล้ม: กระดูกเริ่มจากท่าตอนนี้ + ความเร็ว push | ยืน: IK คุม</summary>
         public void SetPhysics(bool on, Vector3 push)
         {
-            foreach (Collider c in colliders) c.enabled = on;
+            physicsOn = on;
+            foreach (Collider c in colliders) c.enabled = on && !frozenColliders.Contains(c);
             if (on) IgnoreOwnCollisions();
             foreach (Part p in parts)
             {
@@ -111,9 +116,23 @@ namespace Nsc.BoneLimb
         {
             for (int i = 0; i < parts.Length; i++)
             {
-                bool kinematic = !physics || (i == 0 && hipsFollowNetwork);
+                bool kinematic = !physics || (i == 0 && hipsFollowNetwork) || frozen.Contains(parts[i].body);
                 if (parts[i].body.isKinematic != kinematic) parts[i].body.isKinematic = kinematic;
             }
+        }
+
+        /// <summary>แขน/ขาหลุด (on) หรือต่อกลับ — ชิ้นที่หลุดเป็น kinematic ไม่มี collider ตามตัวไปเฉยๆ</summary>
+        public void SetFrozen(IKLimb limb, bool on)
+        {
+            foreach (Rigidbody b in limb.root.GetComponentsInChildren<Rigidbody>(true))
+                if (on) frozen.Add(b); else frozen.Remove(b);
+            foreach (Collider c in limb.root.GetComponentsInChildren<Collider>(true))
+            {
+                if (!colliders.Contains(c)) continue;
+                if (on) frozenColliders.Add(c); else frozenColliders.Remove(c);
+                c.enabled = physicsOn && !on;
+            }
+            if (physicsOn && !on) IgnoreOwnCollisions(); // เปิด collider ใหม่ = Unity ล้าง IgnoreCollision
         }
 
         /// <summary>client ตอนล้ม: สะโพกตามท่าที่ Server ส่งมา ท่อนอื่นห้อยตามข้อต่อ</summary>
@@ -166,8 +185,10 @@ namespace Nsc.BoneLimb
         {
             for (int i = 0; i < colliders.Count; i++)
             {
-                for (int j = i + 1; j < colliders.Count; j++) Physics.IgnoreCollision(colliders[i], colliders[j]);
-                foreach (Collider c in others) if (c) Physics.IgnoreCollision(colliders[i], c);
+                if (!colliders[i].enabled) continue; // ปิดอยู่ = Unity ไม่ยอมตั้ง (และไม่ต้องตั้ง)
+                for (int j = i + 1; j < colliders.Count; j++)
+                    if (colliders[j].enabled) Physics.IgnoreCollision(colliders[i], colliders[j]);
+                foreach (Collider c in others) if (c && c.enabled) Physics.IgnoreCollision(colliders[i], c);
             }
         }
 

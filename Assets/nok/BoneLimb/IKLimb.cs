@@ -36,6 +36,10 @@ namespace Nsc.BoneLimb
         public bool Lifted { get; set; }
         /// <summary>หุ่นนอนอยู่: ผู้เล่นคลิกค้างดึงปลายชิ้นนี้ไปที่เป้า (ragdoll ออกแรงตาม)</summary>
         public bool Pull { get; set; }
+        /// <summary>ขา: อยู่ในท่าถีบ (ชาร์จ → ถีบ → ชักกลับ) — ตัวหุ่นไม่ไหลตามเท้านี้</summary>
+        public bool KickPose { get; set; }
+        /// <summary>ขา: ช่วงพุ่งถีบออก — Server นับดาเมจเฉพาะช่วงนี้ (ชักกลับลงพื้นไม่ใช่การเตะ)</summary>
+        public bool Kick { get; set; }
         /// <summary>แขน: ระยะระนาบมือหน้าไหล่</summary>
         public float Depth { get; set; }
         /// <summary>บานพับศอก/เข่า (แกน local ของกระดูกกลาง, ทิศงอ, มุมงอตอนท่าตั้งต้น) — ragdoll ใช้ตั้งข้อต่อให้พับทางเดียวกับ IK</summary>

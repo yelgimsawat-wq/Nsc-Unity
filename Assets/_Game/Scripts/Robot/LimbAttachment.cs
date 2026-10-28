@@ -129,6 +129,17 @@ namespace Nsc.Robots
             SetAttached(false);
         }
 
+        /// <summary>
+        /// [SERVER] ต่อกลับโดยไม่มีข้อต่อฟิสิกส์ — หุ่น IK ไม่มี ConfigurableJoint/socket ดึงกลับและจัดภาพเอง
+        /// แล้วแจ้งสถานะผ่านตัวนี้ (RobotLimb เติมเลือด, Robot รู้ว่าต่อแล้วเหมือนหุ่นเดิม)
+        /// </summary>
+        public void ServerReattach()
+        {
+            if (!HasServerAuthority || attachedLocal) return;
+            isPulling = false;
+            SetAttached(true);
+        }
+
         // ================================================================
         //  ดึงกลับ (กด R ค้าง)
         // ================================================================
