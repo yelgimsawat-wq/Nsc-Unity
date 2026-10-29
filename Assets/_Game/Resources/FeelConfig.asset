@@ -36,6 +36,7 @@ MonoBehaviour:
   heavyHitPitch: {x: 0.55, y: 0.66}
   heavyHitBoomClips:
   - {fileID: 8300000, guid: 69efb2b4ae5897e42a816a9126527020, type: 3}
+  - {fileID: 8300000, guid: c54ca4a063ad37a4f93841d66c74cf02, type: 3}
   heavyHitBoomVolume: 0.45
   heavyHitBoomPitch: {x: 0.5, y: 0.6}
   lightHitFreeze: 0.045
@@ -50,6 +51,12 @@ MonoBehaviour:
   heavySparkCount: 40
   sparkSpeed: 32
   sparkSize: 0.7
+  swingClips:
+  - {fileID: 8300000, guid: a7dbf79d77b7bbe4ba3faca7aa492e23, type: 3}
+  - {fileID: 8300000, guid: c13e2cd4961251a45b454392c83723ff, type: 3}
+  - {fileID: 8300000, guid: 270f99916391378469f26ffac4d9b0a4, type: 3}
+  swingVolume: 0.8
+  swingPitch: {x: 0.5, y: 0.65}
   audioMinDistance: 30
   audioMaxDistance: 450
   audioSpatialBlend: 0.65

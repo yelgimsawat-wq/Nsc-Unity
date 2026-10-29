@@ -40,6 +40,14 @@ namespace Nsc.Feel
             SpawnSparks(config, position, surfaceNormal, heavy ? config.heavySparkCount : config.lightSparkCount, heavy);
         }
 
+        /// <summary>อาวุธเริ่มฟาดเร็ว — strength 0..1 ตามความเร็วปลาย</summary>
+        public static void PlaySwing(Vector3 position, float strength)
+        {
+            FeelConfig config = FeelConfig.Instance;
+            if (config == null || Application.isBatchMode) return;
+            PlayClip(config, config.swingClips, position, config.swingVolume * Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(strength)), config.swingPitch);
+        }
+
         // ================================================================
 
         private static void PlayClip(FeelConfig config, AudioClip[] clips, Vector3 position, float volume, Vector2 pitch)

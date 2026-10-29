@@ -193,6 +193,8 @@ namespace Nsc.BoneLimb
         private Vector3[] swingDir;            // ถืออาวุธ + คลิกซ้ายค้าง: ทิศไหล่ → มือ ในแกนตัวหุ่น (ลากเมาส์หมุนค่านี้)
         private TrailRenderer[] trails;        // รอยแสงปลายอาวุธ (ทุกเครื่องสร้างเอง ไม่ซิงก์)
         private Vector3[] lastTrailTip;
+        private float[] swingSoundAt;          // เวลาเสียงวืดล่าสุด (กันวืดรัว)
+        private bool[] swingHit;               // วืดนี้ปะทะไปแล้ว
         private IKCombat.Arm[] poseArms;       // arms ที่ตัดแขนถืออาวุธออก — BodyPose ของหมัดไม่นับแขนนี้ (WeaponPose คิดแทน)
         private Rigidbody[] grabWant;       // ชิ้นที่เอื้อมไปถึงแล้ว — ให้ TryGrab ยึดชิ้นนี้ก่อนชิ้นอื่นที่บังเอิญใกล้กำปั้นกว่า (เครื่องเดียวกับ Server เท่านั้น)
         private Rigidbody glowBody;
@@ -313,6 +315,8 @@ namespace Nsc.BoneLimb
             supportHolding = new bool[limbs.Length];
             trails = new TrailRenderer[limbs.Length];
             lastTrailTip = new Vector3[limbs.Length];
+            swingSoundAt = new float[limbs.Length];
+            swingHit = new bool[limbs.Length];
             poseArms = new IKCombat.Arm[limbs.Length];
             handColliders = new Collider[limbs.Length][];
             for (int i = 0; i < limbs.Length; i++)
@@ -686,7 +690,8 @@ namespace Nsc.BoneLimb
             Vector3 shoulder = arm.root.position;
             Vector3 dir = WeaponRestDir(arm.Side);
             float radius = arm.Reach * WeaponRestRadius;
-            float rate = follow * GrabLag(arm);
+            // กลับท่าพักหลังฟันช้ากว่าตอนง้าง — ใช้ follow เต็ม แขนดีดกลับเร็วกว่าตอนฟัน (วัดได้ 11 เท่าเกณฑ์ต่อย) ดูเบา + วืดซ้ำ
+            float rate = (weaponFreeAim ? follow : Mathf.Min(follow, 8f / slashWeight)) * GrabLag(arm);
             if (!weaponFreeAim && SlashStep(index, arm, input, out Vector3 slashDir, out float slashRate, out float slashRadius))
             {
                 dir = slashDir; rate = slashRate; radius = arm.Reach * slashRadius;
@@ -927,10 +932,40 @@ namespace Nsc.BoneLimb
                 t.colorGradient = fade; // ขาวสว่างที่ปลาย จางเป็นส้มโปร่งใสตามหลัง
                 t.emitting = false;
                 lastTrailTip[i] = far;
+                swingSoundAt[i] = Time.time; // เพิ่งหยิบ — ของวาร์ปเข้ามือ ความเร็วกระโดด ไม่ใช่การฟาด
+                swingHit[i] = true;          // ไม่มีปะทะจนกว่าจะวืดจริง
             }
             Vector3 p = t.transform.position;
-            t.emitting = (p - lastTrailTip[i]).magnitude / Mathf.Max(Time.deltaTime, 1e-4f) > strikeMinSpeed * 3f; // ง้างช้าไม่มีรอย มีแต่ตอนฟาด
+            float speed = (p - lastTrailTip[i]).magnitude / Mathf.Max(Time.deltaTime, 1e-4f);
+            t.emitting = speed > strikeMinSpeed * 3f; // ง้างช้าไม่มีรอย มีแต่ตอนฟาด
             lastTrailTip[i] = p;
+            // วืด + ปะทะเฉพาะช่วงฟาดจริง (ปลายเร็วเกิน 6 เท่าเกณฑ์ต่อย — วัด 2026-10-29: ง้าง ≤3, ฟาด 8–19) หนึ่งวืดต่อ 0.4 วิ ปะทะได้ครั้งเดียวในช่วงนั้น
+            bool fast = speed > strikeMinSpeed * 6f;
+            if (fast && Time.time - swingSoundAt[i] > 0.4f)
+            {
+                swingSoundAt[i] = Time.time;
+                swingHit[i] = false;
+                ImpactFeel.PlaySwing(p, Mathf.InverseLerp(strikeMinSpeed * 6f, strikeMinSpeed * 15f, speed));
+            }
+            if (t.emitting && !swingHit[i] && Time.time - swingSoundAt[i] < 0.4f) WeaponContact(i, limb, p, speed);
+        }
+
+        // ใบโดนของที่มี Rigidbody (ไม่ใช่ตัวเอง/ของที่ถือ/พื้น) ระหว่างฟาด → เสียงเหล็ก ประกายไฟ จอสั่น (ทุกเครื่องเล่นเอง — ดาเมจจริงอยู่ที่ ServerStrikes)
+        private void WeaponContact(int i, IKLimb limb, Vector3 tip, float speed)
+        {
+            int n = Physics.OverlapCapsuleNonAlloc(limb.GripCenter, tip, strikeRadius * 0.5f, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            for (int k = 0; k < n; k++)
+            {
+                Collider c = hitBuffer[k];
+                Rigidbody rb = c.attachedRigidbody;
+                // ของที่ถือเช็คจาก Holding (ทุกเครื่องมี) ไม่ใช่ heldBody (มีแค่ Server) — ไม่งั้น client ได้ยินใบโดนตัวเองทุกครั้งที่ฟาด
+                if (rb == null || c.transform.IsChildOf(transform) || System.Array.Exists(limbs, l => l.Holding && l.Holding.attachedRigidbody == rb)) continue;
+                swingHit[i] = true;
+                Vector3 point = c.ClosestPoint(tip);
+                Vector3 normal = tip - point;
+                ImpactFeel.PlayHit(point, normal.sqrMagnitude > 1e-6f ? normal.normalized : -transform.forward, Mathf.Lerp(15f, 45f, Mathf.InverseLerp(strikeMinSpeed * 6f, strikeMinSpeed * 15f, speed)));
+                return;
+            }
         }
 
         // รอยแสงติดอยู่บนของที่ถือ (ไม่ใช่ลูกของหุ่น) — หุ่นล้ม/ชิ้นหลุด/หุ่นหายแล้ว UpdateTrail ไม่ได้รันต่อ ต้องลบเอง ไม่งั้นรอยค้างวาดตามของ
