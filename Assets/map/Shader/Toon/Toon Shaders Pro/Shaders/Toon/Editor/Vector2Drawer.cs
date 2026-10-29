@@ -31,7 +31,7 @@ namespace ToonShadersPro.URP
 
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
-            if (prop.type == MaterialProperty.PropType.Vector)
+            if (prop.propertyType == UnityEngine.Rendering.ShaderPropertyType.Vector)
             {
                 EditorGUI.BeginChangeCheck();
                 EditorGUI.showMixedValue = prop.hasMixedValue;
