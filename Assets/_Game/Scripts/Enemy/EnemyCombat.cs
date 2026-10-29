@@ -62,6 +62,11 @@ namespace NscGame.Enemy
         [Tooltip("จูนให้ตรงเฟรมที่เท้ากระแทกในอนิเมชัน Kick")]
         [SerializeField] private float kickHitDelay = 0.8f;
 
+        [Tooltip("เปิด = ต่อยธรรมดา/เตะ คิดดาเมจตอนท่าแจ้งว่าถึงจังหวะ (KaijuFeel เรียก ServerAnimationHit ตอนหมัดสุด/เท้าลงพื้น) " +
+                 "แทนการรอเวลาตายตัว — ปรับความเร็วท่าแล้วจังหวะโดนยังตรง | ปิด = ใช้ hit delay ด้านบนเหมือนเดิม")]
+        [SerializeField] private bool hitOnAnimationEvent = false;
+        private bool animationHit;
+
         private EnemyController controller; // ใช้ดึงเป้าปัจจุบันสดๆ ทุกครั้งที่เช็คโดน
 
         [Header("Damage Values")]
@@ -277,13 +282,29 @@ namespace NscGame.Enemy
 
         #region Server - Attack Routines
 
+        /// <summary>[SERVER] ท่าถึงจังหวะโดนแล้ว — เรียกจากสคริปต์ที่อ่านท่า (KaijuFeel)</summary>
+        public void ServerAnimationHit() => animationHit = true;
+
+        private IEnumerator WaitHitMoment(float delay)
+        {
+            if (!hitOnAnimationEvent)
+            {
+                yield return new WaitForSeconds(delay);
+                yield break;
+            }
+            animationHit = false;
+            // ท่าโดนตัดกลางคัน (ล้ม/ตาย) แล้วไม่มีสัญญาณ → คิดดาเมจตามเวลาสำรอง ไม่ค้าง
+            float giveUp = Time.time + delay * 2f + 1f;
+            while (!animationHit && Time.time < giveUp) yield return null;
+        }
+
         private IEnumerator ServerLightPunchRoutine()
         {
             Transform origin = GetOriginFor(AttackType.LightPunch);
 
             PlayAttackEffectsClientRpc(AttackType.LightPunch, origin.position, GetVfxRotation(AttackType.LightPunch));
 
-            yield return new WaitForSeconds(lightPunchHitDelay);
+            yield return WaitHitMoment(lightPunchHitDelay);
 
             ProcessHitDetection(origin.position, lightPunchRadius, lightPunchDamage, AttackType.LightPunch);
 
@@ -339,7 +360,7 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.Kick, origin.position, GetVfxRotation(AttackType.Kick));
 
-            yield return new WaitForSeconds(kickHitDelay);
+            yield return WaitHitMoment(kickHitDelay);
 
             ProcessHitDetection(origin.position, kickRadius, kickDamage, AttackType.Kick);
 

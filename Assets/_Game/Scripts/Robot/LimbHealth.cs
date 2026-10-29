@@ -128,7 +128,10 @@ namespace Nsc.Robots
 
             // โดนบอส = กล้องสั่น/ประกายไฟฝั่งเรา (หมัดของผู้เล่นส่งเอฟเฟกต์จาก LimbStrike อยู่แล้ว ไม่ส่งซ้ำ)
             if (info.source == DamageSource.EnemyMelee || info.source == DamageSource.EnemyUltimate)
-                GetComponent<IImpactFeedback>()?.ServerBroadcastHit(info.point, -info.direction, info.amount);
+            {
+                if (TryGetComponent(out IImpactFeedback feedback)) feedback.ServerBroadcastHit(info.point, -info.direction, info.amount);
+                else EnemyHitFeelClientRpc(info.point, -info.direction, info.amount); // หุ่นที่ไม่มี LimbController (หุ่น IK) — เสียงเหล็ก/ประกายไฟเดียวกัน
+            }
 
             hp.Value -= info.amount;
             regenerating = false;
@@ -165,6 +168,10 @@ namespace Nsc.Robots
             Debug.Log($"[LimbHealth] 💔 {gameObject.name} หลุด! เพดานเลือดเหลือ {maxHp.Value}");
             Depleted?.Invoke();
         }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
+        private void EnemyHitFeelClientRpc(Vector3 point, Vector3 surfaceNormal, float damage) =>
+            Nsc.Feel.ImpactFeel.PlayHit(point, surfaceNormal, damage);
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
         private void PlayHitEffectsClientRpc(Vector3 impactPosition, Vector3 hitDirection)
