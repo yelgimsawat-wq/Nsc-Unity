@@ -37,8 +37,10 @@ namespace Nsc.BoneLimb
         private Part[] parts;               // สะโพก (ตัวแรก) อก หัว แขน×2 ขา×2
         private readonly List<Collider> colliders = new List<Collider>();
         private readonly List<Collider> others = new List<Collider>();
-        // ชิ้นที่หลุด: กระดูกถูกย่อซ่อนอยู่ ห้ามฟิสิกส์จำลอง — collider จิ๋ว = ความเฉื่อยเกือบศูนย์ ทั้งตัวสั่น
-        private readonly HashSet<Rigidbody> frozen = new HashSet<Rigidbody>();
+        // ชิ้นที่หลุด (กระดูกถูกย่อซ่อนอยู่): ปิด collider (collider จิ๋ว = ความเฉื่อยเกือบศูนย์ ทั้งตัวสั่น) + เบาเกือบศูนย์ ห้อยตามฟิสิกส์
+        // ห้ามเป็น kinematic ตอนล้ม — ข้อต่อผูกกับสะโพก ตัวเลยห้อยค้างกลางอากาศกับขาที่มองไม่เห็น | ค่า = มวลเดิมไว้คืนตอนต่อกลับ
+        private readonly Dictionary<Rigidbody, float> frozen = new Dictionary<Rigidbody, float>();
+        private const float FrozenMassScale = 0.02f;
         private readonly HashSet<Collider> frozenColliders = new HashSet<Collider>();
         private bool physicsOn;
         private Vector3 hipsFrom;
@@ -116,16 +118,19 @@ namespace Nsc.BoneLimb
         {
             for (int i = 0; i < parts.Length; i++)
             {
-                bool kinematic = !physics || (i == 0 && hipsFollowNetwork) || frozen.Contains(parts[i].body);
+                bool kinematic = !physics || (i == 0 && hipsFollowNetwork);
                 if (parts[i].body.isKinematic != kinematic) parts[i].body.isKinematic = kinematic;
             }
         }
 
-        /// <summary>แขน/ขาหลุด (on) หรือต่อกลับ — ชิ้นที่หลุดเป็น kinematic ไม่มี collider ตามตัวไปเฉยๆ</summary>
+        /// <summary>แขน/ขาหลุด (on) หรือต่อกลับ — ชิ้นที่หลุดไม่มี collider และเบาเกือบศูนย์ ห้อยตามตัวไปเฉยๆ ไม่ถ่วง/ไม่ค้ำตัว</summary>
         public void SetFrozen(IKLimb limb, bool on)
         {
             foreach (Rigidbody b in limb.root.GetComponentsInChildren<Rigidbody>(true))
-                if (on) frozen.Add(b); else frozen.Remove(b);
+            {
+                if (on && !frozen.ContainsKey(b)) { frozen[b] = b.mass; b.mass *= FrozenMassScale; }
+                else if (!on && frozen.TryGetValue(b, out float mass)) { b.mass = mass; frozen.Remove(b); }
+            }
             foreach (Collider c in limb.root.GetComponentsInChildren<Collider>(true))
             {
                 if (!colliders.Contains(c)) continue;
