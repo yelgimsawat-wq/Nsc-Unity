@@ -154,7 +154,7 @@ namespace NscGame.Enemy
         private bool isUltimateActive = false;
 
         /// <summary>AI หยุดคิดเมื่อกำลังตี / ปลิว / ออกท่าไม้ตาย / ตายแล้ว</summary>
-        private bool IsBusy => isAttacking || isKnockedBack || isDeadLocked || isUltimateActive;
+        public bool IsBusy => isAttacking || isKnockedBack || isDeadLocked || isUltimateActive;
 
         #endregion
 
@@ -279,6 +279,15 @@ namespace NscGame.Enemy
                 // จะพ่นทุกเฟรมจนอ่าน Console ไม่ได้
                 if (agent == null || !agent.enabled || !agent.isOnNavMesh)
                     continue;
+
+                // หน้าเลือกชิ้นส่วนยังไม่กด Start → ยืนรอ ไม่เดินเข้าไปหาหุ่นที่ยังแช่แข็งอยู่
+                if (!Nsc.Match.GameplayGate.CanAct)
+                {
+                    agent.isStopped = true;
+                    netSpeed.Value = 0f;
+                    SetState(EnemyState.Idle);
+                    continue;
+                }
 
                 if (playerTarget == null)
                 {
@@ -494,7 +503,9 @@ namespace NscGame.Enemy
         {
             foreach (Robot robot in Robot.All)
             {
-                if (robot == null || robot.Torso == null) continue;
+                if (robot == null || !robot.isActiveAndEnabled) continue;
+                // หุ่น IK (BoneLimb) ไม่มี TorsoBalance → เล็งตัว Robot เอง
+                if (robot.Torso == null) return robot.transform;
                 return robot.Torso.Body != null ? robot.Torso.Body.transform : robot.Torso.transform;
             }
             return null;

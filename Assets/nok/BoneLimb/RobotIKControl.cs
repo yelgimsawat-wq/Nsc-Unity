@@ -585,7 +585,12 @@ namespace Nsc.BoneLimb
             {
                 // ragdoll คุมกระดูก — ไม่แก้ IK, กล้องตามสะโพก (ตัวหุ่นยังอยู่ที่เดิมจนกว่าจะลุก)
                 foreach (IKLimb limb in limbs) limb.ApplyFingers();
-                for (int i = 0; i < limbs.Length; i++) ClearTrail(i);
+                for (int i = 0; i < limbs.Length; i++)
+                {
+                    ClearTrail(i);
+                    // ช่อง RobotLimb ตามปลายแขนขาตอนนอนด้วย — ไม่งั้นค้างที่เดิม ศัตรูวัดระยะถึงชิ้นแล้ววืดทั้งที่ตีโดนตัว
+                    if (slots != null && slots[i] && Attached(i)) slots[i].position = limbs[i].tip.position;
+                }
                 lastBodyPos = transform.position;
                 Vector3 hips = ragdoll.Hips.transform.position;
                 if (cam) orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true);
