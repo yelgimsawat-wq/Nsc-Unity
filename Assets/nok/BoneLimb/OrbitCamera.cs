@@ -25,6 +25,10 @@ namespace Nsc.BoneLimb
         public float armLookHeight = 11.5f;
         public float armSideShift = 2.5f;
         public float reframeSpeed = 6f;
+        [Tooltip("มุมแขน ก้มกล้องลงเกิน armPitch: จุดมองเลื่อนลงไปที่พื้นหน้าตัว (สูงเท่านี้ ยื่นหน้าเท่านี้) และกล้องถอยห่างเป็นระยะนี้ตอนก้มสุด — มองเห็นของบนพื้นที่จะหยิบ")]
+        public float armGroundLookHeight = 1f;
+        public float armGroundLookForward = 4f;
+        public float armGroundDistance = 12f;
 
         [Tooltip("มุมก้มตอนเริ่ม (หุ่นเดิมตอนคุมขา = 55 มองเห็นพื้นรอบเท้า)")]
         public float startPitch = 15f;
@@ -60,7 +64,7 @@ namespace Nsc.BoneLimb
         public void Look(Vector2 mouseDelta)
         {
             yaw += mouseDelta.x * lookSensitivity;
-            pitch = Mathf.Clamp(pitch - mouseDelta.y * lookSensitivity, -10f, 70f);
+            pitch = Mathf.Clamp(pitch - mouseDelta.y * lookSensitivity, -10f, 80f);
         }
 
         // ซูมเป็นตัวคูณ ไม่ใช่ปรับ distance ตรงๆ — มุมแขน/ตอนล้มใช้ระยะของตัวเอง ปรับ distance แล้วซูมไม่ติด
@@ -81,10 +85,17 @@ namespace Nsc.BoneLimb
 
             // คุมแขน/นอน: มุมก้มของท่านั้นบวกส่วนที่ผู้เล่นหันเองจากมุมเริ่ม (คลิกขวายังหันได้)
             float tilt = pitch + (armPitch - startPitch) * armBlend + (downPitch - startPitch) * downBlend;
-            Quaternion view = Quaternion.Euler(Mathf.Clamp(tilt, -10f, 80f), yaw, 0f);
-            Vector3 look = pivot + Vector3.up * Mathf.Lerp(Mathf.Lerp(lookHeight, armLookHeight, armBlend), downLookHeight, downBlend)
-                         + Quaternion.Euler(0f, yaw, 0f) * Vector3.right * (armSideNow * armSideShift * armBlend);
-            float dist = Mathf.Lerp(Mathf.Lerp(distance, armDistance, armBlend), downDistance, downBlend) * zoom;
+            tilt = Mathf.Clamp(tilt, -10f, 85f);
+            Quaternion view = Quaternion.Euler(tilt, yaw, 0f);
+            Quaternion flat = Quaternion.Euler(0f, yaw, 0f);
+            // มุมแขนก้มมองพื้น: จุดมองไหลจากระดับอกลงไปพื้นหน้าตัว กล้องถอยห่าง — ไม่งั้นก้มแค่ไหนก็ยังมองอกตัวเอง
+            float ground = Mathf.InverseLerp(armPitch, 85f, tilt) * armBlend * (1f - downBlend);
+            float armLook = Mathf.Lerp(armLookHeight, armGroundLookHeight, ground);
+            Vector3 look = pivot + Vector3.up * Mathf.Lerp(Mathf.Lerp(lookHeight, armLook, armBlend), downLookHeight, downBlend)
+                         + flat * Vector3.right * (armSideNow * armSideShift * armBlend)
+                         + flat * Vector3.forward * (armGroundLookForward * ground);
+            float armDist = Mathf.Lerp(armDistance, armGroundDistance, ground);
+            float dist = Mathf.Lerp(Mathf.Lerp(distance, armDist, armBlend), downDistance, downBlend) * zoom;
             cam.transform.position = look + view * new Vector3(0f, 0f, -dist);
             cam.transform.LookAt(look);
 

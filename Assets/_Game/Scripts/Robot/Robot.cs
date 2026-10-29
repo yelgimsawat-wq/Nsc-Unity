@@ -155,7 +155,8 @@ namespace Nsc.Robots
         {
             // ✅ ขาหลุด = ยืนต่อไม่ได้ — ล้มทันที ไม่งั้นแรงพยุงยังลอยตัวค้าง
             // แล้วขาที่หลุดเอื้อมกลับมาต่อไม่ถึง socket ที่ลอยอยู่
-            if (IsServer && !limb.IsAttached && limb.Slot.IsLeg())
+            // เล่นคนเดียว (ไม่ได้ spawn) = เครื่องนี้เป็นเจ้าของเอง — ไม่งั้นขาหลุดแล้วหุ่นยืนขาเดียวค้างกลางอากาศ
+            if ((IsServer || !IsSpawned) && !limb.IsAttached && limb.Slot.IsLeg())
                 ServerKnockDown(FallReason.LegDetached);
 
             LimbStateChanged?.Invoke(limb);

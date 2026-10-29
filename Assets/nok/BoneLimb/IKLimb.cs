@@ -31,11 +31,17 @@ namespace Nsc.BoneLimb
         /// <summary>มุมเป้าตอนเริ่ม เทียบตัวหุ่น — ใช้วางเท้าให้ราบ</summary>
         public Quaternion RestRotation { get; private set; }
         public float Grip { get; set; }
+        /// <summary>แขน: ของในมือ — นิ้วงอแค่ถึงผิวของนี้ (กำรอบด้าม ไม่ทะลุ) | null = กำเต็มตาม Grip</summary>
+        public Collider Holding { get; set; }
         /// <summary>ทิศศอก/เข่าในแกนตัวหุ่นที่บังคับ (เช่นศอกชี้ลงตอนตั้งการ์ด) — ศูนย์ = ทิศตามท่าตั้งต้นแบบเดิม</summary>
         public Vector3 PoleOverride { get; set; }
         public bool Lifted { get; set; }
         /// <summary>หุ่นนอนอยู่: ผู้เล่นคลิกค้างดึงปลายชิ้นนี้ไปที่เป้า (ragdoll ออกแรงตาม)</summary>
         public bool Pull { get; set; }
+        /// <summary>แขน: ผู้เล่นกำลังค้างปุ่มจับ (F) — Server ยึดของที่แตะมือไว้จนปล่อย</summary>
+        public bool Grab { get; set; }
+        /// <summary>แขน: กำลังเอื้อมไปหยิบ (กด F แล้วยังไม่ถึง) — ตัวหุ่นย่อ/ก้ม/พุ่งตามเป้ามือเฉพาะตอนนี้ (หมัด/เคอร์เซอร์ไม่ทำให้ตัวขยับ)</summary>
+        public bool Reaching { get; set; }
         /// <summary>ขา: อยู่ในท่าถีบ (ชาร์จ → ถีบ → ชักกลับ) — ตัวหุ่นไม่ไหลตามเท้านี้</summary>
         public bool KickPose { get; set; }
         /// <summary>ขา: ช่วงพุ่งถีบออก — Server นับดาเมจเฉพาะช่วงนี้ (ชักกลับลงพื้นไม่ใช่การเตะ)</summary>
@@ -50,6 +56,16 @@ namespace Nsc.BoneLimb
         // ท่าตั้งต้นในแกนตัวหุ่น — ใช้หมุนทิศศอก/เข่าและข้อมือตามการแกว่งแบบต่อเนื่อง
         private Vector3 restDir, restPole, restFingerDir;
         private Vector3 palmLocal; // ทิศฝ่ามือในแกนของกระดูกมือ (หาจากท่ากำ: ปลายนิ้วงอเข้าหาฝ่ามือ) — ศูนย์ = ไม่รู้
+        private Vector3 gripLocal; // กลางกำปั้น (ระหว่างข้อมือกับโคนนิ้วกลาง) ในแกนกระดูกมือ — ของที่ถือแนบตรงนี้
+        public Vector3 GripCenter => tip.TransformPoint(gripLocal);
+        public Vector3 PalmDir => tip.rotation * palmLocal;
+        private Vector3 fingerLocal; // ทิศนิ้ว (ข้อมือ → โคนนิ้วกลาง) ในแกนกระดูกมือ
+        /// <summary>แกนมือเมื่อกระดูกมือหมุนเท่านี้: Z = ทิศนิ้ว, Y = ฝ่ามือ — ตรงกับแกนจุดจับ (GripPoint) ตอนหยิบ</summary>
+        public Quaternion HandFrame(Quaternion tipRotation) =>
+            Quaternion.LookRotation(tipRotation * fingerLocal, palmLocal != Vector3.zero ? tipRotation * palmLocal : Vector3.up);
+        private Vector3 thumbLocal; // ฝั่งนิ้วโป้งของกำปั้น (ตั้งฉากกับทิศนิ้ว) ในแกนกระดูกมือ — ศูนย์ = ไม่มีกระดูกนิ้วโป้ง
+        /// <summary>ฝั่งนิ้วโป้งในแกนมือ (ค่าคงที่) — ของยาวที่ถือ ตัวของออกทางฝั่งนี้</summary>
+        public Vector3 ThumbInHand => Quaternion.Inverse(HandFrame(Quaternion.identity)) * thumbLocal;
         private Quaternion restTipRotation;
         // บานพับ: แกน local ของกระดูกกลางที่โมเดลออกแบบให้พับ
         private Vector3 hingeAxis;
@@ -77,6 +93,10 @@ namespace Nsc.BoneLimb
             restTipRotation = toBody * tip.rotation;
             Transform finger = FindChild(tip, "Middle1");
             restFingerDir = finger ? toBody * (finger.position - tip.position).normalized : restDir;
+            gripLocal = finger ? tip.InverseTransformPoint(Vector3.Lerp(tip.position, finger.position, 0.6f)) : Vector3.zero;
+            fingerLocal = Quaternion.Inverse(tip.rotation) * (body.rotation * restFingerDir);
+            Transform thumb = FindChild(tip, "Thumb1");
+            thumbLocal = thumb ? Vector3.ProjectOnPlane(Quaternion.Inverse(tip.rotation) * (thumb.position - tip.position), fingerLocal).normalized : Vector3.zero;
 
             DetectHinge(body.rotation);
             if (isArm) BakeGrip(model);
@@ -139,8 +159,32 @@ namespace Nsc.BoneLimb
         public void ApplyFingers()
         {
             if (fingers == null) return;
+            // ไล่จากโคนนิ้วไปปลาย (GetComponentsInChildren เรียงพ่อก่อนลูก) ข้อที่แตะของแล้วหยุด ข้อถัดไปยังงอต่อ = นิ้วโอบรอบของ
             for (int i = 0; i < fingers.Length; i++)
-                fingers[i].localRotation = Quaternion.Slerp(open[i], closed[i], Grip);
+            {
+                float t = Grip;
+                if (Holding && Touches(i, t))
+                {
+                    float lo = 0f, hi = t;
+                    for (int k = 0; k < 5; k++)
+                    {
+                        float m = (lo + hi) * 0.5f;
+                        if (Touches(i, m)) hi = m; else lo = m;
+                    }
+                    t = Mathf.Max(lo, Grip * 0.45f); // ของหนา: นิ้วหยุดที่ผิวแรกแล้วมือดูแบ — กำอย่างน้อยครึ่งหนึ่งเสมอ (จมผิวนิดหน่อยดีกว่ามือแบ)
+                }
+                fingers[i].localRotation = Quaternion.Slerp(open[i], closed[i], t);
+            }
+        }
+
+        // ข้อนิ้วนี้งอเท่านี้แล้วปลายข้อ (โคนข้อถัดไป) แตะผิวของในมือไหม — ระยะแตะ 0.15 ของความยาวข้อ (นิ้วแนบผิว ไม่ลอยห่าง)
+        private bool Touches(int i, float t)
+        {
+            Transform f = fingers[i];
+            f.localRotation = Quaternion.Slerp(open[i], closed[i], t);
+            Vector3 end = f.childCount > 0 ? f.GetChild(0).position : f.position + (f.position - f.parent.position) * 0.8f;
+            float r = Vector3.Distance(f.position, end) * 0.15f;
+            return (Holding.ClosestPoint(end) - end).sqrMagnitude < r * r;
         }
 
         // ลองพับกระดูกกลางรอบแกน local X/Y/Z ทีละแกน แกนที่ปลายขยับไปทิศที่ควรพับมากสุด = บานพับ
@@ -186,7 +230,15 @@ namespace Nsc.BoneLimb
             Vector3 openTip = fingertip ? tip.InverseTransformPoint(fingertip.position) : Vector3.zero;
             gripClip.SampleAnimation(model, gripClip.length);
             for (int i = 0; i < fingers.Length; i++) closed[i] = fingers[i].localRotation;
-            if (fingertip) palmLocal = (tip.InverseTransformPoint(fingertip.position) - openTip).normalized;
+            // จุดแนบของ = กลางวงที่นิ้วกลางโอบตอนกำ (ผ่านข้อ 1-2-3) — กลางกำปั้นทึบเดิม ของทะลุหลังมือ/สันนิ้ว
+            Transform m1 = FindChild(tip, "Middle1"), m2 = FindChild(tip, "Middle2");
+            if (m1 && m2 && fingertip)
+            {
+                Vector3 a = m1.position, ab = m2.position - a, ac = fingertip.position - a, n = Vector3.Cross(ab, ac);
+                if (n.sqrMagnitude > 1e-8f)
+                    gripLocal = tip.InverseTransformPoint(a + (Vector3.Cross(n, ab) * ac.sqrMagnitude + Vector3.Cross(ac, n) * ab.sqrMagnitude) / (2f * n.sqrMagnitude));
+            }
+            if (fingertip) palmLocal = Vector3.ProjectOnPlane(tip.InverseTransformPoint(fingertip.position) - openTip, fingerLocal).normalized;
             gripClip.SampleAnimation(model, 0f);
             model.transform.SetLocalPositionAndRotation(pos, rot);
         }
