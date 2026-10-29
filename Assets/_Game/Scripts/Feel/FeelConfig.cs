@@ -77,6 +77,12 @@ namespace Nsc.Feel
         public float sparkSpeed = 32f;
         public float sparkSize = 0.7f;
 
+        [Header("ฟาดอาวุธ (เสียงวืดตอนเริ่มฟาดเร็ว)")]
+        public AudioClip[] swingClips;
+        [Range(0f, 1f)] public float swingVolume = 0.8f;
+        [Tooltip("pitch ต่ำ = ของใหญ่ผ่าลม (วืดเสียงสูงฟังเป็นไม้เล็ก)")]
+        public Vector2 swingPitch = new Vector2(0.5f, 0.65f);
+
         [Header("เสียง 3D")]
         [Tooltip("ระยะที่ยังดังเต็ม (เมตร) — ของยักษ์ต้องได้ยินจากไกล")]
         public float audioMinDistance = 30f;

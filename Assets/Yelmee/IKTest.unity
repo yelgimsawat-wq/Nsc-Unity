@@ -2348,6 +2348,9 @@ MonoBehaviour:
     armLookHeight: 11.5
     armSideShift: 2.5
     reframeSpeed: 6
+    armGroundLookHeight: 1
+    armGroundLookForward: 4
+    armGroundDistance: 12
     startPitch: 55
     downPitch: 45
     downDistance: 16
@@ -2422,6 +2425,19 @@ MonoBehaviour:
   grabMinSpeed: 0.15
   grabGlow: {r: 0.6, g: 0.45000002, b: 0.15, a: 0.6}
   grabReachTime: 0.8
+  weaponSwingPerPixel: 0.18
+  weaponWristBend: 35
+  wristLimits: {x: 20, y: 10, z: 40, w: 35}
+  weaponTwist: 40
+  weaponFreeAim: 0
+  slashDragPixels: 30
+  slashWeight: 2
+  slashAssistRange: 3
+  weaponLean: 18
+  weaponTrail: {fileID: 0}
+  reachSquat: 0.45
+  reachBend: 70
+  reachLunge: 0.45
   detach:
     pullTime: 1
     flingSpeed: 6
