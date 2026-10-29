@@ -46,6 +46,8 @@ namespace Nsc.BoneLimb
         public bool KickPose { get; set; }
         /// <summary>ขา: ช่วงพุ่งถีบออก — Server นับดาเมจเฉพาะช่วงนี้ (ชักกลับลงพื้นไม่ใช่การเตะ)</summary>
         public bool Kick { get; set; }
+        /// <summary>ขา: ค้าง F = ย่อตัวหลบ | สองขาค้างพร้อมกัน (เท้าติดพื้น) = ปักหลัก แรงกระแทกล้มไม่ได้</summary>
+        public bool Brace { get; set; }
         /// <summary>แขน: ระยะระนาบมือหน้าไหล่</summary>
         public float Depth { get; set; }
         /// <summary>บานพับศอก/เข่า (แกน local ของกระดูกกลาง, ทิศงอ, มุมงอตอนท่าตั้งต้น) — ragdoll ใช้ตั้งข้อต่อให้พับทางเดียวกับ IK</summary>

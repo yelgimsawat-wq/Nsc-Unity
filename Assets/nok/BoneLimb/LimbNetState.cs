@@ -15,6 +15,7 @@ namespace Nsc.BoneLimb
         public bool reaching; // แขนกำลังเอื้อมไปหยิบ — ตัวหุ่นย่อ/ก้ม/พุ่งตาม
         public bool kickPose; // ขาอยู่ในท่าถีบ — Server ไม่ให้ตัวไหลตามเท้านี้
         public bool kick;     // ช่วงพุ่งถีบออก — Server นับดาเมจ
+        public bool brace;    // ขาค้าง F — ย่อ / สองขา = ปักหลักกันล้ม
 
         public static LimbNetState Capture(IKLimb limb) => new LimbNetState
         {
@@ -26,6 +27,7 @@ namespace Nsc.BoneLimb
             reaching = limb.Reaching,
             kickPose = limb.KickPose,
             kick = limb.Kick,
+            brace = limb.Brace,
         };
 
         /// <summary>เครื่องที่ไม่ได้คุมชิ้นนี้: ไหลเป้าไปหาค่าที่ซิงก์มา</summary>
@@ -39,6 +41,7 @@ namespace Nsc.BoneLimb
             limb.Reaching = reaching;
             limb.KickPose = kickPose;
             limb.Kick = kick;
+            limb.Brace = brace;
         }
 
         public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
@@ -51,8 +54,9 @@ namespace Nsc.BoneLimb
             s.SerializeValue(ref reaching);
             s.SerializeValue(ref kickPose);
             s.SerializeValue(ref kick);
+            s.SerializeValue(ref brace);
         }
 
-        public bool Equals(LimbNetState o) => pos == o.pos && rot == o.rot && grip == o.grip && pull == o.pull && grab == o.grab && reaching == o.reaching && kickPose == o.kickPose && kick == o.kick;
+        public bool Equals(LimbNetState o) => pos == o.pos && rot == o.rot && grip == o.grip && pull == o.pull && grab == o.grab && reaching == o.reaching && kickPose == o.kickPose && kick == o.kick && brace == o.brace;
     }
 }

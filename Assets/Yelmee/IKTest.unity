@@ -2361,6 +2361,7 @@ MonoBehaviour:
   follow: 12
   gripSpeed: 8
   crouch: 0.15
+  braceCrouch: 0.25
   bodyFollow: 3
   remoteSmoothing: 15
   shoulder:
@@ -2419,6 +2420,14 @@ MonoBehaviour:
   kickSolePitch: 70
   kickFallGravity: 40
   kickPowerAtZeroHealth: 0.3
+  kickPropSpeed: 40
+  kickPropDamage: 25
+  stompHold: 0.4
+  stompRadius: 1.2
+  stompLift: 20
+  stompDamage: 10
+  strideWindow: {x: 0.3, y: 1.4}
+  strideBonus: 0.15
   grabToggle: 1
   grabRadius: 1.2
   grabHalfMass: 80
