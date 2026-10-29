@@ -239,6 +239,10 @@ namespace Nsc.BoneLimb
         private bool votedStand;        // เครื่องนี้กด Q ขอลุกแล้ว
         private readonly HashSet<ulong> standVoters = new HashSet<ulong>(); // Server: ใครกด Q แล้ว
         private float getUp = -1f;      // กำลังลุก 0..1, -1 = ไม่ได้ลุก
+        private float getUpPrev;        // getUp เฟรมก่อน (-1 = เฟรมแรกของการลุก) — จับจังหวะมือ/เท้าลงพื้น
+        private Vector3[] getUpPlant;   // จุดมือยันพื้นตอนลุก (โลก) — ตั้งเฟรมแรกจากไหล่ในท่าก้ม
+        private Vector3 getUpStepFrom, getUpStepTo; // เท้าหลัง: ท่าย่อ → ท่ายืน
+        private const int RearLeg = 3;  // ขาขวาเป็นเท้าหลังตอนลุก
         private Vector3[] legRest;      // เท้าตอนยืนในแกนตัวหุ่น — วางเท้าใหม่ตอนลุก
         private Collider bodyCollider;
         private NetworkTransform netTransform;
@@ -315,6 +319,7 @@ namespace Nsc.BoneLimb
             supportHolding = new bool[limbs.Length];
             trails = new TrailRenderer[limbs.Length];
             lastTrailTip = new Vector3[limbs.Length];
+            getUpPlant = new Vector3[limbs.Length];
             swingSoundAt = new float[limbs.Length];
             swingHit = new bool[limbs.Length];
             poseArms = new IKCombat.Arm[limbs.Length];
@@ -622,6 +627,7 @@ namespace Nsc.BoneLimb
                                * Quaternion.AngleAxis(bodyPose.y + lean.x, transform.right)
                                * Quaternion.AngleAxis(lean.y, transform.forward) * spine.rotation;
             }
+            if (getUp >= 0f) GetUpPose(getUp);
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
@@ -645,7 +651,8 @@ namespace Nsc.BoneLimb
             if (DrivesBody) { PlaceHeld(false); ServerStrikes(); }
             if (getUp >= 0f)
             {
-                ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp));
+                ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp / GetUpPlantAt)); // ท่านอน → ท่ายันมือ เท่านั้น ที่เหลือ IK พาลุกเอง (มือ/เท้าปักพื้นจริง)
+                getUpPrev = getUp;
                 if (getUp >= 1f)
                 {
                     getUp = -1f;
@@ -1974,7 +1981,9 @@ namespace Nsc.BoneLimb
             }
 
             Vector3 hips = DrivesBody ? ragdoll.Hips.position : fallHipsPos.Value;
-            Quaternion facing = DrivesBody ? bodyRot : transform.rotation;
+            // หันตามท่านอน (ทุกเครื่องอ่านจากสะโพกที่ซิงก์): คว่ำ = ดันตัวขึ้นหันทางหัว | หงาย = ลุกนั่งหันทางเท้า — ไม่หมุนกลับทิศก่อนล้ม (ตัวบิดวนกลางท่า)
+            Vector3 face = ragdoll.FaceDown(out Vector3 head) ? head : -head;
+            Quaternion facing = face.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(face.normalized) : DrivesBody ? bodyRot : transform.rotation;
             ragdoll.BeginBlend();
             ragdoll.Enforce(false, false);
             ragdoll.SetPhysics(false, Vector3.zero);
@@ -1985,10 +1994,12 @@ namespace Nsc.BoneLimb
             {
                 bodyPos = stand;
                 bodyVel = Vector3.zero;
+                bodyRot = facing;
                 yawVel = 0f;
                 body.position = stand;
+                body.rotation = facing;
                 if (netTransform && netTransform.IsSpawned) netTransform.Teleport(stand, facing, transform.localScale); // client ไม่ไถลจากจุดเดิม
-                else transform.position = stand;
+                else transform.SetPositionAndRotation(stand, facing);
             }
             for (int i = 0; i < limbs.Length; i++)
             {
@@ -2001,8 +2012,14 @@ namespace Nsc.BoneLimb
                     if (Online && IsServer) states[i] = LimbNetState.Capture(limb);
                     continue;
                 }
-                Vector3 p = stand + facing * new Vector3(legRest[i].x, 0f, legRest[i].z);
+                Vector3 rest = stand + facing * new Vector3(legRest[i].x, 0f, legRest[i].z);
+                Vector3 p = rest + facing * Vector3.forward * (limb.Reach * (i == RearLeg ? -0.45f : 0.25f)); // ท่าย่อ: เท้าเหลื่อมหน้า-หลัง ไม่ใช่ยืนตรงรอไว้แล้ว
                 p.y = GroundY(p) + limb.RestHeight;
+                if (i == RearLeg) // เท้าหลังก้าวขึ้นมาที่ท่ายืนตอนดันตัวขึ้น (GetUpPose)
+                {
+                    getUpStepFrom = p;
+                    getUpStepTo = new Vector3(rest.x, GroundY(rest) + limb.RestHeight, rest.z);
+                }
                 limb.target.SetPositionAndRotation(p, facing * limb.RestRotation);
                 airborne[i] = false;
                 CancelKick(i);
@@ -2010,7 +2027,43 @@ namespace Nsc.BoneLimb
                 if (Online && IsServer) states[i] = LimbNetState.Capture(limb); // ขาที่ไม่มีใครคุมไม่ไหลกลับไปที่เดิม
             }
             getUp = 0f;
+            getUpPrev = -1f;
         }
+
+        // ลุกแบบหุ่นหนัก (ทีมค้นหา 2026-10-29) ทุกเครื่องคิดเองจากเวลา getUp 0..1:
+        // ไล่ท่านอน → ย่อก้ม กำปั้นยันพื้น (Blend ช่วงแรก) → ค้างรับน้ำหนัก (ยวบ) → ดันตัวขึ้นช้า-เร็ว-ช้า กำปั้นดันพื้นแล้วยกกลับการ์ด ลำตัวตั้งทีหลังสะโพก
+        // → เท้าหลังก้าวขึ้นมา → ยวบแล้วนิ่ง | มือ/เท้าที่รับน้ำหนักปักจุดเดียวในโลก IK แก้ข้อต่อเอง (เดิมไล่มุมข้อต่อตรงจากท่านอน = ตัวลอยขึ้นเหมือนหุ่นเชิด)
+        private const float GetUpPlantAt = 0.3f, GetUpRiseFrom = 0.4f, GetUpRiseTo = 0.85f, GetUpStepStart = 0.6f, GetUpStepEnd = 0.8f;
+        private void GetUpPose(float t)
+        {
+            float leg = limbs[RearLeg].Reach;
+            float rise = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom, GetUpRiseTo, t));
+            float drop = leg * (0.62f * (1f - rise) + 0.04f * Bump(t, GetUpPlantAt, GetUpRiseFrom + 0.05f) + 0.05f * Bump(t, GetUpRiseTo, 0.97f));
+            model.transform.localPosition = modelRest + Vector3.forward * bodyPose.z + Vector3.down * (weaponCrouch + drop);
+            if (spine) spine.rotation = Quaternion.AngleAxis(70f * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom + 0.05f, 0.92f, t))), transform.right) * spine.rotation;
+
+            float plant = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 0.75f, t)); // ดันพื้นจนสะโพกขึ้นราวครึ่ง แล้วยกกลับการ์ด
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                IKLimb arm = limbs[i];
+                if (!arm.isArm || !Attached(i)) continue;
+                if (getUpPrev < 0f) // เฟรมแรก: ไหล่อยู่ท่าก้มแล้ว — กำปั้นลงพื้นหน้าไหล่
+                {
+                    Vector3 s = arm.root.position + transform.forward * (arm.Reach * 0.3f);
+                    getUpPlant[i] = new Vector3(s.x, GroundY(s), s.z);
+                }
+                arm.target.position = Vector3.Lerp(arm.target.parent.TransformPoint(arms[i].desired), getUpPlant[i] + Vector3.up * (arm.Lower * 0.15f), plant);
+                if (Crossed(t, GetUpPlantAt)) ImpactFeel.PlayFootstep(getUpPlant[i], 0.7f, 0.25f); // ฝุ่นเท้าเต็มขนาด 3 จุดบังทั้งตัว
+            }
+
+            if (!Attached(RearLeg) || getUpPrev >= GetUpStepEnd) return; // ก้าวเสร็จแล้ว = เท้ากลับไปตามระบบเดินปกติ
+            float u = Mathf.InverseLerp(GetUpStepStart, GetUpStepEnd, t);
+            limbs[RearLeg].target.position = Vector3.Lerp(getUpStepFrom, getUpStepTo, Mathf.SmoothStep(0f, 1f, u)) + Vector3.up * (Mathf.Sin(Mathf.PI * u) * leg * 0.25f);
+            if (Crossed(t, GetUpStepEnd)) planted[RearLeg] = getUpStepTo; // เสียง/ฝุ่นเท้าลง DetectLandings เล่นให้เหมือนก้าวปกติ
+        }
+
+        private bool Crossed(float t, float at) => getUpPrev < at && t >= at;
+        private static float Bump(float t, float from, float to) => t <= from || t >= to ? 0f : Mathf.Sin(Mathf.PI * (t - from) / (to - from));
 
         // นอนอยู่ (ทุกชิ้นเหมือนกัน): เคอร์เซอร์ = จุดที่มือ/เท้าเอื้อมไป บนระนาบผ่านไหล่/สะโพกที่หันหากล้อง ไม่เกินความยาวแขนขา
         // คลิกค้าง = ดึงจริง (แรงใน FixedUpdate) + กำมือ | ปล่อย = ห้อยตามฟิสิกส์ — ไว้ยันพื้น คลาน ปัดของ

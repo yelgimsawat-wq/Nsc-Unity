@@ -12,8 +12,8 @@ namespace Nsc.BoneLimb
     [Serializable]
     public class IKRagdoll
     {
-        [Tooltip("เวลาลุกจากท่านอนกลับเป็นท่ายืน (วินาที)")]
-        public float getUpTime = 1.2f;
+        [Tooltip("เวลาลุกทั้งท่า: ยันมือ → ดันขึ้น → ก้าวเท้าหลัง → ยวบ (วินาที) — หุ่นหนักไม่ควรต่ำกว่า ~2.5")]
+        public float getUpTime = 3f;
         [Tooltip("ความเร็วแนวนอนที่ผลักลำตัวตอนเริ่มล้ม — ล้มไปทางที่ตัวเคลื่อน (ยืนนิ่ง = หงายหลัง) ไม่ใช่ทรุดลงตรงๆ")]
         public float topple = 3f;
         [Tooltip("มวลรวมทั้งตัว แบ่งให้แต่ละท่อนตามสัดส่วน")]
@@ -31,10 +31,12 @@ namespace Nsc.BoneLimb
             public Rigidbody body;
             public Vector3 restPos;
             public Quaternion restRot;
-            public Quaternion fromRot;
+            public Quaternion fromRot, fromWorld;
+            public bool arm;
         }
 
         private Part[] parts;               // สะโพก (ตัวแรก) อก หัว แขน×2 ขา×2
+        private Quaternion[] toWorld;       // Blend: ท่า IK ในโลก (ใช้ซ้ำทุกเฟรม)
         private readonly List<Collider> colliders = new List<Collider>();
         private readonly List<Collider> others = new List<Collider>();
         // ชิ้นที่หลุด (กระดูกถูกย่อซ่อนอยู่): ปิด collider (collider จิ๋ว = ความเฉื่อยเกือบศูนย์ ทั้งตัวสั่น) + เบาเกือบศูนย์ ห้อยตามฟิสิกส์
@@ -45,8 +47,17 @@ namespace Nsc.BoneLimb
         private bool physicsOn;
         private Vector3 hipsFrom;
         private Quaternion hipsFromRot;
+        private Vector3 hipsFwdLocal, hipsUpLocal; // ทิศหน้า/หัวของตัวหุ่น ในแกนกระดูกสะโพก (จำตอนสร้าง) — อ่านท่านอน
 
         public Rigidbody Hips => parts[0].body;
+
+        /// <summary>ท่านอนตอนนี้: คว่ำ (หน้าลงพื้น) ไหม + ทิศสะโพก → หัว บนพื้น</summary>
+        public bool FaceDown(out Vector3 headDir)
+        {
+            Quaternion r = parts[0].bone.rotation;
+            headDir = Vector3.ProjectOnPlane(r * hipsUpLocal, Vector3.up);
+            return (r * hipsFwdLocal).y < 0f;
+        }
 
         /// <summary>เรียกตอน Awake หลัง IKLimb.Init ขณะกระดูกยังเป็นท่าตั้งต้น (ข้อต่อจำท่านี้เป็นมุมศูนย์)</summary>
         public void Build(Transform body, GameObject model, IKLimb[] limbs, IEnumerable<Collider> ignore)
@@ -57,6 +68,8 @@ namespace Nsc.BoneLimb
             float hipWidth = Vector3.Distance(ll.root.position, rl.root.position);
             float shoulderWidth = Vector3.Distance(la.root.position, ra.root.position);
 
+            hipsFwdLocal = Quaternion.Inverse(hips.rotation) * body.forward;
+            hipsUpLocal = Quaternion.Inverse(hips.rotation) * body.up;
             var list = new List<Part>();
             Rigidbody hipsBody = Add(list, hips, 0.15f);
             Capsule(hips, ll.root.position, rl.root.position, hipWidth * 0.4f);
@@ -73,6 +86,7 @@ namespace Nsc.BoneLimb
             foreach (IKLimb limb in limbs)
             {
                 Rigidbody parent = limb.isArm ? chestBody : hipsBody;
+                int first = list.Count;
                 Rigidbody upper = Add(list, limb.root, limb.isArm ? 0.05f : 0.1f);
                 Capsule(limb.root, limb.root.position, limb.mid.position, limb.Upper * (limb.isArm ? 0.25f : 0.35f) * thickness);
                 Twist(limb.root, upper, parent, limb.mid.position, limb.isArm ? 45f : 20f, limb.isArm ? 80f : 60f);
@@ -87,8 +101,10 @@ namespace Nsc.BoneLimb
                     Capsule(limb.tip, limb.tip.position, limb.tip.position + body.forward * limb.Lower * 0.4f, limb.Lower * 0.18f * thickness);
                 }
                 Hinge(limb, lower, upper);
+                for (int k = first; k < list.Count; k++) { Part p = list[k]; p.arm = limb.isArm; list[k] = p; }
             }
             parts = list.ToArray();
+            toWorld = new Quaternion[parts.Length];
 
             others.AddRange(ignore);
             Enforce(false, false);
@@ -163,7 +179,11 @@ namespace Nsc.BoneLimb
         {
             hipsFrom = parts[0].bone.position;
             hipsFromRot = parts[0].bone.rotation;
-            for (int i = 0; i < parts.Length; i++) parts[i].fromRot = parts[i].bone.localRotation;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                parts[i].fromRot = parts[i].bone.localRotation;
+                parts[i].fromWorld = parts[i].bone.rotation;
+            }
         }
 
         /// <summary>ระหว่างลุก ก่อนแก้ IK: กระดูกที่ฟิสิกส์ขยับกลับเป็นท่าตั้งต้น (สะโพก/อก/หัวไม่มีใครตั้งให้)</summary>
@@ -176,12 +196,17 @@ namespace Nsc.BoneLimb
         /// ระหว่างลุก หลังแก้ IK: ไล่จากท่านอน (t = 0) ไปท่าที่ IK แก้ได้ (t = 1)
         /// ไล่มุมข้อต่อ (local) ไม่ใช่มุมโลก — มุมโลกของพ่อกับลูกไล่แยกกันจะทำให้ศอก/เข่าหมุนวนผ่านท่าที่ข้อต่อพับไม่ได้
         /// </summary>
+        /// แขนไล่มุมโลกแทน — ท่ายันพื้นของ IK เป็นมุมเทียบลำตัวที่ก้มแล้ว ใส่บนลำตัวที่ยังนอนอยู่ = แขนชูฟ้าแวบหนึ่ง (มือควรลงพื้นตรงๆ)
         public void Blend(float t)
         {
+            for (int i = 0; i < parts.Length; i++) toWorld[i] = parts[i].bone.rotation; // ท่า IK ก่อนแตะอะไร (แก้พ่อแล้วมุมโลกของลูกเปลี่ยน)
             Transform hips = parts[0].bone;
             hips.SetPositionAndRotation(Vector3.Lerp(hipsFrom, hips.position, t), Quaternion.Slerp(hipsFromRot, hips.rotation, t));
             for (int i = 1; i < parts.Length; i++)
-                parts[i].bone.localRotation = Quaternion.Slerp(parts[i].fromRot, parts[i].bone.localRotation, t);
+            {
+                if (parts[i].arm) parts[i].bone.rotation = Quaternion.Slerp(parts[i].fromWorld, toWorld[i], t);
+                else parts[i].bone.localRotation = Quaternion.Slerp(parts[i].fromRot, parts[i].bone.localRotation, t);
+            }
         }
 
         // ไม่ชนกันเองและไม่ชน collider อื่นของหุ่น (กล่องลำตัว, _Hit มือ/เท้า) — ข้อต่อคุมท่าอยู่แล้ว แคปซูลที่ซ้อนกันตรงข้อต่อจะดีดตัวลอย

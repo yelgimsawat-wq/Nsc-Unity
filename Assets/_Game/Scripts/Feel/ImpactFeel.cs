@@ -10,8 +10,8 @@ namespace Nsc.Feel
     {
         private static Texture2D softDot;
 
-        /// <summary>เท้ายักษ์ปักพื้น — strength 0..1 ตามความเร็วตอนลง</summary>
-        public static void PlayFootstep(Vector3 position, float strength)
+        /// <summary>เท้ายักษ์ปักพื้น — strength 0..1 ตามความเร็วตอนลง | dust = คูณขนาดฝุ่น (มือยันพื้นใช้ฝุ่นเล็กกว่าเท้า)</summary>
+        public static void PlayFootstep(Vector3 position, float strength, float dust = 1f)
         {
             FeelConfig config = FeelConfig.Instance;
             if (config == null || Application.isBatchMode) return;
@@ -19,7 +19,7 @@ namespace Nsc.Feel
             strength = Mathf.Clamp01(strength);
             CameraShake.Add(position, config.footstepShake * strength, config.footstepShakeDuration);
             PlayClip(config, config.footstepClips, position, config.footstepVolume * Mathf.Lerp(0.65f, 1f, strength), config.footstepPitch);
-            SpawnDust(config, position, strength);
+            SpawnDust(config, position, strength, dust);
         }
 
         /// <summary>หมัด/เตะ/ดาบเข้าเป้า หรือบอสตีโดนหุ่น — surfaceNormal ชี้ออกจากผิวที่โดน (ทางที่ประกายไฟกระเด็น)</summary>
@@ -71,18 +71,18 @@ namespace Nsc.Feel
             Object.Destroy(go, clip.length / Mathf.Max(0.1f, source.pitch) + 0.1f);
         }
 
-        private static void SpawnDust(FeelConfig config, Vector3 position, float strength)
+        private static void SpawnDust(FeelConfig config, Vector3 position, float strength, float scale)
         {
-            if (config.dustPrefab == null) return;
+            if (config.dustPrefab == null || scale <= 0f) return;
 
             // สองก้อนซ้ายขวา ให้ดูเป็นฝุ่นกระจายรอบเท้า ไม่ใช่ควันจุดเดียว
             Vector3 side = Random.insideUnitSphere; side.y = 0f;
             side = side.sqrMagnitude > 0.001f ? side.normalized : Vector3.right;
             for (int i = 0; i < 2; i++)
             {
-                Vector3 at = position + side * (i == 0 ? 2.5f : -2.5f);
+                Vector3 at = position + side * ((i == 0 ? 2.5f : -2.5f) * scale);
                 GameObject dust = Object.Instantiate(config.dustPrefab, at, Quaternion.Euler(0f, Random.Range(0f, 360f), 0f));
-                dust.transform.localScale = Vector3.one * config.dustScale * Mathf.Lerp(0.7f, 1f, strength);
+                dust.transform.localScale = Vector3.one * config.dustScale * scale * Mathf.Lerp(0.7f, 1f, strength);
                 float life = 0f;
                 foreach (ParticleSystem ps in dust.GetComponentsInChildren<ParticleSystem>())
                 {
