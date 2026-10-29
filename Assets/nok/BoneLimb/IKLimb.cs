@@ -171,7 +171,7 @@ namespace Nsc.BoneLimb
                         float m = (lo + hi) * 0.5f;
                         if (Touches(i, m)) hi = m; else lo = m;
                     }
-                    t = Mathf.Max(lo, Grip * 0.45f); // ของหนา: นิ้วหยุดที่ผิวแรกแล้วมือดูแบ — กำอย่างน้อยครึ่งหนึ่งเสมอ (จมผิวนิดหน่อยดีกว่ามือแบ)
+                    t = Mathf.Max(lo, Grip * 0.8f); // ของหนา: นิ้วหยุดที่ผิวแรกแล้วมือดูแบ/นิ้วโป้งยื่น — กำอย่างน้อย 80% เสมอ (จมผิวนิดหน่อยดีกว่ามือแบ)
                 }
                 fingers[i].localRotation = Quaternion.Slerp(open[i], closed[i], t);
             }
