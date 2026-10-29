@@ -13,7 +13,7 @@ namespace Nsc.BoneLimb
     public class IKRagdoll
     {
         [Tooltip("เวลาลุกทั้งท่า: ยันมือ → ดันขึ้น → ก้าวเท้าหลัง → ยวบ (วินาที) — หุ่นหนักไม่ควรต่ำกว่า ~2.5")]
-        public float getUpTime = 3f;
+        public float getUpTime = 3.4f;
         [Tooltip("ความเร็วแนวนอนที่ผลักลำตัวตอนเริ่มล้ม — ล้มไปทางที่ตัวเคลื่อน (ยืนนิ่ง = หงายหลัง) ไม่ใช่ทรุดลงตรงๆ")]
         public float topple = 3f;
         [Tooltip("มวลรวมทั้งตัว แบ่งให้แต่ละท่อนตามสัดส่วน")]
@@ -33,6 +33,7 @@ namespace Nsc.BoneLimb
             public Quaternion restRot;
             public Quaternion fromRot, fromWorld;
             public bool arm;
+            public int limb;                // ลำดับใน limbs (แขนขา) — ลำตัว/หัว = -1
         }
 
         private Part[] parts;               // สะโพก (ตัวแรก) อก หัว แขน×2 ขา×2
@@ -101,7 +102,7 @@ namespace Nsc.BoneLimb
                     Capsule(limb.tip, limb.tip.position, limb.tip.position + body.forward * limb.Lower * 0.4f, limb.Lower * 0.18f * thickness);
                 }
                 Hinge(limb, lower, upper);
-                for (int k = first; k < list.Count; k++) { Part p = list[k]; p.arm = limb.isArm; list[k] = p; }
+                for (int k = first; k < list.Count; k++) { Part p = list[k]; p.arm = limb.isArm; p.limb = Array.IndexOf(limbs, limb); list[k] = p; }
             }
             parts = list.ToArray();
             toWorld = new Quaternion[parts.Length];
@@ -197,14 +198,15 @@ namespace Nsc.BoneLimb
         /// ไล่มุมข้อต่อ (local) ไม่ใช่มุมโลก — มุมโลกของพ่อกับลูกไล่แยกกันจะทำให้ศอก/เข่าหมุนวนผ่านท่าที่ข้อต่อพับไม่ได้
         /// </summary>
         /// แขนไล่มุมโลกแทน — ท่ายันพื้นของ IK เป็นมุมเทียบลำตัวที่ก้มแล้ว ใส่บนลำตัวที่ยังนอนอยู่ = แขนชูฟ้าแวบหนึ่ง (มือควรลงพื้นตรงๆ)
-        public void Blend(float t)
+        /// armT[ลำดับแขนขา] = เวลาของแขนแต่ละข้าง — มือหนึ่งยันพื้นก่อน อีกมือตามมา
+        public void Blend(float t, float[] armT)
         {
             for (int i = 0; i < parts.Length; i++) toWorld[i] = parts[i].bone.rotation; // ท่า IK ก่อนแตะอะไร (แก้พ่อแล้วมุมโลกของลูกเปลี่ยน)
             Transform hips = parts[0].bone;
             hips.SetPositionAndRotation(Vector3.Lerp(hipsFrom, hips.position, t), Quaternion.Slerp(hipsFromRot, hips.rotation, t));
             for (int i = 1; i < parts.Length; i++)
             {
-                if (parts[i].arm) parts[i].bone.rotation = Quaternion.Slerp(parts[i].fromWorld, toWorld[i], t);
+                if (parts[i].arm) parts[i].bone.rotation = Quaternion.Slerp(parts[i].fromWorld, toWorld[i], armT[parts[i].limb]);
                 else parts[i].bone.localRotation = Quaternion.Slerp(parts[i].fromRot, parts[i].bone.localRotation, t);
             }
         }
@@ -231,7 +233,7 @@ namespace Nsc.BoneLimb
             rb.isKinematic = true;
             rb.solverIterations = 12;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-            list.Add(new Part { bone = bone, body = rb, restPos = bone.localPosition, restRot = bone.localRotation });
+            list.Add(new Part { bone = bone, body = rb, restPos = bone.localPosition, restRot = bone.localRotation, limb = -1 });
             return rb;
         }
 

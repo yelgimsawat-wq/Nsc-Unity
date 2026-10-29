@@ -241,6 +241,8 @@ namespace Nsc.BoneLimb
         private float getUp = -1f;      // กำลังลุก 0..1, -1 = ไม่ได้ลุก
         private float getUpPrev;        // getUp เฟรมก่อน (-1 = เฟรมแรกของการลุก) — จับจังหวะมือ/เท้าลงพื้น
         private Vector3[] getUpPlant;   // จุดมือยันพื้นตอนลุก (โลก) — ตั้งเฟรมแรกจากไหล่ในท่าก้ม
+        private float[] getUpArmT;      // Blend: เวลาไล่ท่าของแต่ละแขน
+        private int getUpLead;          // แขนที่ยันพื้นก่อน = ข้างที่ไหล่แนบพื้นกว่าตอนนอน (ลำตัวบิดไปข้างนี้)
         private Vector3 getUpStepFrom, getUpStepTo; // เท้าหลัง: ท่าย่อ → ท่ายืน
         private const int RearLeg = 3;  // ขาขวาเป็นเท้าหลังตอนลุก
         private Vector3[] legRest;      // เท้าตอนยืนในแกนตัวหุ่น — วางเท้าใหม่ตอนลุก
@@ -320,6 +322,7 @@ namespace Nsc.BoneLimb
             trails = new TrailRenderer[limbs.Length];
             lastTrailTip = new Vector3[limbs.Length];
             getUpPlant = new Vector3[limbs.Length];
+            getUpArmT = new float[limbs.Length];
             swingSoundAt = new float[limbs.Length];
             swingHit = new bool[limbs.Length];
             poseArms = new IKCombat.Arm[limbs.Length];
@@ -497,6 +500,8 @@ namespace Nsc.BoneLimb
                     }
                     continue;
                 }
+                // กำลังลุก: GetUpPose คุมเท้าคนเดียว — ระบบวางเท้า/ค่าที่ซิงก์มาแตะด้วย = เท้าถูกกดลงพื้นทุกเฟรมสลับกับยกขึ้น (ติด) เสียงก้าว+ฝุ่นรัวทุกเฟรม
+                if (getUp >= 0f && !limb.isArm) continue;
                 // ไม่ได้คุมชิ้นนี้ = ไม่จับ (สลับไปคุมชิ้นอื่นแล้วกลับมาไม่จับต่อเอง) — ออนไลน์ชิ้นที่คนอื่นคุมได้ค่าจริงจาก ApplyTo ด้านล่าง
                 if (limb.isArm && !(IsMine(i) && canAct)) CancelGrab(i);
                 if (IsMine(i) && canAct)
@@ -651,7 +656,10 @@ namespace Nsc.BoneLimb
             if (DrivesBody) { PlaceHeld(false); ServerStrikes(); }
             if (getUp >= 0f)
             {
-                ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp / GetUpPlantAt)); // ท่านอน → ท่ายันมือ เท่านั้น ที่เหลือ IK พาลุกเอง (มือ/เท้าปักพื้นจริง)
+                // ท่านอน → ท่ายันมือ เท่านั้น ที่เหลือ IK พาลุกเอง (มือ/เท้าปักพื้นจริง) | มือนำถึงพื้นก่อน อีกมือตามมา
+                for (int i = 0; i < limbs.Length; i++)
+                    getUpArmT[i] = Mathf.SmoothStep(0f, 1f, i == getUpLead ? getUp / GetUpLeadAt : Mathf.InverseLerp(GetUpLeadAt * 0.5f, GetUpPlantAt, getUp));
+                ragdoll.Blend(Mathf.SmoothStep(0f, 1f, getUp / GetUpPlantAt), getUpArmT);
                 getUpPrev = getUp;
                 if (getUp >= 1f)
                 {
@@ -1984,6 +1992,7 @@ namespace Nsc.BoneLimb
             // หันตามท่านอน (ทุกเครื่องอ่านจากสะโพกที่ซิงก์): คว่ำ = ดันตัวขึ้นหันทางหัว | หงาย = ลุกนั่งหันทางเท้า — ไม่หมุนกลับทิศก่อนล้ม (ตัวบิดวนกลางท่า)
             Vector3 face = ragdoll.FaceDown(out Vector3 head) ? head : -head;
             Quaternion facing = face.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(face.normalized) : DrivesBody ? bodyRot : transform.rotation;
+            getUpLead = limbs[0].root.position.y <= limbs[1].root.position.y ? 0 : 1; // ตะแคงไปข้างไหน ยันด้วยมือข้างนั้น
             ragdoll.BeginBlend();
             ragdoll.Enforce(false, false);
             ragdoll.SetPhysics(false, Vector3.zero);
@@ -2031,35 +2040,50 @@ namespace Nsc.BoneLimb
         }
 
         // ลุกแบบหุ่นหนัก (ทีมค้นหา 2026-10-29) ทุกเครื่องคิดเองจากเวลา getUp 0..1:
-        // ไล่ท่านอน → ย่อก้ม กำปั้นยันพื้น (Blend ช่วงแรก) → ค้างรับน้ำหนัก (ยวบ) → ดันตัวขึ้นช้า-เร็ว-ช้า กำปั้นดันพื้นแล้วยกกลับการ์ด ลำตัวตั้งทีหลังสะโพก
-        // → เท้าหลังก้าวขึ้นมา → ยวบแล้วนิ่ง | มือ/เท้าที่รับน้ำหนักปักจุดเดียวในโลก IK แก้ข้อต่อเอง (เดิมไล่มุมข้อต่อตรงจากท่านอน = ตัวลอยขึ้นเหมือนหุ่นเชิด)
-        private const float GetUpPlantAt = 0.3f, GetUpRiseFrom = 0.4f, GetUpRiseTo = 0.85f, GetUpStepStart = 0.6f, GetUpStepEnd = 0.8f;
+        // ไล่ท่านอน → บิด/เอียงไปข้างหนึ่ง มือข้างนั้นยันพื้นข้างตัวก่อน อีกมือตามมาวางหน้าไหล่ (Blend ช่วงแรก) → แขนดันพื้น (ศอกเหยียด สะโพกยกนิด)
+        // → ดันตัวขึ้นช้า-เร็ว-ช้า คลายบิด กำปั้นยกกลับการ์ดตอนสะโพกขึ้นราวครึ่ง ลำตัวตั้งทีหลังสะโพก → เท้าหลังก้าวขึ้นมา → ยวบแล้วนิ่ง
+        // มือ/เท้าที่รับน้ำหนักปักจุดเดียวในโลก IK แก้ข้อต่อเอง (เดิมไล่มุมข้อต่อตรงจากท่านอน = ตัวลอยขึ้นเหมือนหุ่นเชิด)
+        private const float GetUpLeadAt = 0.17f, GetUpPlantAt = 0.32f, GetUpRiseFrom = 0.44f, GetUpRiseTo = 0.86f, GetUpStepStart = 0.62f, GetUpStepEnd = 0.82f;
         private void GetUpPose(float t)
         {
             float leg = limbs[RearLeg].Reach;
+            float press = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpPlantAt, GetUpRiseFrom, t)); // แขนดันพื้นก่อนลุกจริง
             float rise = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom, GetUpRiseTo, t));
-            float drop = leg * (0.62f * (1f - rise) + 0.04f * Bump(t, GetUpPlantAt, GetUpRiseFrom + 0.05f) + 0.05f * Bump(t, GetUpRiseTo, 0.97f));
+            float drop = leg * ((0.62f - 0.06f * press) * (1f - rise) + 0.05f * Bump(t, GetUpRiseTo, 0.97f));
             model.transform.localPosition = modelRest + Vector3.forward * bodyPose.z + Vector3.down * (weaponCrouch + drop);
-            if (spine) spine.rotation = Quaternion.AngleAxis(70f * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom + 0.05f, 0.92f, t))), transform.right) * spine.rotation;
+            if (spine)
+            {
+                float side = limbs[getUpLead].Side;
+                float twist = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom, 0.7f, t)); // บิด/เอียงไปข้างมือนำ คลายตอนดันขึ้น
+                float pitch = (70f - 12f * press) * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GetUpRiseFrom + 0.05f, 0.92f, t)));
+                spine.rotation = Quaternion.AngleAxis(side * 35f * twist, transform.up) * Quaternion.AngleAxis(-side * 15f * twist, transform.forward)
+                               * Quaternion.AngleAxis(pitch, transform.right) * spine.rotation;
+            }
 
-            float plant = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 0.75f, t)); // ดันพื้นจนสะโพกขึ้นราวครึ่ง แล้วยกกลับการ์ด
+            float plant = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.58f, 0.76f, t)); // ดันพื้นจนสะโพกขึ้นราวครึ่ง แล้วยกกลับการ์ด
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb arm = limbs[i];
                 if (!arm.isArm || !Attached(i)) continue;
-                if (getUpPrev < 0f) // เฟรมแรก: ไหล่อยู่ท่าก้มแล้ว — กำปั้นลงพื้นหน้าไหล่
+                bool lead = i == getUpLead;
+                if (getUpPrev < 0f) // เฟรมแรก: ไหล่อยู่ท่าบิด-ก้มแล้ว — มือนำลงข้างตัวฝั่งที่บิดไป, อีกมือหน้าไหล่
                 {
-                    Vector3 s = arm.root.position + transform.forward * (arm.Reach * 0.3f);
+                    Vector3 s = arm.root.position + (lead ? transform.right * (arm.Side * arm.Reach * 0.35f) + transform.forward * (arm.Reach * 0.1f)
+                                                          : transform.forward * (arm.Reach * 0.3f));
                     getUpPlant[i] = new Vector3(s.x, GroundY(s), s.z);
                 }
                 arm.target.position = Vector3.Lerp(arm.target.parent.TransformPoint(arms[i].desired), getUpPlant[i] + Vector3.up * (arm.Lower * 0.15f), plant);
-                if (Crossed(t, GetUpPlantAt)) ImpactFeel.PlayFootstep(getUpPlant[i], 0.7f, 0.25f); // ฝุ่นเท้าเต็มขนาด 3 จุดบังทั้งตัว
+                if (Crossed(t, lead ? GetUpLeadAt : GetUpPlantAt)) ImpactFeel.PlayFootstep(getUpPlant[i], 0.7f, 0.25f); // ฝุ่นเท้าเต็มขนาดบังทั้งตัว
             }
 
             if (!Attached(RearLeg) || getUpPrev >= GetUpStepEnd) return; // ก้าวเสร็จแล้ว = เท้ากลับไปตามระบบเดินปกติ
             float u = Mathf.InverseLerp(GetUpStepStart, GetUpStepEnd, t);
             limbs[RearLeg].target.position = Vector3.Lerp(getUpStepFrom, getUpStepTo, Mathf.SmoothStep(0f, 1f, u)) + Vector3.up * (Mathf.Sin(Mathf.PI * u) * leg * 0.25f);
-            if (Crossed(t, GetUpStepEnd)) planted[RearLeg] = getUpStepTo; // เสียง/ฝุ่นเท้าลง DetectLandings เล่นให้เหมือนก้าวปกติ
+            if (Crossed(t, GetUpStepEnd)) // เสียง/ฝุ่นเท้าลง DetectLandings เล่นให้ครั้งเดียวเหมือนก้าวปกติ
+            {
+                planted[RearLeg] = getUpStepTo;
+                if (Online && IsServer) states[RearLeg] = LimbNetState.Capture(limbs[RearLeg]); // เครื่องอื่นไม่เด้งเท้ากลับจุดก่อนก้าว (ค่าที่ซิงก์ไว้ตอนเริ่มลุก)
+            }
         }
 
         private bool Crossed(float t, float at) => getUpPrev < at && t >= at;
