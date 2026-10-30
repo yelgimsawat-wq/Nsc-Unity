@@ -118,9 +118,17 @@ namespace Nsc.Robots
         private bool CanTakeDamage =>
             (limb == null || limb.IsAttached) && hp.Value > 0f;
 
+        /// <summary>[SERVER] ตัวคูณดาเมจก่อนหักเลือด (หุ่น IK: แขนยกการ์ด/ปัดป้อง) — 0 = กันได้หมด | null = เต็ม</summary>
+        public Func<DamageInfo, float> DamageScale;
+
         public bool ServerApplyDamage(DamageInfo info)
         {
             if (!IsServer || !CanTakeDamage) return false;
+            if (DamageScale != null)
+            {
+                info.amount *= DamageScale(info);
+                if (info.amount <= 0f) return true; // ปัดป้องได้ — นับว่าเข้าเป้า (ผู้ตีไม่ตีซ้ำ) แต่ไม่เสียเลือด
+            }
 
             // ยิงเอฟเฟกต์ก่อนหักเลือด — หมัดสุดท้ายที่ทำให้ชิ้นหลุดยังมีเอฟเฟกต์ให้เห็น
             if (ShowsHitEffects(info.source))

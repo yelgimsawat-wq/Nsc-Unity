@@ -110,25 +110,21 @@ namespace Nsc.BoneLimb
         [Tooltip("ต่อจังหวะ: ก้าวเร็วขึ้น/ตัวไหลแรงขึ้นกี่ส่วน (3 จังหวะ × 0.15 = เร็วขึ้น 45%)")]
         [SerializeField] private float strideBonus = 0.15f;
 
-        [Header("ท่าแขน: การ์ด / ขว้าง / ประสานสองแขน / ล็อก / คลาน (ผู้ใช้ขอครบ 7 ท่า 2026-10-30)")]
+        [Header("ท่าแขน: การ์ด / ขว้าง / ประสานสองแขน / ล็อก (ผู้ใช้ขอครบ 7 ท่า 2026-10-30 — คลานตอนล้ม = ดึงมือที่มีอยู่แล้ว)")]
         [Tooltip("Shift ค้างที่แขน = ยกการ์ด: ดาเมจจากศัตรูเหลือเท่านี้ (ทุกชิ้นของหุ่น) | สองแขนยกพร้อมกัน = แรงกระแทกล้มไม่ได้เหมือนปักหลัก")]
         [Range(0f, 1f)] [SerializeField] private float blockDamageScale = 0.4f;
         [Tooltip("ยกการ์ดไม่เกินกี่วินาทีก่อนโดนตี = ปัดป้อง (Parry): ไม่โดนเลย + ศัตรูเสียหลัก")]
         [SerializeField] private float parryWindow = 0.3f;
         [Tooltip("ศัตรูเสียหลัก (AI หยุด) นานกี่วินาที — จาก Parry / สองแขนฟาดพร้อมกัน | เสียหลักอยู่ = กด F ใส่ล็อกตัวได้")]
         [SerializeField] private float staggerTime = 1.5f;
-        [Tooltip("ปล่อย F ตอนของที่ถือพุ่งเร็วเกินนี้ (m/s) = ขว้าง | ช้ากว่า = วางลงเหมือนเดิม")]
-        [SerializeField] private float throwMinSpeed = 25f;
-        [Tooltip("ความเร็วขว้างสูงสุด (m/s) และดาเมจตอนของที่ขว้างชนศัตรู")]
-        [SerializeField] private float throwMaxSpeed = 45f;
+        [Tooltip("ถือของอยู่กด F = ขว้างไปทางเคอร์เซอร์ทันที ด้วยความเร็วนี้ (m/s) ÷ (1 + มวล/200) และดาเมจตอนของที่ขว้างชนศัตรู")]
+        [SerializeField] private float throwSpeed = 45f;
         [SerializeField] private float throwDamage = 30f;
         [Tooltip("สองแขนต่อย/ฟาดโดนเป้าเดียวกันห่างกันไม่เกินกี่วินาที = Double Impact (ดาเมจโบนัส + ศัตรูเสียหลัก)")]
         [SerializeField] private float doubleImpactWindow = 0.3f;
         [SerializeField] private float doubleImpactDamage = 30f;
         [Tooltip("ล็อกศัตรูที่เสียหลักได้นานสุดกี่วินาที (ระหว่างนั้น AI หยุด)")]
         [SerializeField] private float grappleTime = 2.5f;
-        [Tooltip("หุ่นล้ม + มือที่ดึงอยู่แตะพื้น = ลากตัวไปทางมือ (ความเร่ง m/s²)")]
-        [SerializeField] private float crawlAccel = 10f;
 
         [Header("จับ (F = มือยึดของที่แตะ — ของตามมือ ของหนักหน่วงมือ)")]
         [Tooltip("เปิด = กด F ครั้งเดียวจับ กดอีกครั้งปล่อย | ปิด = ค้าง F ถึงจะจับ ปล่อย F = ปล่อย (แบบ Half-sword จริง)")]
@@ -164,7 +160,7 @@ namespace Nsc.BoneLimb
         [Tooltip("รอยแสงที่ปลายอาวุธตอนฟาดเร็ว (ว่าง = ไม่มีรอย)")]
         [SerializeField] private Material weaponTrail;
         [Tooltip("มืออยู่ต่ำกว่าที่แขนเอื้อมถึง (หยิบของบนพื้น): ย่อตัวลงได้สุดกี่ส่วนของความยาวขา ส่วนที่เหลือก้ม")]
-        [SerializeField] private float reachSquat = 0.45f;
+        [SerializeField] private float reachSquat = 0.6f;
         [Tooltip("ก้มตัวได้สุดกี่องศาตอนเอื้อมลงต่ำ")]
         [SerializeField] private float reachBend = 70f;
         [Tooltip("เป้ามือไกลเกินแขน: ตัวพุ่งไปทางนั้นได้สุดกี่ส่วนของความยาวขา (เท้าอยู่ที่เดิม) — เอื้อมหยิบได้ไกลกว่าหนึ่งช่วงแขน")]
@@ -241,6 +237,10 @@ namespace Nsc.BoneLimb
         private int strideCombo, strideLeg = -1; // จังหวะเดิน (ทุกเครื่องคิดจากเป้าเท้าที่ซิงก์): กี่ก้าวสลับติดกัน / ขาที่ลงล่าสุด
         private float strideAt;
         private Vector3[] landedAt;             // จุดที่เท้าลงครั้งก่อน — วัดความยาวก้าว
+        private float[] throwT;                 // เครื่องที่คุมแขน: ท่าขว้างเดินไปกี่วินาที (-1 = ไม่ได้ขว้าง) / ทิศที่จะปา
+        private Vector3[] throwAim;
+        private Rigidbody[] dropped;            // Server: ของที่แขนนี้เพิ่งปล่อย เมื่อไร — สัญญาณขว้างมาถึงทีหลังสัญญาณปล่อยมือ ก็ยังขว้างได้
+        private float[] droppedAt;
         private bool[] wasBrace;                // แขน: เฟรมก่อนยกการ์ดอยู่ไหม — จับเวลาเริ่มยก (Parry)
         private float[] blockSince;
         private IDamageable[] lastHitTarget;    // Server: แขนนี้ต่อย/ฟาดโดนอะไรล่าสุด เมื่อไร — Double Impact
@@ -380,6 +380,11 @@ namespace Nsc.BoneLimb
             getUpArmT = new float[limbs.Length];
             liftHold = new float[limbs.Length];
             wasBrace = new bool[limbs.Length];
+            throwT = new float[limbs.Length];
+            for (int i = 0; i < limbs.Length; i++) throwT[i] = -1f;
+            throwAim = new Vector3[limbs.Length];
+            dropped = new Rigidbody[limbs.Length];
+            droppedAt = new float[limbs.Length];
             blockSince = new float[limbs.Length];
             lastHitTarget = new IDamageable[limbs.Length];
             lastHitAt = new float[limbs.Length];
@@ -446,12 +451,18 @@ namespace Nsc.BoneLimb
                 RobotLimb slot = robot ? robot.GetLimb((LimbSlot)i) : null;
                 attachments[i] = slot ? slot.Attachment : null;
                 slots[i] = slot ? slot.transform : null;
+                if (slot && slot.Health) slot.Health.DamageScale = BlockScale; // ยกการ์ด = ทุกชิ้นโดนเบาลง (Server เท่านั้นที่หักเลือด)
             }
         }
 
         public override void OnDestroy()
         {
             if (robot) robot.KnockDownRequested -= ServerKnockDown;
+            for (int i = 0; slots != null && i < limbs.Length; i++)
+            {
+                LimbHealth health = robot ? robot.GetLimb((LimbSlot)i)?.Health : null;
+                if (health) health.DamageScale = null;
+            }
             SetGlow(null); // คืนวัสดุเดิมให้ของที่เรืองค้างอยู่
             for (int i = 0; i < limbs.Length; i++) ClearTrail(i);
             base.OnDestroy();
@@ -575,10 +586,17 @@ namespace Nsc.BoneLimb
                     if (limb.isArm)
                     {
                         // Shift ค้าง = ยกการ์ด (ไม่ได้ถือของ) — Server ลดดาเมจ/ปัดป้อง (BlockScale) จาก Brace ที่ซิงก์
-                        limb.Brace = input.shift && !limb.Grab && !reachTarget[i];
+                        limb.Brace = combat.pointAndClick && input.shift && !limb.Grab && !reachTarget[i]; // โหมดแขนเก่า Shift + ล้อ = ดันมือ ไม่ใช่การ์ด
                         // จะจับ = จับอยู่ หรือกำลังเอื้อมไปหยิบ | กดครั้งเดียว: กดสลับ | กดค้าง: ค้าง = จะจับ
                         bool busy = limb.Grab || reachTarget[i];
                         bool want = grabToggle ? busy ^ input.grabPressed : input.grab;
+                        if (throwT[i] >= 0f) want = true; // กำลังง้าง/เหวี่ยงขว้าง — กด F ซ้ำไม่นับ ปล่อยของตอนจบท่าเอง
+                        else if (!want && limb.Grab && limb.Holding) // ถือของอยู่จริงแล้วกด F (กดค้าง: ปล่อย F) = เริ่มท่าขว้างไปทางเคอร์เซอร์ | มือเปล่า = แค่เลิกจับ
+                        {
+                            throwAim[i] = AimThrow(i, input.ray);
+                            throwT[i] = 0f;
+                            want = true;
+                        }
                         if (!want) CancelGrab(i);
                         else if (!busy)
                         {
@@ -653,7 +671,6 @@ namespace Nsc.BoneLimb
                 // ทุกเครื่องออกแรงเอง: client เห็นแขนขาที่ตัวเองคุมขยับทันที | ตัวหุ่นเคลื่อนจริงตามฟิสิกส์ของ Server
                 foreach (IKLimb limb in limbs)
                     if (limb.Pull) ragdoll.Pull(limb, limb.target.position);
-                if (DrivesBody) Crawl();
                 FixedDown();
             }
             else if (DrivesBody && getUp < 0f && (!Online || MatchSession.Current == null || MatchSession.Current.IsPlaying)) EvaluateFall();
@@ -777,6 +794,7 @@ namespace Nsc.BoneLimb
             IKLimb arm = limbs[index];
             if (arms[index] != null) combat.Release(arm, arms[index]);
             arm.Grip = Mathf.MoveTowards(arm.Grip, 1f, gripSpeed * Time.deltaTime);
+            if (throwT[index] >= 0f) { DriveThrow(index); return; }
             if (grabWant[index] != null) return;
             if (input.looking && slashKind[index] < 0) return;
             Vector3 shoulder = arm.root.position;
@@ -1519,6 +1537,197 @@ namespace Nsc.BoneLimb
             return best;
         }
 
+        // ================================================================ ท่าแขน
+
+        // (1) ยกการ์ด: กำปั้นขึ้นบังหน้า ศอกงอ แขนท่อนล่างขวางหน้า — ไม่ต่อย
+        private void DriveBlock(int i)
+        {
+            IKLimb arm = limbs[i];
+            if (arms[i] != null) combat.Release(arm, arms[i]);
+            Vector3 goal = arm.root.position + transform.rotation * (new Vector3(-arm.Side * 0.15f, 0.3f, 0.5f) * arm.Reach);
+            arm.target.position = Vector3.Lerp(arm.target.position, goal, 1f - Mathf.Exp(-follow * 1.5f * Time.deltaTime));
+            arm.Grip = Mathf.MoveTowards(arm.Grip, 1f, gripSpeed * Time.deltaTime);
+        }
+
+        // (2) เครื่องที่คุมแขน: ทิศขว้าง = ไปจุดที่เคอร์เซอร์ชี้ (ไม่นับของใกล้มือ — ของในมือ/ตัวเองบังเคอร์เซอร์) + เชิดขึ้นนิดให้เป็นวิถีโค้ง
+        private Vector3 AimThrow(int i, Ray ray)
+        {
+            Vector3 hand = limbs[i].GripCenter, aim = ray.GetPoint(300f);
+            float nearest = 300f;
+            foreach (RaycastHit h in Physics.RaycastAll(ray, 1000f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                if (h.distance < nearest && (h.point - hand).magnitude > limbs[i].Reach) { nearest = h.distance; aim = h.point; }
+            return ((aim - hand).normalized + Vector3.up * 0.15f).normalized;
+        }
+
+        // ท่าขว้าง (เครื่องที่คุมแขน — ทุกเครื่องเห็นจากเป้ามือที่ซิงก์): ง้างไปหลังเหนือไหล่ (ช้า หนัก) → เหวี่ยงไปทางที่ปา (เร่ง t² เร็วสุดตอนปล่อย)
+        // → ปล่อยของตอนแขนเหยียดสุด | ลำตัวบิดตามเอง (WeaponPose อ่านความเร็วแขน) | จังหวะ × slashWeight เหมือนท่าฟัน
+        private const float ThrowWindup = 0.3f, ThrowStrike = 0.12f;
+        private void DriveThrow(int i)
+        {
+            IKLimb arm = limbs[i];
+            float dt = Time.deltaTime, wind = ThrowWindup * slashWeight, strike = ThrowStrike * slashWeight;
+            throwT[i] += dt;
+            Vector3 d = throwAim[i], flat = Vector3.ProjectOnPlane(d, Vector3.up).normalized;
+            Vector3 back = (-flat * 0.5f + Vector3.up * 0.8f + transform.right * (arm.Side * 0.3f)).normalized; // หลังไหล่ข้างเดียวกัน
+            Vector3 front = (d + Vector3.up * 0.1f).normalized;
+            Vector3 dir;
+            float radius, rate;
+            if (throwT[i] < wind) { dir = back; radius = 0.75f; rate = 14f / slashWeight; }
+            else
+            {
+                float k = Mathf.Clamp01((throwT[i] - wind) / strike);
+                dir = Vector3.Slerp(back, front, k * k);
+                radius = Mathf.Lerp(0.75f, 0.97f, k); // ศอกเหยียดตอนท้าย = แรงสะบัด
+                rate = 60f;
+            }
+            Vector3 shoulder = arm.root.position;
+            arm.target.position = shoulder + Vector3.Slerp(arm.target.position - shoulder, dir * (arm.Reach * radius), 1f - Mathf.Exp(-rate * dt));
+            if (throwT[i] < wind + strike) return;
+            if (Online && !IsServer) ThrowRpc(i, d);
+            else ServerThrow(i, d);
+            CancelGrab(i); // จบท่า = มือว่าง (Server ปล่อยของแล้วใน ServerThrow — สัญญาณปล่อยมือที่ตามไปไม่ซ้ำ)
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void ThrowRpc(int i, Vector3 dir, RpcParams rpcParams = default)
+        {
+            if (i < 0 || i >= limbs.Length || !limbs[i].isArm || ControllerOf(i) != rpcParams.Receive.SenderClientId) return;
+            ServerThrow(i, dir.normalized);
+        }
+
+        // [SERVER] ขว้างของในมือ (หรือของที่มือนี้เพิ่งปล่อยไม่ถึง 0.3 วิ — สัญญาณปล่อยมือถึงก่อน) | อีกมือยังถืออยู่ = ไม่ขว้าง
+        private void ServerThrow(int i, Vector3 dir)
+        {
+            Rigidbody rb = heldBody[i];
+            if (rb) ReleaseGrab(i);
+            else if (dropped[i] && Time.time - droppedAt[i] < 0.3f) rb = dropped[i];
+            if (!rb || System.Array.IndexOf(heldBody, rb) >= 0) return;
+            dropped[i] = null;
+            KickedProp.Launch(rb, dir * (throwSpeed / (1f + rb.mass / 200f)), throwDamage, robot ? robot.GetTeam() : Team.None, robot);
+            Debug.Log($"[RobotIKControl] {limbs[i].name} ขว้าง '{rb.name}' {rb.linearVelocity.magnitude:F0} m/s");
+        }
+
+        private bool ArmGuarding(int i) => limbs[i].isArm && limbs[i].Brace && Attached(i);
+
+        // สองแขนยกการ์ดพร้อมกัน = ตั้งรับเต็มตัว แรงกระแทกล้มไม่ได้ (เหมือนขาปักหลัก)
+        private bool ArmsGuarding
+        {
+            get
+            {
+                int arms = 0, guarding = 0;
+                for (int i = 0; i < limbs.Length; i++)
+                    if (limbs[i].isArm && Attached(i)) { arms++; if (ArmGuarding(i)) guarding++; }
+                return arms >= 2 && guarding == arms;
+            }
+        }
+
+        // [SERVER] ตัวคูณดาเมจที่ทุกชิ้นของหุ่นจะโดน (LimbHealth.DamageScale) — เฉพาะดาเมจจากศัตรู
+        // แขนไหนยกการ์ดอยู่ = เบาลงเหลือ blockDamageScale | เพิ่งยกไม่เกิน parryWindow แล้วโดนตีธรรมดา = ปัดป้อง ไม่โดนเลย + ศัตรูเสียหลัก (ท่าไม้ตายปัดไม่ได้)
+        private float BlockScale(DamageInfo info)
+        {
+            if (info.source != DamageSource.EnemyMelee && info.source != DamageSource.EnemyUltimate) return 1f;
+            float scale = 1f;
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                if (!ArmGuarding(i)) continue;
+                if (info.source == DamageSource.EnemyMelee && Time.time - blockSince[i] <= parryWindow)
+                {
+                    EnemyController enemy = NearestEnemy(info.point, limbs[RearLeg].Reach * 3f);
+                    if (enemy) Stagger(enemy);
+                    ImpactFeel.PlayHit(info.point, -info.direction, 60f);
+                    Debug.Log($"[RobotIKControl] ปัดป้อง! {limbs[i].name} — {(enemy ? enemy.name + " เสียหลัก" : "ไม่เจอศัตรูใกล้จุดตี")}");
+                    return 0f;
+                }
+                scale = blockDamageScale;
+            }
+            return scale;
+        }
+
+        private EnemyController NearestEnemy(Vector3 at, float radius)
+        {
+            EnemyController best = null;
+            float bestSqr = float.MaxValue;
+            int n = Physics.OverlapSphereNonAlloc(at, radius, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+            for (int k = 0; k < n; k++)
+            {
+                EnemyController e = hitBuffer[k].GetComponentInParent<EnemyController>();
+                if (!e) continue;
+                float sqr = (e.transform.position - at).sqrMagnitude;
+                if (sqr < bestSqr) { bestSqr = sqr; best = e; }
+            }
+            return best;
+        }
+
+        // [SERVER] ศัตรูเสียหลัก: AI หยุดคิด (ServerBeginKnockback ของศัตรูเอง — ไม่ได้แก้โค้ดศัตรู) จนหมดเวลา | ระหว่างนี้แขนกด F ใส่ = ล็อกตัว
+        private void Stagger(EnemyController enemy)
+        {
+            if (!staggered.ContainsKey(enemy)) enemy.ServerBeginKnockback();
+            staggered[enemy] = Mathf.Max(staggered.TryGetValue(enemy, out float until) ? until : 0f, Time.time + staggerTime);
+        }
+
+        private readonly List<EnemyController> staggerDone = new List<EnemyController>();
+
+        // [SERVER] ทุก FixedUpdate: ล็อกหมดเวลา/ศัตรูหาย = ปล่อย | เสียหลักหมดเวลา = AI กลับมาคิด
+        private void ServerStaggers()
+        {
+            for (int i = 0; i < limbs.Length; i++)
+                if (grappled[i] != null && (!grappled[i] || Time.time > grappleUntil[i])) EndGrapple(i);
+            if (staggered.Count == 0) return;
+            staggerDone.Clear();
+            foreach (KeyValuePair<EnemyController, float> s in staggered)
+                if (!s.Key || Time.time > s.Value) staggerDone.Add(s.Key);
+            foreach (EnemyController e in staggerDone)
+            {
+                staggered.Remove(e);
+                if (e) e.ServerEndKnockback();
+            }
+        }
+
+        // (6) [SERVER] F ไม่โดนของ แต่กำปั้นอยู่ใกล้ศัตรูที่เสียหลัก = ล็อกตัวไว้ (AI หยุดต่อไปอีก grappleTime) ให้เพื่อนอัดท่าใหญ่ใส่
+        private void TryGrapple(int i)
+        {
+            if (staggered.Count == 0) return;
+            Vector3 g = limbs[i].GripCenter;
+            int n = Physics.OverlapSphereNonAlloc(g, grabRadius * 2f, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+            for (int k = 0; k < n; k++)
+            {
+                EnemyController e = hitBuffer[k].GetComponentInParent<EnemyController>();
+                if (!e || !staggered.ContainsKey(e)) continue;
+                grappled[i] = e;
+                grappleUntil[i] = Time.time + grappleTime;
+                staggered[e] = Mathf.Max(staggered[e], grappleUntil[i]);
+                Debug.Log($"[RobotIKControl] {limbs[i].name} ล็อก '{e.name}' {grappleTime:F1} วิ");
+                return;
+            }
+        }
+
+        // ปล่อยล็อก = ศัตรูได้คืนตัวทันที (ไม่รอเวลาเสียหลักที่ต่อไว้)
+        private void EndGrapple(int i)
+        {
+            EnemyController e = grappled[i];
+            grappled[i] = null;
+            if (e && staggered.ContainsKey(e)) staggered[e] = Time.time;
+        }
+
+        // (4) [SERVER] แขนนี้เพิ่งต่อย/ฟาดเข้าเป้า: อีกแขนโดนเป้าเดียวกันไม่เกิน doubleImpactWindow วิ = Double Impact — ดาเมจโบนัส + กระเด็นแรง + ศัตรูเสียหลัก
+        private void DoubleImpact(int i, Collider hit, DamageInfo info)
+        {
+            IDamageable target = hit.GetComponentInParent<IDamageable>();
+            for (int j = 0; j < limbs.Length; j++)
+            {
+                if (j == i || !limbs[j].isArm || lastHitTarget[j] != target || Time.time - lastHitAt[j] > doubleImpactWindow) continue;
+                lastHitTarget[j] = null;
+                DamageRouter.TryApply(target, new DamageInfo(doubleImpactDamage, info.point, info.direction, info.source, info.attackerTeam) { knockback = 14f });
+                EnemyController enemy = hit.GetComponentInParent<EnemyController>();
+                if (enemy) Stagger(enemy);
+                ImpactFeel.PlayHit(info.point, -info.direction, 60f);
+                Debug.Log($"[RobotIKControl] Double Impact! {limbs[j].name} + {limbs[i].name} → '{hit.name}' โบนัส {doubleImpactDamage:F0}");
+                return;
+            }
+            lastHitTarget[i] = target;
+            lastHitAt[i] = Time.time;
+        }
+
         // ถีบได้แค่ข้างหน้า: ทิศไป ◈ เบนจากหน้าหุ่นได้ไม่เกิน ±kickAimLimit | ◈ ใกล้สะโพกเกินไป = ตรงหน้า
         private Vector3 KickAim(int i, IKLimb leg, Vector3 hip)
         {
@@ -1536,6 +1745,7 @@ namespace Nsc.BoneLimb
             reachTarget[i] = null;
             grabWant[i] = null;
             slashKind[i] = slashNext[i] = cueNext = -1; // ปล่อยของ/สลับชิ้นกลางท่าฟัน — หยิบใหม่ทีหลังไม่ต่อท่าเก่า
+            throwT[i] = -1f;
             dragAcc[i] = Vector2.zero;
         }
 
@@ -1708,6 +1918,7 @@ namespace Nsc.BoneLimb
                     if (!DamageRouter.TryApply(c, info)) continue;
                     struck[i] = true;
                     Debug.Log($"[RobotIKControl] {(weaponCol ? $"อาวุธ '{weapon.name}'" : limb.isArm ? "หมัด" : "เตะ")} {limb.name} โดน '{c.name}' ความเร็วพีค {strikePeak[i]:F1} m/s ดาเมจ {damage:F1}");
+                    if (limb.isArm) DoubleImpact(i, c, info);
                     break;
                 }
             }
@@ -1720,7 +1931,12 @@ namespace Nsc.BoneLimb
         {
             for (int i = 0; i < limbs.Length; i++)
                 if (limbs[i] == arm)
-                    return heldBody[i] ? Mathf.Max(grabMinSpeed, grabHalfMass / (grabHalfMass + heldBody[i].mass)) : 1f;
+                {
+                    if (!heldBody[i]) return 1f;
+                    int hands = 0; // สองมือจับชิ้นเดียวกัน = แบ่งน้ำหนักคนละครึ่ง เหวี่ยงได้เร็วขึ้น (ท่าแขน 3)
+                    foreach (Rigidbody rb in heldBody) if (rb == heldBody[i]) hands++;
+                    return Mathf.Max(grabMinSpeed, grabHalfMass / (grabHalfMass + heldBody[i].mass / hands));
+                }
             return 1f;
         }
 
@@ -1772,6 +1988,32 @@ namespace Nsc.BoneLimb
                 if (hasGrabAim) from = grabAim.origin + grabAim.direction * Mathf.Max(0f, Vector3.Dot(c.bounds.center - grabAim.origin, grabAim.direction));
                 float sqr = (c.ClosestPoint(from) - from).sqrMagnitude;
                 if (sqr < bestSqr) { bestSqr = sqr; best = rb; }
+            }
+            // ชิ้นของตัวเองที่หลุดอยู่ใกล้ๆ (หยิบมาฟาด) แข่งกับของอื่นด้วยเกณฑ์เดียวกัน — เคอร์เซอร์ชี้ใกล้อันไหนเอาอันนั้น
+            Rigidbody part = NearDetached(shoulder, range, true, out Collider pc); // แนวราบจากไหล่เหมือนของอื่น — ชิ้นบนพื้นต่ำกว่ามือหลายเมตร หุ่นย่อลงไปหยิบเอง
+            if (part)
+            {
+                Vector3 from = hasGrabAim ? grabAim.origin + grabAim.direction * Mathf.Max(0f, Vector3.Dot(pc.bounds.center - grabAim.origin, grabAim.direction)) : tip;
+                if ((pc.ClosestPoint(from) - from).sqrMagnitude < bestSqr) best = part;
+            }
+            return best;
+        }
+
+        // (ท่าแขน 5) ชิ้นของหุ่นตัวเองที่หลุดอยู่บนพื้น — สำเนาอยู่ layer Ignore Raycast (เท้าไม่เหยียบ) overlap ปกติจึงไม่เห็น ต้องเช็คเอง
+        private Rigidbody NearDetached(Vector3 from, float range, bool flat, out Collider touch)
+        {
+            touch = null;
+            Rigidbody best = null;
+            float bestSqr = range * range;
+            for (int k = 0; k < limbs.Length; k++)
+            {
+                Rigidbody rb = detach.Prop(k);
+                Collider c = rb ? rb.GetComponent<Collider>() : null;
+                if (!c) continue;
+                Vector3 d = c.ClosestPoint(from) - from;
+                if (flat) d.y = 0f;
+                float sqr = d.sqrMagnitude;
+                if (sqr <= bestSqr) { bestSqr = sqr; best = rb; touch = c; }
             }
             return best;
         }
@@ -1860,6 +2102,7 @@ namespace Nsc.BoneLimb
                 Quaternion rot = tip.rotation * heldRelRot[i];
                 if (!physics) { rb.transform.SetPositionAndRotation(pos, rot); continue; }
                 heldVel[i] = (pos - rb.position) / Time.fixedDeltaTime;
+                for (int j = i + 1; j < limbs.Length; j++) if (heldBody[j] == rb) heldVel[j] = heldVel[i]; // ถือสองมือ ปล่อยมือไหนทีหลังก็ขว้างด้วยความเร็วจริง
                 rb.MovePosition(pos);
                 rb.MoveRotation(rot);
             }
@@ -1873,7 +2116,9 @@ namespace Nsc.BoneLimb
                 if (!limb.isArm || !limb.hit) continue;
                 bool want = limb.Grab && HasController(i) && Attached(i) && !down && getUp < 0f;
                 if (!want || heldBody[i] == null) ReleaseGrab(i); // ของถูกทำลายกลางจับก็เก็บกวาดที่นี่
-                if (want && heldBody[i] == null) TryGrab(i);
+                if (!want && grappled[i]) EndGrapple(i);
+                if (want && heldBody[i] == null && !grappled[i]) TryGrab(i);
+                if (want && heldBody[i] == null && !grappled[i]) TryGrapple(i); // ไม่มีของให้จับ = ลองล็อกศัตรูที่เสียหลัก
             }
         }
 
@@ -1900,6 +2145,8 @@ namespace Nsc.BoneLimb
                     float sqr = (c.ClosestPoint(tip) - tip).sqrMagnitude;
                     if (sqr < bestSqr) { bestSqr = sqr; best = rb; touch = c; }
                 }
+                Rigidbody part = NearDetached(tip, grabRadius, false, out Collider pc); // ชิ้นที่หลุด ใกล้กำปั้นกว่า = เอาชิ้นนั้น
+                if (part && (pc.ClosestPoint(tip) - tip).sqrMagnitude < bestSqr) { best = part; touch = pc; }
             }
             grabWant[i] = null;
             if (best == null || touch == null) return;
@@ -1967,8 +2214,10 @@ namespace Nsc.BoneLimb
             {
                 was.isKinematic = false;
                 was.interpolation = RigidbodyInterpolation.Interpolate;
-                was.linearVelocity = Vector3.ClampMagnitude(heldVel[i] * 0.2f, 6f); // ปล่อย = วางลง ไม่ใช่ขว้าง — ปล่อยกลางฟาด (ปลายมือเร็ว ~200) ของปลิวไกล
+                was.linearVelocity = Vector3.ClampMagnitude(heldVel[i] * 0.2f, 6f); // ปล่อย = วางลง ไม่ใช่ขว้าง — ปล่อยกลางฟาด (ปลายมือเร็ว ~200) ของปลิวไกล | ขว้าง = ServerThrow
                 was.angularVelocity = Vector3.zero;
+                dropped[i] = was;
+                droppedAt[i] = Time.time;
                 Debug.Log($"[RobotIKControl] {limbs[i].name} ปล่อย '{was.name}' ความเร็ว {was.linearVelocity.magnitude:F1}");
             }
             // อีกแขนยังถือชิ้นเดียวกัน (จับสองมือ) = ส่งคู่ที่ปิดการชนไว้ให้แขนนั้น ยังไม่คืน — ไม่งั้นของดันตัวหุ่นสั่นทั้งที่ยังถืออยู่
@@ -2020,7 +2269,9 @@ namespace Nsc.BoneLimb
             {
                 bool attached = Attached(i);
                 if (attached != attachedNow[i]) { attachedNow[i] = attached; OnAttachChanged(i, attached); }
-                detach.Tick(i, limbs[i], Pulling(i), Time.deltaTime);
+                // แขนอีกข้างถือชิ้นนี้อยู่ (ฟาดเป็นกระบอง) = ไม่แตะ — Tick คืนเป็นฟิสิกส์ทุกเฟรม ของหลุดมือไหลไป | ดึงกลับได้หลังปล่อยมือ
+                Rigidbody part = detach.Prop(i);
+                if (!part || System.Array.IndexOf(heldBody, part) < 0) detach.Tick(i, limbs[i], Pulling(i), Time.deltaTime);
                 if (seat[i] < 1f)
                 {
                     seat[i] = Mathf.Min(1f, seat[i] + Time.deltaTime / detach.seatTime);
@@ -2098,7 +2349,9 @@ namespace Nsc.BoneLimb
             CancelKick(i); // หลุดกลางท่าเตะ — ต่อกลับแล้วไม่ถีบต่อไปยังจุดเก่า
             if (arms[i] != null) combat.Release(limb, arms[i]);
             ImpactFeel.PlayHit(limb.root.position, outward, 30f);  // ประกายไฟ + จอสั่นที่ข้อต่อ
-            detach.Detach(i, limb, (outward + Vector3.up) * detach.flingSpeed);
+            // แขนหลุดกระเด็นไปหน้าตัว (ไม่ใช่ข้างตัวฝั่งเดียวกัน) — แขนอีกข้างเอื้อมข้ามลำตัวไม่ได้ (ข้อต่อไหล่) หยิบมาฟาดไม่ถึง | ขาหลุดออกข้างตามเดิม
+            Vector3 fling = limb.isArm ? Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized + outward * 0.3f : outward;
+            detach.Detach(i, limb, (fling + Vector3.up) * detach.flingSpeed);
             ragdoll.SetFrozen(limb, true);
             if (limb.hit) limb.hit.detectCollisions = false;   // มือ/เท้าที่หลุดไม่ดันของ
         }
@@ -2136,9 +2389,9 @@ namespace Nsc.BoneLimb
         public void ServerKnockDown(FallReason reason)
         {
             if (!DrivesBody || down || getUp >= 0f) return;
-            if (reason == FallReason.KnockedDown && Braced) // แรงกระแทกจากข้างนอก (บอส/ทดสอบ B) — เท้าเองยกพร้อมกันยังล้มตามกติกาหลัก
+            if (reason == FallReason.KnockedDown && (Braced || ArmsGuarding)) // แรงกระแทกจากข้างนอก (บอส/ทดสอบ B) — เท้าเองยกพร้อมกันยังล้มตามกติกาหลัก
             {
-                Debug.Log("[RobotIKControl] ปักหลักสองขา — กันล้มได้");
+                Debug.Log($"[RobotIKControl] {(Braced ? "ปักหลักสองขา" : "ยกการ์ดสองแขน")} — กันล้มได้");
                 for (int i = 0; i < limbs.Length; i++)
                     if (!limbs[i].isArm) ImpactFeel.PlayFootstep(new Vector3(limbs[i].target.position.x, GroundY(limbs[i].target.position), limbs[i].target.position.z), 1f, 0.6f);
                 return;
@@ -2478,14 +2731,15 @@ namespace Nsc.BoneLimb
             if (down)
             {
                 int need = Online ? Controllers(out _) : 1;
-                GUILayout.Label(!Online ? "หุ่นล้ม! คลิกค้าง = ดึงแขน/ขาไปที่เคอร์เซอร์ | กด Q เพื่อลุก"
+                GUILayout.Label(!Online ? "หุ่นล้ม! คลิกค้าง = ดึงแขน/ขาไปที่เคอร์เซอร์ (มือแตะพื้น = ลากตัวไป) | กด Q เพื่อลุก"
                     : votedStand ? $"หุ่นล้ม! คลิกค้าง = ดึงแขน/ขา | รอเพื่อนกด Q ({standVotes.Value}/{need})"
                     : $"หุ่นล้ม! คลิกค้าง = ดึงแขน/ขาไปที่เคอร์เซอร์ | ทุกคนกด Q เพื่อลุก ({standVotes.Value}/{need})");
             }
             string armHelp = combat.pointAndClick
                 ? "แขน: เคอร์เซอร์เล็ง, คลิกซ้ายค้าง = ชาร์จ ปล่อย = ต่อย"
                 : "แขน: มือตามเคอร์เซอร์, Shift+ล้อ = ดัน/ดึงมือ, คลิกซ้ายค้าง = กำ";
-            armHelp += grabToggle ? ", F = จับ/ปล่อยของ (กดครั้งเดียว)" : ", F ค้าง = จับของที่แตะมือ";
+            armHelp += grabToggle ? ", F = จับของ (กดครั้งเดียว) / ถืออยู่กด F = ขว้างไปทางเคอร์เซอร์" : ", F ค้าง = จับของที่แตะมือ";
+            armHelp += ", Shift ค้าง = การ์ด (กดทันก่อนโดน = ปัดป้อง), F ใส่ศัตรูเสียหลัก = ล็อก, สองแขนโดนพร้อมกัน = Double Impact";
             armHelp += weaponFreeAim ? " | ถือของ: คลิกซ้ายค้าง + ลากเมาส์ = ฟาด ปล่อย = ห้อยแขน" : " | ถือของ: คลิกซ้าย = คอมโบ, ค้าง + ลากสั้นๆ ↓ ← → ↑ = เลือกทิศฟัน (ลากระหว่างฟัน = ฟาดต่อ) | จอย: X/R1 = คอมโบ, ดีดสติ๊กขวา = ทิศฟัน";
             GUILayout.Label($"{armHelp} | ขา: ชี้พื้น + คลิก = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเคอร์เซอร์ ปล่อย = วาง, ก้าวเฉียง = เลี้ยว, ยกค้าง ≥{stompHold:0.#} วิ แล้วปล่อย = กระทืบ, Shift = ถีบ (โดนของ = ของพุ่ง), F ค้าง = ย่อ / สองขาพร้อมกัน = ปักหลัก) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | R ค้าง = ดึงชิ้นที่หลุดกลับ | B = ทดสอบล้ม | X = ทดสอบหลุด");
             GUILayout.EndArea();

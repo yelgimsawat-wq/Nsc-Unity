@@ -2428,6 +2428,14 @@ MonoBehaviour:
   stompDamage: 10
   strideWindow: {x: 0.3, y: 1.4}
   strideBonus: 0.15
+  blockDamageScale: 0.4
+  parryWindow: 0.3
+  staggerTime: 1.5
+  throwSpeed: 45
+  throwDamage: 30
+  doubleImpactWindow: 0.3
+  doubleImpactDamage: 30
+  grappleTime: 2.5
   grabToggle: 1
   grabRadius: 1.2
   grabHalfMass: 80
@@ -2444,12 +2452,12 @@ MonoBehaviour:
   slashAssistRange: 3
   weaponLean: 18
   weaponTrail: {fileID: 0}
-  reachSquat: 0.45
+  reachSquat: 0.6
   reachBend: 70
   reachLunge: 0.45
   detach:
     pullTime: 1
-    flingSpeed: 6
+    flingSpeed: 2.5
     mass: 15
     reattachImpact: 45
     pullShake: 0.35
