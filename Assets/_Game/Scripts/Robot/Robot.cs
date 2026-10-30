@@ -165,6 +165,32 @@ namespace Nsc.Robots
         /// <summary>[SERVER] หุ่นที่ไม่มี TorsoBalance (หุ่น IK) รับคำสั่งล้มทางนี้</summary>
         public event Action<FallReason> KnockDownRequested;
 
+        /// <summary>หุ่นนอนอยู่ (ragdoll) — หุ่นฟิสิกส์ดู TorsoBalance | หุ่น IK แจ้งเองผ่าน SetDownExternally (ทุกเครื่อง)</summary>
+        public bool IsDown => Torso != null ? Torso.IsRagdoll : externallyDown;
+        private bool externallyDown, wasDown;
+        private float downSince;
+
+        /// <summary>นอนมานานกี่วินาที (0 = ยืนอยู่) — แยก "นอนอยู่ก่อนแล้ว" ออกจาก "เพิ่งโดนท่านี้ทำล้มในเฟรมเดียวกัน"</summary>
+        public float DownFor
+        {
+            get
+            {
+                TrackDown();
+                return wasDown ? Time.time - downSince : 0f;
+            }
+        }
+
+        public void SetDownExternally(bool down) => externallyDown = down;
+
+        private void LateUpdate() => TrackDown();
+
+        private void TrackDown()
+        {
+            bool down = IsDown;
+            if (down && !wasDown) downSince = Time.time;
+            wasDown = down;
+        }
+
         /// <summary>[SERVER] ให้ลำตัวล้มด้วยเหตุผลที่ระบุ — ทางเดียวที่คนนอกหุ่นทำให้หุ่นล้มได้</summary>
         public void ServerKnockDown(FallReason reason)
         {

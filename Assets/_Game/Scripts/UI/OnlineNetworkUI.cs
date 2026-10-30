@@ -56,6 +56,11 @@ public class OnlineNetworkUI : NetworkBehaviour
     [SerializeField] private Button cancelMapSelectButton;
     [SerializeField] private string bossSceneName = "91626425186";
     [SerializeField] private string parkourSceneName = "MAP";
+    [Tooltip("ปุ่มแมพ Arena (หุ่น IK สู้ไคจู) — ว่าง = ไม่มีตัวเลือกนี้")]
+    [SerializeField] private Button arenaMapButton;
+    [SerializeField] private string arenaSceneName = "RobotArena";
+    [Tooltip("เปิด = เมนูมีแค่โหมด Arena (ปุ่มชื่อ PVP): กด Host สร้างห้อง 4 คนเลยไม่ถามขนาดห้อง, หน้าเลือกแมพซ่อน BOSS/PARKOUR")]
+    [SerializeField] private bool arenaOnly = false;
 
     [Header("--- Room Size Select (หลังกด Host) ---")]
     [Tooltip("แผงเลือกขนาดห้อง — เปิดขึ้นตอนกด Host ก่อนสร้างห้องจริง\n" +
@@ -345,8 +350,8 @@ public class OnlineNetworkUI : NetworkBehaviour
     {
         if (isConnecting) return;
 
-        // ยังไม่ได้ต่อแผงใน Inspector → ทำตัวเหมือนเดิม สร้างห้องขนาดปกติเลย
-        if (roomSizePanel == null || (room4Button == null && room8Button == null))
+        // ยังไม่ได้ต่อแผงใน Inspector / มีแค่โหมด Arena → สร้างห้องขนาดปกติเลย
+        if (arenaOnly || roomSizePanel == null || (room4Button == null && room8Button == null))
         {
             _ = Host(false);
             return;
@@ -544,11 +549,16 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (startButton != null) startButton.interactable = false;
         // Host/Join temporarily disables every menu button while connecting.
         // Re-enable the map choices explicitly when this panel is opened.
+        bool onlyArena = arenaOnly && arenaMapButton != null;
+        bossMapButton.gameObject.SetActive(!onlyArena);
+        parkourMapButton.gameObject.SetActive(!onlyArena);
         bossMapButton.interactable = true;
         parkourMapButton.interactable = true;
+        if (arenaMapButton != null) arenaMapButton.interactable = true;
         if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = true;
         SetVisibleAnimated(mapSelectPanel, true);
-        SetStatus("Select Map: Boss or Parkour");
+        SetStatus(onlyArena ? "Select Mode: PVP"
+                : arenaMapButton != null ? "Select Map: Boss, Parkour or PVP" : "Select Map: Boss or Parkour");
     }
 
     private void OnBossMapClicked()
@@ -559,6 +569,11 @@ public class OnlineNetworkUI : NetworkBehaviour
     private void OnParkourMapClicked()
     {
         StartSelectedMap(parkourSceneName, "Parkour");
+    }
+
+    private void OnArenaMapClicked()
+    {
+        StartSelectedMap(arenaSceneName, "PVP");
     }
 
     private void OnCancelMapSelectClicked()
@@ -583,6 +598,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         SetVisibleAnimated(mapSelectPanel, false);
         if (bossMapButton != null) bossMapButton.interactable = false;
         if (parkourMapButton != null) parkourMapButton.interactable = false;
+        if (arenaMapButton != null) arenaMapButton.interactable = false;
         if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = false;
 
         if (lobbyCam != null) lobbyCam.gameObject.SetActive(false);
@@ -622,6 +638,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (leaveRoomButton != null) leaveRoomButton.interactable = on;
         if (bossMapButton != null) bossMapButton.interactable = on;
         if (parkourMapButton != null) parkourMapButton.interactable = on;
+        if (arenaMapButton != null) arenaMapButton.interactable = on;
         if (cancelMapSelectButton != null) cancelMapSelectButton.interactable = on;
     }
 
@@ -644,6 +661,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         ApplyButtonHoverColor(leaveRoomButton);
         ApplyButtonHoverColor(bossMapButton);
         ApplyButtonHoverColor(parkourMapButton);
+        ApplyButtonHoverColor(arenaMapButton);
         ApplyButtonHoverColor(cancelMapSelectButton);
     }
 
@@ -1036,6 +1054,12 @@ public class OnlineNetworkUI : NetworkBehaviour
             parkourMapButton.onClick.AddListener(OnParkourMapClicked);
         }
 
+        if (arenaMapButton != null)
+        {
+            arenaMapButton.onClick.RemoveListener(OnArenaMapClicked);
+            arenaMapButton.onClick.AddListener(OnArenaMapClicked);
+        }
+
         if (cancelMapSelectButton != null)
         {
             cancelMapSelectButton.onClick.RemoveListener(OnCancelMapSelectClicked);
@@ -1068,6 +1092,7 @@ public class OnlineNetworkUI : NetworkBehaviour
         if (leaveRoomButton != null) leaveRoomButton.onClick.RemoveListener(OnLeaveRoomClicked);
         if (bossMapButton != null) bossMapButton.onClick.RemoveListener(OnBossMapClicked);
         if (parkourMapButton != null) parkourMapButton.onClick.RemoveListener(OnParkourMapClicked);
+        if (arenaMapButton != null) arenaMapButton.onClick.RemoveListener(OnArenaMapClicked);
         if (cancelMapSelectButton != null) cancelMapSelectButton.onClick.RemoveListener(OnCancelMapSelectClicked);
         if (cancelReconnectButton != null) cancelReconnectButton.onClick.RemoveListener(OnCancelReconnectClicked);
     }

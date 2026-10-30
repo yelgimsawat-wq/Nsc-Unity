@@ -193,7 +193,7 @@ namespace Nsc.Match
             Cursor.visible = true;
 
             if (returnToMenu && SceneManager.GetActiveScene().name != GameScenes.Menu)
-                SceneManager.LoadScene(GameScenes.Menu, LoadSceneMode.Single);
+                LoadingScreen.LoadLocal(GameScenes.Menu);
         }
 
         public void CancelReconnect() => cancelReconnect = true;
@@ -395,7 +395,7 @@ namespace Nsc.Match
             Debug.Log("[Session] " + reason + " — กลับสู่เมนูหลัก");
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            SceneManager.LoadScene(GameScenes.Menu, LoadSceneMode.Single);
+            LoadingScreen.LoadLocal(GameScenes.Menu); // หน้าโหลดบังจอระหว่างกลับเมนู
         }
 
         /// <summary>

@@ -94,6 +94,12 @@ namespace Nsc.BoneLimb
         [Tooltip("แรงเตะที่เหลือตอนขาแทบไม่มีเลือด (หุ่นเดิม 0.3 → 100% ตามเลือด)")]
         [Range(0f, 1f)] [SerializeField] private float kickPowerAtZeroHealth = 0.3f;
 
+        [Header("โดนตี")]
+        [Tooltip("ลำตัวสะท้าน (ความเร็วองศา/วิ ต่อดาเมจ 1) — หงายไปหลัง + เอียงหนีฝั่งชิ้นที่โดน | ดาเมจ 60 ≈ เอน ~8°")]
+        [SerializeField] private float hitFlinch = 1.6f;
+        [Tooltip("ตัวถูกดันถอยหลัง (m/s ต่อดาเมจ 1) แล้วสปริงกลับกลางเท้า")]
+        [SerializeField] private float hitShove = 0.08f;
+
         [Header("ท่าขา: เตะของ / กระทืบ / จังหวะเดิน (ผู้ใช้เลือกชุดที่ 1, 2026-10-30)")]
         [Tooltip("ถีบโดนของที่ขยับได้ (กล่อง/บาร์/ชิ้นส่วน) = ของพุ่งไปทางที่ถีบด้วยความเร็วนี้ (m/s) ÷ (1 + มวล/200)")]
         [SerializeField] private float kickPropSpeed = 40f;
@@ -448,13 +454,38 @@ namespace Nsc.BoneLimb
         {
             attachments = new LimbAttachment[limbs.Length];
             slots = new Transform[limbs.Length];
+            hpSeen = new float[limbs.Length];
+            hpHandlers = new System.Action[limbs.Length];
             for (int i = 0; i < limbs.Length; i++)
             {
                 RobotLimb slot = robot ? robot.GetLimb((LimbSlot)i) : null;
                 attachments[i] = slot ? slot.Attachment : null;
                 slots[i] = slot ? slot.transform : null;
-                if (slot && slot.Health) slot.Health.DamageScale = BlockScale; // ยกการ์ด = ทุกชิ้นโดนเบาลง (Server เท่านั้นที่หักเลือด)
+                if (!slot || !slot.Health) continue;
+                slot.Health.DamageScale = BlockScale; // ยกการ์ด = ทุกชิ้นโดนเบาลง (Server เท่านั้นที่หักเลือด)
+                int index = i;
+                hpSeen[i] = slot.Health.Hp;
+                hpHandlers[i] = () => OnLimbHealthChanged(index);
+                slot.Health.HealthChanged += hpHandlers[i];
             }
+        }
+
+        private float[] hpSeen;
+        private System.Action[] hpHandlers;
+
+        // โดนตี (ทุกเครื่อง — เลือดซิงก์): ลำตัวสะท้านหงายไปหลัง เอียงหนีฝั่งชิ้นที่โดน + เครื่องที่คุมตัวดันตัวถอยหลัง แล้วสปริงกลับเอง
+        // เลือดฟื้น (เพิ่มทีละนิด) / ต่อกลับเติมเต็ม = ไม่สะท้าน
+        private void OnLimbHealthChanged(int i)
+        {
+            LimbHealth health = robot ? robot.GetLimb((LimbSlot)i)?.Health : null;
+            if (!health) return;
+            float drop = hpSeen[i] - health.Hp;
+            hpSeen[i] = health.Hp;
+            if (drop < 1f || down || getUp >= 0f) return;
+            float k = Mathf.Min(drop, 120f);
+            leanVel += new Vector3(-k * hitFlinch, limbs[i].Side * k * hitFlinch * 0.6f, 0f);
+            if (DrivesBody && feel.bodyFrequency > 0f)
+                bodyVel -= Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized * (k * hitShove);
         }
 
         public override void OnDestroy()
@@ -464,6 +495,7 @@ namespace Nsc.BoneLimb
             {
                 LimbHealth health = robot ? robot.GetLimb((LimbSlot)i)?.Health : null;
                 if (health) health.DamageScale = null;
+                if (health && hpHandlers != null && hpHandlers[i] != null) health.HealthChanged -= hpHandlers[i];
             }
             SetGlow(null); // คืนวัสดุเดิมให้ของที่เรืองค้างอยู่
             for (int i = 0; i < limbs.Length; i++) ClearTrail(i);
@@ -504,6 +536,22 @@ namespace Nsc.BoneLimb
         private bool IsMine(int index) => Online ? ControllerOf(index) == NetworkManager.LocalClientId : index == selected;
 
         private bool HasController(int index) => Online ? ControllerOf(index) != LimbSelection.NoClient : index == selected;
+
+        // ---------------------------------------------------------------- อ่านอย่างเดียวสำหรับ HUD (RobotArenaHud)
+        public Robot Robot => robot;
+        public bool IsOnline => Online;
+        public int LimbCount => limbs.Length;
+        public ulong LimbController(int i) => ControllerOf(i);
+        public bool IsLimbMine(int i) => IsMine(i);
+        public bool IsLimbAttached(int i) => Attached(i);
+        public float ReattachCooldown(int i) => attachments != null && attachments[i] ? attachments[i].RemainingReconnectCooldown : 0f;
+        /// <summary>นอนอยู่ (ragdoll คุม) — ทุกเครื่อง</summary>
+        public bool IsDown => down;
+        public bool IsGettingUp => getUp >= 0f;
+        public bool LegsReady => LegsAttached();
+        public bool VotedStand => votedStand;
+        public int StandVotes => Online ? standVotes.Value : 0;
+        public int StandVotesNeeded => Online ? Controllers(out _) : 1;
 
         // ================================================================ ต่อเฟรม
 
@@ -1337,7 +1385,7 @@ namespace Nsc.BoneLimb
         {
             IKLimb leg = limbs[i];
             // จุดเล็งตามเมาส์ทุกเฟรม (◈ บอกว่าคลิกแล้วเท้าจะลงตรงไหน) — คลิกขวาหันกล้อง = จุดเล็งค้าง (หุ่นเดิม UpdatePointAim)
-            if (!input.looking && cam && Physics.Raycast(input.ray, out RaycastHit hit, 1000f)) footMark[i] = ClampStep(leg, hit.point);
+            if (!input.looking && cam && FirstWalkable(input.ray, 1000f, out RaycastHit hit)) footMark[i] = ClampStep(leg, hit.point); // ชี้โดนมือตัวเอง/ศัตรู = ทะลุไปเล็งพื้นข้างหลัง
             leg.Brace = input.grab && !leg.Lifted && !leg.KickPose; // F ค้าง (เท้าติดพื้น) = ย่อ — ระหว่างก้าว/เตะกดไม่ติด
             if (leg.Brace) return; // ย่ออยู่ = เท้าปักแน่น ไม่ก้าว/ไม่เตะ
             // ส่งเป้าเฉพาะตอนกดค้าง (หุ่นเดิม) — ปล่อยแล้วเท้าลงตรงจุดสุดท้าย ไม่ไหลตามเมาส์
@@ -1772,7 +1820,7 @@ namespace Nsc.BoneLimb
             return new Vector3(hip.x + flat.x, point.y, hip.z + flat.z);
         }
 
-        private static Vector3 OnGround(IKLimb leg, Vector3 p) => new Vector3(p.x, GroundY(p) + leg.RestHeight, p.z);
+        private Vector3 OnGround(IKLimb leg, Vector3 p) => new Vector3(p.x, GroundY(p) + leg.RestHeight, p.z);
 
         // หุ่นเดิม (LegController.LandingYaw): เท้าลงหันตามทิศลำตัว + ครึ่งหนึ่งของมุมก้าว (ไม่เกิน maxTurnPerStep)
         // ก้าวสั้นกว่า 20% ของขา หรือถอยหลัง/เฉียงเกิน 110° = ทิศลำตัว | ตัวหันตามเท้าที่ปัก (UpdateBody) = เลี้ยว
@@ -2456,6 +2504,7 @@ namespace Nsc.BoneLimb
         private void SetDown(bool value)
         {
             down = value;
+            if (robot) robot.SetDownExternally(value); // ศัตรูรู้ว่านอนอยู่ (ท่ากระแทกพื้นโดนทุกชิ้น)
             votedStand = false;
             for (int i = 0; i < limbs.Length; i++) { limbs[i].Lifted = false; limbs[i].Pull = false; limbs[i].Brace = false; }
             if (value)
@@ -2600,8 +2649,33 @@ namespace Nsc.BoneLimb
         private static float FootYaw(IKLimb leg) => (leg.target.rotation * Quaternion.Inverse(leg.RestRotation)).eulerAngles.y;
 
         // หุ่นและ collider มือ/เท้าต้องอยู่ layer Ignore Raycast ไม่งั้นยิงโดนตัวเองแล้วตัวลอยขึ้นเรื่อยๆ
-        private static float GroundY(Vector3 p) =>
-            Physics.Raycast(p + Vector3.up * 100f, Vector3.down, out RaycastHit hit, 300f) ? hit.point.y : 0f;
+        // พื้นที่เท้าเหยียบได้ใต้จุด p — เดิมเอาอะไรก็ได้ที่ ray โดนก่อน เท้าเลยขึ้นไปยืนบนมือ/แขนตัวเองหรือบนตัวไคจู
+        private float GroundY(Vector3 p) =>
+            FirstWalkable(new Ray(p + Vector3.up * 100f, Vector3.down), 300f, out RaycastHit hit) ? hit.point.y : 0f;
+
+        private static readonly RaycastHit[] walkHits = new RaycastHit[32];
+
+        // จุดแรกตามแนว ray ที่เหยียบได้ (ข้ามตัวเอง/ของที่ถือ/ศัตรู — ยิงทะลุไปเจอพื้นข้างหลังแทน)
+        private bool FirstWalkable(Ray ray, float distance, out RaycastHit best)
+        {
+            best = default;
+            float nearest = float.MaxValue;
+            int n = Physics.RaycastNonAlloc(ray, walkHits, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            for (int k = 0; k < n; k++)
+                if (walkHits[k].distance < nearest && Walkable(walkHits[k].collider)) { best = walkHits[k]; nearest = walkHits[k].distance; }
+            return nearest < float.MaxValue;
+        }
+
+        // เหยียบไม่ได้: ตัวหุ่นเอง (กระดูก/ragdoll), มือ-เท้า _Hit, ของที่มือถืออยู่, ศัตรู | กล่อง/ที่สูงในฉากยังขึ้นไปยืนได้ตามเดิม
+        private bool Walkable(Collider c)
+        {
+            if (c.transform.IsChildOf(transform) || (robot && Robot.FromCollider(c) == robot)) return false;
+            Rigidbody body = c.attachedRigidbody;
+            if (body)
+                for (int i = 0; i < limbs.Length; i++)
+                    if (body == limbs[i].hit || (heldBody != null && body == heldBody[i])) return false;
+            return c.GetComponentInParent<EnemyController>() == null;
+        }
 
         // ================================================================ network
 

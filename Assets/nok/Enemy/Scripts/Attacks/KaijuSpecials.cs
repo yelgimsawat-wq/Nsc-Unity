@@ -142,6 +142,10 @@ namespace NscGame.Enemy
         [SerializeField] private float leapRadius = 18f;
         [SerializeField] private float leapDamage = 35f;
 
+        [Header("ท่ากระแทกพื้น (คลื่น/วงหนาม/กระโดดทับ) ใส่หุ่นที่นอนอยู่")]
+        [Tooltip("หุ่นนอนอยู่ = โดนทุกชิ้นที่ต่ออยู่ ชิ้นละ (ดาเมจท่า × ค่านี้) — 1 = ชิ้นละเต็ม | ยืนอยู่ = ชิ้นที่ใกล้สุดชิ้นเดียวตามเดิม")]
+        [SerializeField] private float downGroundDamageScale = 1f;
+
         private Animator animator;
         private NavMeshAgent agent;
         private EnemyController controller;
@@ -272,12 +276,12 @@ namespace NscGame.Enemy
                 foreach (Robot robot in Robot.All)
                 {
                     if (!Alive(robot) || done.Contains(robot)) continue;
-                    Vector3 rel = Flat(robot.transform.position - center);
+                    Vector3 rel = Flat(BodyPos(robot) - center);
                     float d = rel.magnitude;
                     if (d >= ringStartRadius && d <= r && d > r - ringThickness)
                     {
                         done.Add(robot);
-                        HitRobot(robot, ringDamage, Flat(robot.transform.position - center).normalized);
+                        HitRobot(robot, ringDamage, rel.normalized, ground: true);
                     }
                 }
                 yield return null;
@@ -326,7 +330,7 @@ namespace NscGame.Enemy
                     float t = Time.time - start;
                     if (rollHits && !hit && t >= rollHitWindow.x && t <= rollHitWindow.y)
                         foreach (Robot robot in Robot.All)
-                            if (Alive(robot) && Flat(robot.transform.position - transform.position).magnitude <= rollHitRadius)
+                            if (Alive(robot) && Flat(BodyPos(robot) - transform.position).magnitude <= rollHitRadius)
                             {
                                 hit = true;
                                 HitRobot(robot, rollDamage, dir);
@@ -349,13 +353,13 @@ namespace NscGame.Enemy
                             foreach (Robot robot in Robot.All)
                             {
                                 if (!Alive(robot)) continue;
-                                Vector3 rel = Flat(robot.transform.position - origin);
+                                Vector3 rel = Flat(BodyPos(robot) - origin);
                                 float along = Vector3.Dot(rel, dir);
                                 float side = (rel - dir * along).magnitude;
                                 if (along >= 0f && along <= travelled && side <= waveWidth * 0.5f)
                                 {
                                     hit = true;
-                                    HitRobot(robot, waveDamage, dir);
+                                    HitRobot(robot, waveDamage, dir, ground: true);
                                 }
                             }
                         yield return null;
@@ -404,8 +408,8 @@ namespace NscGame.Enemy
                 if (inLeap && feel != null && clipTime >= feel.SlamTime)
                 {
                     foreach (Robot robot in Robot.All)
-                        if (Alive(robot) && Flat(robot.transform.position - transform.position).magnitude <= leapRadius)
-                            HitRobot(robot, leapDamage, dir);
+                        if (Alive(robot) && Flat(BodyPos(robot) - transform.position).magnitude <= leapRadius)
+                            HitRobot(robot, leapDamage, dir, ground: true);
                     break;
                 }
                 yield return null;
@@ -433,9 +437,32 @@ namespace NscGame.Enemy
         private static bool Alive(Robot robot) => robot != null && robot.isActiveAndEnabled;
 
 
-        // ดาเมจลงชิ้นที่ใกล้สุดผ่าน DamageRouter (ด่านเดียวกับ EnemyCombat: ทีม/เริ่มเกมแล้ว) + หุ่นล้ม
-        private void HitRobot(Robot robot, float damage, Vector3 dir)
+        private static bool IsDown(Robot robot) => robot.IsDown;
+
+        // จุดวัดระยะของหุ่น — นอนอยู่ = กลางชิ้นที่ต่ออยู่ (หุ่น IK: ตัวจริงไถล/คลานไปกับ ragdoll แต่ root ค้างจุดที่ล้ม)
+        private static Vector3 BodyPos(Robot robot)
         {
+            if (!IsDown(robot)) return robot.transform.position;
+            Vector3 sum = Vector3.zero;
+            int n = 0;
+            foreach (RobotLimb limb in robot.AttachedLimbs()) { sum += limb.transform.position; n++; }
+            return n > 0 ? sum / n : robot.transform.position;
+        }
+
+        // ดาเมจผ่าน DamageRouter (ด่านเดียวกับ EnemyCombat: ทีม/เริ่มเกมแล้ว) + หุ่นล้ม
+        // ปกติลงชิ้นที่ใกล้สุดชิ้นเดียว | ท่ากระแทกพื้น (ground) ใส่หุ่นที่นอนอยู่ = ทั้งตัวแนบพื้น โดนทุกชิ้นที่ต่ออยู่
+        private void HitRobot(Robot robot, float damage, Vector3 dir, bool ground = false)
+        {
+            if (ground && robot.DownFor > 0.2f) // นอนอยู่ก่อนแล้ว (ไม่ใช่วงก่อนหน้าเพิ่งทำล้มเฟรมนี้)
+            {
+                int count = 0;
+                foreach (RobotLimb limb in robot.AttachedLimbs())
+                    if (limb.Health != null && DamageRouter.TryApply(limb.Health, new DamageInfo(damage * downGroundDamageScale, limb.Health.transform.position, dir, DamageSource.EnemyMelee, Team.Enemy)))
+                        count++;
+                Debug.Log($"[KaijuSpecials] 💥 กระแทกพื้นใส่ {robot.name} ที่นอนอยู่ — โดน {count} ชิ้น ชิ้นละ {damage * downGroundDamageScale:F0}");
+                return;
+            }
+
             LimbHealth target = null;
             float best = float.MaxValue;
             foreach (RobotLimb limb in robot.AttachedLimbs())

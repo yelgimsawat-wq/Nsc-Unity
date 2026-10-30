@@ -62,6 +62,9 @@ namespace Nsc.BoneLimb
             input.pressedSlot = -1;
             for (int i = 0; i < slotCount; i++)
                 if (kb[Key.Digit1 + i].wasPressedThisFrame || kb[Key.F1 + i].wasPressedThisFrame) input.pressedSlot = i;
+
+            // เมนู ESC/วงล้อไอเทมเปิดอยู่ = เมาส์/คีย์บอร์ดเป็นของ UI — หุ่นไม่ต่อย/ก้าว/หันกล้องตามคลิกบนเมนู (เป้าค้างตามเคอร์เซอร์ล่าสุด)
+            if (UiFocus.IsCaptured) input = new IKInput { ray = input.ray, padSlash = -1, pressedSlot = -1 };
             return true;
         }
     }

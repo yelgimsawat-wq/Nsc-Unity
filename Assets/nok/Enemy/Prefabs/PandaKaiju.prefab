@@ -255,14 +255,18 @@ MonoBehaviour:
     m_Bits: 8
   maxStrikeReach: 11.0229435
   guaranteeHitInReach: 0
+  flatStrikeZone: 1
+  strikeZoneForward: 6
   lightPunchHitDelay: 1.2
   kickHitDelay: 2.77
   hitOnAnimationEvent: 1
-  lightPunchDamage: 20
-  kickDamage: 40
-  barrageTotalDamage: 48
-  barrageHitInterval: 1.4
-  barrageDuration: 1.4
+  lightPunchDamage: 60
+  kickDamage: 100
+  barrageTotalDamage: 120
+  barrageHitInterval: 0.35
+  barrageDuration: 2
+  barragePunchCount: 4
+  barragePunchHitDelay: 0.8
   attackRecoverDelay: 0.25
   attackResetFade: 0.15
   punchVfxPrefab: {fileID: 6916079054828060493, guid: 91d63e05cd2bf024f9961e4926cc2347, type: 3}
@@ -497,7 +501,7 @@ MonoBehaviour:
   footstepSfx: {fileID: 8300000, guid: 69efb2b4ae5897e42a816a9126527020, type: 3}
   footstepSfxStart: 0
   footstepPitch: 0.7
-  footstepVolume: 0.35
+  footstepVolume: 0.12
   quietStepState: Attack_Roll
   fullWalkSpeed: 4.164223
   locomotionParameter: Speed
@@ -530,8 +534,52 @@ MonoBehaviour:
     swingSfx: {fileID: 0}
     swingSfxStart: 0.2
     handVfxTime: 0.39
+  - state: Attack_Barrage
+    strikeTime: 0.28
+    windupSpeed: 0.6
+    strikeSpeed: 1.3
+    strikeVfx: {fileID: 4060967071236614201, guid: c91958420bcc8d647ae19c0e7caeafa6, type: 3}
+    strikeAtHand: 1
+    vfxScale: 4
+    strikeSfx: {fileID: 0}
+    swingSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
+    swingSfxStart: 0.2
+    handVfxTime: 0.39
+  - state: Attack_Barrage_L1
+    strikeTime: 0.28
+    windupSpeed: 1.4
+    strikeSpeed: 1.4
+    strikeVfx: {fileID: 4060967071236614201, guid: c91958420bcc8d647ae19c0e7caeafa6, type: 3}
+    strikeAtHand: 1
+    vfxScale: 4
+    strikeSfx: {fileID: 0}
+    swingSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
+    swingSfxStart: 0.2
+    handVfxTime: 0.39
+  - state: Attack_Barrage_R2
+    strikeTime: 0.28
+    windupSpeed: 1.4
+    strikeSpeed: 1.4
+    strikeVfx: {fileID: 4060967071236614201, guid: c91958420bcc8d647ae19c0e7caeafa6, type: 3}
+    strikeAtHand: 1
+    vfxScale: 4
+    strikeSfx: {fileID: 0}
+    swingSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
+    swingSfxStart: 0.2
+    handVfxTime: 0.39
+  - state: Attack_Barrage_L2
+    strikeTime: 0.28
+    windupSpeed: 1.4
+    strikeSpeed: 1.4
+    strikeVfx: {fileID: 4060967071236614201, guid: c91958420bcc8d647ae19c0e7caeafa6, type: 3}
+    strikeAtHand: 1
+    vfxScale: 4
+    strikeSfx: {fileID: 0}
+    swingSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
+    swingSfxStart: 0.2
+    handVfxTime: 0.39
   telegraphColor: {r: 1, g: 0.25, b: 0.15, a: 1}
-  telegraphTint: 0.55
+  telegraphTint: 0
   telegraphRumble: 0.15
   slamState: Attack_Kick
   slamTime: 1.53
@@ -582,7 +630,7 @@ MonoBehaviour:
   rollHitWindow: {x: 0.67, y: 2.97}
   rollDuration: 3.46
   rollHitRadius: 7
-  rollDamage: 35
+  rollDamage: 80
   rollSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
   rollSfxStart: 0.2
   rollSfxInterval: 0.4
@@ -598,7 +646,7 @@ MonoBehaviour:
   waveLength: 60
   waveWidth: 12
   waveSpeed: 30
-  waveDamage: 30
+  waveDamage: 70
   waveVfx:
   - {fileID: 9181631073716312681, guid: 2daf5ee49c086a3449322358c6da277d, type: 3}
   - {fileID: 3741257588182094228, guid: a593dc7a814598c4da52fe30a95006ac, type: 3}
@@ -629,14 +677,14 @@ MonoBehaviour:
   ringMaxRadius: 50
   ringSpeed: 22
   ringThickness: 6
-  ringDamage: 25
+  ringDamage: 50
   ringVfxStep: 6
   ringVfxSpacing: 16
   leapState: Attack_Kick
   leapClipDistance: 11.8
   leapMaxDistance: 60
   leapRadius: 18
-  leapDamage: 35
+  leapDamage: 90
 --- !u!114 &7292784472658646311
 MonoBehaviour:
   m_ObjectHideFlags: 0

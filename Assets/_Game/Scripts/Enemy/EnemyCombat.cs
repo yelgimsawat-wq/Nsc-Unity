@@ -55,6 +55,12 @@ namespace NscGame.Enemy
                  "ปิด = ต้องมีชิ้นส่วนอยู่ในรัศมีท่านั้นจริงถึงจะโดน — การวางตำแหน่งมีความหมาย หลบได้จริง")]
         [SerializeField] private bool guaranteeHitInReach = true;
 
+        [Tooltip("เปิด = วัดรัศมีท่าจากจุดกระแทกหน้าตัวบอส (ห่างไปหน้า Strike Zone Forward) แบบแนวราบ ไม่สนความสูง\n" +
+                 "ใช้กับบอสยักษ์ที่กำปั้นอยู่สูงเหนือหัวหุ่น (ไคจู vs หุ่น IK) — วัดจากกำปั้นจริงแล้ววืดตลอด\n" +
+                 "หลบได้ด้วยการออกข้าง/อ้อมหลังบอส | ปิด = วัดระยะ 3D จากจุดเริ่มท่า (Origin) แบบเดิม")]
+        [SerializeField] private bool flatStrikeZone = false;
+        [SerializeField] private float strikeZoneForward = 6f;
+
         [Header("Hit Timing (วินาทีหลังเริ่มท่า → จังหวะคิดดาเมจ)")]
         [Tooltip("จูนให้ตรงเฟรมที่หมัดกระแทกในอนิเมชัน LightPunch")]
         [SerializeField] private float lightPunchHitDelay = 0.5f;
@@ -85,6 +91,12 @@ namespace NscGame.Enemy
         [Tooltip("ความยาวอนิเมชันต่อยรัว (วินาที) — ดาเมจทุกดอกกระจายเต็มช่วงนี้ และ VFX เล่นยาวจนจบท่า")]
         [SerializeField] private float barrageDuration = 1.5f;
 
+        [Tooltip("ใช้เมื่อเปิด Hit On Animation Event: ต่อยรัวมีกี่หมัด (ต้องตรงกับจำนวน state ต่อยรัวใน Animator เช่น ขวา-ซ้าย-ขวา-ซ้าย = 4)\n" +
+                 "ดาเมจรวมหารเท่าๆ กัน ลงทีละหมัดตอนท่าแจ้งว่าหมัดสุด")]
+        [SerializeField] private int barragePunchCount = 4;
+        [Tooltip("เวลาสำรองต่อหมัด (วิ) ถ้าท่าไม่แจ้งจังหวะหมัด (ถูกขัดกลางท่า)")]
+        [SerializeField] private float barragePunchHitDelay = 0.8f;
+
         [Header("Attack Animation Reset")]
         [Tooltip("หน่วงหลังดาเมจดอกสุดท้าย ก่อนตัดอนิเมชันกลับท่าเริ่มต้น (ให้ภาพกระแทกค้างแป๊บนึง)")]
         [SerializeField] private float attackRecoverDelay = 0.25f;
@@ -96,6 +108,7 @@ namespace NscGame.Enemy
         // ตัดอนิเมชันกลับ state ว่าง (ท่าเริ่มต้น) ทันที ภาพ/ดาเมจ/VFX จะจบพร้อมกัน
         private const string AttackLayerName = " Attack layer"; // ชื่อจริงใน controller มี space นำหน้า
         private const string AttackIdleState = "New State";     // state ว่าง (default) ของ layer โจมตี
+        private const string AttackEmptyState = "Empty";        // ชื่อ state ว่างของ controller ไคจู
 
         [Header("VFX Prefabs")]
         [SerializeField] private GameObject punchVfxPrefab;
@@ -319,6 +332,24 @@ namespace NscGame.Enemy
 
             PlayAttackEffectsClientRpc(AttackType.BarragePunch, origin.position, GetVfxRotation(AttackType.BarragePunch));
 
+            // ต่อยรัวแบบหมัดซ้าย-ขวาสลับ (Animator ต่อ state หมัดปกติ + mirror): แต่ละหมัดแจ้งหมัดสุดผ่าน ServerAnimationHit
+            // → ดาเมจลงทีละหมัดตรงภาพ แทนการนับ tick ตามเวลา
+            if (hitOnAnimationEvent)
+            {
+                int punches = Mathf.Max(1, barragePunchCount);
+                float perPunch = barrageTotalDamage / punches;
+                Debug.Log($"[EnemyCombat] 🌀 เริ่มต่อยรัว {punches} หมัด ซ้าย-ขวา — หมัดละ {perPunch:F1}");
+                for (int i = 0; i < punches; i++)
+                {
+                    yield return WaitHitMoment(barragePunchHitDelay);
+                    if (controller != null && controller.CurrentState == EnemyState.Dead) break;
+                    ProcessHitDetection(origin.position, barragePunchRadius, perPunch, AttackType.BarragePunch);
+                }
+                yield return new WaitForSeconds(attackRecoverDelay);
+                ResetAttackLayerClientRpc();
+                yield break;
+            }
+
             // ✅ [ดาเมจต่อเนื่อง] เดิมยิงดาเมจเป็นดอกๆ 6 ครั้ง (ทุก 0.25 วิ) รู้สึกเป็นจังหวะกระตุก
             // ใหม่: tick ถี่ตาม barrageHitInterval (0.1 = 10 ครั้ง/วินาที) ตลอดความยาวท่า
             // ดาเมจต่อ tick หารจากยอดรวม → ปรับ interval ให้ลื่นขึ้นได้โดยดาเมจรวมไม่บวม
@@ -408,6 +439,18 @@ namespace NscGame.Enemy
                 return;
             }
 
+            // ท่าเตะ (ไคจู = กระโดดทุบพื้น) ใส่หุ่นที่นอนอยู่ = ทั้งตัวแนบพื้น โดนทุกชิ้นที่ต่ออยู่ ชิ้นละเต็ม
+            // (ท่านี้ทำหุ่นล้มตอนลงพื้นในเฟรมเดียวกัน — นับเฉพาะหุ่นที่นอนอยู่ก่อนแล้ว)
+            if (attackType == AttackType.Kick && robot.DownFor > 0.2f)
+            {
+                int count = 0;
+                foreach (RobotLimb limb in robot.AttachedLimbs())
+                    if (limb.Health != null && DamageRouter.TryApply(limb.Health, new DamageInfo(damage, limb.Health.transform.position, transform.forward, DamageSource.EnemyMelee, Team.Enemy)))
+                        count++;
+                Debug.Log($"[EnemyCombat] 💥 {attackType} ทุบพื้นใส่หุ่นที่นอนอยู่ — โดน {count} ชิ้น ชิ้นละ {damage:F0}");
+                return;
+            }
+
             // Barrage ห้ามยิง hit-confirm รายดอก — VFX จำกัด 1 ตัว/ประเภท ดอกใหม่จะ
             // Destroy VFX หลักที่กำลังเล่นทุก interval → เอฟเฟคกระพริบไม่เคยเล่นจบท่า
             bool spawnHitVfx = attackType != AttackType.BarragePunch;
@@ -417,10 +460,19 @@ namespace NscGame.Enemy
             LimbHealth target = null;
             float closestDist = float.MaxValue;
 
+            Vector3 strikeCenter = origin;
+            if (flatStrikeZone)
+            {
+                Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+                strikeCenter = transform.position + forward * strikeZoneForward;
+            }
+
             foreach (RobotLimb limb in robot.AttachedLimbs())
             {
                 if (limb.Health == null) continue;
-                float dist = Vector3.Distance(origin, limb.Health.transform.position);
+                Vector3 limbPos = limb.Health.transform.position;
+                if (flatStrikeZone) limbPos.y = strikeCenter.y;
+                float dist = Vector3.Distance(strikeCenter, limbPos);
                 if (dist < closestDist)
                 {
                     closestDist = dist;
@@ -525,7 +577,10 @@ namespace NscGame.Enemy
             int layer = animator.GetLayerIndex(AttackLayerName);
             if (layer < 0) layer = 2; // fallback: layer โจมตีคือ index 2 ใน controller ปัจจุบัน
 
-            animator.CrossFade(AttackIdleState, attackResetFade, layer);
+            // state ว่างชื่อไม่ตรงกันทุก controller (แพนด้า = "Empty") — ชื่อไม่มีจริง CrossFade ไม่ทำอะไรแล้วฟ้อง error
+            int idle = Animator.StringToHash(AttackIdleState);
+            if (!animator.HasState(layer, idle)) idle = Animator.StringToHash(AttackEmptyState);
+            if (animator.HasState(layer, idle)) animator.CrossFade(idle, attackResetFade, layer);
         }
 
         [ClientRpc]
