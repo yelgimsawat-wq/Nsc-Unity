@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-30 18:09 +00:00 · Q-20261030-mega-city · files: Assets/nok/scene/MegaCity/, Context/quests/Q-20261030-mega-city.md
+  - แก้: เครื่องมือสร้างแมพเมืองใหญ่ MegaCity (แบบเดียวกับ ColosseumBuilder): ตาราง 10x10 บล็อก ถนน 3 ขนาด ลานกลาง ตึกหลากแบบ สวน เส้นขอบฟ้า + preset แสง Day/Sunset/Night
+  - ตรวจ: 2026-10-30 compile ผ่านกับ Unity reference จาก NuGet + stub URP; geometry/texture รันนอก Unity แล้วดูพรีวิวผ่าน; ยังไม่ได้กด Build/Play ใน Unity จริง
 - 2026-10-30 17:48 +00:00 · Q-20261030-sword-360-slash · files: Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261030-sword-360-slash.md, Context/quests/Q-20261030-sword-360-slash/notes.md
   - แก้: ดาบกระตุกตอนใบเกือบขนานแขน: AimWeapon ผสมทิศบิดรอบแขนกับทิศใบของท่ามือเฟรมก่อนเมื่อใบทำมุมกับแขน < 30 องศา (TwistUnsure/TwistSure)
   - ตรวจ: 2026-10-30 cloud ไม่มี Unity: ไวยากรณ์ผ่าน (Roslyn C# 9); ยังไม่ได้ compile ใน Unity และยังไม่ได้วัดความเร็วดาบ
@@ -31,6 +34,3 @@
 - 2026-10-13 17:35 +07:00 · Q-20261009-smooth-walk · files: Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Limbs/LegInput.cs, Assets/_Game/Scripts/Robot/TorsoBalance.cs, Context/Game-Design.md, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Scripts/Match/LimbSelection.cs, Assets/_Game/Scripts/Match/LimbControlBinder.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs
   - แก้: คืนกล้องเป็นแบบล็อกมุม+คลิกขวาหมุนได้ (ผู้ใช้ไม่ชอบกล้องหันตามทิศ); เพิ่มปุ่มทดสอบ C สลับไปคุมชิ้นถัดไปกลางแมตช์ (Editor/Dev build)
   - ตรวจ: 2026-10-13 compile ผ่าน; Play TestArena: สลับ LeftLeg/RightLeg/แขน ผ่าน DebugCycleLimbRpc ได้ input ผูกชิ้นใหม่ กล้องมุมเดิม; ยังไม่ได้กดปุ่มจริง
-- 2026-10-09 15:59 +07:00 · Q-20261009-giant-feel · files: Assets/_Game/Scripts/Feel/, Assets/_Game/Scripts/Combat/IImpactFeedback.cs, Assets/_Game/Scripts/Combat/LimbStrike.cs, Assets/_Game/Scripts/Limbs/LimbController.cs, Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Robot/LimbHealth.cs, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Resources/FeelConfig.asset, Assets/_Game/Art/VFX/Feel/, Assets/_Game/Audio/SFX/
-  - แก้: ระบบ Feel: เท้าปักพื้น/หมัดเข้า/โดนบอส ส่ง RPC ให้ทุกเครื่องเล่นกล้องสั่น กล้องค้าง FOV kick ฝุ่น ประกายไฟ เสียง ค่าจูนอยู่ใน FeelConfig
-  - ตรวจ: 2026-10-09 compile ผ่าน, Play TestArena เอฟเฟกต์ทำงาน, ยังไม่ได้จูนด้วยตาและยังไม่ได้ทดสอบ client
