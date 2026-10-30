@@ -48,6 +48,13 @@ namespace Nsc.BoneLimb
         [SerializeField] private float alarmInterval = 0.9f;
         [Range(0f, 1f)] [SerializeField] private float alarmVolume = 0.25f;
 
+        [Header("เพลงด่าน")]
+        [Tooltip("เพลงต่อสู้ วนตลอดด่าน (ดังตาม Master Volume ในเมนู ESC)")]
+        [SerializeField] private AudioClip music;
+        [Range(0f, 1f)] [SerializeField] private float musicVolume = 0.45f;
+        [Tooltip("จบแมตช์แล้วเพลงเบาลงเหลือเท่านี้ (สัดส่วน) ให้เสียงชนะ/แพ้เด่น")]
+        [Range(0f, 1f)] [SerializeField] private float musicEndedScale = 0.35f;
+
         private static readonly string[] SlotTags = { "L-ARM", "R-ARM", "L-LEG", "R-LEG" };
         private const float CardWidth = 330f, CardHeight = 104f, CardGap = 16f, MidGap = 56f;
 
@@ -105,6 +112,7 @@ namespace Nsc.BoneLimb
         private bool resultShown;
         private Sequence resultSeq;
         private AudioClip winClip, loseClip;
+        private AudioSource musicSource;
 
         private void Awake()
         {
@@ -118,6 +126,17 @@ namespace Nsc.BoneLimb
             loseClip = Tones("HudLose", new[] { 392f, 330f, 262f, 196f }, 0.18f);
             Build();
             BuildResult();
+
+            if (music)
+            {
+                musicSource = gameObject.AddComponent<AudioSource>();
+                musicSource.clip = music;
+                musicSource.loop = true;
+                musicSource.spatialBlend = 0f;
+                musicSource.volume = 0f; // ค่อยๆ ดังขึ้นใน Update
+                musicSource.priority = 0;
+                musicSource.Play();
+            }
         }
 
         private void OnDestroy()
@@ -141,6 +160,8 @@ namespace Nsc.BoneLimb
             bool show = control && (!control.IsOnline || (MatchSession.Current != null && MatchSession.Current.IsPlaying));
             float dt = Time.unscaledDeltaTime; // หยุดภาพตอนหมัดโดน (timeScale) — HUD ยังขยับ
             TickResult();
+            if (musicSource) // เข้าด่าน = ดังขึ้นใน ~2 วิ | จบแมตช์ = เบาลง
+                musicSource.volume = Mathf.MoveTowards(musicSource.volume, musicVolume * (resultShown ? musicEndedScale : 1f), dt * 0.25f);
             root.alpha = Mathf.MoveTowards(root.alpha, show ? 1f : 0f, dt * 4f);
             if (!show) { wasDown = false; return; }
             TickBoss(dt);

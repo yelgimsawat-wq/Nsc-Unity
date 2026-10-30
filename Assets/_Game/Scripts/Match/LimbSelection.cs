@@ -407,7 +407,7 @@ namespace Nsc.Match
         /// <summary>
         /// [ทดสอบ] สลับไปคุมชิ้นถัดไปที่ยังว่างกลางแมตช์ (แขนซ้าย → แขนขวา → ขาซ้าย → ขาขวา → วน)
         /// targetSlot ≥ 0 = ไปชิ้นนั้นตรงๆ (ไม่ว่าง = ไม่ทำอะไร) | −1 = ชิ้นถัดไปที่ว่าง
-        /// เล่นคนเดียวแล้วเดินสลับซ้ายขวาได้ — ไม่มีใน build ที่ปล่อยจริง
+        /// เล่นคนเดียวแล้วเดินสลับซ้ายขวาได้ — ไม่มีใน build ที่ปล่อยจริง (ทดสอบใน build: ติ๊ก Development Build)
         /// </summary>
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         public void DebugCycleLimbRpc(int targetSlot, RpcParams rpcParams = default)

@@ -260,9 +260,9 @@ MonoBehaviour:
   lightPunchHitDelay: 1.2
   kickHitDelay: 2.77
   hitOnAnimationEvent: 1
-  lightPunchDamage: 60
-  kickDamage: 100
-  barrageTotalDamage: 120
+  lightPunchDamage: 90
+  kickDamage: 150
+  barrageTotalDamage: 180
   barrageHitInterval: 0.35
   barrageDuration: 2
   barragePunchCount: 4
@@ -630,7 +630,7 @@ MonoBehaviour:
   rollHitWindow: {x: 0.67, y: 2.97}
   rollDuration: 3.46
   rollHitRadius: 7
-  rollDamage: 80
+  rollDamage: 120
   rollSfx: {fileID: 8300000, guid: 129bd8054b7f3f247b5b881c5127bf9d, type: 3}
   rollSfxStart: 0.2
   rollSfxInterval: 0.4
@@ -646,7 +646,7 @@ MonoBehaviour:
   waveLength: 60
   waveWidth: 12
   waveSpeed: 30
-  waveDamage: 70
+  waveDamage: 105
   waveVfx:
   - {fileID: 9181631073716312681, guid: 2daf5ee49c086a3449322358c6da277d, type: 3}
   - {fileID: 3741257588182094228, guid: a593dc7a814598c4da52fe30a95006ac, type: 3}
@@ -677,14 +677,14 @@ MonoBehaviour:
   ringMaxRadius: 50
   ringSpeed: 22
   ringThickness: 6
-  ringDamage: 50
+  ringDamage: 75
   ringVfxStep: 6
   ringVfxSpacing: 16
   leapState: Attack_Kick
   leapClipDistance: 11.8
   leapMaxDistance: 60
   leapRadius: 18
-  leapDamage: 90
+  leapDamage: 135
 --- !u!114 &7292784472658646311
 MonoBehaviour:
   m_ObjectHideFlags: 0

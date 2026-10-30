@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-10-30 21:56 +07:00 · Q-20261030-sword-360-slash · files: Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261030-sword-360-slash.md, Context/quests/Q-20261030-sword-360-slash/notes.md
+  - แก้: ฟันดาบ 360 องศา (ลากเลือกแนว ปล่อยฟัน ค้างชาร์จ) เส้นที่วาดคุมปลายดาบ ใบเรียงตามเส้น แขนยืดขึ้น + จำกัดคว่ำหงายมือ 90 องศาจากท่าจับมือแบบไม่พลิกข้ามฝั่ง + ทำให้นุ่มกันกระตุก + วางดาบ 3 เล่มใน TestItem
+  - ตรวจ: 2026-10-30 compile ผ่าน; Play ผ่าน Unity MCP แขนขวา: ข้อมือไม่เกิน 90 องศา ไม่พลิกข้ามฝั่ง; ยังไม่ได้วัดรอบล่าสุด (HandTurn smoothing) แขนซ้าย เมาส์จริง ออนไลน์
 - 2026-10-30 11:32 +07:00 · Q-20261028-ik-robot-systems · files: Assets/nok/BoneLimb/IKRagdoll.cs, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/IKLimb.cs, Assets/nok/BoneLimb/IKInput.cs, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/_Game/Scripts/Robot/Robot.cs, Assets/nok/BoneLimb/OrbitCamera.cs, Assets/nok/BoneLimb/LimbNetState.cs, Assets/nok/BoneLimb/IKFeel.cs, Assets/Yelmee/IKTest.unity, Context/quests/Q-20261028-ik-robot-systems.md, Assets/nok/BoneLimb/IKDetach.cs, Assets/_Game/Scripts/Robot/LimbAttachment.cs, Assets/_Game/Resources/FeelConfig.asset, Assets/nok/BoneLimb/WeaponTrail.mat, Assets/nok/BoneLimb/Resources/WeaponTrail.mat, Assets/nok/BoneLimb/Weapon-Motion-Research.md, Assets/_Game/Scripts/Feel/FeelConfig.cs, Assets/_Game/Scripts/Feel/ImpactFeel.cs, Assets/_Game/Audio/SFX/, Assets/nok/BoneLimb/KickedProp.cs, Assets/_Game/Scripts/Robot/LimbHealth.cs, Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/NavMesh-Arena.asset, Assets/nok/BoneLimb/IKRobotRig.prefab, ProjectSettings/EditorBuildSettings.asset
   - แก้: เอากล่องข้อความมุมซ้ายบน (คุมชิ้นไหน/เลือด/วิธีเล่น) ออก — ซ่อนด้วย showInfoBox ค่าเริ่มต้นปิด
   - ตรวจ: 2026-10-30 คอมไพล์ผ่าน showInfoBox=false; ยังไม่ได้ดูภาพใน Play (พอร์ต 7777 ค้างหลัง Play รอบทดสอบ ต้องรีสตาร์ท Unity)
@@ -31,6 +34,3 @@
 - 2026-10-09 15:59 +07:00 · Q-20261009-giant-feel · files: Assets/_Game/Scripts/Feel/, Assets/_Game/Scripts/Combat/IImpactFeedback.cs, Assets/_Game/Scripts/Combat/LimbStrike.cs, Assets/_Game/Scripts/Limbs/LimbController.cs, Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Robot/LimbHealth.cs, Assets/_Game/Scripts/Camera/PlayerCam.cs, Assets/_Game/Resources/FeelConfig.asset, Assets/_Game/Art/VFX/Feel/, Assets/_Game/Audio/SFX/
   - แก้: ระบบ Feel: เท้าปักพื้น/หมัดเข้า/โดนบอส ส่ง RPC ให้ทุกเครื่องเล่นกล้องสั่น กล้องค้าง FOV kick ฝุ่น ประกายไฟ เสียง ค่าจูนอยู่ใน FeelConfig
   - ตรวจ: 2026-10-09 compile ผ่าน, Play TestArena เอฟเฟกต์ทำงาน, ยังไม่ได้จูนด้วยตาและยังไม่ได้ทดสอบ client
-- 2026-10-09 15:34 +07:00 · Q-20261009-test-scene · files: Assets/_Game/Scenes/Test/, ProjectSettings/EditorBuildSettings.asset
-  - แก้: สร้างฉากทดสอบ TestArena จากสำเนา MAPBOSS: ตัดแมพทิ้ง ใส่พื้นเรียบ เสาทดสอบมือจับ ดาบ ย้ายปืนใกล้หุ่น bake NavMesh ใหม่ เพิ่มเข้า build list
-  - ตรวจ: 2026-10-09 Play: เริ่มเกม/ลุก/บอสเดินมาตี/ต่อย/จับเสา/ฆ่าบอสขึ้น WIN ผ่าน ไม่มี error ใหม่
