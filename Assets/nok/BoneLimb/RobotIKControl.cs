@@ -1510,6 +1510,15 @@ namespace Nsc.BoneLimb
             Quaternion rot = limb.target.rotation;
             Vector3 now = limb.HandFrame(rot) * inHand;
             Vector3 a = Vector3.ProjectOnPlane(now, along), b = Vector3.ProjectOnPlane(want, along);
+            // ใบที่ต้องการเกือบขนานแนวแขน (ฟันผ่านเป้า ใบ = แนวไหล่→มือ): b สั้นจนทิศบิดรอบแขนสะบัดไปมา = ดาบกระตุก
+            // → ค่อยๆ ใช้ทิศใบของท่ามือเฟรมก่อนแทน (อ้างอิงเฟรมก่อน ไม่ใช่ OrientHand ซึ่งพลิกเองได้ตอนแขนชี้สวนท่าพัก)
+            if (handRotValid[i])
+            {
+                Vector3 prev = Vector3.ProjectOnPlane(limb.HandFrame(lastHandRot[i]) * inHand, along);
+                float sure = Mathf.InverseLerp(TwistUnsure, TwistSure, b.magnitude / Mathf.Max(want.magnitude, 1e-6f));
+                if (prev.sqrMagnitude > 1e-6f && sure < 1f)
+                    b = Vector3.Slerp(prev.normalized, b.sqrMagnitude > 1e-6f ? b.normalized : prev.normalized, sure);
+            }
             if (a.sqrMagnitude > 1e-6f && b.sqrMagnitude > 1e-6f) rot = Quaternion.AngleAxis(Vector3.SignedAngle(a, b, along), along) * rot;
             limb.target.rotation = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(limb.HandFrame(rot) * inHand, want), weaponWristBend) * rot;
 
@@ -1569,6 +1578,9 @@ namespace Nsc.BoneLimb
 
         private const float HandTurnSmoothing = 25f; // มือถืออาวุธไล่ท่าที่คำนวณได้ (1/วิ) — ~0.03 วิไปได้ครึ่งทาง
         private const float HandTurnSpeed = 1400f;   // มือถืออาวุธหมุนเร็วสุด (°/วิ)
+        // ใบทำมุมกับแนวแขน (ค่า sin): ต่ำกว่า TwistUnsure (~12°) ใช้ทิศใบเฟรมก่อนล้วน, เกิน TwistSure (30°) ใช้ทิศที่ท่าต้องการล้วน
+        private const float TwistUnsure = 0.2f;
+        private const float TwistSure = 0.5f;
 
         // แขนท่อนล่างคว่ำ/หงายมือไม่เกินคน (ผู้ใช้ 2026-10-30: ง้างแล้วข้อมือพลิกหงาย) — เดิมหมุนมือรอบแนวแขนได้ไม่จำกัดเพื่อให้ใบชี้ไปทางที่ต้องการ
         // ศูนย์ = ท่าจับมือ: นิ้วโป้งชี้ไปทางต้นแขน (ฝั่งที่ศอกพับเข้า) ตั้งฉากกับแขนท่อนล่าง — วัดจากตำแหน่งไหล่/ศอก/ข้อมือจริงทุกเฟรม ไม่สะสม
