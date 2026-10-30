@@ -72,6 +72,7 @@
 - `IKTest` ต้องอยู่ใน Build Settings (Netcode ใช้ตอนซิงก์ฉาก)
 
 ## โครงฉาก
+- **ฉาก RobotArena (โคลอสเซียม)** วางไว้แล้ว (2026-10-30): `IKRobotRig.prefab` (IKRobot + `_Hit`/`<ขา>_Target` ที่ต้องเป็น root แยกจากตัวหุ่น รวมใต้ root เดียว — กล้อง `cam` ต้องตั้งที่ instance) ที่จุดเกิดน้ำเงิน หันเข้าสนาม, `PandaKaiju` (prefab เดียวกับ TestItem) ที่ x=+60 หันเข้าหาหุ่น, `SelectPart` (หน้าเลือกชิ้นส่วนรูปหุ่น คัดลอกจาก IKTest — ผู้ใช้สั่ง 2026-10-30 ไม่ใช่ prefab มาตรฐาน; ในต้นฉบับปิดไว้ ต้องเปิด), `NetworkManager`/`AutoStartHost`/`EventSystem` คัดลอกจาก IKTest, `NavMeshSurface` บน `Colosseum/Arena` (พื้นทรายอย่างเดียว agent ค่าโปรเจกต์ = ของไคจู) บันทึกที่ `RobotArena/NavMesh-Arena.asset`, ฉากอยู่ใน Build Settings
 - `NetworkManager` (+ UnityTransport), `AutoStartHost`, `SelectPart` (คัดลอกจาก TestItem พร้อมรูปหุ่น/ปุ่ม), `EventSystem`
 - `IKRobot`: NetworkObject + NetworkTransform + kinematic Rigidbody + BoxCollider ลำตัว + `Robot` + `RobotIKControl`, ลูก `Slot_LeftArm..RightLeg` มี `RobotLimb`
   - `RobotNSC_Rigged` (`RigBuilder`/`Rig`/`<ชิ้น>_IK`/`<ชิ้น>_Hint` เหลือจากรุ่น TwoBoneIK — ไม่ได้ใช้แล้ว ปิดตอนเริ่ม)

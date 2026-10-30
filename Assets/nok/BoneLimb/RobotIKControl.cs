@@ -50,6 +50,8 @@ namespace Nsc.BoneLimb
         [SerializeField] private float braceCrouch = 0.25f;
         [SerializeField] private float bodyFollow = 3f;
         [SerializeField] private float remoteSmoothing = 15f;
+        [Tooltip("กล่องข้อความมุมซ้ายบน: คุมชิ้นไหน/เลือด/วิธีเล่น/คำใบ้ตอนล้ม — ปิดไว้ (ผู้ใช้สั่งเอาออก 2026-10-30) เปิดไว้ตอนเทสถ้าอยากเห็นเลขเลือด")]
+        [SerializeField] private bool showInfoBox = false;
 
         [Header("ข้อต่อแบบคน (องศา)")]
         [SerializeField] private ShoulderLimit shoulder = new ShoulderLimit();
@@ -2694,6 +2696,13 @@ namespace Nsc.BoneLimb
             if (Online && (MatchSession.Current == null || !MatchSession.Current.IsPlaying)) return; // หน้าเลือกชิ้นส่วนแสดงอยู่
 
             DrawSlashCue();
+            if (showInfoBox) DrawInfoBox();
+            if (aimArm >= 0 && cam) DrawReticle();
+            if (!down && cam) DrawFootMarker();
+        }
+
+        private void DrawInfoBox()
+        {
             GUILayout.BeginArea(new Rect(10, 10, 900, 280), GUI.skin.box);
             if (!Online) GUILayout.Label($"เล่นคนเดียว: {limbs[selected].name} (กด 1-4 สลับ)");
             else
@@ -2743,9 +2752,6 @@ namespace Nsc.BoneLimb
             armHelp += weaponFreeAim ? " | ถือของ: คลิกซ้ายค้าง + ลากเมาส์ = ฟาด ปล่อย = ห้อยแขน" : " | ถือของ: คลิกซ้าย = คอมโบ, ค้าง + ลากสั้นๆ ↓ ← → ↑ = เลือกทิศฟัน (ลากระหว่างฟัน = ฟาดต่อ) | จอย: X/R1 = คอมโบ, ดีดสติ๊กขวา = ทิศฟัน";
             GUILayout.Label($"{armHelp} | ขา: ชี้พื้น + คลิก = ก้าวไปตรงนั้น (ค้าง = เท้าลอยตามเคอร์เซอร์ ปล่อย = วาง, ก้าวเฉียง = เลี้ยว, ยกค้าง ≥{stompHold:0.#} วิ แล้วปล่อย = กระทืบ, Shift = ถีบ (โดนของ = ของพุ่ง), F ค้าง = ย่อ / สองขาพร้อมกัน = ปักหลัก) | ล้อ = ซูม | คลิกขวาค้าง = หันกล้อง | R ค้าง = ดึงชิ้นที่หลุดกลับ | B = ทดสอบล้ม | X = ทดสอบหลุด");
             GUILayout.EndArea();
-
-            if (aimArm >= 0 && cam) DrawReticle();
-            if (!down && cam) DrawFootMarker();
         }
 
         private GUIStyle reticleStyle, markerStyle, reachStyle;
