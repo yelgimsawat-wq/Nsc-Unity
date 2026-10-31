@@ -522,6 +522,10 @@ namespace Nsc.BoneLimb
                 attachments[i] = slot ? slot.Attachment : null;
                 slots[i] = slot ? slot.transform : null;
                 if (!slot || !slot.Health) continue;
+                // ลูกบอลรับหมัดลอยตามปลายแขน/ขา แต่ไม่ได้อยู่ใต้ช่อง RobotLimb — ต้องมีตัวส่งต่อบนลูกบอลเอง
+                // ไม่งั้น DamageRouter หาเลือดของชิ้นไม่เจอ (PVP: ต่อยแขนศัตรูแล้วไม่เข้า)
+                if (limbs[i].hit && !limbs[i].hit.TryGetComponent(out LimbHitRelay _))
+                    limbs[i].hit.gameObject.AddComponent<LimbHitRelay>().Bind(slot.Health);
                 slot.Health.DamageScale = BlockScale; // ยกการ์ด = ทุกชิ้นโดนเบาลง (Server เท่านั้นที่หักเลือด)
                 int index = i;
                 hpSeen[i] = slot.Health.Hp;
@@ -597,6 +601,31 @@ namespace Nsc.BoneLimb
         private bool IsMine(int index) => Online ? ControllerOf(index) == NetworkManager.LocalClientId : index == selected;
 
         private bool HasController(int index) => Online ? ControllerOf(index) != LimbSelection.NoClient : index == selected;
+
+        /// <summary>
+        /// หุ่นตัวนี้เป็นของผู้เล่นเครื่องนี้ไหม — ฉาก PVP มีหุ่นสองตัวที่อ้างกล้องตัวเดียวกัน
+        /// ถ้าไม่กั้น ทั้งสองตัวจะสั่งกล้องทุกเฟรม (ตัวที่คำนวณทีหลังชนะ) แล้วกล้องไปค้างที่หุ่นศัตรู
+        /// ยังไม่จองชิ้น = ยึดตามหุ่นที่เลือกไว้ (เลือกหุ่น = เลือกทีม) | ยังไม่เลือกอะไรเลย = หุ่นตัวแรกถือกล้องไว้
+        /// </summary>
+        public bool IsLocalRobot
+        {
+            get
+            {
+                if (!Online) return true;
+                for (int i = 0; i < limbs.Length; i++)
+                    if (IsMine(i)) return true;
+
+                LimbSelection selection = LimbSelection.Current;
+                if (selection == null || robot == null) return true;
+
+                Robot choice = selection.GetRobotChoice(NetworkManager.LocalClientId);
+                if (choice != null) return choice == robot;
+
+                foreach (Robot other in Robot.All)
+                    if (other != null && other.isActiveAndEnabled) return other == robot;
+                return true;
+            }
+        }
 
         // ---------------------------------------------------------------- อ่านอย่างเดียวสำหรับ HUD (RobotArenaHud)
         public Robot Robot => robot;
@@ -812,7 +841,7 @@ namespace Nsc.BoneLimb
                 }
                 lastBodyPos = transform.position;
                 Vector3 hips = ragdoll.Hips.transform.position;
-                if (cam) orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true);
+                if (cam && IsLocalRobot) orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true);
                 return;
             }
             if (getUp >= 0f)
@@ -873,7 +902,7 @@ namespace Nsc.BoneLimb
                     fallRules.Reset(); // ลุกปุ๊บไม่ล้มซ้ำจากตัวจับเวลาเก่า
                 }
             }
-            if (cam) orbit.Apply(cam, transform.position, ControlledArmSide());
+            if (cam && IsLocalRobot) orbit.Apply(cam, transform.position, ControlledArmSide());
         }
 
         // ================================================================ เคอร์เซอร์ → เป้า

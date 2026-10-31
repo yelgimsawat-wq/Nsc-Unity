@@ -156,7 +156,7 @@ namespace Nsc.BoneLimb
 
         private void Update()
         {
-            if (!control) control = FindAnyObjectByType<RobotIKControl>();
+            if (!control || (control.IsOnline && !control.IsLocalRobot)) control = LocalControl();
             bool show = control && (!control.IsOnline || (MatchSession.Current != null && MatchSession.Current.IsPlaying));
             float dt = Time.unscaledDeltaTime; // หยุดภาพตอนหมัดโดน (timeScale) — HUD ยังขยับ
             TickResult();
@@ -169,6 +169,18 @@ namespace Nsc.BoneLimb
             if (Time.unscaledTime >= nextNames) { nextNames = Time.unscaledTime + 0.5f; RefreshNames(); }
             for (int i = 0; i < cards.Length && i < control.LimbCount; i++) TickCard(i, dt);
             TickDown(dt);
+        }
+
+        /// <summary>หุ่นของผู้เล่นเครื่องนี้ — ฉาก PVP มีหุ่นสองตัว HUD ต้องโชว์ฝั่งเราเท่านั้น (ยังไม่เลือกทีม = ตัวแรกที่เจอ)</summary>
+        private static RobotIKControl LocalControl()
+        {
+            RobotIKControl first = null;
+            foreach (RobotIKControl candidate in FindObjectsByType<RobotIKControl>(FindObjectsSortMode.None))
+            {
+                if (candidate.IsLocalRobot) return candidate;
+                if (first == null) first = candidate;
+            }
+            return first;
         }
 
         private void TickCard(int i, float dt)

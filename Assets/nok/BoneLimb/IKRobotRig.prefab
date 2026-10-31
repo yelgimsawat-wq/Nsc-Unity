@@ -159,6 +159,7 @@ GameObject:
   - component: {fileID: 6604857623278551299}
   - component: {fileID: 4249820497994802169}
   - component: {fileID: 7261138562514402831}
+  - component: {fileID: 1216011074474382797}
   m_Layer: 2
   m_Name: IKRobot
   m_TagString: Untagged
@@ -551,6 +552,19 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+--- !u!114 &1216011074474382797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1289773433572426234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c1f32f218a809845a12890556ea2dc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.Robots.RobotBodyDamageRelay
+  debugLog: 1
 --- !u!1 &1407892891645412072
 GameObject:
   m_ObjectHideFlags: 0
