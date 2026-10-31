@@ -10,11 +10,12 @@ namespace Nsc.BoneLimb
     {
         public float distance = 36f;
         [Tooltip("ล้อเมาส์ซูม: ตัวคูณระยะกล้องน้อยสุด/มากสุด — ใช้กับทุกมุม (ขา/แขน/ตอนล้ม) 1 = ระยะที่ตั้งไว้")]
-        public Vector2 zoomRange = new Vector2(0.4f, 3f);
-        [Tooltip("ล้อเมาส์ 1 คลิกเข้า/ออกกี่ส่วน (0.1 = 10%)")]
-        public float zoomStep = 0.1f;
+        public Vector2 zoomRange = new Vector2(0.25f, 4f);
+        [Tooltip("ล้อเมาส์ 1 คลิกเข้า/ออกกี่ส่วน (0.2 = 20%) — ทั้งช่วงซูมประมาณ 12 คลิก")]
+        public float zoomStep = 0.2f;
         public float lookHeight = 8f;
-        public float lookSensitivity = 0.2f;
+        [Tooltip("หมุนกล้องกี่องศาต่อการลากเมาส์ 1 พิกเซล (0.45 = ลาก 200px ได้ 90°)")]
+        public float lookSensitivity = 0.45f;
         [Tooltip("หุ่นเดิม (PlayerCam followDeadZone): ตัวหุ่นขยับไม่เกินระยะนี้กล้องอยู่นิ่ง — ตัวโยกตอนก้าวไม่ลากกล้อง (0 = ตามตลอด)")]
         public float followDeadZone = 2f;
 

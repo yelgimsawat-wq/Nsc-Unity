@@ -315,10 +315,10 @@ MonoBehaviour:
   cam: {fileID: 0}
   orbit:
     distance: 18
-    zoomRange: {x: 0.4, y: 3}
-    zoomStep: 0.1
+    zoomRange: {x: 0.25, y: 4}
+    zoomStep: 0.2
     lookHeight: 4.5
-    lookSensitivity: 0.2
+    lookSensitivity: 0.45
     followDeadZone: 2
     armView: 1
     armPitch: 18
@@ -342,6 +342,7 @@ MonoBehaviour:
   braceCrouch: 0.25
   bodyFollow: 3
   remoteSmoothing: 15
+  showInfoBox: 0
   shoulder:
     maxBend: 140
     yaw: {x: -50, y: 120}
@@ -398,6 +399,8 @@ MonoBehaviour:
   kickSolePitch: 70
   kickFallGravity: 40
   kickPowerAtZeroHealth: 0.3
+  hitFlinch: 1.6
+  hitShove: 0.08
   kickPropSpeed: 40
   kickPropDamage: 25
   stompHold: 0.4
@@ -428,6 +431,13 @@ MonoBehaviour:
   slashDragPixels: 30
   slashWeight: 2
   slashAssistRange: 3
+  slashBlockedArc: {x: 45, y: 15}
+  slashAimRange: {x: 45, y: 30}
+  slashChargeTime: 0.6
+  edgeRollFollow: 30
+  forearmRollLimit: 90
+  slashPreview: 1
+  logSlashWrist: 0
   weaponLean: 18
   weaponTrail: {fileID: 0}
   reachSquat: 0.6

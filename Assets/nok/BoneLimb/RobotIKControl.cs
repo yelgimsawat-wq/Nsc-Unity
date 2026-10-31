@@ -233,6 +233,7 @@ namespace Nsc.BoneLimb
         private Collider[][] handColliders;   // collider ของ _Hit แต่ละชิ้น — เป็น trigger ตอนแขนกำลังเอื้อม (ลูกกลมมือไม่ดันของที่จะหยิบหนี)
         private int[] slashKind;               // ท่าฟันที่กำลังเล่น (SlashPath) -1 = ไม่ได้ฟัน
         private float[] slashT;
+        private bool[] slashStriking;          // อยู่ในช่วงสะบัดจริงของท่าฟัน — รอยแสงขึ้นเฉพาะตอนนี้ ไม่ใช่ตอนง้าง/จัดท่า
         private float[] slashBias;             // หันท่าฟันเข้าหาศัตรูใกล้สุด (องศา)
         private Vector2[] slashFrom, dragAcc;  // ท่าเริ่ม (yaw, สูง) / ระยะลากเมาส์สะสม
         private float[] slashFromR;            // รัศมีมือตอนเริ่มท่า (ส่วนของแขน) — ง้างค่อยๆ งอศอกจากตรงนั้น
@@ -395,6 +396,7 @@ namespace Nsc.BoneLimb
             slashKind = new int[limbs.Length];
             for (int i = 0; i < slashKind.Length; i++) slashKind[i] = -1;
             slashT = new float[limbs.Length];
+            slashStriking = new bool[limbs.Length];
             slashBias = new float[limbs.Length];
             slashFrom = new Vector2[limbs.Length];
             dragAcc = new Vector2[limbs.Length];
@@ -1050,6 +1052,7 @@ namespace Nsc.BoneLimb
             else if (t < settleAt + SettleTime + LingerTime) { a = end; radius = 0.95f; rate = 25f / slashWeight; }
             else { LogSlashWrist(i); EndSlash(i); return false; }
 
+            slashStriking[i] = t >= strikeAt && t < settleAt; // ช่วงสะบัดเท่านั้น (ง้าง/ชาร์จ/เด้งกลับ = ไม่ใช่การฟัน)
             DrawGuide(i, arm, start, over, t < strikeAt);
             dir = SlashDir(a);
             AimBlade(i, start, end, a, t, w, strikeAt, settleAt);
@@ -1087,6 +1090,7 @@ namespace Nsc.BoneLimb
         private void EndSlash(int i)
         {
             slashKind[i] = -1;
+            slashStriking[i] = false;
             slashBlade[i] = slashTangent[i] = Vector3.zero;
             HideGuide(i);
         }
@@ -1404,7 +1408,10 @@ namespace Nsc.BoneLimb
             }
             Vector3 p = t.transform.position;
             float speed = (p - lastTrailTip[i]).magnitude / Mathf.Max(Time.deltaTime, 1e-4f);
-            t.emitting = speed > strikeMinSpeed * 3f; // ง้างช้าไม่มีรอย มีแต่ตอนฟาด
+            // อยู่ในท่าฟัน = มีรอยเฉพาะช่วงสะบัด (ตอนง้าง/ชาร์จ/พลิกมือจัดท่า ปลายดาบก็เร็วพอจะติดเกณฑ์ แต่ไม่ใช่การฟัน)
+            // ไม่ได้อยู่ในท่าฟัน (เหวี่ยงมือเอง/คอมโบ) = ใช้เกณฑ์ความเร็วเดิม
+            bool striking = slashKind[i] >= 0 ? slashStriking[i] : true;
+            t.emitting = striking && speed > strikeMinSpeed * 3f;
             lastTrailTip[i] = p;
             // วืด + ปะทะเฉพาะช่วงฟาดจริง (ปลายเร็วเกิน 6 เท่าเกณฑ์ต่อย — วัด 2026-10-29: ง้าง ≤3, ฟาด 8–19) หนึ่งวืดต่อ 0.4 วิ ปะทะได้ครั้งเดียวในช่วงนั้น
             bool fast = speed > strikeMinSpeed * 6f;
