@@ -161,11 +161,16 @@ namespace Nsc.BoneLimb
         [SerializeField] private float slashDragPixels = 30f;
         [Tooltip("ความหนักของท่าฟัน: 1 = ไว (ง้าง 0.28 / ฟัน 0.16 / ค้าง 0.2 วิ) | 2 = หุ่นพันตัน ทุกช่วงช้าลง 2 เท่า แขนตามเป้าหน่วงขึ้น")]
         [SerializeField] private float slashWeight = 2f;
-        [Tooltip("ถืออาวุธ: ท่าฟันหันเข้าหาศัตรูใกล้สุดในระยะนี้ (เท่าของความยาวแขน) | 0 = ไม่หัน")]
-        [SerializeField] private float slashAssistRange = 3f;
+        [Tooltip("ถืออาวุธ: เล็ง/หันท่าฟันเข้าหาศัตรูได้ไกลสุดเท่านี้ (เท่าของระยะที่ \"มือ\" เอื้อมถึงตอนแขนเหยียด) | 0 = ไม่หัน\n" +
+                 "ผู้ใช้ 2026-11-01: เดิม 3 เท่าความยาวแขน = เล็งฟันของที่ไกลเกินกว่าแขนจะเอื้อมถึง (วัดในฉาก TestItem: แขน 4.05 → เล็งได้ถึง 12.2)")]
+        [SerializeField] private float slashAssistRange = 1f;
         [Tooltip("ท่าฟัน 360°: แขนขวาฟันไปทิศในช่วงนี้ไม่ได้ (x = มุมกลาง°, y = ครึ่งความกว้าง°; 0 = ไปขวา, 90 = ขึ้น) — ลากเข้าช่วงนี้ = ปัดไปขอบที่ใกล้สุด | แขนซ้ายใช้กระจก (180 − มุม)\n" +
                  "ค่าเริ่มต้น = ฟันย้อนขึ้นข้ามลำตัว (ล่างซ้าย → บนขวา ของแขนขวา) ซึ่งต้องหงายมือเกินคนจริง")]
         [SerializeField] private Vector2 slashBlockedArc = new Vector2(45f, 15f); // ทดสอบไล่ทุก 30° หลังล็อกหน้าดาบ: 30°/60° ข้อมือใกล้ท่าเดิม 4 ทิศแล้ว เหลือกันไว้แค่แกนกลาง
+        [Tooltip("ปัดทิศฟันเข้าช่องละกี่องศา — 45 = 8 ทิศ (ขึ้น ลง ซ้าย ขวา + เฉียง 4 มุม) | 90 = 4 ทิศ | 0 = อิสระ 360° แบบเดิม\n" +
+                 "ผู้ใช้ 2026-11-02: มุมอิสระทำให้แต่ละการฟันไม่เหมือนกันสักครั้ง ตรวจและแก้ทีละท่าไม่ได้ — จำกัดทิศแล้วไล่แก้ทีละทิศได้\n" +
+                 "ทิศที่ตกช่วงห้าม (slashBlockedArc) จะข้ามไปทิศถัดไปที่ฟันได้ ไม่ใช่ปัดไปขอบช่วง")]
+        [SerializeField, Range(0f, 90f)] private float slashAngleSnap = 45f;
         [Tooltip("ท่าฟัน 360°: จุดที่เคอร์เซอร์ชี้ตอนกด = จุดที่ดาบฟันผ่าน เลื่อนวงฟันได้ไม่เกินนี้ (x = ซ้าย-ขวา°, y = ขึ้น-ลง°)")]
         [SerializeField] private Vector2 slashAimRange = new Vector2(45f, 30f);
         [Tooltip("ค้างคลิกที่ยอดง้างนานเท่านี้ (วิ × slashWeight) = ชาร์จเต็ม: ง้างลึกขึ้น 15% ฟันไวขึ้น 30% (ดาเมจตามความเร็วปลายดาบ)")]
@@ -176,6 +181,31 @@ namespace Nsc.BoneLimb
         [Tooltip("ถืออาวุธ: แขนท่อนล่างคว่ำ/หงายมือได้สุดกี่องศาจากท่าจับมือ (นิ้วโป้งชี้ไปทางต้นแขน) — เดิมไม่จำกัด ง้างแล้วมือหงายพลิกกลับด้าน\n" +
                  "เกิน = มือหยุดบิด ยอมให้ใบดาบเอียงจากทิศที่ท่าฟันต้องการแทน")]
         [SerializeField] private float forearmRollLimit = 90f; // วัด 2026-10-30: ยืนถือ -11°, ฟันลง -30..15°, ฟันขึ้นเดิมพลิกถึง ±177° (ภาพผู้ใช้), กวาดข้าง 100–147°
+        [Tooltip("ตอนอยู่ในท่าฟัน ข้อมือ/แขนท่อนล่างหมุนได้กว้างกว่าตอนถือเฉยๆ กี่เท่า (คูณ wristLimits, weaponWristBend, forearmRollLimit) — 1 = เท่ากัน\n" +
+                 "ผู้ใช้ 2026-11-01: ฟันตรงๆ แล้วดาบไม่ลงตรง เพราะท่าที่ถูกขอหมุนข้อมือ 80° คว่ำ/หงาย 180° แต่เพดานถือเฉยๆ ให้ 20°/85° เลยโดนตัดจนใบเบี้ยว\n" +
+                 "ท่าพัก/ถือเฉยๆ ยังใช้เพดานเดิม ท่าจับจึงยังดูเป็นคน | ทิศคมล็อกต่อหนึ่งการฟันแล้ว เป้าไม่ขยับทุกเฟรม จึงไม่เกิดอาการข้อมือหมุนรัวแบบรอบก่อน")]
+        [SerializeField, Range(1f, 3f)] private float slashWristBoost = 2f;
+        /// <summary>ท่ามือระหว่างฟัน — บิดแขนท่อนล่างให้ด้านที่เลือกหันไปทางที่กำหนด (ทิศใบดาบเป็นผลตามมา ไม่ใช่ตัวกำหนด)</summary>
+        public enum HandPose { ปิด, ฝ่ามือเข้าหาตัว, นิ้วโป้งขึ้น, ฝ่ามือคว่ำ, ตามแนวฟัน }
+        [Tooltip("ท่ามือตอนฟัน — บิดแขนท่อนล่างเท่าที่เพดานข้อต่อยอม | ปิด = ปล่อยให้ท่าดาบกำหนดเอง\n" +
+                 "ตามแนวฟัน = ฝ่ามือตั้งฉากกับระนาบที่ดาบกำลังกวาด → ฟันข้าง(ระนาบนอน) ได้คว่ำมือ, ฟันลง(ระนาบตั้ง) ได้ฝ่ามือเข้าหาตัว โดยอัตโนมัติ\n" +
+                 "ผู้ใช้ 2026-11-02: \"มือมันควรหมุนตามทิศที่ดาบจะไป\" — สามตัวเลือกแรกเป็นทิศตายตัวในโลก ถูกทิศเดียวแล้วผิดทิศอื่น")]
+        [SerializeField] private HandPose slashHandPose = HandPose.ตามแนวฟัน;
+        [Tooltip("ตอนฟัน ให้ \"ไหล่ + ศอก\" เป็นคนคุมท่าทั้งหมด ข้อมือแค่ตรงแนวแขนและคว่ำนิ่ง — ทิศใบดาบเป็นผลจากท่าแขน ไม่ใช่สิ่งที่ไปสั่งข้อมือ\n" +
+                 "ปิด = แบบเดิม (สั่งทิศใบก่อน แล้วบังคับข้อมือให้ได้ทิศนั้น แล้วโดนเพดานข้อต่อตัด)\n" +
+                 "ผู้ใช้ 2026-11-02: ไหล่ปรับมุม ศอกเป็นจุดหมุนของวงฟัน แขนคนคว่ำลงอยู่แล้ว")]
+        [SerializeField] private bool slashArmDrives = true;
+        [Tooltip("ตอนฟัน ข้อมือช่วยหันปลายดาบเข้าหาทิศที่กำลังเคลื่อนที่ได้ไม่เกินกี่องศา (ใช้ร่วมกับ slashArmDrives) — 0 = ไม่ช่วยเลย ปล่อยตามท่าแขนล้วน\n" +
+                 "ผู้ใช้ 2026-11-02: ท่าหลักมาจากไหล่+ศอก แล้วให้ข้อมือช่วยเก็บส่วนที่ยังไม่ตรง เช่นตอนฟันลง — ช่วยแบบมีเพดาน ไม่ใช่สั่งทั้งท่าแบบเดิม")]
+        [SerializeField, Range(0f, 60f)] private float slashWristAssist = 30f;
+        [Tooltip("จุดเริ่มท่าฟันง้างข้ามไปอีกฝั่งของลำตัวได้ไม่เกินกี่องศา (ยิ่งน้อยยิ่งไม่เอื้อมข้ามตัว) | 90 = ไม่จำกัด\n" +
+                 "ผู้ใช้ 2026-11-02: ท่าเฉียงจากซ้ายบนมาขวาล่าง จุดเริ่มอยู่ซ้ายบนไกลไป แขนขวาต้องเอื้อมข้ามลำตัว ท่าอัด\n" +
+                 "ท่าต้นแบบกวาดข้างเริ่มที่ 70° พอผสมเป็นท่าเฉียงจุดเริ่มเลยถูกดึงไปไกลตาม")]
+        [SerializeField, Range(0f, 90f)] private float slashReachAcross = 40f;
+        [Tooltip("วงฟันขึ้นได้สูงสุดกี่องศาเหนือแนวไหล่ — กันไม่ให้มือขึ้นไปเบียดข้างหัว (ท่าอัด มือบิดแปลก) | ลดค่านี้ = ผู้เล่นตีสูงไม่ได้มาก")]
+        [SerializeField, Range(10f, 88f)] private float slashTopAngle = 35f;
+        [Tooltip("ตอนง้าง มือถูกดึงเข้ามาที่กี่ส่วนของความยาวแขน — ยิ่งน้อยศอกยิ่งพับ ท่ายิ่งขด | ผู้ใช้ 2026-11-02: วัดได้ศอกพับ 91 องศา แขนขดอยู่หน้าหุ่น")]
+        [SerializeField, Range(0.5f, 0.95f)] private float slashCockedReach = 0.85f;
         [Tooltip("เส้นนำแนวฟัน (เห็นเฉพาะคนคุม) ระหว่างลากเลือกมุม/ง้าง")]
         [SerializeField] private bool slashPreview = true;
         [Tooltip("[ตรวจมือ] log มุมบิดแขนท่อนล่าง/ข้อมือ ต่ำสุด-สูงสุดของทุกท่าฟัน — ใช้ตั้ง edgeRollFollow / slashBlockedArc")]
@@ -256,12 +286,18 @@ namespace Nsc.BoneLimb
         private Vector3[] thumbNeutral;        // ทิศนิ้วโป้งท่าจับมือเฟรมล่าสุดที่ศอกงอพอให้วัดได้ (แขนเหยียดตรง = ใช้ค่านี้)
         private float[] lastRoll;              // มุมคว่ำ/หงายหลังจำกัดเฟรมก่อน — NaN = เริ่มใหม่ (ไม่ได้ถือของ)
         private float[] rollJump;              // [ตรวจมือ] มุมคว่ำ/หงายเปลี่ยนมากสุดต่อเฟรมในท่านี้
+        private Vector2[] bladeArm;            // [ตรวจคม] มุมระหว่างแกนดาบกับแนวที่ฟัน ต่ำสุด..สูงสุดในช่วงสะบัด — ช่วงกว้าง = ใบหมุน (ฟัน), ช่วงแคบ = ดาบกับแขนเป็นท่อนเดียว (ฟาด)
+        private Vector2[] edgeErr;             // [ตรวจคม] มุมที่คมดาบ "เบี้ยว" จากแนวที่วิ่ง เฉพาะช่วงสะบัด หลังบีบข้อต่อครบแล้ว — 0 = ฟัน, 90 = เอาหน้าแบนเข้าใส่ (ฟาด)
         private Quaternion[] lastHandRot;      // ท่ามือถืออาวุธเฟรมก่อน (โลก) — กันกระตุก
         private bool[] handRotValid;
         private static Material defaultTrail;
         private float[] slashWindup;           // เวลาง้างของท่านี้ — ใกล้ท่าเริ่มอยู่แล้ว (ฟาดกลับ) = ง้างสั้น
         private Vector3[] lastAimTarget;       // เป้ามือเฟรมก่อน — ทิศที่ฟาด (บิดหน้าไม้)
         private float[] edgeRoll;              // มุมบิดหน้าไม้รอบแกนของตอนนี้
+        private float[] slashEdgeLock;         // ท่าฟัน: ทิศคมที่ล็อกไว้ตอนเริ่มท่า (NaN = ยังไม่ล็อก) — หนึ่งการฟันไม่พลิกดาบ
+        private float[] lastRollRaw;           // มุมบิดแขนท่อนล่างเฟรมก่อน (แบบต่อเนื่อง ไม่พับที่ ±180) — กันค่ากระโดดข้ามขอบ
+        private float[] slashPoseWeight;       // กฎท่ามือมีผลแค่ไหนตอนนี้ (0..1) — ค่อยๆ เข้าตอนเริ่มท่า ค่อยๆ ออกตอนดึงกลับ ไม่ใช่สวิตช์ทันที
+        private Vector3[] slashPalmGoal;       // ทิศฝ่ามือของการฟันครั้งนี้ (แกนตัวหุ่น) — คิดครั้งเดียวตอนเริ่มท่าจากกลางวงฟัน แล้วค้างไว้ทั้งท่า
         private float[] edgeLatch;             // มุมหน้าไม้ที่ล็อกตอนเริ่มฟาดเร็ว — NaN = ไม่ได้ฟาด
         private float[] edgeLatchT;            // ฟาดเร็วมานานเท่าไร — ช่วงแรกทิศมือยังไม่นิ่ง ให้ตามไปก่อนแล้วค่อยล็อก
         private Vector3[] lastArmDir, armDirVel; // ทิศไหล่→มือ (แกนตัวหุ่น) เฟรมก่อน / ความเร็ว (rad/วิ) — ทุกเครื่องคิดเองจากเป้ามือที่ซิงก์
@@ -424,6 +460,8 @@ namespace Nsc.BoneLimb
             lastRoll = new float[limbs.Length];
             for (int i = 0; i < lastRoll.Length; i++) lastRoll[i] = float.NaN;
             rollJump = new float[limbs.Length];
+            edgeErr = new Vector2[limbs.Length];
+            bladeArm = new Vector2[limbs.Length];
             lastHandRot = new Quaternion[limbs.Length];
             handRotValid = new bool[limbs.Length];
             flexRange = new Vector2[limbs.Length];
@@ -435,6 +473,12 @@ namespace Nsc.BoneLimb
             comboTime = new float[limbs.Length];
             lastAimTarget = new Vector3[limbs.Length];
             edgeRoll = new float[limbs.Length];
+            slashEdgeLock = new float[limbs.Length];
+            for (int i = 0; i < slashEdgeLock.Length; i++) slashEdgeLock[i] = float.NaN;
+            lastRollRaw = new float[limbs.Length];
+            for (int i = 0; i < lastRollRaw.Length; i++) lastRollRaw[i] = float.NaN;
+            slashPoseWeight = new float[limbs.Length];
+            slashPalmGoal = new Vector3[limbs.Length];
             edgeLatch = new float[limbs.Length];
             for (int i = 0; i < edgeLatch.Length; i++) edgeLatch[i] = float.NaN;
             edgeLatchT = new float[limbs.Length];
@@ -925,6 +969,14 @@ namespace Nsc.BoneLimb
         // ท่าพักถืออาวุธ (Pflug): ด้ามหน้าสะโพก ศอกงอ ใบชี้ขึ้นไปข้างหน้า ~45° (AimWeapon)
         private static Vector3 WeaponRestDir(float side) => new Vector3(side * 0.2f, -0.75f, 0.6f).normalized;
         private const float WeaponRestRadius = 0.68f; // ศอกงอ — แขนเหยียดตอนพัก = ท่าแข็ง
+        // ทิศใบดาบตอนพัก (Pflug: ใบชี้ขึ้นไปข้างหน้า ~45°) — ท่าพักกับช่วงดึงดาบกลับหลังฟันใช้ตัวเดียวกัน
+        private Vector3 WeaponRestBlade(float side) => transform.rotation * new Vector3(side * 0.1f, 0.7f, 0.7f).normalized;
+        /// <summary>ท่าพักเป็นมุม (yaw°, สูง°) เทียบตัวหุ่น — ปลายท่าฟันไล่กลับมาที่นี่</summary>
+        private static Vector2 RestAngles(float side)
+        {
+            Vector3 d = WeaponRestDir(side);
+            return new Vector2(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, Mathf.Asin(Mathf.Clamp(d.y, -1f, 1f)) * Mathf.Rad2Deg);
+        }
 
         // โหมดอาวุธ (ถือของ): ไม่ตั้งการ์ด/ไม่ชาร์จหมัด
         // ปล่อยเมาส์ = ถือเตรียมข้างหน้า-ข้างตัว (เห็นชัดในมุมกล้อง) | คลิกซ้ายค้าง + ลากเมาส์ = หมุนแขนรอบไหล่ตามทิศที่ลาก
@@ -980,12 +1032,22 @@ namespace Nsc.BoneLimb
         // จังหวะ ช้า–เร็ว–ช้า (Weapon-Motion-Research.md): ง้าง → หยุดที่ยอด (ค้างคลิก = ชาร์จ) → ฟัน (เร่ง t³) → เลยเป้าแล้วเด้งกลับ → ค้าง | ทุกช่วง × slashWeight
         private const float SlashWindup = 0.4f, SlashApex = 0.06f, SlashStrike = 0.125f, SlashSettle = 0.15f, SlashLinger = 0.1f;
         private const float SlashOvershoot = 0.12f;           // เลยเป้าไปอีกกี่ส่วนของวงฟัน
-        private const float ElbowCocked = 0.7f, ElbowExtended = 0.98f; // รัศมีมือ (ส่วนของแขน): งอตอนง้าง → เหยียดตอนฟัน (ผู้ใช้: บางท่าควรยืดแขนได้มากกว่านี้ — เดิม 0.6 → 0.97 ตอนท้ายสุด)
+        private float ElbowCocked => slashCockedReach;   // รัศมีมือตอนง้าง (ส่วนของแขน) — ยิ่งน้อยศอกยิ่งพับ
+        private const float ElbowExtended = 0.98f;
+        private const float SlashRecover = 0.9f;      // ฟันจบแล้วดึงดาบกลับท่าพักนานเท่านี้ (วิ × slashWeight) — ช้ากว่าทุกช่วงของการฟัน (ผู้ใช้ 2026-11-01: ไม่ต้องรีบ)
+        /// <summary>ระยะที่ "มือ" เอื้อมถึงตอนแขนเหยียดในท่าฟัน (วัดจากไหล่)</summary>
+        private static float HandReach(IKLimb arm) => arm.Reach * ElbowExtended;
+        /// <summary>
+        /// ระยะที่ "ปลายของที่ถือ" แตะถึงตอนแขนเหยียด (วัดจากไหล่) — เพดานของการเล็ง/ช่วยเล็ง
+        /// มือเปล่า (ไม่มีของ) = เท่ากับระยะมือ | ผู้ใช้ 2026-11-01: เคยใช้ระยะมืออย่างเดียว (3.97) สั้นกว่าตัวหุ่น ชี้อะไรก็ "ไกลเกิน" หมด ท่าฟันเลยไม่ไปที่จุดที่คลิก
+        /// </summary>
+        private float TipReach(int i, IKLimb arm) => HandReach(arm) + BladeLength(i, arm);
         private const float ChargeBackswing = 0.15f, ChargeStrikeSpeedup = 0.3f, ChargeAutoRelease = 1.5f;
         private float ApexTime => SlashApex * slashWeight;
         private float StrikeTime => SlashStrike * slashWeight;
         private float SettleTime => SlashSettle * slashWeight;
         private float LingerTime => SlashLinger * slashWeight;
+        private float RecoverTime => SlashRecover * slashWeight;
         private float StrikeDuration(int i) => StrikeTime * (1f - ChargeStrikeSpeedup * slashCharge[i]);
 
         private static float LineAngle(Vector2 from, Vector2 to) => Mathf.Repeat(Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg, 360f);
@@ -1014,6 +1076,18 @@ namespace Nsc.BoneLimb
             end = c + u * h;
             start.y = Mathf.Clamp(start.y, -75f, 88f); // ไม่ง้างทะลุขั้วบน/ล่าง (ทิศ yaw กลับด้านตรงนั้น)
             end.y = Mathf.Clamp(end.y, -75f, 88f);
+        }
+
+        /// <summary>
+        /// ทิศที่ลากเมาส์ → ทิศฟันจริง: ปัดเข้าช่องตาม slashAngleSnap (45 = 8 ทิศ) แล้วเลี่ยงทิศที่ฟันไม่ได้
+        /// ปัดเป็นช่องแล้วแต่ละทิศคงที่ทุกครั้ง ตรวจทีละทิศ/แก้ทีละทิศได้ ไม่ใช่มุมใหม่ทุกครั้งที่ลาก
+        /// </summary>
+        private float SlashAngleOf(float drag, float side)
+        {
+            if (slashAngleSnap <= 0f) return ComfortAngle(drag, side); // 0 = อิสระแบบเดิม (ใช้ช่วงห้ามปัดมุม)
+            // ปัดเข้าช่องตรงๆ ไม่ใช้ slashBlockedArc — ช่วงห้ามมีไว้กันมุมแปลกๆ ของระบบมุมอิสระ
+            // พอเหลือ 8 ทิศตายตัว ผู้ใช้ควรได้ครบทั้ง 8 แล้วค่อยไล่ดูทีละทิศว่าทิศไหนท่าไม่สวย (ผู้ใช้ 2026-11-02)
+            return Mathf.Repeat(Mathf.Round(drag / slashAngleSnap) * slashAngleSnap, 360f);
         }
 
         /// <summary>มุมที่แขนนี้ฟันได้สบาย: ตกช่วงห้าม (slashBlockedArc ของแขนขวา, แขนซ้ายกระจก) = ปัดไปขอบที่ใกล้สุด</summary>
@@ -1053,8 +1127,16 @@ namespace Nsc.BoneLimb
                 w = slashWindup[i]; strikeAt = w + ApexTime; strike = StrikeDuration(i); settleAt = strikeAt + strike;
             }
 
-            float t = slashT[i];
+            float t = slashT[i], recover = 0f;
             SlashLine(slashAngle[i], slashAim[i], slashCharge[i], out Vector2 start, out Vector2 end);
+            // ไม่ง้างข้ามลำตัวไกลเกิน — แขนขวาเอื้อมไปซ้ายบนไกลๆ แล้วศอกชูอัดข้างหัว (ผู้ใช้ 2026-11-02)
+            // มีผลเฉพาะตอนง้างสูง: ง้างต่ำ (ท่ากวาดข้าง) เอื้อมข้ามตัวได้เต็มที่เหมือนเดิม ไม่งั้นวงกวาดข้างหดไปด้วย
+            float acrossMax = Mathf.Lerp(90f, slashReachAcross, Mathf.InverseLerp(10f, 45f, start.y));
+            if (arm.Side > 0f) start.x = Mathf.Max(start.x, -acrossMax);
+            else start.x = Mathf.Min(start.x, acrossMax);
+            // เพดานความสูงของวงฟัน — มือขึ้นเหนือไหล่มากไปจะไปเบียดข้างหัว ท่าอัดและมือบิด (ผู้ใช้ 2026-11-02)
+            start.y = Mathf.Min(start.y, slashTopAngle);
+            end.y = Mathf.Min(end.y, slashTopAngle);
             Vector2 over = end + (end - start) * SlashOvershoot, a;
             if (t < w)
             {
@@ -1079,12 +1161,23 @@ namespace Nsc.BoneLimb
                 rate = 25f / slashWeight;
             }
             else if (t < settleAt + SettleTime + LingerTime) { a = end; radius = 0.95f; rate = 25f / slashWeight; }
+            else if (t < settleAt + SettleTime + LingerTime + RecoverTime)
+            {
+                // ฟันจบแล้ว "ค่อยๆ" ดึงดาบกลับท่าพัก ไม่รีบ (ผู้ใช้ 2026-11-01) — เดิมปล่อยให้ DriveWeaponArm ดีดกลับที่ 8/slashWeight
+                // ลาก/คลิกใหม่ระหว่างนี้ = จองท่าถัดไป แล้วออกท่าทันที (ตัวเช็ค slashNext ด้านบนผ่านตั้งแต่จบช่วงเด้งกลับ)
+                recover = Mathf.SmoothStep(0f, 1f, (t - (settleAt + SettleTime + LingerTime)) / RecoverTime);
+                a = Vector2.Lerp(end, RestAngles(arm.Side), recover);
+                radius = Mathf.Lerp(0.95f, WeaponRestRadius, recover);
+                rate = 5f / slashWeight;
+            }
             else { LogSlashWrist(i); EndSlash(i); return false; }
 
+            // กฎท่ามือ: ค่อยๆ มีผลตอนต้นท่า และค่อยๆ หมดผลตอนดึงกลับ — ขอบคมคือที่มาของการกระตุกหัว/ท้าย
+            slashPoseWeight[i] = (1f - recover) * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / (0.25f * slashWeight)));
             slashStriking[i] = t >= strikeAt && t < settleAt; // ช่วงสะบัดเท่านั้น (ง้าง/ชาร์จ/เด้งกลับ = ไม่ใช่การฟัน)
             DrawGuide(i, arm, start, over, t < strikeAt);
             dir = SlashDir(a);
-            AimBlade(i, start, end, a, t, w, strikeAt, settleAt);
+            AimBlade(i, arm, start, end, a, t, w, strikeAt, settleAt, recover);
             return true;
         }
 
@@ -1095,24 +1188,44 @@ namespace Nsc.BoneLimb
         }
 
         // เส้นที่วาด = ทางของ "ปลายดาบ" (ผู้ใช้ 2026-10-30: เดิมเส้นคุมมือ ดาบตั้งขึ้นเพราะเดาทิศใบจากความเร็วแขน ฟันไม่ถึงศัตรู)
-        // ใบชี้ออกตามแนวไหล่ → มือ ปลายดาบจึงวิ่งบนเส้นที่ระยะ แขน + ดาบ | ง้าง = ใบเอนไปข้างหลังตามเส้น (คมหันไปทางที่จะฟัน)
-        // ฟัน = ใบสะบัดออกจนยื่นตรงตอนผ่านเป้า | หลังเป้า = ใบเลยไปตามเส้นนิดหนึ่ง — คมหันตามแนวเส้นตลอด (AimWeapon ใช้ค่าพวกนี้)
-        private void AimBlade(int i, Vector2 start, Vector2 end, Vector2 a, float t, float w, float strikeAt, float settleAt)
+        // ใบชี้ออกตามแนวไหล่ → มือ ปลายดาบจึงวิ่งบนเส้นที่ระยะ แขน + ดาบ — มุมของวงฟันมาจาก "หัวไหล่" พาแขนไปตามเส้น
+        // "ฟัน" ต่างจาก "ฟาด" ตรงที่ใบต้องหมุนเทียบแขนระหว่างวง (ผู้ใช้ 2026-11-01: ฟันลงแล้วดาบไม่หมุน เป็นฟาด)
+        // ง้าง = ใบค้างไปข้างหลังตามเส้น ~55° → สะบัดผ่านเป้าจนใบนำไปข้างหน้า ~63° = ใบพลิกราว 118° ต่อหนึ่งการฟัน (แรงเหวี่ยงดึงปลายออก)
+        // เคยลดเหลือ ±24° + ล็อกใบติดแขน แล้วดาบกับแขนกลายเป็นท่อนเดียว = ฟาด | ข้อมือกันไว้ที่ ClampWrist/LimitForearmRoll ตามเดิม
+        /// <summary>
+        /// แกนของวงฟันที่จุด a: radial = ไหล่ → มือ, tangent = ทิศที่ดาบกำลังวิ่งตามเส้น (ตั้งฉากกับ radial, อยู่ในระนาบวงฟัน)
+        /// ใบดาบอยู่ในระนาบของสองแกนนี้เสมอ — ดาบจึงขนานไปกับแนวที่ฟัน ไม่แทงออกข้างระนาบ
+        /// </summary>
+        private bool SlashFrame(Vector2 a, Vector2 along, out Vector3 radial, out Vector3 tangent)
+        {
+            radial = transform.rotation * SlashDir(a);
+            tangent = Vector3.ProjectOnPlane(transform.rotation * (SlashDir(a + along) - SlashDir(a - along)), radial);
+            if (tangent.sqrMagnitude < 1e-8f) return false;
+            tangent.Normalize();
+            return true;
+        }
+
+        /// <summary>
+        /// ทิศใบเมื่อสะบัดไปแล้ว tk (0 = ต้นวงฟัน, 1 = ผ่านเป้า): ค้างไปข้างหลังตามเส้น → สะบัดจนขนานกับเส้นพอดีตอนผ่านเป้า
+        /// ใบหมุนเทียบแขนราว 145° ต่อการฟันหนึ่งครั้ง (นี่คือสิ่งที่ทำให้อ่านเป็น "ฟัน" ไม่ใช่ "ฟาด")
+        /// </summary>
+        private static Vector3 SlashBladeDir(Vector3 radial, Vector3 tangent, float tk) =>
+            Vector3.Slerp((radial * 0.7f - tangent).normalized, tangent, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(tk)));
+
+        private const float SlashBladeWhip = 1.6f; // ใบสะบัดเร็วกว่าแขนเท่านี้ — ขนานกับเส้นก่อนถึงปลายวงเล็กน้อย
+
+        private void AimBlade(int i, IKLimb arm, Vector2 start, Vector2 end, Vector2 a, float t, float w, float strikeAt, float settleAt, float recover)
         {
             Vector2 along = (end - start).normalized;
-            Vector3 radial = transform.rotation * SlashDir(a);
-            Vector3 tangent = Vector3.ProjectOnPlane(transform.rotation * (SlashDir(a + along) - SlashDir(a - along)), radial);
-            if (tangent.sqrMagnitude < 1e-8f) return;
-            tangent.Normalize();
-            Vector3 cocked = (radial * 0.75f - tangent).normalized; // ใบเอนไปข้างหลังตามเส้น ราว 55° จากแนวแขน (65° เดิม ข้อมือต้องหงายสุด)
-            Vector3 follow = (radial + tangent * 0.35f).normalized;  // เลยเป้า ใบตามเส้นไปนิด
-            float k = t < strikeAt ? 0f
-                    : t < settleAt ? Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - strikeAt) / Mathf.Max(1e-4f, settleAt - strikeAt) * 1.6f))
-                    : 1f;
-            Vector3 blade = t < w ? Vector3.Slerp(radial, cocked, Mathf.Clamp01(t / Mathf.Max(1e-4f, w) * 1.5f)) // ง้าง: ค่อยๆ เอนใบไปหลัง
-                          : t < settleAt ? Vector3.Slerp(cocked, radial, k)                                   // ฟัน: สะบัดใบออกจนตรงแขน
-                          : Vector3.Slerp(radial, follow, Mathf.Clamp01((t - settleAt) / Mathf.Max(1e-4f, SettleTime)));
-            slashBlade[i] = blade;
+            if (!SlashFrame(a, along, out Vector3 radial, out Vector3 tangent)) return;
+            Vector3 cocked = SlashBladeDir(radial, tangent, 0f);
+            Vector3 blade = t < w ? Vector3.Slerp(radial, cocked, Mathf.Clamp01(t / Mathf.Max(1e-4f, w) * 1.5f))  // ง้าง: ค่อยๆ ค้างใบไปข้างหลังตามเส้น
+                          : t < strikeAt ? cocked
+                          : t < settleAt ? SlashBladeDir(radial, tangent, (t - strikeAt) / Mathf.Max(1e-4f, settleAt - strikeAt) * SlashBladeWhip) // สะบัดจนขนานกับเส้น
+                          : tangent;                                                                              // เลยเป้าแล้วใบยังนอนไปตามเส้น
+            // ช่วงดึงกลับ: ใบไล่ไปหาท่าพัก | แนวฟันยังเก็บไว้ ให้ slashPoseWeight เป็นตัวจางอิทธิพลของกฎท่ามือแทน
+            // (เคยล้างเป็นศูนย์ตรงนี้ → กฎท่ามือดับทันทีในเฟรมเดียว มือสะดุด — ผู้ใช้ 2026-11-02 "หลังฟันกระตุก")
+            slashBlade[i] = recover > 0f ? Vector3.Slerp(blade, WeaponRestBlade(arm.Side), recover) : blade;
             slashTangent[i] = tangent;
         }
 
@@ -1120,6 +1233,8 @@ namespace Nsc.BoneLimb
         {
             slashKind[i] = -1;
             slashStriking[i] = false;
+            slashPoseWeight[i] = 0f;
+            slashEdgeLock[i] = float.NaN; // ท่าใหม่ = ล็อกทิศคมใหม่
             slashBlade[i] = slashTangent[i] = Vector3.zero;
             HideGuide(i);
         }
@@ -1133,17 +1248,17 @@ namespace Nsc.BoneLimb
             {
                 dragKind[i] = -1;
                 dragAcc[i] = Vector2.zero;
-                dragAim[i] = CursorAim(arm, input.ray);
+                dragAim[i] = CursorAim(i, arm, input.ray);
             }
             bool tap = input.attack || (input.released && dragKind[i] < 0 && dragAcc[i].magnitude < slashDragPixels);
-            if (input.padSlash >= 0) IssueSlash(i, arm, KindAngle(input.padSlash), AssistAim(arm), false);
-            else if (tap) IssueSlash(i, arm, KindAngle(NextCombo(i)), AssistAim(arm), false);
+            if (input.padSlash >= 0) IssueSlash(i, arm, KindAngle(input.padSlash), AssistAim(i, arm), false);
+            else if (tap) IssueSlash(i, arm, KindAngle(NextCombo(i)), AssistAim(i, arm), false);
             else if (input.held)
             {
                 dragAcc[i] += input.lookDelta;
                 if (dragAcc[i].magnitude >= slashDragPixels)
                 {
-                    float angle = ComfortAngle(Mathf.Atan2(dragAcc[i].y, dragAcc[i].x) * Mathf.Rad2Deg, arm.Side);
+                    float angle = SlashAngleOf(Mathf.Atan2(dragAcc[i].y, dragAcc[i].x) * Mathf.Rad2Deg, arm.Side);
                     if (dragKind[i] < 0) dragKind[i] = IssueSlash(i, arm, angle, dragAim[i], true) ? 0 : 1;
                     else if (dragKind[i] == 0 && slashKind[i] >= 0 && slashHold[i]) { slashAngle[i] = angle; cueAngle = angle; } // ยังไม่ปล่อย = เล็งมุมใหม่ได้
                     else if (dragKind[i] == 1 && slashNext[i] >= 0) { nextAngle[i] = angle; cueNextAngle = angle; }
@@ -1192,7 +1307,18 @@ namespace Nsc.BoneLimb
             cueAngle = angle;
             cueTime = Time.time;
             slashT[i] = 0f;
-            rollRange[i] = flexRange[i] = radialRange[i] = twistRange[i] = new Vector2(float.MaxValue, float.MinValue);
+            slashEdgeLock[i] = float.NaN; // เริ่มท่าใหม่ = ล็อกทิศคมใหม่ (ต่อคอมโบก็นับเป็นคนละการฟัน)
+            // ท่ามือของการฟันครั้งนี้: คิดครั้งเดียวจาก "กลางวงฟัน" แล้วค้างไว้ทั้งท่า
+            // (คิดใหม่ทุกเฟรมแล้วเป้าหมุนตามวง มือพลิกไปมาตลอดทาง — ผู้ใช้ 2026-11-02 เห็นชัดสุดที่ท่าเฉียงขึ้น)
+            SlashLine(angle, aim, 0f, out Vector2 ps, out Vector2 pe);
+            Vector2 pmid = (ps + pe) * 0.5f, palong = (pe - ps).normalized;
+            Vector3 pradial = SlashDir(pmid);
+            Vector3 ptan = Vector3.ProjectOnPlane(SlashDir(pmid + palong) - SlashDir(pmid - palong), pradial);
+            slashPalmGoal[i] = ptan.sqrMagnitude > 1e-8f ? Vector3.Cross(ptan.normalized, pradial).normalized : Vector3.down;
+            // ฟันขึ้น = ท่ามือเดียวกับฟันลงในแนวเดียวกัน (ใช้คมหลัง) — ไม่กลับด้าน ไม่งั้นฝ่ามือต้องพลิก 180° เกินเพดานคว่ำ/หงาย ข้อมือค้างขอบแล้วพลิกไปมา (ผู้ใช้ 2026-11-02)
+            if (ptan.normalized.y > 0.1f) slashPalmGoal[i] = -slashPalmGoal[i];
+            lastRollRaw[i] = float.NaN;   // ค่ามุมบิดแบบต่อเนื่องเริ่มนับใหม่ทุกท่า — ไม่งั้นสะสมข้ามการฟันจนไหลไปหลายร้อยองศา มือค้างติดขอบเพดานถาวร
+            rollRange[i] = flexRange[i] = radialRange[i] = twistRange[i] = edgeErr[i] = bladeArm[i] = new Vector2(float.MaxValue, float.MinValue);
             rollJump[i] = 0f;
             Vector3 now = Quaternion.Inverse(transform.rotation) * (arm.target.position - arm.root.position).normalized;
             slashFrom[i] = new Vector2(Mathf.Atan2(now.x, now.z) * Mathf.Rad2Deg, Mathf.Asin(Mathf.Clamp(now.y, -1f, 1f)) * Mathf.Rad2Deg);
@@ -1203,20 +1329,21 @@ namespace Nsc.BoneLimb
             slashWindup[i] = Mathf.Lerp(0.08f, SlashWindup, Mathf.Clamp01(far / 120f)) * slashWeight; // ฟาดกลับ (ปลายท่าเก่า ≈ ต้นท่าใหม่) ง้างแทบไม่ต้อง
         }
 
-        // จุดเล็งจากเคอร์เซอร์ (yaw°, สูง°) เทียบไหล่: ชี้โดนของ (ไม่ใช่ตัวเอง) ในระยะ = ฟันผ่านตรงนั้น | ไม่โดน = จุดบนระนาบหน้าไหล่ระยะสุดแขน
-        private Vector2 CursorAim(IKLimb arm, Ray ray)
+        // จุดเล็งจากเคอร์เซอร์ (yaw°, สูง°) เทียบไหล่: ชี้โดนของ (ไม่ใช่ตัวเอง) ในระยะที่ปลายดาบแตะถึง = ฟันผ่านตรงนั้น | ไม่โดน/ไกลเกิน = จุดบนระนาบหน้าไหล่ที่ระยะนั้น
+        private Vector2 CursorAim(int i, IKLimb arm, Ray ray)
         {
             Vector3 shoulder = arm.root.position, p;
-            if (AimHit(ray, out RaycastHit hit) && (hit.point - shoulder).magnitude <= arm.Reach * Mathf.Max(1f, slashAssistRange)) p = hit.point;
+            float reach = TipReach(i, arm) * Mathf.Max(1f, slashAssistRange); // เล็งได้ไกลสุดเท่าที่ดาบแตะถึง
+            if (AimHit(ray, out RaycastHit hit) && (hit.point - shoulder).magnitude <= reach) p = hit.point;
             else
             {
-                var plane = new Plane(transform.forward, shoulder + transform.forward * arm.Reach);
-                p = plane.Raycast(ray, out float enter) ? ray.GetPoint(enter) : shoulder + transform.forward * arm.Reach;
+                var plane = new Plane(transform.forward, shoulder + transform.forward * reach);
+                p = plane.Raycast(ray, out float enter) ? ray.GetPoint(enter) : shoulder + transform.forward * reach;
             }
             Vector3 local = Quaternion.Inverse(transform.rotation) * (p - shoulder);
             float yaw = Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
             float el = Mathf.Atan2(local.y, new Vector2(local.x, local.z).magnitude) * Mathf.Rad2Deg;
-            if (Mathf.Abs(yaw) > 100f) return AssistAim(arm); // ชี้ไปข้างหลังตัว = เล็งไม่ได้ ใช้ศัตรูใกล้สุดแทน
+            if (Mathf.Abs(yaw) > 100f) return AssistAim(i, arm); // ชี้ไปข้างหลังตัว = เล็งไม่ได้ ใช้ศัตรูใกล้สุดแทน
             return new Vector2(Mathf.Clamp(yaw, -slashAimRange.x, slashAimRange.x), Mathf.Clamp(el, -slashAimRange.y, slashAimRange.y));
         }
 
@@ -1241,7 +1368,7 @@ namespace Nsc.BoneLimb
         // ClosestPoint ใช้กับ MeshCollider ที่ไม่ convex ไม่ได้ (Unity เตือนทุกครั้ง เช่นพื้น/ตัวไคจู) — ใช้กล่องรอบแทน
         private static Vector3 Closest(Collider c, Vector3 p) => c is MeshCollider { convex: false } ? c.bounds.ClosestPoint(p) : c.ClosestPoint(p);
 
-        private Vector2 AssistAim(IKLimb arm) => new Vector2(SlashAssist(arm), 0f);
+        private Vector2 AssistAim(int i, IKLimb arm) => new Vector2(SlashAssist(i, arm), 0f);
 
         // จุดจับ → ปลายฝั่งไกลของของที่ถือ (ด้ามอยู่ปลายหนึ่ง ปลายดาบอีกปลาย ≈ สองเท่าของจุดจับ → กลางของ)
         private float BladeLength(int i, IKLimb arm)
@@ -1251,7 +1378,18 @@ namespace Nsc.BoneLimb
             if (!col) return 0f;
             Transform gp = GripPointOf(body, arm.GripCenter);
             Vector3 grip = gp ? gp.position : arm.GripCenter;
-            return Vector3.Distance(grip, col.bounds.center) * 2f;
+            // ปลายจริง = มุม bounds ที่ไกลสุดตามแนวใบ ไม่ใช่ระยะถึงกึ่งกลาง×2
+            // (×2 ถูกเฉพาะตอนจุดจับอยู่ที่ก้นด้ามพอดี — ของจริงจับที่ 10% ของเล่ม วัด 2026-11-01 ขาดไป 0.80 ม. ทุกท่า)
+            Vector3 dir = (col.bounds.center - grip).normalized;
+            if (dir.sqrMagnitude < 0.5f) return Vector3.Distance(grip, col.bounds.center) * 2f;
+            Vector3 c = col.bounds.center, e = col.bounds.extents;
+            float far = 0f;
+            for (int s = 0; s < 8; s++)
+            {
+                Vector3 corner = c + new Vector3((s & 1) == 0 ? -e.x : e.x, (s & 2) == 0 ? -e.y : e.y, (s & 4) == 0 ? -e.z : e.z);
+                far = Mathf.Max(far, Vector3.Dot(corner - grip, dir));
+            }
+            return far;
         }
 
         // เส้นนำแนวฟัน (เฉพาะคนคุม): ระหว่างลาก/ง้าง = เส้นเต็ม | ฟันออกแล้ว = จางหาย
@@ -1278,9 +1416,20 @@ namespace Nsc.BoneLimb
             line.endWidth = width;
             line.startColor = new Color(0.4f, 0.9f, 1f, alpha * 0.3f);
             line.endColor = new Color(0.4f, 0.9f, 1f, alpha);
-            float r = arm.Reach * ElbowExtended + slashBladeLen[i]; // ทางของปลายดาบ
+            // ทางของ "ปลายดาบ" จริง = มือบนวงฟัน + ใบยื่นไปตามทิศใบที่จุดนั้น — ใช้สูตรเดียวกับ AimBlade
+            // (เดิมวาดที่รัศมีคงที่ แขน + ความยาวดาบ ซึ่งถูกเฉพาะตอนใบต่อแนวแขนพอดี ไม่ตรงกับท่าจริงสักจังหวะ)
+            // เดินตามเวลา: มุมของวงใช้ t³ (SlashStep) ระยะมือใช้ √t ส่วนใบใช้ SlashBladeWhip
+            Vector2 alongLine = (over - start).normalized;
             for (int k = 0; k < line.positionCount; k++)
-                line.SetPosition(k, arm.root.position + transform.rotation * SlashDir(Vector2.Lerp(start, over, k / (line.positionCount - 1f))) * r);
+            {
+                float tk = k / (line.positionCount - 1f);
+                Vector2 a = Vector2.Lerp(start, over, tk * tk * tk);
+                Vector3 hand = arm.root.position + transform.rotation * SlashDir(a) * (arm.Reach * Mathf.Lerp(ElbowCocked, ElbowExtended, Mathf.Sqrt(tk)));
+                Vector3 tip = hand;
+                if (SlashFrame(a, alongLine, out Vector3 radial, out Vector3 tangent))
+                    tip += SlashBladeDir(radial, tangent, tk * SlashBladeWhip) * slashBladeLen[i];
+                line.SetPosition(k, tip);
+            }
         }
 
         private void HideGuide(int i)
@@ -1329,15 +1478,17 @@ namespace Nsc.BoneLimb
             string roll = rollRange[i].x > rollRange[i].y ? "-" : $"{rollRange[i].x:0}..{rollRange[i].y:0}°";
             string twist = twistRange[i].x > twistRange[i].y ? "-" : $"{twistRange[i].x:0}..{twistRange[i].y:0}°";
             Debug.Log($"[SlashWrist] {limbs[i].name} มุม {slashAngle[i]:0}° ชาร์จ {slashCharge[i]:0.00} | คว่ำ/หงายที่ท่าต้องการ {twist} (จำกัด ±{forearmRollLimit:0}) | หน้าดาบบิด {roll} " +
-                      $"| บิดเร็วสุด {rollJump[i]:0}°/เฟรม | งอข้อมือ {flexRange[i].x:0}..{flexRange[i].y:0}° | เอียง {radialRange[i].x:0}..{radialRange[i].y:0}°");
+                      $"| บิดเร็วสุด {rollJump[i]:0}°/เฟรม | งอข้อมือ {flexRange[i].x:0}..{flexRange[i].y:0}° | เอียง {radialRange[i].x:0}..{radialRange[i].y:0}° " +
+                      $"| **คมเบี้ยวตอนสะบัด {(edgeErr[i].x > edgeErr[i].y ? "-" : $"{edgeErr[i].x:0}..{edgeErr[i].y:0}°")}** (0 = ฟัน, 90 = ฟาด) " +
+                      $"| **ใบเทียบแนวฟัน {(bladeArm[i].x > bladeArm[i].y ? "-" : $"{bladeArm[i].x:0}..{bladeArm[i].y:0}°")}** (0 = ดาบขนานแนวที่ฟัน)");
         }
 
-        // ศัตรู/เป้าที่ตีได้ ใกล้สุดด้านหน้า → มุม yaw (จำกัด ±50°) ให้ท่าฟันหันเข้าหา | ไม่มี = 0
-        private float SlashAssist(IKLimb arm)
+        // ศัตรู/เป้าที่ตีได้ ใกล้สุดด้านหน้า "ในระยะที่ปลายดาบแตะถึง" → มุม yaw (จำกัด ±50°) ให้ท่าฟันหันเข้าหา | ไม่มี = 0
+        private float SlashAssist(int index, IKLimb arm)
         {
             if (slashAssistRange <= 0f) return 0f;
             Team mine = robot ? robot.GetTeam() : Team.None;
-            int n = Physics.OverlapSphereNonAlloc(arm.root.position, arm.Reach * slashAssistRange, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            int n = Physics.OverlapSphereNonAlloc(arm.root.position, TipReach(index, arm) * slashAssistRange, hitBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
             float best = float.MaxValue, bias = 0f;
             for (int k = 0; k < n; k++)
             {
@@ -1501,15 +1652,19 @@ namespace Nsc.BoneLimb
         // ตัวของ (ทิศจากจุดจับ ในแกนจุดจับ) อยู่ฝั่งนิ้วก้อย = ต้องจับกลับด้าน — แบบคนถือไม้ ตัวไม้ออกทางนิ้วโป้ง จุดจับเดียวใช้ได้ทั้งมือซ้าย/ขวา
         private static bool GripFlipped(IKLimb limb, Vector3 bodyInPoint) => Vector3.Dot(bodyInPoint, limb.ThumbInHand) < 0f;
 
-        // ด้ามพาดเฉียงในอุ้งมือ (ใบเอียงไปทางนิ้ว) เหมือนคนจับดาบ — ด้ามตั้งฉากกับนิ้วพอดี ใบจะต่อแนวแขนได้ต้องหักข้อมือ ~110° (คนจริงได้ ~30–40°)
-        private const float GripDiagonal = 38f; // ผู้ตรวจมือ: ด้ามพาดจากโคนนิ้วชี้ไปส้นมือ 35–45°
+        // ด้ามพาดเฉียงในอุ้งมือ (ใบเอียงไปทางนิ้ว) เหมือนคนจับดาบ
+        // 0 = ด้ามตั้งฉากกับทิศนิ้ว (ใบยื่นออกข้างกำปั้น เหมือนถือค้อน) | 90 = ด้ามไปทางเดียวกับนิ้ว (ใบต่อแนวแขน ข้อมือตรง)
+        // ผู้ใช้ 2026-11-01: ค่า 38 เดิมทำให้ใบเบนจากแขน 50-90° ตลอด → ปลายดาบไม่เคยอยู่บนเส้นที่วาด และท่าที่คมนำก็เกินช่วงข้อมือ
+        // (คอมเมนต์เดิมบันทึกไว้เองว่า "ใบจะต่อแนวแขนได้ต้องหักข้อมือ ~110° คนจริงได้ ~30–40°" — แก้ที่ท่าจับแทนการฝืนข้อมือ)
+        [Tooltip("ด้ามพาดเฉียงในอุ้งมือกี่องศา: 0 = ตั้งฉากกับนิ้ว (ถือเหมือนค้อน ใบยื่นออกข้างกำปั้น) | 90 = ด้ามไปทางเดียวกับนิ้ว (ใบต่อแนวแขน ข้อมือตรง) — มีผลกับของยาวทุกชิ้นที่หยิบ")]
+        [SerializeField, Range(0f, 90f)] private float gripDiagonal = 0f;
 
         // ท่าจุดจับเทียบแกนมือ: จับกลับด้านถ้าตัวของอยู่ฝั่งนิ้วก้อย แล้วเอียงด้ามเข้าหานิ้ว — TryGrab กับ AimWeapon ต้องใช้ตัวเดียวกัน
-        private static Quaternion GripInHand(IKLimb limb, Vector3 bodyInPoint)
+        private Quaternion GripInHand(IKLimb limb, Vector3 bodyInPoint)
         {
             Quaternion flip = GripFlipped(limb, bodyInPoint) ? Quaternion.AngleAxis(180f, Vector3.up) : Quaternion.identity;
             Vector3 bar = flip * bodyInPoint;
-            return Quaternion.AngleAxis(-Mathf.Sign(bar.x) * GripDiagonal, Vector3.up) * flip;
+            return Quaternion.AngleAxis(-Mathf.Sign(bar.x) * gripDiagonal, Vector3.up) * flip;
         }
 
         // ข้อมือตอนถือของ (ทุกเครื่องคิดเองจากเป้ามือที่ซิงก์): ห้อย = ปลายอาวุธชี้ลงหน้า (ถือไม้พักข้างตัว) | ยกแขนขึ้น = อาวุธชี้ไปทางเดียวกับแขน
@@ -1529,25 +1684,63 @@ namespace Nsc.BoneLimb
                 armDirVel[i] = Vector3.Lerp(armDirVel[i], Vector3.ClampMagnitude((dBody - lastArmDir[i]) / Time.deltaTime, 8f), 1f - Mathf.Exp(-25f * Time.deltaTime));
             lastArmDir[i] = dBody;
             swing01[i] = Mathf.Lerp(swing01[i], Mathf.InverseLerp(1f, 5f, armDirVel[i].magnitude), 1f - Mathf.Exp(-20f * Time.deltaTime));
-            if (!limb.Holding) { lastRoll[i] = float.NaN; handRotValid[i] = false; return; }
+            if (!limb.Holding) { lastRoll[i] = lastRollRaw[i] = float.NaN; handRotValid[i] = false; return; }
             Transform gp = GripPointOf(limb.Holding.attachedRigidbody, limb.GripCenter);
             if (!gp) return; // ไม่มีจุดจับ (เช่นกล่อง) = ข้อมือตรงแนวแขนตาม OrientHand
             Vector3 inHand = gp.InverseTransformDirection(limb.Holding.bounds.center - gp.position);
             if (inHand.sqrMagnitude < 1e-6f) return;
             inHand = GripInHand(limb, inHand) * inHand; // ท่ามือเดียวกับตอน TryGrab (จับกลับด้าน + ด้ามพาดเฉียง)
             float raise = Mathf.InverseLerp(8f, 45f, Vector3.Angle(armDir, transform.rotation * WeaponRestDir(limb.Side)));
-            Vector3 restWant = transform.rotation * new Vector3(limb.Side * 0.1f, 0.7f, 0.7f).normalized; // Pflug: ใบชี้ขึ้นไปข้างหน้า ~45°
+            Vector3 restWant = WeaponRestBlade(limb.Side); // Pflug: ใบชี้ขึ้นไปข้างหน้า ~45°
             // ช้า/ง้าง = ใบตั้งขึ้นจากแขน (~90°, อ่านเป็นการถือดาบ) | ฟาดเร็ว = ใบต่อแนวแขน (แรงเหวี่ยงดึงใบออก) — ใบต่อแนวแขนตลอด = ดูเหมือนชี้นิ้ว
             Vector3 cocked = Vector3.ProjectOnPlane(transform.up - transform.forward * 0.3f, armDir);
             cocked = cocked.sqrMagnitude > 1e-4f ? cocked.normalized : -transform.forward;
             Vector3 swingWant = Vector3.Slerp(cocked, (armDir + transform.forward * 0.2f).normalized, swing01[i]);
             Vector3 want = Vector3.Slerp(restWant, swingWant, raise);
-            if (slashBlade[i] != Vector3.zero) want = slashBlade[i]; // ท่าฟัน 360° (เครื่องที่คุมแขน) บอกทิศใบเอง — ปลายดาบวิ่งตามเส้นที่วาด
+            // ท่าฟัน 360° (เครื่องที่คุมแขน) บอกทิศใบเอง — ปลายดาบวิ่งตามเส้นที่วาด
+            // ผู้ใช้ 2026-11-01 รอบสอง: เคยบีบใบให้อยู่ในกรวยรอบแขนท่อนล่าง (slashBladeBend 25°) เพื่อกันข้อมือพลิก
+            // → ใบเลยไม่หมุนเทียบแขนเลย ดาบกับแขนเป็นท่อนเดียวแกว่งลงมา = ฟาด ไม่ใช่ฟัน | ข้อมือมี ClampWrist/LimitForearmRoll คุมอยู่แล้ว
+            if (slashBlade[i] != Vector3.zero) want = slashBlade[i];
             Quaternion rot = limb.target.rotation;
             Vector3 now = limb.HandFrame(rot) * inHand;
-            Vector3 a = Vector3.ProjectOnPlane(now, along), b = Vector3.ProjectOnPlane(want, along);
-            if (a.sqrMagnitude > 1e-6f && b.sqrMagnitude > 1e-6f) rot = Quaternion.AngleAxis(Vector3.SignedAngle(a, b, along), along) * rot;
-            limb.target.rotation = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(limb.HandFrame(rot) * inHand, want), weaponWristBend) * rot;
+            bool armDrives = slashArmDrives && slashKind[i] >= 0;
+            if (armDrives)
+            {
+                // ไหล่ + ศอกคุมท่า: ไม่สั่งทิศใบ ปล่อยข้อมือตรงแนวแขนตามที่ OrientHand ตั้งไว้ด้านบน
+                // แล้ว LimitForearmRoll ด้านล่างบิดให้ฝ่ามือคว่ำ — ทิศใบจึงมาจากท่าแขนเป็นหลัก
+                // + ข้อมือ "ช่วย" หันปลายดาบเข้าหาทิศที่กำลังเคลื่อนที่ ได้ไม่เกิน slashWristAssist (ผู้ใช้ 2026-11-02)
+                // ต่างจากของเดิมตรงที่เดิมสั่งให้ข้อมือไปให้ถึงทิศที่ต้องการเสมอ แล้วค่อยโดนเพดานตัด — อันนี้ขอแค่เท่าที่ช่วยได้
+                if (slashWristAssist > 0f && slashTangent[i] != Vector3.zero)
+                {
+                    Vector3 bladeNow = (limb.HandFrame(rot) * inHand).normalized;
+                    Vector3 aim = Vector3.RotateTowards(bladeNow, slashTangent[i].normalized, slashWristAssist * Mathf.Deg2Rad, 0f);
+                    if (Vector3.Angle(bladeNow, aim) > 0.5f)
+                    {
+                        rot = Quaternion.FromToRotation(bladeNow, aim) * rot;
+                        limb.target.rotation = rot;
+                    }
+                }
+            }
+            else if (slashBlade[i] != Vector3.zero)
+            {
+                // ท่าฟัน: ท่ามือมาจาก "ท่าดาบ" โดยตรง ไม่ใช่ไล่หมุนมือเข้าหา (วัด 2026-11-01: ไม่มีอะไรแย่ลง กระตุกท่า 90° ดีขึ้น 1511→1222)
+                // ดาบยาวกว่าแขน 1.6 เท่า — ทิศเพี้ยน 1° = ปลายเพี้ยน 11 ซม. การไล่หมุนแบบจำกัดองศาให้ความแม่นระดับนี้ไม่ได้
+                rot = Quaternion.FromToRotation(now, want) * rot;
+                // บิดรอบแกนด้าม (ไม่เปลี่ยนทิศใบ) ให้แนวนิ้วใกล้แนวแขนท่อนล่างที่สุด = ข้อมือตรงที่สุดเท่าที่ศอก/ไหล่พาไปได้
+                // ผู้ใช้ 2026-11-01: เคยลองเปลี่ยนเป้าเป็น "แนวที่ดาบวิ่ง" (มือตั้ง + คมนำ) → ข้อมือหมุนรัว เพราะเป้าหมุนตลอดวงฟัน ถอยกลับ
+                Vector3 hilt = (limb.HandFrame(rot) * inHand).normalized;
+                Vector3 fingersNow = Vector3.ProjectOnPlane(limb.HandFrame(rot) * Vector3.forward, hilt);
+                Vector3 foreWant = Vector3.ProjectOnPlane(along, hilt);
+                if (fingersNow.sqrMagnitude > 1e-6f && foreWant.sqrMagnitude > 1e-6f)
+                    rot = Quaternion.AngleAxis(Vector3.SignedAngle(fingersNow, foreWant, hilt), hilt) * rot;
+                limb.target.rotation = rot;
+            }
+            else
+            {
+                Vector3 a = Vector3.ProjectOnPlane(now, along), b = Vector3.ProjectOnPlane(want, along);
+                if (a.sqrMagnitude > 1e-6f && b.sqrMagnitude > 1e-6f) rot = Quaternion.AngleAxis(Vector3.SignedAngle(a, b, along), along) * rot;
+                limb.target.rotation = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(limb.HandFrame(rot) * inHand, want), weaponWristBend) * rot;
+            }
 
             // หน้าไม้ (ฝั่งสันหมัด = ทิศนิ้ว) หันไปทางที่ฟาด — ฟาดกลับ = บิดข้อมือรอบแกนของ พลิกหน้าไม้เอง (ทุกเครื่องคิดจากเป้ามือที่ซิงก์)
             Vector3 axis = limb.HandFrame(limb.target.rotation) * inHand.normalized;
@@ -1556,18 +1749,27 @@ namespace Nsc.BoneLimb
             // เฉพาะช่วงฟาดเร็ว — ช่วงเงื้อ มือวิ่งขึ้น/ไปหลัง ถ้าหันหน้าไม้ตามด้วย ข้อมือพลิกกลับด้าน (ผู้ใช้: "ตรงนี้พลิกมือให้หน่อย" ตอนเงื้อเหนือหัว)
             if (slashTangent[i] != Vector3.zero)
             {
-                // ท่าฟัน 360°: คมหันตามแนวเส้นที่วาด (คงที่ทั้งวงฟัน ไม่ต้องเดาจากความเร็ว ข้อมือไม่ปั่น)
-                Vector3 edge = Vector3.ProjectOnPlane(limb.HandFrame(limb.target.rotation) * Vector3.forward, axis);
-                Vector3 cut = Vector3.ProjectOnPlane(slashTangent[i], axis);
-                if (edge.sqrMagnitude > 1e-6f && cut.sqrMagnitude > 1e-6f)
+                // ท่าฟัน 360°: **หนึ่งการฟันไม่พลิกดาบ** (ผู้ใช้ 2026-11-01)
+                // ทิศที่ดาบวิ่ง (slashTangent) หมุนไปเรื่อยตลอดวง ถ้าไล่คมตามมันทุกเฟรม ใบจะค่อยๆ พลิกทั้งท่า
+                // จึงคำนวณครั้งเดียวตอนเริ่มท่า แล้วล็อกค้างไว้จนจบ — ใบเอียงเท่าไหร่ตอนเริ่ม ก็เท่านั้นจนจบ
+                if (float.IsNaN(slashEdgeLock[i]))
                 {
-                    // ดาบสองคม: คมฝั่งไหนใกล้ใช้ฝั่งนั้น (ผู้ใช้: ดาบกระตุก — เดิมหมุนใบรอบตัวเองเกือบครึ่งรอบกลางวงฟันให้คมฝั่งเดียวหันเข้าแนว)
-                    // เลือกตัวที่ต่อเนื่องจากมุมตอนนี้ — ไม่สลับ +89° ↔ -89° | หันได้ไม่เกิน slashEdgeTurn (ทิศคมที่ต้องการขยับตามมุมใบตลอดวง ตามเต็มที่ = ใบหมุนรอบตัวเอง ~350° ต่อการฟัน)
-                    float face = Vector3.SignedAngle(edge, cut, axis);
-                    float other = face > 0f ? face - 180f : face + 180f;
-                    if (Mathf.Abs(Mathf.DeltaAngle(edgeRoll[i], other)) < Mathf.Abs(Mathf.DeltaAngle(edgeRoll[i], face))) face = other;
-                    edgeRoll[i] = Mathf.MoveTowardsAngle(edgeRoll[i], Mathf.Clamp(face, -SlashEdgeTurn, SlashEdgeTurn), EdgeRollSpeed * 0.5f * Time.deltaTime);
+                    Vector3 edge = Vector3.ProjectOnPlane(limb.HandFrame(limb.target.rotation) * Vector3.forward, axis);
+                    Vector3 cut = Vector3.ProjectOnPlane(slashTangent[i], axis);
+                    if (edge.sqrMagnitude > 1e-6f && cut.sqrMagnitude > 1e-6f)
+                    {
+                        // ดาบสองคม: คมฝั่งไหนใกล้ท่ามือตอนนี้ใช้ฝั่งนั้น ไม่ต้องหมุนครึ่งรอบไปหาคมอีกฝั่ง
+                        float face = Vector3.SignedAngle(edge, cut, axis);
+                        float other = face > 0f ? face - 180f : face + 180f;
+                        if (Mathf.Abs(Mathf.DeltaAngle(edgeRoll[i], other)) < Mathf.Abs(Mathf.DeltaAngle(edgeRoll[i], face))) face = other;
+                        slashEdgeLock[i] = Mathf.Clamp(face, -SlashEdgeTurn, SlashEdgeTurn);
+                    }
                 }
+                // เปิดคว่ำมือ = ให้ LimitForearmRoll เป็นคนเดียวที่สั่งมุมหมุนรอบแกนนี้ ตัวล็อกคมหยุดทำงาน
+                // (ผู้ใช้ 2026-11-02 "มือยังขยับแปลก" — สองตัวสั่งแกนเดียวกันคนละทิศ แล้วมีตัวหน่วงคั่น มือเลยส่าย)
+                float edgeWant = slashHandPose != HandPose.ปิด ? 0f : slashEdgeLock[i];
+                if (!float.IsNaN(edgeWant))
+                    edgeRoll[i] = Mathf.MoveTowardsAngle(edgeRoll[i], edgeWant, EdgeRollSpeed * 0.5f * Time.deltaTime);
                 edgeLatch[i] = float.NaN;
             }
             else if (raise > 0.5f && swing01[i] > 0.6f && sweep.magnitude > limb.Reach * 2f)
@@ -1583,7 +1785,7 @@ namespace Nsc.BoneLimb
             }
             else if (raise < 0.5f || swing01[i] < 0.4f)
             {
-                edgeRoll[i] = Mathf.MoveTowardsAngle(edgeRoll[i], 0f, 720f * Time.deltaTime); // ช้า/เงื้อ = คืนท่าข้อมือปกติ
+                edgeRoll[i] = Mathf.MoveTowardsAngle(edgeRoll[i], 0f, EdgeRollReturn * Time.deltaTime); // ช้า/เงื้อ/ดึงดาบกลับ = คืนท่าข้อมือปกติ
                 edgeLatch[i] = float.NaN;
             }
             if (slashKind[i] >= 0) rollRange[i] = new Vector2(Mathf.Min(rollRange[i].x, edgeRoll[i]), Mathf.Max(rollRange[i].y, edgeRoll[i]));
@@ -1601,6 +1803,23 @@ namespace Nsc.BoneLimb
             }
             lastHandRot[i] = limb.target.rotation;
             handRotValid[i] = true;
+
+            // [ตรวจคม] คมเบี้ยวจากแนวที่ดาบวิ่งกี่องศา วัดท่าสุดท้ายจริง (หลัง edgeRoll + LimitForearmRoll + ClampWrist + ตัวนุ่มมือ)
+            // ดาบสองคม: ใช้ฝั่งที่ใกล้แนวกว่า → 0 = คมนำเต็ม (ฟัน), 90 = หน้าแบนเข้าใส่ (ฟาด)
+            if (slashStriking[i] && slashTangent[i] != Vector3.zero)
+            {
+                Vector3 ax = (limb.HandFrame(limb.target.rotation) * inHand).normalized;
+                float bend = Vector3.Angle(ax, slashTangent[i]); // 0 = ดาบขนานกับแนวที่ฟันพอดี
+                bladeArm[i] = new Vector2(Mathf.Min(bladeArm[i].x, bend), Mathf.Max(bladeArm[i].y, bend));
+                Vector3 edgeNow = Vector3.ProjectOnPlane(limb.HandFrame(limb.target.rotation) * Vector3.forward, ax);
+                Vector3 cutNow = Vector3.ProjectOnPlane(slashTangent[i], ax);
+                if (edgeNow.sqrMagnitude > 1e-6f && cutNow.sqrMagnitude > 1e-6f)
+                {
+                    float err = Mathf.Abs(Vector3.SignedAngle(edgeNow, cutNow, ax));
+                    err = Mathf.Min(err, 180f - err);
+                    edgeErr[i] = new Vector2(Mathf.Min(edgeErr[i].x, err), Mathf.Max(edgeErr[i].y, err));
+                }
+            }
         }
 
         private const float HandTurnSmoothing = 25f; // มือถืออาวุธไล่ท่าที่คำนวณได้ (1/วิ) — ~0.03 วิไปได้ครึ่งทาง
@@ -1612,19 +1831,52 @@ namespace Nsc.BoneLimb
         {
             Vector3 thumbHand = limb.ThumbInHand;
             if (forearmRollLimit <= 0f || thumbHand.sqrMagnitude < 1e-6f) return; // โมเดลไม่มีนิ้วโป้ง = วัดไม่ได้
+            // เพดานต้องห่างจาก 180° พอสมควร ไม่งั้นท่าที่ขอจะวนไปโผล่อีกฝั่งของขอบตลอด (แขนท่อนล่างคนหมุนได้ ~150-180° รวมทั้งช่วง)
+            float rollLimit = Mathf.Min(forearmRollLimit * SlashWristSlack(i), 120f);
             Vector3 ax = along.normalized;
             Vector3 neutral = Vector3.ProjectOnPlane(limb.root.position - limb.mid.position, ax);
             if (neutral.sqrMagnitude > limb.Reach * limb.Reach * 0.01f) thumbNeutral[i] = neutral.normalized; // ศอกงอพอ (แขนเหยียดตรง = ต้นแขนแนวเดียวกับปลายแขน วัดไม่ได้ ใช้ทิศล่าสุด)
             neutral = Vector3.ProjectOnPlane(thumbNeutral[i], ax);
             Vector3 thumb = Vector3.ProjectOnPlane(limb.HandFrame(limb.target.rotation) * thumbHand, ax);
             if (neutral.sqrMagnitude < 1e-6f || thumb.sqrMagnitude < 1e-6f) return;
-            float roll = Vector3.SignedAngle(neutral, thumb, ax);
+            // ⚠️ SignedAngle คืนค่า ±180 เสมอ วัดใหม่ทุกเฟรมโดยไม่รู้ว่าเฟรมก่อนอยู่ตรงไหน
+            // ท่าที่หมุนข้ามขอบจึงอ่านได้ +179 แล้วเฟรมถัดไป -179 (ต่างกันจริงแค่ 2° แต่ตัวเลขต่าง 358°)
+            // ต้องต่อให้เป็นค่าต่อเนื่องก่อน ไม่งั้นทั้งการจำกัดและการหมุนแก้ด้านล่างจะสะบัดข้ามฝั่ง = ข้อมือพลิกทะลุตอนฟันจะจบ
+            float raw = Vector3.SignedAngle(neutral, thumb, ax);
+            float roll = float.IsNaN(lastRollRaw[i]) ? raw : lastRollRaw[i] + Mathf.DeltaAngle(lastRollRaw[i], raw);
+            lastRollRaw[i] = roll;
             if (slashKind[i] >= 0) twistRange[i] = new Vector2(Mathf.Min(twistRange[i].x, roll), Mathf.Max(twistRange[i].y, roll));
             // เกินเพดาน = ค้างที่ขอบฝั่งเดิม (ผู้ใช้: มือพลิกกระทันหัน) — มุมเป็นวงกลม ท่าต้องการ +170° → -170° ห่างกันแค่ 20°
             // ถ้าจำกัดตรงๆ จะกระโดด +90° → -90° ในเฟรมเดียว | แล้วบิดได้ไม่เร็วเกิน ForearmRollSpeed (ข้อมือคนหมุนแรงสุด ~700–900°/วิ)
             float last = lastRoll[i];
-            float clamped = Mathf.Abs(roll) <= forearmRollLimit ? roll
-                          : (float.IsNaN(last) ? roll : last) >= 0f ? forearmRollLimit : -forearmRollLimit;
+            float clamped = Mathf.Abs(roll) <= rollLimit ? roll
+                          : (float.IsNaN(last) ? roll : last) >= 0f ? rollLimit : -rollLimit;
+            // ท่ามือตอนฟัน: บิดรอบแกนแขนท่อนล่างให้ด้านที่เลือกหันไปทางที่กำหนด แล้วตัดด้วยเพดาน
+            // อ่านจากท่าที่กำลังคำนวณ (target.rotation) ไม่ใช่กระดูกของเฟรมก่อน | ไม่ต้องรู้เครื่องหมาย ใช้ได้ทั้งสองแขน
+            // ใช้ตลอดทั้งท่ารวมช่วงง้าง — ถ้าใช้เฉพาะบางช่วง มือจะพลิกตอนสลับกฎ (ผู้ใช้: ตอนง้างมือพลิกแล้วหมุนออก)
+            // กฎท่ามือ มีผลตามน้ำหนักที่ค่อยๆ ขึ้น/ลง (slashPoseWeight) — เปิดปิดทันทีแล้วมือสะดุดหัวท้าย
+            if (slashHandPose != HandPose.ปิด && slashKind[i] >= 0 && slashTangent[i] != Vector3.zero && slashPoseWeight[i] > 0.001f)
+            {
+                Quaternion handNow = limb.HandFrame(limb.target.rotation);
+                Vector3 side = slashHandPose == HandPose.นิ้วโป้งขึ้น ? handNow * thumbHand : handNow * Vector3.up; // Y ของแกนมือ = ฝ่ามือ
+                Vector3 goal;
+                if (slashHandPose == HandPose.ตามแนวฟัน)
+                {
+                    // ตั้งฉากกับระนาบวงฟัน = ระนาบที่ดาบกำลังกวาดผ่าน
+                    // ใช้ทิศที่ล็อกไว้ตอนเริ่มท่า (คิดจากกลางวงฟัน) — ไม่คิดใหม่ทุกเฟรม ไม่งั้นเป้าหมุนตามวง มือพลิกไปมา
+                    // ข้างถูกบังคับโดยแกนมือ: คมนำไปตามทิศวิ่ง + ใบต่อแนวแขน → ฝ่ามือ = ทิศวิ่ง × แนวแขน (ไม่มีอะไรให้เลือก)
+                    goal = slashPalmGoal[i] != Vector3.zero ? transform.rotation * slashPalmGoal[i] : Vector3.down;
+                }
+                else goal = slashHandPose == HandPose.ฝ่ามือเข้าหาตัว ? transform.rotation * new Vector3(-limb.Side, 0f, 0f)
+                          : slashHandPose == HandPose.นิ้วโป้งขึ้น ? Vector3.up
+                          : Vector3.down;
+                Vector3 nowFlat = Vector3.ProjectOnPlane(side, ax), goalFlat = Vector3.ProjectOnPlane(goal, ax);
+                if (nowFlat.sqrMagnitude > 1e-4f && goalFlat.sqrMagnitude > 1e-4f)
+                {
+                    float pose = Mathf.Clamp(roll + Vector3.SignedAngle(nowFlat, goalFlat, ax), -rollLimit, rollLimit);
+                    clamped = Mathf.Lerp(clamped, pose, slashPoseWeight[i]); // ผสมตามน้ำหนัก ไม่ใช่ทับทั้งหมด
+                }
+            }
             if (!float.IsNaN(last))
             {
                 // นุ่ม + เพดานความเร็ว — ทิศที่ท่าต้องการแกว่งรอบขอบเพดานเฟรมต่อเฟรม (วัดได้ -85 → -65 → -85 ใน 2 เฟรม = ดาบกระตุก)
@@ -1633,13 +1885,21 @@ namespace Nsc.BoneLimb
                 if (slashKind[i] >= 0) rollJump[i] = Mathf.Max(rollJump[i], Mathf.Abs(clamped - last));
             }
             lastRoll[i] = clamped;
-            if (Mathf.Abs(Mathf.DeltaAngle(roll, clamped)) > 0.5f)
-                limb.target.rotation = Quaternion.AngleAxis(Mathf.DeltaAngle(roll, clamped), ax) * limb.target.rotation;
+            // roll กับ clamped อยู่ในสเกลต่อเนื่องเดียวกันแล้ว ลบกันตรงๆ ได้ (เดิมใช้ DeltaAngle ซึ่งพับที่ ±180 = ต้นเหตุของการสะบัด)
+            float fix = clamped - roll;
+            if (Mathf.Abs(fix) > 0.5f) limb.target.rotation = Quaternion.AngleAxis(fix, ax) * limb.target.rotation;
         }
+
+        /// <summary>แขนนี้อยู่ในท่าฟันอยู่ไหม → เพดานข้อมือกว้างขึ้นกี่เท่า (ท่าพัก/ถือเฉยๆ = 1 เท่าเดิม)</summary>
+        private float SlashWristSlack(int arm) =>
+            arm >= 0 && arm < slashKind.Length && slashKind[arm] >= 0 ? Mathf.Max(1f, slashWristBoost) : 1f;
 
         private const float ForearmRollSpeed = 720f; // คว่ำ/หงายมือเร็วสุด (°/วิ)
         private const float ForearmRollSmoothing = 12f; // คว่ำ/หงายมือไล่ตามทิศที่ต้องการ (1/วิ) — ~0.08 วิไปได้ครึ่งทาง
-        private const float SlashEdgeTurn = 30f;     // ท่าฟัน 360°: หมุนหน้าดาบให้คมเข้าแนวเส้นได้ไม่เกินนี้ — ทิศใบมาจากการวางมือตามเส้นอยู่แล้ว
+        private const float EdgeRollReturn = 180f;   // คืนหน้าดาบเข้าท่าปกติ (°/วิ) — ผู้ใช้ 2026-11-01: ฟันจบแล้วค่อยๆ กลับ ไม่รีบ (เดิม 720)
+        private const float SlashEdgeTurn = 90f;     // ท่าฟัน 360°: หมุนหน้าดาบให้คมเข้าแนวเส้นได้ไม่เกินนี้ (ผู้ใช้ 2026-11-01: ใบต้อง "แบ" ตรงกับที่วาด)
+                                                     // ใบอยู่แนวแขนแล้ว หมุนรอบแกนนี้ = คว่ำ/หงายแขนท่อนล่าง (ธรรมชาติ) — LimitForearmRoll ±forearmRollLimit คุมอีกชั้น
+                                                     // เดิม 30° เพราะกลางวงฟันใบเคยตั้งฉากกับแขน ทิศคมที่ต้องการแกว่งทั้งวง
 
         // ข้อมือไม่หักเกินมือคน (ผู้ตรวจมือ 2026-10-29: เดิมเอียงทางนิ้วก้อย 39–45° ค้างตอนฟาด, ฟันขึ้นตวัดทางนิ้วโป้ง 20–25°)
         // แยกมุมแขนท่อนล่างในแกนมือเป็น งอ/แอ่น (รอบแกนนิ้วโป้ง) กับ เอียงนิ้วโป้ง/นิ้วก้อย (รอบแกนฝ่ามือ) แล้วจำกัดทีละทิศตาม wristLimits
@@ -1647,11 +1907,14 @@ namespace Nsc.BoneLimb
         {
             Quaternion hand = limb.HandFrame(limb.target.rotation);
             Vector3 thumb = limb.ThumbInHand;
-            if (thumb.sqrMagnitude < 1e-6f) // โมเดลไม่มีกระดูกนิ้วโป้ง = แยกทิศไม่ได้ จำกัดรวมทุกทิศไว้ที่ weaponWristBend แทน
+            float slack = SlashWristSlack(slashArm);
+            Vector4 limit = wristLimits * slack;
+            float bendMax = Mathf.Min(weaponWristBend * slack, 85f); // tan ระเบิดใกล้ 90°
+            if (thumb.sqrMagnitude < 1e-6f) // โมเดลไม่มีกระดูกนิ้วโป้ง = แยกทิศไม่ได้ จำกัดรวมทุกทิศไว้ที่ bendMax แทน
             {
                 Vector3 fingers = hand * Vector3.forward, fore = along.normalized;
-                if (Vector3.Angle(fingers, fore) > weaponWristBend)
-                    limb.target.rotation = Quaternion.FromToRotation(fingers, Vector3.RotateTowards(fore, fingers, weaponWristBend * Mathf.Deg2Rad, 0f)) * limb.target.rotation;
+                if (Vector3.Angle(fingers, fore) > bendMax)
+                    limb.target.rotation = Quaternion.FromToRotation(fingers, Vector3.RotateTowards(fore, fingers, bendMax * Mathf.Deg2Rad, 0f)) * limb.target.rotation;
                 return;
             }
             thumb = Vector3.ProjectOnPlane(thumb, Vector3.forward).normalized;
@@ -1666,10 +1929,11 @@ namespace Nsc.BoneLimb
                 flexRange[slashArm] = new Vector2(Mathf.Min(flexRange[slashArm].x, flex), Mathf.Max(flexRange[slashArm].y, flex));
                 radialRange[slashArm] = new Vector2(Mathf.Min(radialRange[slashArm].x, radial), Mathf.Max(radialRange[slashArm].y, radial));
             }
-            float flexC = Mathf.Clamp(flex, -wristLimits.w, wristLimits.z), radialC = Mathf.Clamp(radial, -wristLimits.x, wristLimits.y);
+            float flexC = Mathf.Clamp(flex, Mathf.Max(-85f, -limit.w), Mathf.Min(85f, limit.z));
+            float radialC = Mathf.Clamp(radial, Mathf.Max(-85f, -limit.x), Mathf.Min(85f, limit.y));
             Vector3 fC = (Vector3.forward - palm * Mathf.Tan(flexC * Mathf.Deg2Rad) - thumb * Mathf.Tan(radialC * Mathf.Deg2Rad)).normalized;
             // แต่ละทิศผ่านแล้วแต่รวมกันยังเยอะ (งอ+เอียงพร้อมกัน ดูข้อมือหัก) — จำกัดมุมรวมด้วย weaponWristBend
-            fC = Vector3.RotateTowards(Vector3.forward, fC, weaponWristBend * Mathf.Deg2Rad, 0f);
+            fC = Vector3.RotateTowards(Vector3.forward, fC, bendMax * Mathf.Deg2Rad, 0f);
             if (Vector3.Angle(fC, f) < 0.5f) return;
             // หมุนมือให้แขนท่อนล่าง (ทิศเดิมในโลก) อยู่ที่มุมที่จำกัดแล้วในแกนมือ
             limb.target.rotation = Quaternion.FromToRotation(hand * fC, along.normalized) * limb.target.rotation;

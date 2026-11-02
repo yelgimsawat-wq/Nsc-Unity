@@ -253,7 +253,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3374097460
+  GlobalObjectIdHash: 3694364520
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -431,12 +431,20 @@ MonoBehaviour:
   weaponFreeAim: 0
   slashDragPixels: 30
   slashWeight: 2
-  slashAssistRange: 3
+  slashAssistRange: 1
   slashBlockedArc: {x: 45, y: 15}
+  slashAngleSnap: 45
   slashAimRange: {x: 45, y: 30}
   slashChargeTime: 0.6
   edgeRollFollow: 30
   forearmRollLimit: 90
+  slashWristBoost: 2
+  slashHandPose: 4
+  slashArmDrives: 1
+  slashWristAssist: 0
+  slashReachAcross: 40
+  slashTopAngle: 35
+  slashCockedReach: 0.85
   slashPreview: 1
   logSlashWrist: 0
   weaponLean: 18
@@ -466,6 +474,7 @@ MonoBehaviour:
     bothSteppingGrace: 0.3
     bothOffBalanceGrace: 0.3
     countDetachedLegs: 1
+  gripDiagonal: 38
 --- !u!114 &6604857623278551299
 MonoBehaviour:
   m_ObjectHideFlags: 0

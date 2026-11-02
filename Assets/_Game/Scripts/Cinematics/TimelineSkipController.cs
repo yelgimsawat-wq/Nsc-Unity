@@ -109,9 +109,10 @@ public class TimelineSkipController : NetworkBehaviour
         base.OnNetworkDespawn();
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
         Cleanup();
+        base.OnDestroy();
     }
 
     private void Cleanup()

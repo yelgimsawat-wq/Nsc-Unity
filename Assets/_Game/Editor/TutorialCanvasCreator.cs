@@ -86,7 +86,7 @@ public class TutorialCanvasCreator
         stepTMP.fontSize = 18;
         stepTMP.alignment = TextAlignmentOptions.Center;
         stepTMP.color = Color.white;
-        stepTMP.enableWordWrapping = true;
+        stepTMP.textWrappingMode = TextWrappingModes.Normal;
 
         // ============================================================
         //  5. Skip Button (bottom-right of panel)

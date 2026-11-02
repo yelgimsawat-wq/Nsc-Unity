@@ -55,9 +55,6 @@ namespace NscGame.Enemy
         [SerializeField] private float walkSpeed = 2.5f;
         [SerializeField] private float rollSpeed = 6.0f;
 
-        [Header("Animator Smoothing")]
-        [SerializeField] private float speedDampTime = 0.15f;
-
         [Header("Attack Timing")]
         [Tooltip("ช่วงเวลารอต่ำสุดก่อนโจมตีครั้งต่อไป (วินาที)")]
         [SerializeField] private float minAttackInterval = 1.5f;

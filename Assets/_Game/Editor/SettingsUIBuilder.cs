@@ -31,7 +31,7 @@ public class SettingsUIBuilder : EditorWindow
     private static void BuildSettingsPanel()
     {
         // หา Canvas หรือสร้างใหม่
-        Canvas canvas = FindObjectOfType<Canvas>();
+        Canvas canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasObj = new GameObject("Canvas");

@@ -8,7 +8,7 @@ public class SplineOffsetSetter : EditorWindow
     [MenuItem("Tools/Set Spline Offsets")]
     static void SetOffsets()
     {
-        SplineContainer spline = FindObjectOfType<SplineContainer>();
+        SplineContainer spline = FindFirstObjectByType<SplineContainer>();
         if (spline == null) return;
 
         foreach (GameObject obj in Selection.gameObjects)
