@@ -72,6 +72,7 @@ namespace Nsc.BoneLimb
         // บานพับ: แกน local ของกระดูกกลางที่โมเดลออกแบบให้พับ
         private Vector3 hingeAxis;
         private float hingeSign, restBend;
+        private float elbowSide; // ศอกอยู่ฝั่งไหนของ (แกนบานพับ × แนวแขน) — จำจากตอนแขนงอพอวัดได้ (0 = ยังไม่รู้)
         private Quaternion midRest;
         private Transform[] fingers;
         private Quaternion[] open, closed;
@@ -133,6 +134,11 @@ namespace Nsc.BoneLimb
             Quaternion swing = Quaternion.FromToRotation(restDir, Quaternion.Inverse(bodyRot) * axis);
             Vector3 pole = Vector3.ProjectOnPlane(bodyRot * (PoleOverride != Vector3.zero ? PoleOverride : swing * restPole), axis);
             Vector3 joint = Vector3.ProjectOnPlane(mid.position - s, axis);
+            // แขน/ขาเกือบเหยียดตรง = ศอกแทบอยู่บนแนวไหล่→มือ ทิศ joint เหลือแต่เศษ ต้นแขนหมุนกระโดด 20-35°/เฟรม (วัด 2026-11-02 ตอนฟันดาบ)
+            // ใช้ทิศจากแกนบานพับแทน — นิ่งแม้เหยียดสุด | ฝั่งของศอกจำจากตอนงอพอวัดได้
+            Vector3 bendDir = Vector3.Cross(mid.rotation * hingeAxis, axis);
+            if (bendDir.sqrMagnitude > 1e-6f && joint.sqrMagnitude > Upper * Upper * 0.04f) elbowSide = Mathf.Sign(Vector3.Dot(joint, bendDir));
+            if (elbowSide != 0f && bendDir.sqrMagnitude > 1e-6f) joint = bendDir * elbowSide;
             if (pole.sqrMagnitude > 1e-6f && joint.sqrMagnitude > 1e-6f)
                 root.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(joint, pole, axis), axis) * root.rotation;
 
