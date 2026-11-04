@@ -124,10 +124,17 @@ namespace Nsc.Robots
         public bool ServerApplyDamage(DamageInfo info)
         {
             if (!IsServer || !CanTakeDamage) return false;
+            bool blocked = false; // ตั้งการ์ดรับไว้ (ตัวคูณ < 1) — เสียงหมัดกระทบเหล็กแทนเสียงโดนตี
             if (DamageScale != null)
             {
-                info.amount *= DamageScale(info);
-                if (info.amount <= 0f) return true; // ปัดป้องได้ — นับว่าเข้าเป้า (ผู้ตีไม่ตีซ้ำ) แต่ไม่เสียเลือด
+                float scale = DamageScale(info);
+                blocked = scale < 1f;
+                info.amount *= scale;
+                if (info.amount <= 0f) // ปัดป้องได้ — นับว่าเข้าเป้า (ผู้ตีไม่ตีซ้ำ) แต่ไม่เสียเลือด
+                {
+                    EnemyHitFeelClientRpc(info.point, -info.direction, 0f, true);
+                    return true;
+                }
             }
 
             // ยิงเอฟเฟกต์ก่อนหักเลือด — หมัดสุดท้ายที่ทำให้ชิ้นหลุดยังมีเอฟเฟกต์ให้เห็น
@@ -138,7 +145,7 @@ namespace Nsc.Robots
             if (info.source == DamageSource.EnemyMelee || info.source == DamageSource.EnemyUltimate)
             {
                 if (TryGetComponent(out IImpactFeedback feedback)) feedback.ServerBroadcastHit(info.point, -info.direction, info.amount);
-                else EnemyHitFeelClientRpc(info.point, -info.direction, info.amount); // หุ่นที่ไม่มี LimbController (หุ่น IK) — เสียงเหล็ก/ประกายไฟเดียวกัน
+                else EnemyHitFeelClientRpc(info.point, -info.direction, info.amount, blocked); // หุ่นที่ไม่มี LimbController (หุ่น IK) — เสียงเหล็ก/ประกายไฟเดียวกัน
             }
 
             hp.Value -= info.amount;
@@ -178,8 +185,11 @@ namespace Nsc.Robots
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
-        private void EnemyHitFeelClientRpc(Vector3 point, Vector3 surfaceNormal, float damage) =>
-            Nsc.Feel.ImpactFeel.PlayHit(point, surfaceNormal, damage);
+        private void EnemyHitFeelClientRpc(Vector3 point, Vector3 surfaceNormal, float damage, bool blocked)
+        {
+            if (blocked) Nsc.Feel.ImpactFeel.PlayBlock(point, surfaceNormal);
+            else Nsc.Feel.ImpactFeel.PlayHit(point, surfaceNormal, damage);
+        }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
         private void PlayHitEffectsClientRpc(Vector3 impactPosition, Vector3 hitDirection)

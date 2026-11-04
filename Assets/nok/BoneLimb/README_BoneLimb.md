@@ -52,7 +52,9 @@
 ## โครงโค้ด
 | ไฟล์ | คลาส | หน้าที่ |
 |---|---|---|
-| `RobotIKControl.cs` | `RobotIKControl` (NetworkBehaviour) | ตัวกลาง: ใครคุมชิ้นไหน (LimbSelection), เคอร์เซอร์ → เป้า, เดินตามเท้า, RPC, UI |
+| `RobotIKControl.cs` | `RobotIKControl` (NetworkBehaviour, partial) | ตัวกลาง: ใครคุมชิ้นไหน (LimbSelection), เคอร์เซอร์ → เป้า, เดินตามเท้า, RPC, UI |
+| `RobotIKControl.Weapon.cs` | `RobotIKControl` (partial) | ท่าฟัน 360° (เครื่องที่คุมแขน) + ท่ามือถืออาวุธ (`AimWeapon`, `LimitForearmRoll`, `ClampWrist`) |
+| `SlashState.cs` | `SlashState`, `WieldState` | สถานะต่อแขน: ท่าฟันที่กำลังเล่น / ค่าเฟรมก่อนของข้อมือถืออาวุธ (แทนอาร์เรย์ขนานหลายสิบตัว) |
 | `IKCombat.cs` | `IKCombat` | โหมดต่อสู้ของแขน (ปิดเป็นค่าเริ่มต้น): ท่าการ์ด, เล็งด้วยเคอร์เซอร์, คลิกค้าง = ชาร์จ ปล่อย = ต่อย, ลำตัวบิดตามหมัด, มือไหลด้วยสปริง (มีมวล) — คำนวณจากเป้าแขนที่ซิงก์อยู่แล้ว ไม่มี network เพิ่ม |
 | `IKRagdoll.cs` | `IKRagdoll` | ล้มแบบ ragdoll บนกระดูก: ตอนเริ่มสร้าง Rigidbody + collider + ข้อต่อให้กระดูก 11 ท่อน (ศอก/เข่าเป็นบานพับแกนเดียวกับ IK), ยืน = kinematic, ล้ม = ฟิสิกส์คุม (นอนไปเรื่อยๆ), ลุก = ไล่มุมข้อต่อจากท่านอนกลับท่า IK. ตัวตัดสินล้มคือ `FallRules` ตัวเดียวกับหุ่นเดิม (สองเท้ายกพร้อมกันเกิน 0.15 วิ = ล้ม) + `Robot.ServerKnockDown` (บอส/ขาหลุด) |
 | `IKDetach.cs` | `IKDetach` | ภาพชิ้นส่วนหลุด: ซ่อนชิ้นบนตัวด้วยการย่อกระดูกโคน (เมชบางชิ้นผูกสองขา ปิด renderer ไม่ได้), คัดลอกโมเดลแล้วย้ายกระดูกชิ้นนั้นออกมาเป็นวัตถุแยกตกพื้น (แต่ละเครื่องจำลองเอง), ดึงกลับ = ลอยเข้าโคนตาม `pullMask` ที่ซิงก์ (เร่งเข้า t² แล้วกระแทก). ฟีลตอนต่อ: เริ่มดึงจอสั่น (`pullShake`), เสียบเข้า = `ImpactFeel.PlayHit` ระดับหนัก (`reattachImpact` 45: เหล็กกระแทก + บูม + ประกายไฟ + หยุดภาพ + ซูม + จอสั่น) + ลำตัวสะเทือน + ชิ้นเด้งใหญ่ `seatPunch` แล้วยุบเข้าที่ใน `seatTime`. สถานะหลุด/ต่อจริงใช้ `LimbAttachment` เดิมบนช่อง `Slot_*` (ไม่มีข้อต่อ → `ServerReattach`) เลยต่อกับ RobotLimb/Robot ได้เหมือนหุ่นเดิม: ขาหลุด = ล้ม, ลุกได้เมื่อขาครบ |
@@ -63,7 +65,7 @@
 | `JointLimit.cs` | `JointLimit` (abstract) → `ShoulderLimit`, `HipLimit` | ข้อจำกัดข้อต่อ แต่ละข้อแปลงทิศ ↔ มุมของตัวเอง (polymorphism แทน if แขน/ขา) |
 | `OrbitCamera.cs` | `OrbitCamera` | กล้องหมุนรอบตัว (คลิกขวาเท่านั้น ไม่หันตามหุ่นเอง ทุกชิ้น) + ซูมด้วยล้อเมาส์ (ตัวคูณระยะ `zoomRange` 0.4–3 เท่า คลิกละ `zoomStep` 10% ใช้ได้ทุกมุม แขน/ขา/ตอนล้ม), ตัวโยกไม่เกิน `followDeadZone` 2 กล้องไม่ขยับ (PlayerCam เดิม), คุมแขนโหมดต่อสู้ = มุมข้ามไหล่ใกล้ (`armPitch`/`armDistance`/`armLookHeight`/`armSideShift`) |
 | `IKInput.cs` | `IKInput` | อ่านเมาส์/คีย์บอร์ดหนึ่งเฟรม (Input System อยู่ที่นี่ที่เดียว) |
-| `LimbNetState.cs` | `LimbNetState` | เป้าที่ซิงก์ผ่าน network + Capture/ApplyTo |
+| `LimbNetState.cs` | `LimbNetState` | เป้าที่ซิงก์ผ่าน network + Capture/ApplyTo — แขนส่งท่ามือด้วย (ท่าฟันคิดเฉพาะเครื่องที่คุม เครื่องอื่นรวม Server ใช้ท่ามือที่ส่งมา) |
 
 ## ออนไลน์ทำงานยังไง
 - ใครคุมชิ้นไหน = `LimbSelection` ของหน้าเลือกชิ้นส่วนเดิม — หุ่นนี้มี `Robot` + `RobotLimb` 4 ช่อง (`Slot_*`) ให้มันรู้จัก (ไม่มีตัวควบคุมฟิสิกส์ของหุ่นเก่า)

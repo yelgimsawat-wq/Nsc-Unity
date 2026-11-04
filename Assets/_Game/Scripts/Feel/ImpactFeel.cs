@@ -40,6 +40,22 @@ namespace Nsc.Feel
             SpawnSparks(config, position, surfaceNormal, heavy ? config.heavySparkCount : config.lightSparkCount, heavy);
         }
 
+        /// <summary>
+        /// ตั้งการ์ดรับหมัด: เสียงหมัดกระทบเหล็ก (blockHitClips) ซ้อนเสียงเหล็กปกติแบบ pitch สูง (ดังกริ๊ง ต่างจากโดนเข้าตัวที่ทุ้ม)
+        /// กล้องสั่น/ประกายไฟเบากว่าโดนจริง — ให้รู้สึกว่ารับไว้ได้
+        /// </summary>
+        public static void PlayBlock(Vector3 position, Vector3 surfaceNormal)
+        {
+            FeelConfig config = FeelConfig.Instance;
+            if (config == null || Application.isBatchMode) return;
+
+            CameraShake.Freeze(config.lightHitFreeze);
+            CameraShake.Add(position, config.lightHitShake * 0.6f, config.hitShakeDuration * 0.6f);
+            PlayClip(config, config.blockHitClips, position, config.blockHitVolume, config.hitPitch);
+            PlayClip(config, config.lightHitClips, position, config.blockHitVolume, config.blockHitPitch);
+            SpawnSparks(config, position, surfaceNormal, config.lightSparkCount, false);
+        }
+
         /// <summary>อาวุธเริ่มฟาดเร็ว — strength 0..1 ตามความเร็วปลาย</summary>
         public static void PlaySwing(Vector3 position, float strength)
         {

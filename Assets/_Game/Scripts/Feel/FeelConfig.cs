@@ -77,6 +77,13 @@ namespace Nsc.Feel
         public float sparkSpeed = 32f;
         public float sparkSize = 0.7f;
 
+        [Header("ตั้งการ์ดรับหมัด (หุ่น IK ยกแขนกัน)")]
+        [Tooltip("เสียงหมัดกระทบ — เล่นซ้อนกับเสียงเหล็กปกติ (lightHitClips) ที่ blockHitPitch")]
+        public AudioClip[] blockHitClips;
+        [Range(0f, 1f)] public float blockHitVolume = 0.9f;
+        [Tooltip("pitch ของเสียงเหล็กตอนกันได้ — สูงกว่าโดนเข้าตัว = ดังกริ๊ง ไม่ใช่ตูม")]
+        public Vector2 blockHitPitch = new Vector2(1.3f, 1.5f);
+
         [Header("ฟาดอาวุธ (เสียงวืดตอนเริ่มฟาดเร็ว)")]
         public AudioClip[] swingClips;
         [Range(0f, 1f)] public float swingVolume = 0.8f;
