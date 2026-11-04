@@ -1,5 +1,5 @@
 ### 2026-10-27 — Q-20261027-bone-rig-arena — ระบบแขนขาด้วยกระดูก (IK) + แมพอารีน่าหุ่นยักษ์
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session 01FCuosT4TvRKUM6vGi84K8P
 - Goal: (1) แมพอารีน่าไฮเทคขนาดใหญ่ (สเกลหุ่นยักษ์ กลางสนามไม่มีสนามบอล) ในโฟลเดอร์ซีนของ nok (2) ระบบกระดูกที่ทำให้ท่อนแขน/ขาแข็งตามกระดูก แทนท่อนฟิสิกส์ที่แกว่งเหมือนยาง โดยไม่แก้โค้ดเดิม พร้อมเครื่องมือเซ็ทอัพ — รองรับทั้ง mesh เดิมของหุ่นและโมเดลมีกระดูก (Mixamo `RobotNSC_Rigged.fbx` ของ Q-20261027-robot-bone-rig — อ่านอย่างเดียว ไม่แก้ไฟล์ของ Quest นั้น)
 - Files: Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/ (ใหม่), Assets/nok/BoneLimb/ (ใหม่)

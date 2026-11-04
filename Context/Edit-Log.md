@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-11-04 20:25 +07:00 · Q-20261104-close-board · files: Context/quests/, Context/archive/quests/, Context/Edit-Log.md
+  - แก้: ผู้ใช้สั่งปิด Quest ทั้ง Board 16 ตัว: ย้ายเข้า archive/quests/ พร้อมโฟลเดอร์หลักฐาน 2 ตัว แก้บรรทัด Status เป็น closed พร้อมสถานะเดิม ไม่แก้เนื้อหาอื่น
+  - ตรวจ: 2026-11-04 board.py รายงาน Board ว่าง, git mv ครบ 16 quest + 2 โฟลเดอร์; ยังไม่ได้ตรวจว่างานในแต่ละ Quest เสร็จจริง ปิดตามคำสั่งผู้ใช้ ข้อที่ค้างยังอยู่ในไฟล์ archive
 - 2026-11-02 14:50 +07:00 · Q-20261030-sword-360-slash · files: Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261030-sword-360-slash.md, Context/quests/Q-20261030-sword-360-slash/notes.md, Assets/_Game/Prefabs/Robot/IKRobotRig.prefab, Assets/Yelmee/IKTest.unity, Assets/_Game/Scripts/Cinematics/TimelineSkipController.cs, Assets/_Game/Scripts/Enemy/EnemyController.cs, Assets/_Game/Editor/SettingsUIBuilder.cs, Assets/_Game/Editor/Tools/SplineOffsetSetter.cs, Assets/_Game/Editor/TutorialCanvasCreator.cs, Assets/nok/BoneLimb/IKInput.cs
   - แก้: ฟันดาบ 2026-11-02: ล็อกทิศฝ่ามือครั้งเดียวตอนเริ่มท่าจากกลางวงฟัน (slashPalmGoal) แก้อาการมือพลิกไปมาตอนฟันเฉียงขึ้น + เปิดแขนตอนง้าง 0.85 + เพดานความสูง 35 + ฝ่ามือจากแกนมือ + 8 ทิศ
   - ตรวจ: 2026-11-02 ยังไม่ได้ตรวจ compile เพราะ Unity MCP หลุดการเชื่อมต่อระหว่างทาง ตรวจแค่วงเล็บสมดุลและอ่านโค้ดที่แทรก | การแก้ก่อนหน้าในรอบเดียวกันตรวจ compile ผ่านหมดแล้ว | ยังไม่ได้ให้ผู้ใช้ลองเล่น
@@ -31,6 +34,3 @@
 - 2026-10-27 13:10 +00:00 · Q-20261027-bone-rig-arena · files: Assets/nok/BoneLimb/, Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/, Context/quests/Q-20261027-bone-rig-arena.md
   - แก้: เพิ่มระบบกระดูก RobotBoneRig (แขนขาเป็นกระดูกแข็ง IK ตามมือ/เท้าฟิสิกส์ ไม่แตะโค้ดเดิม; ใช้ mesh เดิมหรือโมเดลมีกระดูก Mixamo ก็ได้) + เมนูเซ็ทอัพ + EditMode tests และแมพ RobotArena ในโฟลเดอร์ซีนของ nok
   - ตรวจ: 2026-10-27 compile+test ด้วย dotnet กับ stub ผ่าน (4 EditMode + 35 ข้อ ทั้งสองโหมด), ซีน YAML ตรวจโครงสร้างผ่าน; ยังไม่ได้เปิด/Play ใน Unity
-- 2026-10-26 22:46 +07:00 · Q-20261026-robot-heavy-feel · files: Assets/_Game/Scripts/Limbs/ArmController.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs, Assets/_Game/Scripts/Dev/ArmStepTest.cs, Assets/nok/scene/Test/TesItem/TestItem.unity, Context/quests/Q-20261026-robot-heavy-feel.md
-  - แก้: หุ่น TestItem หนักแน่นขึ้น (เป้ามือยึดไหล่, มวล/damping ใหม่, มือช้าลง, เมาส์ไวน้อยลง) + ลบ Torso (1) ที่ duplicate ซ้อนใน RobotContainer ซึ่งแย่งผูกแขนขาจนกด Q ลุกไม่ได้
-  - ตรวจ: 2026-10-26 compile ผ่าน; Play TestItem: ยืนเอียง 37->4.5 องศา, มือเหวี่ยงลำตัวหมุน 1.46->0.31 rad/s, ปุ่ม C สลับชิ้นได้, ขาซ้ายกด Q ค้างลุกใน 0.5 วิ ยืนเอียง 15-23; ยังไม่ตรวจ Q จากแขน/เดินด้วยมือจริง/ต่อย/หลายเครื่อง

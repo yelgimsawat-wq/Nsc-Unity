@@ -1,5 +1,5 @@
 ### 2026-10-31 — Q-20261031-pvp-ik-arena — โหมด PVP หุ่น IK สู้กันเองบนลานสู้ RobotArena
-- Status: active
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: active; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5) / session 665a1d1c-91d4-4e5c-9937-52c4b030daed
 - Goal: ฉาก PVP ที่ใช้หุ่นกระดูก (IKRobotRig) สองตัว แดง vs น้ำเงิน บนแมพ RobotArena เล่นได้ครบวง — เลือกทีม → จองชิ้นส่วน → กด Start → ต่อยกันเข้าจริง → ชิ้นส่วนหลุดครบ 4 ชิ้น = จบแมตช์ประกาศผู้ชนะ
 - Files: Assets/_Game/Scenes/new/RobotArenaPVP.unity (ใหม่), Assets/_Game/Scripts/Robot/LimbHitRelay.cs (ใหม่), Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/UI/RobotArenaHud.cs, Assets/_Game/Prefabs/Robot/IKRobotRig.prefab, Assets/nok/robot/newROBOT/material/Blue.mat (ใหม่), Assets/_Game/Scenes/new/-MenuNOk.unity (pvpSceneName), ProjectSettings/EditorBuildSettings.asset

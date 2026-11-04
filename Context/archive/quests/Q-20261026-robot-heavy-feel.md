@@ -1,5 +1,5 @@
 ### 2026-10-26 — Q-20261026-robot-heavy-feel — หุ่นใน TestItem ขยับหนักแน่น แข็ง ไม่กระตุก + ปุ่มสลับชิ้นสำหรับเทส
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session 96ace0fe-d5a5-4ed1-bae4-24b388c4e29b
 - Goal: (1) แขนที่ไม่มีคนคุมไม่กางออกตอนเทสคนเดียว (2) ขยับเมาส์นิดเดียวตัวไม่เหวี่ยง (3) หุ่นไม่อ่อนปวกเปียก ข้อต่อไม่กระตุก (4) มีปุ่มสลับชิ้นที่คุมได้ตอนเทส
 - Files: Assets/_Game/Scripts/Limbs/ArmController.cs, Assets/_Game/Scripts/Limbs/ArmInput.cs (Bind เท่านั้น — ไฟล์อยู่ใน Q-20261009-smooth-walk ด้วย), Assets/_Game/Scripts/Dev/ArmStepTest.cs (ชื่อ field ที่ reflection อ่าน), Assets/nok/scene/Test/TesItem/TestItem.unity (ค่าใน instance RobotContainer — ทับกับ Q-20261026-nsc-robot-model ผู้ใช้สั่งแก้หุ่นในซีนนี้ตรงๆ)

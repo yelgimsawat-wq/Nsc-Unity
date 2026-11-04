@@ -1,5 +1,5 @@
 ### 2026-10-26 — Q-20261026-nsc-robot-model — ใส่โมเดลหุ่นใหม่ (ROBOTNSC) แทนหุ่นเดิมในฉาก TestItem
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session 59276bed-5fc1-4cbf-a763-04348b4a1cf1
 - Goal: หุ่นในฉาก TestItem ใช้โมเดลจาก Blender (ROBOTNSC.blend ไฟล์นอก repo) หน้าตาตรงกับใน Blender, แขนขาขยับปกติไม่สั่น, เดิน/ต่อยได้ไม่ล้ม
 - Files: Assets/_Game/Art/Models/Robot/NSC/ (ใหม่), Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/_Game/Scripts/Camera/PlayerCam.cs

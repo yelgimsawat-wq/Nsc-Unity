@@ -1,5 +1,5 @@
 ### 2026-10-31 — Q-20261031-pickup-and-tidy — หยิบของช้าลง + ลบของไม่ได้ใช้ + ย้าย prefab หลักเข้าโฟลเดอร์เกม
-- Status: active
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: active; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5) / session 665a1d1c-91d4-4e5c-9937-52c4b030daed
 - Goal: (1) ท่าเอื้อมหยิบของของหุ่น IK ช้าลงให้ดูหนักแบบหุ่นยักษ์ ไม่ใช่มือวาบไปคว้า (2) material ที่ไม่มีใครอ้างถึงในโฟลเดอร์ของเราถูกลบออก (3) หุ่นผู้เล่นกับบอสเป็น prefab ที่อยู่ใน Assets/_Game/Prefabs ไม่ใช่โฟลเดอร์ทดลองส่วนตัว
 - Files: Assets/nok/BoneLimb/RobotIKControl.cs (reachFollow, grabReachTime), Assets/_Game/Prefabs/Robot/IKRobotRig.prefab (ย้ายมาจาก Assets/nok/BoneLimb/), Assets/_Game/Prefabs/Enemy/PandaKaiju.prefab (ย้ายมาจาก Assets/nok/Enemy/Prefabs/), Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/Yelmee/IKTest.unity, material 17 ไฟล์ที่ลบ

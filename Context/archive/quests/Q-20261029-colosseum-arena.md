@@ -1,5 +1,5 @@
 ### 2026-10-29 — Q-20261029-colosseum-arena — แมพโคลอสเซียมพื้นทรายสำหรับหุ่นยักษ์ในซีน RobotArena
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session cfdb0303-ab9a-4129-bf02-b15d29c34765
 - Goal: เปลี่ยนแมพในซีน RobotArena เป็นโคลอสเซียมระดับโปรดักชั่น สนามประลองพื้นทราย ใหญ่พอให้หุ่นยักษ์ (~25 ม.) สู้กัน มีรายละเอียดเข้ากับเกมต่อสู้ จัดแสงสวย; รอบสอง (ผู้ใช้ขอ 2026-10-29): Toon shading + เส้นขอบ + เบคแสง, เอาคนดูออก
 - Files: Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/Colosseum/ (ตัวสร้าง Editor/ + ArenaShadowDistance.cs + Generated/ mesh/material/texture), Assets/nok/scene/RobotArena/RobotArena_Volume.asset, Assets/nok/scene/RobotArena/RobotArena_Lighting.lighting + ผลเบค (LightingData.asset, Lightmap-*.exr, ReflectionProbe-*.exr)

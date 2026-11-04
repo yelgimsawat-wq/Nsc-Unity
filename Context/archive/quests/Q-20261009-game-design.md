@@ -1,5 +1,5 @@
 ### 2026-10-09 — Q-20261009-game-design — จดทิศทางเกม (Pacific Rim, ไอเดียความสนุก, ทางไปขาย)
-- Status: ready-to-close
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: ready-to-close; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session e4f42754-d497-482e-bee8-7411aa092957
 - Goal: ไอเดียและการตัดสินใจเรื่องทิศทางเกมที่คุยใน chat 2026-10-09 อยู่ใน repo ให้ AI ทุกตัวอ่านได้ แยก "ตัดสินใจแล้ว" กับ "ยังเป็นไอเดีย" ชัดเจน
 - Files: Context/Game-Design.md, Context/README.md (เพิ่มแถวดัชนีหนึ่งแถว)

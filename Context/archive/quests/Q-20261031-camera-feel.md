@@ -1,5 +1,5 @@
 ### 2026-10-31 — Q-20261031-camera-feel — กล้องหุ่น IK หมุนไว ซูมง่ายขึ้น
-- Status: active
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: active; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5) / session 665a1d1c-91d4-4e5c-9937-52c4b030daed
 - Goal: หมุนกล้อง (คลิกขวาลาก) ได้ระยะพอใช้ในหนึ่งลาก ไม่ต้องลากซ้ำหลายรอบ และล้อเมาส์ซูมเข้า/ออกถึงสุดในจำนวนคลิกที่ไม่น่ารำคาญ — ตรวจรับ: ผู้ใช้ลองเองแล้วบอกว่าคุมง่ายขึ้น
 - Files: Assets/nok/BoneLimb/OrbitCamera.cs (ค่า default), Assets/nok/scene/Test/TesItem/TestItem.unity (IKRobot ไม่ใช่ prefab instance), Assets/_Game/Prefabs/Robot/IKRobotRig.prefab (ซีน RobotArena ใช้ prefab นี้ ไม่ override ค่ากล้อง)

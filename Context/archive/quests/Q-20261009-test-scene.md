@@ -1,5 +1,5 @@
 ### 2026-10-09 — Q-20261009-test-scene — ฉากทดสอบใหม่ (มีบอส + ระบบที่ผู้เล่นต้องใช้ครบ ไม่มีแมพ)
-- Status: ready-to-close
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: ready-to-close; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session e4f42754-d497-482e-bee8-7411aa092957
 - Goal: ฉากใหม่ใน `Assets/_Game/Scenes/Test/` ที่กด Play แล้วเล่นได้ทันที: หุ่น, ล็อบบี้เลือกแขนขา, MatchSession, HUD, กล้อง, เมนูในเกม, บอสที่เดินหาและตีผู้เล่นได้ (NavMesh), หน้าแพ้/ชนะ; พื้นเรียบแทนแมพ
 - Files: Assets/_Game/Scenes/Test/, ProjectSettings/EditorBuildSettings.asset (เพิ่ม TestArena ท้ายรายการ ให้ปุ่ม RESTART โหลดฉากซ้ำได้)

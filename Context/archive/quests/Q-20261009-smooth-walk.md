@@ -1,5 +1,5 @@
 ### 2026-10-09 — Q-20261009-smooth-walk — เดินลื่นแบบหุ่นยักษ์ (ยืนย่อเข่า + ก้าวเป็นเส้นโค้ง)
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session f8f32109-ffe3-4b20-8019-da8e0958963b
 - Goal: ขาก้าวได้ไกลและไหลลื่นโดยไม่สู้ข้อต่อตัวเอง — ความเงอะงะต้องมาจากผู้เล่นสองคนประสานกัน ไม่ใช่จากฟิสิกส์ขัดผู้เล่น; ชั้น 1 ยืนย่อเข่า + วัดความยาวขาจริง, ชั้น 2 ก้าวเป็นเส้นโค้ง (คลิกครั้งเดียวก้าวจบเอง กดค้างคุมเท้าละเอียดเหมือนเดิม); ไม่เปลี่ยนกฎการล้ม
 - Files: Assets/_Game/Scripts/Limbs/LegController.cs, Assets/_Game/Scripts/Limbs/LegInput.cs, Assets/_Game/Scripts/Robot/TorsoBalance.cs, Assets/_Game/Scripts/Camera/PlayerCam.cs, Context/Game-Design.md (บันทึกหลัก "ระบบไม่ขัดผู้เล่น"), Assets/_Game/Scripts/Match/LimbSelection.cs + Match/LimbControlBinder.cs + Limbs/ArmInput.cs (ปุ่มทดสอบสลับชิ้นกลางแมตช์ — ผู้ใช้ขอ 2026-10-13)

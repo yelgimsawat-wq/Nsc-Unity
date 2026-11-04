@@ -1,5 +1,5 @@
 ### 2026-10-09 — Q-20261009-folder-cleanup — จัดโฟลเดอร์ Assets ให้เป็นระเบียบ
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session e4f42754-d497-482e-bee8-7411aa092957
 - Goal: ของที่เกมใช้จริงอยู่ใน `Assets/_Game/` ตามประเภท (Scripts, Prefabs, Scenes, Art, Audio, Editor), DOTween/TextMesh Pro อยู่ที่มาตรฐาน, ไฟล์ขยะถูกลบ, โฟลเดอร์ชื่อคนเหลือเป็น sandbox ของที่ยังทดลอง; เกม compile ผ่านและทุกโหมดยังเล่นได้
 - Files: Assets/_Game/, Assets/Editor/, Assets/nok/, Assets/petong/, Assets/Yelmee/, Assets/เก็บไว้กัน/, Assets/Scenes/, Assets/MenuUI/, Assets/Fonts/, Assets/Game/, Assets/_Recovery/, Assets/_ArmFeelTest/, Assets/Learn/, Assets/Plugins/, Assets/TextMesh Pro/, Assets/Resources/, ไฟล์หลวมที่ราก Assets/, ProjectSettings/EditorBuildSettings.asset, CLAUDE.md (หัวข้อ Scene Structure หลัง Q-20261009-ai-setup ปิดแล้ว)

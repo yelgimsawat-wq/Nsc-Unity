@@ -1,5 +1,5 @@
 ### 2026-10-27 — Q-20261027-robot-bone-rig — เอาหุ่นแบบมีกระดูก (Mixamo rig) จาก ROBOT.blend เข้า Unity
-- Status: waiting
+- Status: closed (ผู้ใช้สั่งปิดทั้ง Board ใน chat 2026-11-04; สถานะเดิม: waiting; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5) / session 665a1d1c-91d4-4e5c-9937-52c4b030daed
 - Goal: มี FBX หุ่นพร้อม armature ในโปรเจกต์ที่ import แล้วกระดูกครบ สเกลถูก ท่า T-pose ตรง เพื่อประเมินว่าจะเปลี่ยนจากระบบ joint chain ไปเป็นกระดูก + IK หรือไม่ (ยังไม่แตะ prefab/ฉากที่เล่นได้)
 - Files: ProjectSettings/EditorBuildSettings.asset (เพิ่ม IKTest ท้ายรายการ index 11 ให้ Netcode ซิงก์ฉากได้ — ไฟล์นี้อยู่ใน Q-20261009-folder-cleanup ด้วย), Assets/nok/BoneLimb/ (ระบบ IK ใหม่ + ลบโค้ดเก่าของ Q-20261027-bone-rig-arena ตามที่ผู้ใช้สั่ง 2026-10-27), Assets/nok/scene/Test/TesItem/TestItem.unity (โมเดลบน Torso + ถอด RobotBoneRig ออก — ไฟล์นี้อยู่ใน Q-20261026-nsc-robot-model และ Q-20261026-robot-heavy-feel ด้วย ผู้ใช้สั่งทำในซีนนี้เอง), Assets/nok/robot/newROBOT/RobotNSC_Rigged.fbx (ผู้ใช้เลือกโฟลเดอร์นี้เอง — ไม่ได้แตะ Art/Models/Robot/NSC/ ของ Q-20261026-nsc-robot-model)
