@@ -269695,6 +269695,86 @@ MonoBehaviour:
   defeatCheckInterval: 1
   boss: {fileID: 0}
   defeatDetachedLimbs: 4
+--- !u!1 &2119525797
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2119525799}
+  - component: {fileID: 2119525798}
+  m_Layer: 0
+  m_Name: Sandstorm
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2119525798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2119525797}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c05eddabda2309240b0d9d52d786e649, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Nsc.BoneLimb.Sandstorm
+  windYaw: 60
+  footSlide: 0.6
+  lean: 4
+  sway: 2
+  gust: 0.35
+  active: 1
+  fadeTime: 6
+  fogColor: {r: 0.6, g: 0.47, b: 0.32, a: 1}
+  fogStart: 30
+  fogEnd: 700
+  lightDim: 0.3
+  ambient: {r: 0.5, g: 0.41, b: 0.3, a: 1}
+  tint: {r: 1, g: 0.82, b: 0.6, a: 1}
+  desaturate: -35
+  exposure: -0.3
+  vignette: 0.35
+  sandSpeed: 55
+  effects:
+  - prefab: {fileID: 8738494092594965081, guid: 7671e221937fa4d488bd8fbc593e056e, type: 3}
+    scale: 1
+    density: 1
+    wind: 0.25
+    upwind: 0
+  - prefab: {fileID: 8738494092594965081, guid: 7223c8fa58c605a418f45a549d6fc426, type: 3}
+    scale: 1
+    density: 0.5
+    wind: 1
+    upwind: 0
+  - prefab: {fileID: 8738494092594965081, guid: 36331a2977bd89f40a65db3bca19e99b, type: 3}
+    scale: 1
+    density: 0.45
+    wind: 0.8
+    upwind: 0
+  windClip: {fileID: 8300000, guid: 39680625087967d45862a40d7110d679, type: 3}
+  volume: 0.75
+  skidMaterial: {fileID: 2100000, guid: 2c4576e5ed61ee64f986b495e068dc37, type: 2}
+--- !u!4 &2119525799
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2119525797}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -269710,3 +269790,4 @@ SceneRoots:
   - {fileID: 435986986}
   - {fileID: 1736500002}
   - {fileID: 7700000001}
+  - {fileID: 2119525799}

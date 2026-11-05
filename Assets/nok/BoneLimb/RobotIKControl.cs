@@ -293,6 +293,8 @@ namespace Nsc.BoneLimb
         private bool[] supportHolding;         // มือว่างกำลังจับด้ามช่วย (SupportGrip) — นิ้วกำรอบด้ามเหมือนมือหลัก
         private float weaponCrouch, weaponCrouchGoal; // ถืออาวุธ: สะโพกลดลง (เมตร) ตอนฟาด — เท้าเป็นเป้าในโลก เข่าเลยงอเอง
         private TrailRenderer[] trails;        // รอยแสงปลายอาวุธ (ทุกเครื่องสร้างเอง ไม่ซิงก์)
+        private TrailRenderer[] skids;         // รอยลากบนพื้นตอนเท้าไถลตามลมพายุ (ทุกเครื่องสร้างเองจากเป้าเท้าที่ซิงก์)
+        private Vector3[] lastFoot;
         private Vector3[] lastTrailTip;
         private HashSet<Rigidbody>[] kickedProps;  // ของที่ถีบไปแล้วในท่านี้ (Server) — ถีบหนึ่งครั้งพุ่งครั้งเดียว
         private readonly HashSet<Rigidbody> stompBodies = new HashSet<Rigidbody>();
@@ -424,6 +426,8 @@ namespace Nsc.BoneLimb
             heldRelRot = new Quaternion[limbs.Length];
             supportHolding = new bool[limbs.Length];
             trails = new TrailRenderer[limbs.Length];
+            skids = new TrailRenderer[limbs.Length];
+            lastFoot = new Vector3[limbs.Length];
             lastTrailTip = new Vector3[limbs.Length];
             getUpPlant = new Vector3[limbs.Length];
             getUpArmT = new float[limbs.Length];
@@ -547,6 +551,7 @@ namespace Nsc.BoneLimb
             SetGlow(null); // คืนวัสดุเดิมให้ของที่เรืองค้างอยู่
             for (int i = 0; slash != null && i < slash.Length; i++) if (slash[i].guide) Destroy(slash[i].guide.gameObject);
             for (int i = 0; i < limbs.Length; i++) ClearTrail(i);
+            for (int i = 0; skids != null && i < skids.Length; i++) if (skids[i]) Destroy(skids[i].gameObject);
             base.OnDestroy();
         }
 
@@ -737,6 +742,7 @@ namespace Nsc.BoneLimb
                     else if (limb.isArm && combat.pointAndClick && cam) DriveCombatArm(i, input); // หมัดต้องจบท่าแม้กำลังหันกล้อง
                     else if (!limb.isArm) DriveLeg(i, input); // ก้าวต้องจบแม้กำลังหันกล้อง
                     else if (!input.looking && cam) DriveArm(limb, input.ray, push, input.held);
+                    if (!limb.isArm) WindSlide(i);
                     if (Online) SendLimbRpc(i, LimbNetState.Capture(limb));
                 }
                 else if (limb.isArm && !HasController(i) && SupportGrip(i)) { } // อีกมือถืออาวุธอยู่ = มือนี้จับด้ามช่วย ไม่ตั้งการ์ดหมัด
@@ -759,7 +765,7 @@ namespace Nsc.BoneLimb
                         // คนคุมปล่อยขากลางก้าว (สลับชิ้น/หลุดเน็ต) → วางเท้าลงตรงนั้น — ค้างกลางอากาศแล้วนับเป็นเท้ายกตลอด ยกอีกข้างเมื่อไรก็ล้ม
                         bool dropped = airborne[i];
                         if (dropped) limb.target.position = OnGround(limb, limb.target.position);
-                        if ((PivotIdleFoot(limb) || dropped) && Online) states[i] = LimbNetState.Capture(limb);
+                        if ((PivotIdleFoot(limb) | WindSlide(i) || dropped) && Online) states[i] = LimbNetState.Capture(limb);
                     }
                 }
             }
@@ -895,6 +901,7 @@ namespace Nsc.BoneLimb
                 }
                 limb.ApplyFingers();
                 if (limb.isArm) UpdateTrail(i, limb);
+                else UpdateSkid(i, limb);
                 if (slots != null && slots[i]) slots[i].position = limb.tip.position;
             }
             if (DrivesBody) { PlaceHeld(false); ServerStrikes(); }
@@ -1080,6 +1087,19 @@ namespace Nsc.BoneLimb
                 goal.x -= away.y * raise; // ถีบไปหน้า = เอนหลัง
                 goal.y += away.x * raise; // ถีบไปขวา = เอนซ้าย
             }
+            // พายุทราย: เอนสู้ลม + โยกตามลมกระโชก — เดินสวนลมโยกมากขึ้น (ทุกเครื่องคิดเองจากลมในฉาก + ความเร็วตัวหุ่นที่ซิงก์)
+            Sandstorm storm = Sandstorm.Current;
+            if (storm && storm.Intensity > 0f)
+            {
+                Vector3 w = transform.InverseTransformDirection(storm.Wind);
+                goal.x -= w.z * storm.lean; // ลมพัดจากหลัง = เอนหลังสู้ | ลมปะทะหน้า = เอนไปหน้า
+                goal.y += w.x * storm.lean; // ลมพัดไปขวา = เอนซ้ายสู้
+                Vector2 move = new Vector2(v.x, v.z), wind = new Vector2(w.x, w.z);
+                float into = Mathf.Clamp01(move.magnitude / 3f) * Mathf.Clamp01(-Vector2.Dot(move.normalized, wind.normalized));
+                float sway = storm.sway * wind.magnitude * (1f + into);
+                goal.x += sway * (Mathf.PerlinNoise(Time.time * 1.1f, 3.1f) * 2f - 1f);
+                goal.y += sway * (Mathf.PerlinNoise(Time.time * 0.9f, 7.7f) * 2f - 1f);
+            }
             // ย่อแล้วมือยังไม่ถึงเป้าข้างล่าง = ก้มลงไปหา (คิดจากไหล่ตอนไม่ก้มเทียบตัวหุ่นตอนนี้ — ตัวหุ่น/เป้ามือซิงก์อยู่แล้ว ทุกเครื่องก้มเท่ากัน)
             // เฉพาะแขนที่กำลังเอื้อมไปหยิบ (Reaching ซิงก์) — หมัด/เคอร์เซอร์ไม่ทำให้ก้ม | + เป้าไกลเกินแขน = ก้มยื่นตัว: ไหล่ไปหน้า = อก→ไหล่ × sin θ
             // ก้มเอียงไปทางที่ของอยู่ (หน้า = ก้ม, ข้าง = เอียงตัว) — ของอยู่ข้างๆ ก้มไปหน้าอย่างเดียวไหล่ไม่ได้เข้าใกล้
@@ -1196,9 +1216,12 @@ namespace Nsc.BoneLimb
                 kickSpeed[i] += kickFallGravity * dt;
                 Vector3 land = OnGround(leg, ClampStep(leg, leg.target.position));
                 Quaternion flat = Quaternion.Euler(0f, transform.eulerAngles.y + StepTurn(leg, planted[i], land), 0f) * leg.RestRotation;
-                leg.target.position = new Vector3(land.x, Mathf.Max(land.y, leg.target.position.y - kickSpeed[i] * dt), land.z);
+                // เช็กถึงพื้นจากค่าที่คำนวณ ไม่อ่าน target กลับ — เขียน world แล้วอ่านกลับผ่าน parent ที่เอียงคลาดได้ ~1e-5
+                // หุ่นยืนนิ่ง (ถีบแพนด้า) parent ไม่ขยับ = คลาดเท่าเดิมทุกเฟรม ไม่มีวันถึง ท่าเตะค้างตลอด
+                float y = Mathf.Max(land.y, leg.target.position.y - kickSpeed[i] * dt);
+                leg.target.position = new Vector3(land.x, y, land.z);
                 leg.target.rotation = Quaternion.Slerp(leg.target.rotation, flat, 1f - Mathf.Exp(-12f * dt));
-                if (leg.target.position.y > land.y) return true;
+                if (y > land.y) return true;
                 leg.target.rotation = flat;
                 CancelKick(i);
                 leg.Lifted = false;
@@ -1207,9 +1230,10 @@ namespace Nsc.BoneLimb
             if (kickCharge[i] < 0f)
             {
                 if (!leg.Kick) kickEnd[i] = home; // ชักกลับ: ตัวหุ่นขยับระหว่างนั้น — ตามจุดเริ่มท่า
-                leg.target.position = Vector3.MoveTowards(leg.target.position, kickEnd[i], kickSpeed[i] * dt);
+                Vector3 p = Vector3.MoveTowards(leg.target.position, kickEnd[i], kickSpeed[i] * dt); // ถึงแล้ว = คืน kickEnd เป๊ะ
+                leg.target.position = p;
                 if (leg.Kick) leg.target.rotation = Quaternion.Slerp(leg.target.rotation, sole, 1f - Mathf.Exp(-20f * dt));
-                if (leg.target.position != kickEnd[i]) return true;
+                if (p != kickEnd[i]) return true; // ค่าที่คำนวณ ไม่ใช่ target ที่อ่านกลับ (ดูหมายเหตุช่วงตกข้างบน)
                 if (leg.Kick)
                 {
                     leg.Kick = false;
@@ -2463,6 +2487,54 @@ namespace Nsc.BoneLimb
             }
             limb.Pull = input.held;
             if (limb.isArm) limb.Grip = Mathf.MoveTowards(limb.Grip, input.held ? 1f : 0f, gripSpeed * Time.deltaTime);
+        }
+
+        // พายุทราย: เท้าที่ปักอยู่ไถลตามลม แม้ไม่ก้าว — ตัวหุ่นไหลไปกลางเท้าเอง (UpdateBody)
+        // เครื่องที่ถือเป้าเท้านั้นเป็นคนเลื่อน (คนคุม / Server สำหรับขาว่าง) แล้วซิงก์ทางเดิม | คืน true เมื่อเลื่อน
+        private bool WindSlide(int i)
+        {
+            Sandstorm storm = Sandstorm.Current;
+            IKLimb leg = limbs[i];
+            if (!storm || storm.Intensity <= 0f || down || getUp >= 0f || airborne[i] || leg.Lifted || leg.KickPose || !Attached(i)) return false;
+            float dig = leg.Brace ? 0.25f : 1f; // F ค้าง = ย่อปักหลัก ไถลน้อยลง
+            leg.target.position = OnGround(leg, leg.target.position + storm.Wind * (storm.footSlide * dig * Time.deltaTime));
+            return true;
+        }
+
+        // รอยลากใต้เท้าที่ไถล (ไม่ได้ยกก้าว แต่เป้าเท้าเลื่อน) — แอ่งทรายนอนราบบนพื้น ค่อยๆ จางเอง (แบบภาพตัวอย่างผู้ใช้ 2026-11-05)
+        // วัสดุ SandSkid = โหมดคูณสี: ทำให้พื้นจริงข้างใต้เข้มลงเป็นแอ่งนุ่ม (T_SandDrag) — พื้นเป็น shader การ์ตูน
+        // วัสดุที่คิดแสงเอง (Lit) แรเงาคนละแบบ เห็นเป็นกรอบเหลี่ยม/ดูลอย | คูณสีได้สีและแสงของพื้นเองทั้งหมด
+        private void UpdateSkid(int i, IKLimb leg)
+        {
+            Vector3 foot = leg.target.position;
+            float speed = (foot - lastFoot[i]).magnitude / Mathf.Max(Time.deltaTime, 1e-4f);
+            lastFoot[i] = foot;
+            bool sliding = !airborne[i] && !leg.Lifted && !down && speed > 0.05f && speed < leg.Reach; // เร็วเกินแขนขา = ซิงก์กระโดด/วาร์ป ไม่ใช่ไถล
+            TrailRenderer t = skids[i];
+            if (!t)
+            {
+                Sandstorm storm = Sandstorm.Current;
+                if (!sliding || !storm || !storm.skidMaterial) return;
+                t = skids[i] = new GameObject($"{leg.name}_Skid").AddComponent<TrailRenderer>();
+                t.sharedMaterial = storm.skidMaterial;
+                t.alignment = LineAlignment.TransformZ;
+                t.transform.rotation = Quaternion.LookRotation(Vector3.up); // แกน Z ชี้ขึ้น = แถบนอนบนพื้น
+                t.time = 20f;
+                t.minVertexDistance = leg.Reach * 0.05f;
+                t.widthMultiplier = leg.Reach * 0.4f; // กว้างกว่าฝ่าเท้า (ขอบจางนุ่มกินความกว้าง) — แคบแล้วดูเป็นเส้น ไม่ใช่รอยเท้าลาก
+                t.textureMode = LineTextureMode.Tile; // ความไม่สม่ำเสมอของทรายต่อกันตามระยะที่ลาก ไม่ยืดตามความยาวรอย
+                t.textureScale = new Vector2(1f / (leg.Reach * 2f), 1f);
+                t.numCapVertices = 0; // หัวมนดึงขอบ texture มาโผล่เป็นรูปตัว D สีอ่อน — ปลายรอยใช้ alpha จางแทน
+                // หัวรอย (ใต้เท้า) ชัด → ท้ายรอยจางกลืนพื้น (ทรายพัดกลบ)
+                var fade = new Gradient();
+                fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                             new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.8f, 0.6f), new GradientAlphaKey(0f, 1f) });
+                t.colorGradient = fade;
+                t.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                t.receiveShadows = false;
+            }
+            t.transform.position = new Vector3(foot.x, GroundY(foot) + 0.02f, foot.z);
+            t.emitting = sliding;
         }
 
         // ขาที่ไม่มีคนคุม (Server/เล่นคนเดียว): เท้าที่ปักค่อยๆ บิดตามทิศลำตัว — ตัวหันตามค่าเฉลี่ยเท้า ถ้าเท้านี้นิ่ง
