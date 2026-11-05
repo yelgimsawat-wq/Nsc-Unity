@@ -260,6 +260,7 @@ MonoBehaviour:
   lightPunchHitDelay: 1.2
   kickHitDelay: 2.77
   hitOnAnimationEvent: 1
+  attackAnimSpeed: 0.7
   lightPunchDamage: 90
   kickDamage: 150
   barrageTotalDamage: 180
@@ -300,7 +301,6 @@ MonoBehaviour:
   walkThreshold: 239.53055
   walkSpeed: 4.164223
   rollSpeed: 11.0229435
-  speedDampTime: 0.15
   minAttackInterval: 4
   maxAttackInterval: 7
   postAttackCooldown: 2.5
@@ -315,7 +315,8 @@ MonoBehaviour:
   attackTurnSpeed: 30
   rollTurnSpeed: 60
   paceWhileOnCooldown: 0
-  backOffRangeRatio: 0.6
+  backOffRangeRatio: 0.85
+  backOffSpeedRatio: 1
   pacingRangeMultiplier: 1.5
 --- !u!114 &7988932946786539884
 MonoBehaviour:
@@ -685,6 +686,7 @@ MonoBehaviour:
   leapMaxDistance: 60
   leapRadius: 18
   leapDamage: 135
+  downGroundDamageScale: 1
 --- !u!114 &7292784472658646311
 MonoBehaviour:
   m_ObjectHideFlags: 0

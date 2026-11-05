@@ -73,6 +73,11 @@ namespace NscGame.Enemy
         [SerializeField] private bool hitOnAnimationEvent = false;
         private bool animationHit;
 
+        [Tooltip("ความเร็วอนิเมชันท่าตี (1 = เดิม, 0.7 = ช้าลง 30% ผู้เล่นหลบทัน) — เวลาท่า/เวลาสำรองยืดตามให้เอง\n" +
+                 "ใช้คู่กับ Hit On Animation Event: จังหวะดาเมจอ่านจากเวลาในคลิป จึงยังตรงกับภาพ")]
+        [Range(0.3f, 1f)]
+        [SerializeField] private float attackAnimSpeed = 1f;
+
         private EnemyController controller; // ใช้ดึงเป้าปัจจุบันสดๆ ทุกครั้งที่เช็คโดน
 
         [Header("Damage Values")]
@@ -251,6 +256,7 @@ namespace NscGame.Enemy
         /// </summary>
         public void StopAllCombatEffectsLocal()
         {
+            if (animator != null) animator.speed = 1f; // ออกจากท่าตี (เดิน/กลิ้ง/ตาย/ท่าไม้ตาย) = ความเร็วปกติ
             foreach (var kvp in activeVfxByType.ToArray())
             {
                 if (kvp.Value != null)
@@ -273,22 +279,25 @@ namespace NscGame.Enemy
 
         // ระยะเวลาท่าต้องยาวกว่า hit delay เสมอ — ไม่งั้น EnemyController จบท่า
         // แล้วเริ่มท่าใหม่ก่อนดาเมจท่าเก่าจะลง (delay เป็นค่าจูนได้ใน Inspector)
+        // ท่าช้าลง (attackAnimSpeed < 1) = ทุกช่วงเวลาของท่ายาวขึ้นเท่ากัน
+        private float Slow(float seconds) => seconds / Mathf.Max(0.05f, attackAnimSpeed);
+
         private float ExecuteLightPunch()
         {
             StartCoroutine(ServerLightPunchRoutine());
-            return Mathf.Max(0.8f, lightPunchHitDelay + 0.2f);
+            return Slow(Mathf.Max(0.8f, lightPunchHitDelay + 0.2f));
         }
 
         private float ExecuteBarragePunch()
         {
             StartCoroutine(ServerBarrageRoutine());
-            return barrageDuration + 0.3f;
+            return Slow(barrageDuration + 0.3f);
         }
 
         private float ExecuteKick()
         {
             StartCoroutine(ServerKickRoutine());
-            return Mathf.Max(1.2f, kickHitDelay + 0.2f);
+            return Slow(Mathf.Max(1.2f, kickHitDelay + 0.2f));
         }
 
         #endregion
@@ -300,6 +309,7 @@ namespace NscGame.Enemy
 
         private IEnumerator WaitHitMoment(float delay)
         {
+            delay = Slow(delay);
             if (!hitOnAnimationEvent)
             {
                 yield return new WaitForSeconds(delay);
@@ -355,7 +365,7 @@ namespace NscGame.Enemy
             // ดาเมจต่อ tick หารจากยอดรวม → ปรับ interval ให้ลื่นขึ้นได้โดยดาเมจรวมไม่บวม
             int tickCount = Mathf.Max(1, Mathf.RoundToInt(barrageDuration / Mathf.Max(0.02f, barrageHitInterval)));
             float damagePerTick = barrageTotalDamage / tickCount;
-            float interval = barrageDuration / tickCount;
+            float interval = Slow(barrageDuration / tickCount);
 
             Debug.Log($"[EnemyCombat] 🌀 เริ่มต่อยรัว — ดาเมจรวม {barrageTotalDamage} ÷ {tickCount} ครั้ง " +
                       $"= {damagePerTick:F2}/ครั้ง (ทุก {interval:F2} วิ)");
@@ -540,6 +550,8 @@ namespace NscGame.Enemy
         [ClientRpc]
         private void PlayAttackEffectsClientRpc(AttackType type, Vector3 vfxPosition, Quaternion vfxRotation)
         {
+            // ทุกเครื่องเล่นท่าช้าเท่ากัน (บอสยืนนิ่งตอนตี ทั้งตัวช้าลงได้) — คืน 1 ตอนตัดท่า/เปลี่ยนสถานะ
+            animator.speed = attackAnimSpeed;
             switch (type)
             {
                 case AttackType.LightPunch:
@@ -566,6 +578,7 @@ namespace NscGame.Enemy
         private void ResetAttackLayerClientRpc()
         {
             if (animator == null) return;
+            animator.speed = 1f;
 
             // ✅ [Stuck Trigger Fix] trigger ใน Unity ค้างอยู่จนกว่าจะมี transition มากิน
             // เราตัดกลับท่าว่างด้วย CrossFade ก่อน transition จะได้ใช้ → trigger ค้างในคิว
