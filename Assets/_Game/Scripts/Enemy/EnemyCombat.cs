@@ -51,6 +51,10 @@ namespace NscGame.Enemy
         [Tooltip("เพดานระยะที่หมัดถือว่า 'เอื้อมถึง' ผู้เล่น — วิ่งหนีพ้นระยะนี้ก่อนจังหวะกระแทก = หลบได้\nตั้งให้ ≈ Attack Range ของ EnemyController + เผื่อเล็กน้อย")]
         [SerializeField] private float maxStrikeReach = 16f;
 
+        /// <summary>Server: ถือของเป็นอาวุธอยู่ (ไคจูถือแขนหุ่นที่กระชากมา — KaijuSpecials) = ตีไกลขึ้นเท่านี้ (เมตร) และแรงขึ้นเท่านี้เท่า</summary>
+        public float WeaponReach { get; set; }
+        public float WeaponDamageScale { get; set; } = 1f;
+
         [Tooltip("เปิด = อยู่ในระยะเอื้อมแล้วโดนแน่นอน (ตีชิ้นที่ใกล้จุดกระแทกสุด) — บอสไม่มีวันวืด\n" +
                  "ปิด = ต้องมีชิ้นส่วนอยู่ในรัศมีท่านั้นจริงถึงจะโดน — การวางตำแหน่งมีความหมาย หลบได้จริง")]
         [SerializeField] private bool guaranteeHitInReach = true;
@@ -401,6 +405,8 @@ namespace NscGame.Enemy
 
         private void ProcessHitDetection(Vector3 origin, float radius, float damage, AttackType attackType)
         {
+            radius += WeaponReach;
+            damage *= WeaponDamageScale;
             // ✅ [Simple Hit v2] หุ่นผู้เล่นตัวใหญ่มาก (มือ/เท้าห่างลำตัว 15-18m) แต่ radius แค่ 5-7m
             // → OverlapSphere รอบลำตัวไม่มีทางแตะชิ้นที่มีเลือด (มือ/เท้า) เลย = โดน 0 ตลอด
             // แก้เป็น: ถามหุ่นเป้าหมายตรงๆ ว่ามีชิ้นไหนต่ออยู่ แล้วตีชิ้นที่ใกล้จุดกระแทกสุด
@@ -424,7 +430,7 @@ namespace NscGame.Enemy
             Vector3 flatTarget = playerTransform.position;
             flatSelf.y = 0f;
             flatTarget.y = 0f;
-            if (Vector3.Distance(flatSelf, flatTarget) > maxStrikeReach)
+            if (Vector3.Distance(flatSelf, flatTarget) > maxStrikeReach + WeaponReach)
             {
                 Debug.Log($"[EnemyCombat] 💨 {attackType} วืด — ผู้เล่นหนีพ้นระยะ");
                 return;

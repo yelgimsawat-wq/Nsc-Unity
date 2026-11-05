@@ -23,7 +23,7 @@ namespace NscGame.Enemy
     [RequireComponent(typeof(Animator))]
     public class KaijuSpecials : NetworkBehaviour
     {
-        private enum Special : byte { Roll, Pound, Roar }
+        private enum Special : byte { Roll, Pound, Roar, Rip, RipLeft }
 
         [Header("ทั่วไป")]
         [SerializeField] private int attackLayer = 2;
@@ -146,6 +146,52 @@ namespace NscGame.Enemy
         [Tooltip("หุ่นนอนอยู่ = โดนทุกชิ้นที่ต่ออยู่ ชิ้นละ (ดาเมจท่า × ค่านี้) — 1 = ชิ้นละเต็ม | ยืนอยู่ = ชิ้นที่ใกล้สุดชิ้นเดียวตามเดิม")]
         [SerializeField] private float downGroundDamageScale = 1f;
 
+        [Header("กระชากแขน (Q-20261104-kaiju-limb-rip): เลือดถึงเกณฑ์ = คำราม → พุ่งเข้าหา → คว้าแขนหุ่น → กระชากหลุด (โดนแน่)")]
+        [Tooltip("เลือดเหลือเท่านี้ (สัดส่วน) = กระชากแขน ครั้งละเกณฑ์ เรียงจากมากไปน้อย")]
+        [SerializeField] private float[] ripAtHp = { 0.66f, 0.33f };
+        [SerializeField] private string ripState = "Attack_Rip";
+        [Tooltip("ท่าเดียวกันแบบสลับซ้ายขวา — แขนซ้ายหุ่น = จับมือซ้าย (จับไขว้)")]
+        [SerializeField] private string ripStateLeft = "Attack_RipL";
+        [Tooltip("หุ่นห่างเกินนี้ (แนวราบ) ยังไม่กระชาก — รอเดินเข้ามาก่อน")]
+        [SerializeField] private float ripRange = 30f;
+        [Tooltip("คำรามเตือนนานเท่านี้ก่อนพุ่ง (ท่าคำรามเต็มยาว roarDuration)")]
+        [SerializeField] private float ripRoarTime = 1.6f;
+        [Tooltip("เวลาในท่า Attack_Rip ที่มือถึงแขนหุ่น = จับ (พุ่งเข้าหาเสร็จตอนนี้)")]
+        [SerializeField] private float ripGrabTime = 0.6f;
+        [Tooltip("เวลาในท่าที่กระชากหลุด")]
+        [SerializeField] private float ripTearTime = 3.3f;
+        [SerializeField] private float ripDuration = 5f;
+        [Tooltip("หลังคำราม วิ่งเข้าหาด้วยความเร็วนี้ (m/s) จนเหลือระยะพุ่ง แล้วพุ่งสั้นๆ ตอนเอื้อมมือ")]
+        [SerializeField] private float ripRunSpeed = 14f;
+        [SerializeField] private float ripLungeDistance = 4f;
+        [SerializeField] private float ripRunTimeout = 4f;
+        [Tooltip("มือขวาตอนจับอยู่ห่างจากตัว (ขวา, หน้า) เท่านี้ — วัดจากคลิป Panda_LimbRip ใช้หาจุดยืนให้มือถึงแขนหุ่นพอดี")]
+        [SerializeField] private Vector2 ripHandOffset = new Vector2(1.4f, 3.5f);
+        [Tooltip("แรงตอนกระชากหลุด (เทียบดาเมจของ ImpactFeel — ตั้งแต่ heavyHitDamage = หนัก + หยุดภาพ + ซูม)")]
+        [SerializeField] private float ripTearImpact = 60f;
+        [Tooltip("เวลาในท่าที่เท้าถีบถึงตัวหุ่น (หลังกระชาก)")]
+        [SerializeField] private float ripKickTime = 3.3f;
+        [Tooltip("ตอนกระชาก ถีบตัวหุ่นกระเด็นออก: ความเร็วแนวราบ / พุ่งขึ้น (m/s)")]
+        [SerializeField] private float ripKickSpeed = 22f;
+        [SerializeField] private float ripKickLift = 7f;
+
+        [Header("ถือแขนที่กระชากมาเป็นอาวุธ: ตีไกล/แรงขึ้น | ทิ้งเมื่อโดนตีครบหรือหมดเวลา แล้วหุ่นกด R ดึงกลับได้")]
+        [SerializeField] private float ripHoldTime = 20f;
+        [SerializeField] private int ripDropHits = 6;
+        [SerializeField] private float ripWeaponReach = 6f;
+        [SerializeField] private float ripWeaponDamage = 1.5f;
+
+        // ทุกเครื่อง: หุ่นและช่องแขนที่มือไคจูจับอยู่ (-1 = ไม่ได้จับ) — Server เขียน
+        private readonly NetworkVariable<NetworkObjectReference> ripRobot = new NetworkVariable<NetworkObjectReference>();
+        private readonly NetworkVariable<sbyte> ripSlot = new NetworkVariable<sbyte>(-1);
+        private readonly NetworkVariable<bool> ripLeft = new NetworkVariable<bool>(); // จับด้วยมือซ้าย (ท่าสลับข้าง)
+        private RobotLimb gripped;
+        private Transform rightHand, leftHand;
+        private EnemyCombat combat;
+        private int ripPhase, ripHitsLeft;
+        private bool ripHolding;
+        private float ripHoldEnd, ripLastHp;
+
         private Animator animator;
         private NavMeshAgent agent;
         private EnemyController controller;
@@ -167,22 +213,46 @@ namespace NscGame.Enemy
             health = GetComponent<EnemyHealth>();
             rootMotion = GetComponent<KaijuRootMotion>();
             feel = GetComponent<KaijuFeel>();
+            combat = GetComponent<EnemyCombat>();
+            rightHand = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.RightHand) : transform;
+            leftHand = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.LeftHand) : transform;
         }
 
-        public override void OnNetworkSpawn() => nextSpecial = Time.time + firstDelay;
+        public override void OnNetworkSpawn()
+        {
+            nextSpecial = Time.time + firstDelay;
+            ripRobot.OnValueChanged += OnRipRobotChanged;
+            ripSlot.OnValueChanged += OnRipSlotChanged;
+            ripLeft.OnValueChanged += OnRipLeftChanged;
+            ApplyGrip(); // เข้าเกมกลางทาง: ไคจูถือแขนอยู่แล้ว
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            ripRobot.OnValueChanged -= OnRipRobotChanged;
+            ripSlot.OnValueChanged -= OnRipSlotChanged;
+            ripLeft.OnValueChanged -= OnRipLeftChanged;
+            if (gripped) gripped.HeldBy = null;
+            gripped = null;
+            base.OnNetworkDespawn();
+        }
 
         // ================================================================ Server: เลือกท่า
 
         private void Update()
         {
-            if (!IsServer || running || controller == null || !Nsc.Match.GameplayGate.CanAct) return;
-            if (controller.IsBusy || controller.CurrentState == EnemyState.Dead || Time.time < nextSpecial) return;
+            if (!IsServer) return;
+            if (ripHolding) ServerTickHeld();
+            if (running || controller == null || !Nsc.Match.GameplayGate.CanAct) return;
+            if (controller.IsBusy || controller.CurrentState == EnemyState.Dead) return;
             Transform target = controller.PlayerTarget;
             if (target == null || agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
             Vector3 to = target.position - transform.position;
             to.y = 0f;
             float dist = to.magnitude;
+            if (dist <= ripRange && TryRip(target)) return; // เกณฑ์เลือด = event ไม่รอคูลดาวน์ท่าพิเศษ
+            if (Time.time < nextSpecial) return;
             if (dist > rollRange.y || to.sqrMagnitude < 0.01f) return;
 
             // คลั่งครั้งแรกทันทีที่เลือดถึงเกณฑ์ หลังจากนั้นสุ่มใช้ซ้ำ
@@ -228,6 +298,124 @@ namespace NscGame.Enemy
             controller.ServerEndKnockback();
             nextSpecial = Time.time + Random.Range(cooldown.x, cooldown.y);
             running = false;
+        }
+
+        // ================================================================ Server: กระชากแขน
+
+        // เลือดถึงเกณฑ์ถัดไป + ไม่ได้ถือชิ้นไหนอยู่ + หุ่นมีแขนต่ออยู่ = เริ่ม event (แขนหลุดหมดแล้ว = ข้ามเกณฑ์นี้)
+        private bool TryRip(Transform target)
+        {
+            if (ripHolding || health == null || ripPhase >= ripAtHp.Length || health.GetHpPercent() > ripAtHp[ripPhase]) return false;
+            ripPhase++;
+            Robot robot = Robot.FromTransform(target);
+            RobotLimb arm = null;
+            if (robot != null)
+                foreach (RobotLimb limb in robot.AttachedLimbs())
+                    if ((limb.Slot == LimbSlot.LeftArm || limb.Slot == LimbSlot.RightArm) && limb.Attachment != null
+                        && (arm == null || FlatDistance(limb.transform.position, transform.position) < FlatDistance(arm.transform.position, transform.position)))
+                        arm = limb;
+            if (arm == null) return false;
+            Debug.Log($"[KaijuSpecials] กระชากแขน {arm.Slot} ของ {robot.name} (เลือด {health.GetHpPercent():P0})");
+            StartCoroutine(Perform(Rip(robot, arm)));
+            return true;
+        }
+
+        // คำราม → พุ่งเข้าจุดที่มือขวาถึงแขนหุ่นพอดีระหว่างง้าง → จับ (แขนหุ่นถูกลากตามมือ) → กระชากหลุด → ถือไว้
+        private IEnumerator Rip(Robot robot, RobotLimb arm)
+        {
+            Vector3 face = Flat(arm.transform.position - transform.position);
+            StartSpecialClientRpc(Special.Roar, transform.position, face.sqrMagnitude > 0.01f ? face.normalized : transform.forward);
+            for (float t = 0f; t < ripRoarTime && !Dead(); t += Time.deltaTime) yield return null;
+            if (Dead() || !Alive(robot) || !arm.IsAttached) yield break;
+
+            // วิ่งเข้าหา (ท่าวิ่ง) จนเหลือระยะพุ่งสุดท้าย — เดิมพุ่งทีเดียวทั้งระยะ ไถมาเร็วเกิน (~33 m/s)
+            controller.ServerSetMoveAnim(1f);
+            for (float t = 0f; t < ripRunTimeout && !Dead() && Alive(robot); t += Time.deltaTime)
+            {
+                Vector3 to = Flat(arm.transform.position - transform.position);
+                if (to.magnitude <= ripHandOffset.y + ripLungeDistance) break;
+                agent.Move(to.normalized * ripRunSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.LookRotation(to.normalized);
+                yield return null;
+            }
+            controller.ServerSetMoveAnim(0f);
+            if (Dead() || !Alive(robot) || !arm.IsAttached) yield break;
+
+            // เลือกมือ (ท่าเดียวกันแบบสลับซ้ายขวา) | จุดยืน: มือที่จับ (ripHandOffset ข้าง/หน้า) ตรงกับแขนหุ่น — ก้าวพุ่งสั้นๆ ถึงตอนมือเอื้อมสุด
+            Vector3 dir = Flat(arm.transform.position - transform.position);
+            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
+            Vector3 right = Vector3.Cross(Vector3.up, dir);
+            Vector3 from = transform.position;
+            bool left = arm.Slot == LimbSlot.LeftArm; // จับไขว้แบบจับมือทักทาย: แขนขวาหุ่น = มือขวาไคจู — กระชากแล้วบิดตัวช่วยดึง แขนหุ่นโดนลากพาดข้ามตัว
+            Vector3 goal = Flat(arm.transform.position) - dir * ripHandOffset.y - right * (left ? -ripHandOffset.x : ripHandOffset.x) + Vector3.up * from.y;
+            ripLeft.Value = left;
+            StartSpecialClientRpc(left ? Special.RipLeft : Special.Rip, from, dir);
+            float t0 = Time.time;
+            while (Time.time - t0 < ripGrabTime)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, (Time.time - t0) / ripGrabTime);
+                agent.Move(Vector3.Lerp(from, goal, k) - transform.position);
+                transform.rotation = Quaternion.LookRotation(dir);
+                yield return null;
+            }
+
+            ripRobot.Value = robot.NetworkObject;
+            ripSlot.Value = (sbyte)arm.Slot; // ทุกเครื่อง: แขนหุ่นถูกลากตามมือไคจู (โดนแน่ — ไม่มีการเช็คระยะ)
+            while (Time.time - t0 < ripTearTime) yield return null;
+            if (Dead() || !Alive(robot)) { ServerDropLimb(); yield break; }
+
+            if (arm.IsAttached) arm.Attachment.ServerDetach();
+            ripHolding = true;
+            // ถีบตัวหุ่นกระเด็นตามจังหวะเท้าในคลิป (หลังกระชาก ~0.25 วิ — สองจังหวะแยกกันให้อ่านออก) แขนค้างในมือ ตัวปลิวไปอีกทาง
+            while (Time.time - t0 < ripKickTime && !Dead()) yield return null;
+            if (!Dead() && Alive(robot)) // ตายระหว่างรอถีบ = ไม่ถีบ
+            {
+                Vector3 away = Flat(robot.transform.position - transform.position);
+                away = away.sqrMagnitude > 0.01f ? away.normalized : transform.forward;
+                if (robot.TryGetComponent(out Nsc.BoneLimb.RobotIKControl ik)) ik.ServerKickAway(away * ripKickSpeed + Vector3.up * ripKickLift);
+                else robot.ServerKnockDown(FallReason.KnockedDown);
+            }
+            ripHoldEnd = Time.time + ripHoldTime;
+            ripHitsLeft = ripDropHits;
+            ripLastHp = health.CurrentHp.Value;
+            if (combat != null) { combat.WeaponReach = ripWeaponReach; combat.WeaponDamageScale = ripWeaponDamage; }
+            while (Time.time - t0 < ripDuration && !Dead()) yield return null;
+        }
+
+        // ถืออยู่: นับครั้งที่โดนตี (เลือดลด) — ครบ/หมดเวลา/ตาย/ชิ้นถูกต่อกลับทางอื่น (เกิดใหม่) = ทิ้ง
+        private void ServerTickHeld()
+        {
+            float hp = health.CurrentHp.Value;
+            if (hp < ripLastHp - 0.01f) ripHitsLeft--;
+            ripLastHp = hp;
+            if (ripHitsLeft <= 0 || Time.time > ripHoldEnd || Dead() || gripped == null || gripped.IsAttached)
+                ServerDropLimb();
+        }
+
+        private void ServerDropLimb()
+        {
+            Debug.Log($"[KaijuSpecials] ทิ้งแขนที่ถืออยู่ (โดนตีเหลือ {ripHitsLeft} ครั้ง)");
+            ripHolding = false;
+            ripSlot.Value = -1;
+            ripRobot.Value = default;
+            if (combat != null) { combat.WeaponReach = 0f; combat.WeaponDamageScale = 1f; }
+        }
+
+        private void OnRipRobotChanged(NetworkObjectReference _, NetworkObjectReference __) => ApplyGrip();
+        private void OnRipSlotChanged(sbyte _, sbyte __) => ApplyGrip();
+        private void OnRipLeftChanged(bool _, bool __) => ApplyGrip();
+
+        // ทุกเครื่อง: บอกช่องแขนนั้นว่ามือไคจูจับอยู่ — ตัวคุมหุ่นลากแขน/ถือชิ้นตามมือเอง
+        private Transform GripHand => ripLeft.Value ? leftHand : rightHand;
+
+        private void ApplyGrip()
+        {
+            if (gripped) gripped.HeldBy = null;
+            gripped = null;
+            if (ripSlot.Value < 0 || !ripRobot.Value.TryGet(out NetworkObject no)) return;
+            Robot robot = no.GetComponentInChildren<Robot>();
+            gripped = robot ? robot.GetLimb((LimbSlot)ripSlot.Value) : null;
+            if (gripped) gripped.HeldBy = GripHand;
         }
 
         // คำราม (จอสั่น) → กลิ้งใส่หุ่น rampageRolls ลูก เล็งใหม่ทุกลูก ตัดท้ายท่ากลิ้งให้ลูกต่อไปออกทันที
@@ -482,7 +670,7 @@ namespace NscGame.Enemy
         private void StartSpecialClientRpc(Special special, Vector3 origin, Vector3 dir)
         {
             transform.rotation = Quaternion.LookRotation(dir);
-            string state = special == Special.Roll ? rollState : special == Special.Roar ? roarState : poundState;
+            string state = special switch { Special.Roll => rollState, Special.Roar => roarState, Special.Rip => ripState, Special.RipLeft => ripStateLeft, _ => poundState };
             animator.CrossFadeInFixedTime(state, 0.15f, attackLayer, 0f);
             // หยุดแค่ภาพของท่าก่อน (host มี Run ของ server วิ่งอยู่ด้วย ห้าม StopAllCoroutines)
             if (visual != null) StopCoroutine(visual);
@@ -491,6 +679,7 @@ namespace NscGame.Enemy
             {
                 Special.Roll => RollVisual(origin, dir),
                 Special.Roar => RoarVisual(origin),
+                Special.Rip or Special.RipLeft => RipVisual(special == Special.RipLeft ? leftHand : rightHand),
                 _ => PoundVisual(origin, dir),
             });
         }
@@ -517,6 +706,14 @@ namespace NscGame.Enemy
         {
             CameraShake.Add(at, 1.2f, 0.6f);
             CameraShake.KickFov(6f);
+        }
+
+        // จังหวะกระชากหลุด: หนัก + ประกายไฟที่มือ + หยุดภาพ + ซูม + จอสั่นแรง (หุ่นเองเล่นประกายที่ไหล่ตอนแขนหลุดอยู่แล้ว)
+        private IEnumerator RipVisual(Transform hand)
+        {
+            yield return new WaitForSeconds(ripTearTime);
+            ImpactFeel.PlayHit(hand.position, -transform.forward, ripTearImpact);
+            CameraShake.Add(hand.position, 1.4f, 0.7f);
         }
 
         private IEnumerator RoarVisual(Vector3 at)

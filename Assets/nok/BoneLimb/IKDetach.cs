@@ -40,9 +40,15 @@ namespace Nsc.BoneLimb
         private Vector3[] pullFrom;
         private Quaternion[] pullFromRot;
         private float[] pullT;
+        private Vector3[] wristLocal;        // ข้อมือในท่อนล่าง — จุดที่ศัตรูกำไว้
+        private Vector3[] holdPos;
+        private Quaternion[] holdRot;
 
         public void Build(GameObject source, int count, Collider[] robotColliders)
         {
+            wristLocal = new Vector3[count];
+            holdPos = new Vector3[count];
+            holdRot = new Quaternion[count];
             model = source;
             ignore = robotColliders;
             props = new Rigidbody[count];
@@ -103,6 +109,7 @@ namespace Nsc.BoneLimb
             hinge.useLimits = true;
             props[i] = body;
             lowers[i] = lower;
+            wristLocal[i] = mid.InverseTransformPoint(limb.tip.position);
 
             limb.root.localScale = Vector3.one * Hidden;
         }
@@ -144,6 +151,35 @@ namespace Nsc.BoneLimb
             // ตำแหน่งเร่งเข้าหาโคน (t²) = พุ่งกระแทกเข้าล็อก ไม่ชะลอนุ่มๆ | หันให้ตรงก่อนถึง (SmoothStep) จะได้เสียบตรงแนว
             body.MovePosition(Vector3.Lerp(pullFrom[i], limb.root.position, pullT[i] * pullT[i]));
             body.MoveRotation(Quaternion.Slerp(pullFromRot[i], want, Mathf.SmoothStep(0f, 1f, Mathf.Min(1f, pullT[i] * 1.5f))));
+        }
+
+        /// <summary>
+        /// ทุกเครื่อง ทุกเฟรม: ศัตรูถือชิ้นนี้ — ข้อมือติดมือ hand (หันตามท่าตอนเริ่มถือ) ท่อนบนห้อยตามบานพับ ฟาดแล้วสะบัด
+        /// เลิกถือ = เรียก Tick ตามเดิม ชิ้นกลับเป็นฟิสิกส์ ตกพื้น แล้วดึงกลับได้
+        /// </summary>
+        public void Hold(int i, Transform hand)
+        {
+            Rigidbody grip = lowers[i] ? lowers[i] : props[i];
+            if (!grip) return;
+            if (!grip.isKinematic)
+            {
+                grip.isKinematic = true;
+                if (props[i] != grip) props[i].isKinematic = false; // ถูกจับตอนกำลังลอยกลับ — ท่อนบนกลับมาห้อย
+                // วางข้อมือที่มือพอดี (แขนหุ่นเอื้อมไม่ถึงมือไคจูก็ยังติดมือ ไม่ลอยห่าง)
+                Vector3 wrist = grip.transform.TransformPoint(wristLocal[i]);
+                holdPos[i] = Quaternion.Inverse(hand.rotation) * (grip.position - wrist);
+                holdRot[i] = Quaternion.Inverse(hand.rotation) * grip.rotation;
+                // ชิ้นไม่ชนตัวคนถือ — ไม่งั้นท่อนที่ห้อยดันตัวไคจูแล้วสั่น
+                Animator owner = hand.GetComponentInParent<Animator>();
+                if (owner)
+                    foreach (Collider k in owner.GetComponentsInChildren<Collider>())
+                    {
+                        foreach (Collider c in props[i].GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(c, k);
+                        if (lowers[i]) foreach (Collider c in lowers[i].GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(c, k);
+                    }
+            }
+            grip.MovePosition(hand.position + hand.rotation * holdPos[i]);
+            grip.MoveRotation(hand.rotation * holdRot[i]);
         }
 
         // แคปซูลจาก a ถึง b (โลก) บนวัตถุ t ตามแกน local ที่ใกล้แนว a→b ที่สุด | กระดูก FBX มีสเกลสะสม — รัศมีส่งเป็นหน่วยโลก

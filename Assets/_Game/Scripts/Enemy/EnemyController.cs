@@ -638,6 +638,12 @@ namespace NscGame.Enemy
             SetState(EnemyState.Idle);
         }
 
+        /// <summary>Server: ท่าเดิน/วิ่งตอนท่าพิเศษพาตัวไปเอง (AI พักอยู่) — 0 = ยืน, 0.5 = เดิน, 1 = วิ่ง</summary>
+        public void ServerSetMoveAnim(float speed)
+        {
+            if (IsServer) netSpeed.Value = speed;
+        }
+
         public void ServerBeginKnockback()
         {
             if (!IsServer) return;

@@ -29,6 +29,12 @@ namespace Nsc.Robots
         /// <summary>ชิ้นนี้ต่ออยู่กับตัวไหม — ไม่มีระบบหลุด (prefab ฐานที่ไม่มี LimbAttachment) = ต่ออยู่เสมอ</summary>
         public bool IsAttached => attachment == null || attachment.IsAttached;
 
+        /// <summary>
+        /// ทุกเครื่อง: มือศัตรูที่จับชิ้นนี้อยู่ (null = ไม่มี) — ไคจูตั้ง (KaijuSpecials กระชากแขน) ตัวคุมหุ่นอ่าน:
+        /// ต่ออยู่ = แขนถูกดึงไปที่มือนั้น | หลุดแล้ว = ชิ้นติดมือนั้น ดึงกลับไม่ได้จนกว่าจะปล่อย
+        /// </summary>
+        public Transform HeldBy { get; set; }
+
         /// <summary>ยิงบนทุกเครื่องเมื่อชิ้นนี้หลุดหรือต่อกลับ</summary>
         public event Action<RobotLimb> StateChanged;
 

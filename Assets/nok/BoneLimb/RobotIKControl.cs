@@ -218,6 +218,27 @@ namespace Nsc.BoneLimb
         [SerializeField] private float reachSquat = 0.6f;
         [Tooltip("ก้มตัวได้สุดกี่องศาตอนเอื้อมลงต่ำ")]
         [SerializeField] private float reachBend = 70f;
+        [Tooltip("ไคจูคว้าแขน: เอนหนีต้านแรงกี่องศา (ตอนมือมันยังอยู่ในระยะแขน)")]
+        [SerializeField] private float heldResistLean = 10f;
+        [Tooltip("ไคจูคว้าแขน: ตัวสั่นดิ้นแรงแค่ไหน")]
+        [SerializeField] private float heldShake = 900f;
+        [Tooltip("ไคจูคว้าแขน: ย่อตัวลงกี่เมตร / ตัวเซเข้าหาสุดกี่เมตร / ขากางยันกี่เมตร")]
+        [SerializeField] private float heldCrouch = 1.2f;
+        [SerializeField] private float heldLurchDist = 2.5f;
+        [SerializeField] private float heldStance = 2f;
+        [Tooltip("ไคจูดึงแต่ละจังหวะ: แรงประกายไฟ/เสียงที่ไหล่ (ต่ำกว่า heavyHitDamage = แบบเบา)")]
+        [SerializeField] private float heldTugImpact = 18f;
+        [Header("กล้องฉากยื้อกับไคจู (หุ่นของเครื่องนี้)")]
+        [Tooltip("กระชากแล้วค้างมุมนี้ดูตัวกระเด็นอีกกี่วิ ก่อนกลับกล้องเล่น")]
+        [SerializeField] private float grabCamHold = 2.2f;
+        [Tooltip("ดันกล้องเข้าเต็มที่ภายในกี่วิ / ดันเข้าเหลือกี่ส่วนของระยะ")]
+        [SerializeField] private float grabCamPushTime = 3f;
+        [SerializeField] private float grabCamPush = 0.3f;
+        private float heldBlend, grabCamW, grabCamT, grabCamAfter, grabCamSide;
+        private bool tugHit;
+        private Transform grabCamEnemy;
+        private Vector3 grabCamLook;
+        private Vector3 heldLurch;
         [Tooltip("เป้ามือไกลเกินแขน: ตัวพุ่งไปทางนั้นได้สุดกี่ส่วนของความยาวขา (เท้าอยู่ที่เดิม) — เอื้อมหยิบได้ไกลกว่าหนึ่งช่วงแขน")]
         [SerializeField] private float reachLunge = 0.45f;
 
@@ -301,6 +322,7 @@ namespace Nsc.BoneLimb
         private Ray grabAim;                  // เส้นจากกล้องผ่านเคอร์เซอร์เฟรมนี้ — ชิ้นที่เคอร์เซอร์ชี้ใกล้สุดคือชิ้นที่เรือง
         private bool hasGrabAim;
         private Transform[] slots;            // ช่อง RobotLimb (มี LimbHealth) — ตามปลายแขนขา ให้ศัตรูเล็งชิ้นที่ใกล้ได้ถูก
+        private RobotLimb[] limbSlots;
 
         private IKCombat.Arm[] arms;          // ช่องเดียวกับ limbs, ขา = null
         private Transform spine;
@@ -473,6 +495,7 @@ namespace Nsc.BoneLimb
         {
             attachments = new LimbAttachment[limbs.Length];
             slots = new Transform[limbs.Length];
+            limbSlots = new RobotLimb[limbs.Length];
             hpSeen = new float[limbs.Length];
             hpHandlers = new System.Action[limbs.Length];
             for (int i = 0; i < limbs.Length; i++)
@@ -480,6 +503,7 @@ namespace Nsc.BoneLimb
                 RobotLimb slot = robot ? robot.GetLimb((LimbSlot)i) : null;
                 attachments[i] = slot ? slot.Attachment : null;
                 slots[i] = slot ? slot.transform : null;
+                limbSlots[i] = slot;
                 if (!slot || !slot.Health) continue;
                 // ลูกบอลรับหมัดลอยตามปลายแขน/ขา แต่ไม่ได้อยู่ใต้ช่อง RobotLimb — ต้องมีตัวส่งต่อบนลูกบอลเอง
                 // ไม่งั้น DamageRouter หาเลือดของชิ้นไม่เจอ (PVP: ต่อยแขนศัตรูแล้วไม่เข้า)
@@ -801,7 +825,7 @@ namespace Nsc.BoneLimb
                 }
                 lastBodyPos = transform.position;
                 Vector3 hips = ragdoll.Hips.transform.position;
-                if (cam && IsLocalRobot) orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true);
+                if (cam && IsLocalRobot) { orbit.Apply(cam, new Vector3(hips.x, transform.position.y, hips.z), 0f, true); GrabCamera(); }
                 return;
             }
             if (getUp >= 0f)
@@ -812,6 +836,15 @@ namespace Nsc.BoneLimb
 
             // ลำตัวบิด/โน้มตามหมัด + เอียงตามทิศที่ตัวเคลื่อน ก่อนแก้ IK (ไหล่ขยับตามลำตัว แล้ว IK พามือไปถึงเป้าเหมือนเดิม)
             UpdateLean();
+            // ยื้อกับไคจู: ย่อตัวต่ำ สะโพกถอยหนี ขากางยัน | โดนดึงเกินแขน = ตัวเซเข้าหา เท้าโดนลาก (ทุกเครื่องคิดจากมือไคจู)
+            bool strained = HeldStrain(out Vector3 strainDir, out float strainOver, out int strainArm);
+            // ทุกครั้งที่ไคจูดึงจนเกินแขน: ประกายไฟ + เสียงเหล็ก + จอสั่นที่ไหล่ (เหล็กกำลังจะขาด)
+            if (strained && strainOver > 0.12f && !tugHit) { tugHit = true; ImpactFeel.PlayHit(limbs[strainArm].root.position, -transform.TransformDirection(strainDir), heldTugImpact); }
+            else if (!strained || strainOver < 0.04f) tugHit = false;
+            heldBlend = Mathf.MoveTowards(heldBlend, strained ? 1f : 0f, Time.deltaTime * 4f);
+            heldLurch = Vector3.Lerp(heldLurch, strained ? strainDir * (strainOver > 0f ? strainOver * heldLurchDist : -heldLurchDist * 0.35f) : Vector3.zero,
+                                     1f - Mathf.Exp(-12f * Time.deltaTime));
+            Vector3 heldOffset = Vector3.down * (heldCrouch * heldBlend) + heldLurch;
             if (spine && (combat.Enabled || feel.leanPerSpeed > 0f))
             {
                 // แขนยกการ์ดไม่นับเป็นหมัด — เดิมนับ มือการ์ดที่ยื่นไปหน้า = หมัดยื่น ลำตัวบิด/โน้มไปหน้า ไหล่ขยับ มือการ์ดยิ่งไปหน้า (วงป้อนกลับ 2026-11-04)
@@ -819,7 +852,7 @@ namespace Nsc.BoneLimb
                 Vector3 pose = (combat.Enabled ? combat.BodyPose(limbs, poseArms) : Vector3.zero) + WeaponPose();
                 bodyPose = Vector3.Lerp(bodyPose, pose, 1f - Mathf.Exp(-combat.bodySmoothing * Time.deltaTime));
                 weaponCrouch = Mathf.Lerp(weaponCrouch, weaponCrouchGoal, 1f - Mathf.Exp(-combat.bodySmoothing * Time.deltaTime));
-                model.transform.localPosition = modelRest + Vector3.forward * bodyPose.z + Vector3.down * weaponCrouch; // ตัวพุ่งตามหมัด/ย่อตอนฟาด (เท้าเป็นเป้าในโลก จึงอยู่ที่เดิม เข่างอเอง)
+                model.transform.localPosition = modelRest + Vector3.forward * bodyPose.z + Vector3.down * weaponCrouch + heldOffset; // ตัวพุ่งตามหมัด/ย่อตอนฟาด (เท้าเป็นเป้าในโลก จึงอยู่ที่เดิม เข่างอเอง)
                 combat.torsoTurn = Quaternion.AngleAxis(bodyPose.x, Vector3.up) * Quaternion.AngleAxis(bodyPose.y + lean.x, Vector3.right)
                                  * Quaternion.AngleAxis(lean.y, Vector3.forward);
                 spine.localRotation = spineRest;
@@ -828,13 +861,26 @@ namespace Nsc.BoneLimb
                                * Quaternion.AngleAxis(lean.y, transform.forward) * spine.rotation;
             }
             if (getUp >= 0f) GetUpPose(getUp);
+            Transform enemyGrip = null; // มือไคจูที่จับแขนที่ยังต่ออยู่ (ช่วงคว้าก่อนกระชาก)
+            for (int i = 0; i < limbs.Length; i++) if (limbs[i].isArm && Attached(i) && HeldBy(i)) enemyGrip = HeldBy(i);
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
                 if (!Attached(i)) { ClearTrail(i); continue; } // ซ่อนอยู่ (กระดูกย่อ) — แก้ IK แล้วทิศเป็นศูนย์
                 // ขา: เข่าชี้ตามทิศเท้า (ไม่ใช่ทิศลำตัว) — เท้าเฉียงแล้วขาไม่บิดที่ข้อเท้า
                 if (limb.isArm && combat.Enabled) limb.PoleOverride = ArmPole(limb); // ทุกเครื่องเลือกเองจาก Brace ที่ซิงก์ — ท่าการ์ดเห็นเหมือนกัน
+                if (HeldBy(i) is Transform grip) limb.target.position = grip.position; // ไคจูคว้าแขนไว้ = มือถูกลากไปตามมือมัน (ทับค่าที่คนคุมสั่ง)
+                else if (limb.isArm && enemyGrip && enemyGrip.parent) // แขนอีกข้างงัดแขนไคจู: มือรูดไปมาระหว่างข้อมือกับปลายแขนมัน
+                    limb.target.position = Vector3.Lerp(enemyGrip.position, enemyGrip.parent.position, 0.45f + 0.35f * Mathf.Sin(Time.time * 9f));
+                Vector3 footWas = limb.target.position;
+                if (!limb.isArm && heldBlend > 0f) // ยื้อ: เท้าหน้ายันไปหาไคจู เท้าหลังถอยค้ำ + โดนลาก/ครูดพื้น — แค่ตอนแก้ IK แล้วคืนที่เดิม (ไม่ย้ายเท้าจริง)
+                {
+                    bool front = Vector3.Dot(legRest[i], strainDir) > 0f;
+                    float slide = (front ? 0.4f : -0.6f) + strainOver + 0.08f * Mathf.Sin(Time.time * 13f + i * 2f);
+                    limb.target.position += transform.TransformDirection(strainDir) * (heldStance * slide * heldBlend);
+                }
                 limb.Solve(limb.isArm ? transform.rotation : Quaternion.Euler(0f, FootYaw(limb), 0f));
+                if (!limb.isArm) limb.target.position = footWas;
                 limb.Holding = limb.isArm && ((limb.Grab && !limb.Reaching) || (supportHolding[i] && !HasController(i))) ? (heldBody[i] ? heldBody[i].GetComponentInChildren<Collider>() : InHand(limb)) : null;
                 if (limb.isArm)
                 {
@@ -866,7 +912,7 @@ namespace Nsc.BoneLimb
                     fallRules.Reset(); // ลุกปุ๊บไม่ล้มซ้ำจากตัวจับเวลาเก่า
                 }
             }
-            if (cam && IsLocalRobot) orbit.Apply(cam, transform.position, ControlledArmSide());
+            if (cam && IsLocalRobot) { orbit.Apply(cam, transform.position, ControlledArmSide()); GrabCamera(); }
         }
 
         // ================================================================ เคอร์เซอร์ → เป้า
@@ -1055,6 +1101,14 @@ namespace Nsc.BoneLimb
             stoop = Mathf.Min(stoop, reachBend);
             goal.x += stoop * toward.y;  // ก้มไปหน้า
             goal.y -= stoop * toward.x;  // ของอยู่ขวา = เอียงขวา (lean.y บวก = เอียงซ้าย)
+            // ไคจูคว้าแขนอยู่: มือมันยังอยู่ในระยะแขน = เอนหนีต้านแรง | ดึงเกินแขน = โดนกระชากเอนเข้าหา + ตัวสั่นดิ้น (สุ่มต่อเครื่อง แค่ภาพ)
+            if (HeldStrain(out Vector3 to, out float over, out _))
+            {
+                float pull = over > 0f ? Mathf.Min(over * 60f, 25f) : -heldResistLean;
+                goal.x += to.z * pull;
+                goal.y -= to.x * pull;
+                leanVel += new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0f) * (heldShake * dt);
+            }
             Vector3 now = lean;
             IKFeel.Spring(ref now, ref leanVel, goal, 2f, 0.5f, dt);
             lean = now;
@@ -1754,7 +1808,7 @@ namespace Nsc.BoneLimb
             float bestSqr = range * range;
             for (int k = 0; k < limbs.Length; k++)
             {
-                Rigidbody rb = detach.Prop(k);
+                Rigidbody rb = HeldBy(k) ? null : detach.Prop(k); // อยู่ในมือไคจู = แย่งมาไม่ได้
                 Collider c = rb ? rb.GetComponent<Collider>() : null;
                 if (!c) continue;
                 Vector3 d = Closest(c, from) - from;
@@ -1999,6 +2053,28 @@ namespace Nsc.BoneLimb
 
         private bool Attached(int i) => attachments == null || attachments[i] == null || attachments[i].IsAttached;
 
+        // มือศัตรูที่จับชิ้นนี้ (ไคจูกระชากแขน) — ตั้งบนทุกเครื่องจาก NetworkVariable ของไคจู
+        private Transform HeldBy(int i) => limbSlots != null && limbSlots[i] ? limbSlots[i].HeldBy : null;
+
+        // ไคจูคว้าแขนที่ยังต่ออยู่ (ช่วงยื้อก่อนกระชาก): ทิศไปหามือมัน (แกนตัวหุ่น แนวราบ) + ดึงเกินแขนกี่ส่วน (0 = ยังอยู่ในระยะ = ฝืนต้าน, 1 = เกินเท่าแขน)
+        // คิดจากมือไคจู (อนิเมชันเล่นเหมือนกันทุกเครื่อง) ไม่สะสมค่า — ทุกเครื่องได้ท่าเดียวกัน
+        private bool HeldStrain(out Vector3 toward, out float over, out int arm)
+        {
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                if (!limbs[i].isArm || !Attached(i) || !(HeldBy(i) is Transform grip)) continue;
+                Vector3 d = transform.InverseTransformDirection(grip.position - transform.TransformPoint(shoulderRest[i]));
+                toward = new Vector3(d.x, 0f, d.z).sqrMagnitude > 1e-4f ? new Vector3(d.x, 0f, d.z).normalized : Vector3.forward;
+                over = Mathf.Clamp01((d.magnitude - limbs[i].Reach) / limbs[i].Reach);
+                arm = i;
+                return true;
+            }
+            toward = Vector3.forward;
+            over = 0f;
+            arm = -1;
+            return false;
+        }
+
         private bool LegsAttached()
         {
             for (int i = 0; i < limbs.Length; i++)
@@ -2018,7 +2094,8 @@ namespace Nsc.BoneLimb
                 if (attached != attachedNow[i]) { attachedNow[i] = attached; OnAttachChanged(i, attached); }
                 // แขนอีกข้างถือชิ้นนี้อยู่ (ฟาดเป็นกระบอง) = ไม่แตะ — Tick คืนเป็นฟิสิกส์ทุกเฟรม ของหลุดมือไหลไป | ดึงกลับได้หลังปล่อยมือ
                 Rigidbody part = detach.Prop(i);
-                if (!part || System.Array.IndexOf(heldBody, part) < 0) detach.Tick(i, limbs[i], Pulling(i), Time.deltaTime);
+                if (part && HeldBy(i)) detach.Hold(i, HeldBy(i)); // ไคจูถืออยู่ = ติดมือมัน ไม่ตกพื้น/ไม่ลอยกลับ
+                else if (!part || System.Array.IndexOf(heldBody, part) < 0) detach.Tick(i, limbs[i], Pulling(i), Time.deltaTime);
                 if (seat[i] < 1f)
                 {
                     seat[i] = Mathf.Min(1f, seat[i] + Time.deltaTime / detach.seatTime);
@@ -2038,7 +2115,7 @@ namespace Nsc.BoneLimb
             if (!DrivesBody) return;
             for (int i = 0; i < limbs.Length; i++)
             {
-                bool active = pullHeld[i] && !Attached(i) && attachments[i] && attachments[i].RemainingReconnectCooldown <= 0f;
+                bool active = pullHeld[i] && !Attached(i) && attachments[i] && attachments[i].RemainingReconnectCooldown <= 0f && !HeldBy(i);
                 pullTimer[i] = active ? pullTimer[i] + Time.deltaTime : 0f;
                 if (active && pullTimer[i] >= detach.pullTime)
                 {
@@ -2103,6 +2180,52 @@ namespace Nsc.BoneLimb
             if (limb.hit) limb.hit.detectCollisions = false;   // มือ/เท้าที่หลุดไม่ดันของ
         }
 
+        // ================================================================ กล้องฉากยื้อกับไคจู
+
+        // ไคจูคว้าแขนหุ่นเครื่องนี้: กล้องไปอยู่หลังไหล่ไคจู มองข้ามหลังมันไปที่หุ่น ค่อยๆ ดันเข้า
+        // กระชากแล้ว (หุ่นกระเด็น) ค้างมุมตามตัวหุ่นอีก grabCamHold วิ แล้วค่อยคืนกล้องเล่น | ผสมทับกล้องเล่น (Apply เรียกก่อน)
+        private void GrabCamera()
+        {
+            if (CameraShake.IsFrozen) return; // หยุดภาพตอนกระชาก — กล้องค้างพร้อมโลก
+            float dt = Time.deltaTime;
+            bool strained = HeldStrain(out _, out _, out int arm);
+            if (strained)
+            {
+                Animator owner = HeldBy(arm).GetComponentInParent<Animator>();
+                if (owner) grabCamEnemy = owner.transform;
+                grabCamT += dt;
+                grabCamAfter = grabCamHold;
+            }
+            else grabCamAfter -= dt;
+            bool on = (strained || grabCamAfter > 0f) && grabCamEnemy;
+            grabCamW = Mathf.MoveTowards(grabCamW, on ? 1f : 0f, dt / (on ? 0.4f : 0.8f));
+            if (grabCamW <= 0f) { grabCamT = 0f; grabCamSide = 0f; grabCamLook = Vector3.zero; return; }
+            if (!grabCamEnemy) return;
+
+            Vector3 me = down ? ragdoll.Hips.position : transform.position + Vector3.up * 7f;
+            Vector3 enemy = grabCamEnemy.position + Vector3.up * 8f;
+            Vector3 line = Vector3.ProjectOnPlane(enemy - me, Vector3.up);
+            if (line.sqrMagnitude < 0.01f) line = transform.forward;
+            Vector3 along = line.normalized, mid = (me + enemy) * 0.5f;
+            Vector3 side = Vector3.Cross(Vector3.up, along);
+            if (grabCamSide == 0f && strained) grabCamSide = Vector3.Dot(limbs[arm].root.position - mid, side) >= 0f ? -1f : 1f; // ฝั่งตรงข้ามแขนที่ถูกจับ = ด้านที่ไคจูบิดตัวเปิดออก เห็นหุ่นข้างตัวมัน ไม่โดนหลังบัง | จำไว้ ไม่พลิกข้าง
+            if (grabCamSide == 0f) grabCamSide = 1f;
+            float push = 1f - grabCamPush * Mathf.SmoothStep(0f, 1f, grabCamT / grabCamPushTime);
+            // หลังไคจูค่อนไปทางข้าง: เห็นแนวดึง (ไหล่หุ่น → มือไคจู) ตามขวาง + หลังแพนด้า | เล็งกลางแขนที่โดนดึง กระชากแล้วเล็งตามตัวหุ่นที่ปลิว
+            float back = Mathf.Max(16f, line.magnitude * 0.8f + 10f) * push;
+            Vector3 pos = enemy + along * (back * 0.5f) + side * (grabCamSide * back * 1.1f) + Vector3.up * 4f;
+            pos.y = Mathf.Max(pos.y, transform.position.y + 1.5f);
+            Vector3 focus = strained ? Vector3.Lerp(limbs[arm].root.position, HeldBy(arm).position, 0.5f) : Vector3.Lerp(me, enemy, 0.3f);
+            grabCamLook = grabCamLook == Vector3.zero ? focus : Vector3.Lerp(grabCamLook, focus, 1f - Mathf.Exp(-6f * dt));
+            Quaternion rot = Quaternion.LookRotation(grabCamLook - pos);
+            float w = Mathf.SmoothStep(0f, 1f, grabCamW);
+            Vector3 arc = Vector3.up * (Mathf.Sin(w * Mathf.PI) * 10f); // ระหว่างเข้า/ออกมุม กล้องโค้งข้ามด้านบน — ไม่ทะลุตัวแพนด้า
+            cam.transform.SetPositionAndRotation(Vector3.Lerp(cam.transform.position, pos, w) + arc, Quaternion.Slerp(cam.transform.rotation, rot, w));
+            CameraShake.Sample(me, out Vector3 shakePos, out Vector3 shakeRot); // มุมใหม่ทับการสั่นของกล้องเล่น — ใส่กลับตามน้ำหนัก
+            cam.transform.position += cam.transform.rotation * (shakePos * w);
+            cam.transform.rotation *= Quaternion.Euler(shakeRot * w);
+        }
+
         // ================================================================ ล้ม / ลุก
 
         // ปักหลัก: ขาทั้งสองต่ออยู่ ค้าง F และเท้าติดพื้นทั้งคู่ — คนคุมขาสองคนต้องกดพร้อมกัน (ทุกเครื่องคิดจาก Brace ที่ซิงก์)
@@ -2132,11 +2255,21 @@ namespace Nsc.BoneLimb
             if (reason != FallReason.None) ServerKnockDown(reason);
         }
 
+        /// <summary>[SERVER] โดนถีบกระเด็น (ไคจูถีบตอนกระชากแขน) — ล้มแน่ การ์ด/ปักหลักกันไม่ได้ ร่างพุ่งออกด้วยความเร็วนี้</summary>
+        public void ServerKickAway(Vector3 velocity)
+        {
+            kickVel = velocity;
+            ServerKnockDown(FallReason.KnockedDown);
+            kickVel = Vector3.zero;
+        }
+
+        private Vector3 kickVel;
+
         /// <summary>[SERVER / เล่นคนเดียว] ล้ม — จากกฎล้ม, บอส (Robot.ServerKnockDown), ปุ่มทดสอบ B | ระหว่างลุกล้มซ้ำไม่ได้</summary>
         public void ServerKnockDown(FallReason reason)
         {
             if (!DrivesBody || down || getUp >= 0f) return;
-            if (reason == FallReason.KnockedDown && (Braced || ArmsGuarding)) // แรงกระแทกจากข้างนอก (บอส/ทดสอบ B) — เท้าเองยกพร้อมกันยังล้มตามกติกาหลัก
+            if (reason == FallReason.KnockedDown && kickVel == Vector3.zero && (Braced || ArmsGuarding)) // แรงกระแทกจากข้างนอก (บอส/ทดสอบ B) — เท้าเองยกพร้อมกันยังล้มตามกติกาหลัก
             {
                 Debug.Log($"[RobotIKControl] {(Braced ? "ปักหลักสองขา" : "ยกการ์ดสองแขน")} — กันล้มได้");
                 for (int i = 0; i < limbs.Length; i++)
@@ -2210,7 +2343,7 @@ namespace Nsc.BoneLimb
                 Vector3 push = Vector3.ProjectOnPlane(bodyVel, Vector3.up);
                 if (push.sqrMagnitude < 0.25f) push = -transform.forward; // ยืนนิ่ง = หงายหลัง
                 ragdoll.Enforce(true, !DrivesBody);
-                ragdoll.SetPhysics(true, push.normalized * ragdoll.topple);
+                ragdoll.SetPhysics(true, kickVel != Vector3.zero ? kickVel : push.normalized * ragdoll.topple);
                 return;
             }
 

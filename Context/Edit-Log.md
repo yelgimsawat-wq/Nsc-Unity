@@ -4,6 +4,9 @@
 รายการเก่ากว่าย้ายไป [archive/edit-log/](archive/edit-log/) อัตโนมัติ
 
 <!-- entries: managed by tools/context/log-edit.py -->
+- 2026-11-05 20:38 +07:00 · Q-20261104-kaiju-limb-rip · files: Assets/nok/Enemy/Scripts/Attacks/KaijuSpecials.cs, Assets/_Game/Scripts/Enemy/EnemyCombat.cs, Assets/_Game/Scripts/Robot/RobotLimb.cs, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/IKDetach.cs, Assets/nok/Enemy/Animations/Clips/Panda_LimbRip.anim, Assets/nok/Enemy/Animations/Controller/PandaKaiju.controller, Context/quests/Q-20261104-kaiju-limb-rip.md, Context/quests/Q-20261104-kaiju-limb-rip/rip_clip.mp4, Assets/_Game/Scripts/Enemy/EnemyController.cs, Assets/_Game/Prefabs/Enemy/PandaKaiju.prefab, Assets/nok/Enemy/Animations/Clips/Panda_LimbRipL.anim
+  - แก้: กล้องตอนโดนจับ: เห็นแนวดึงชัด เล็งแขนที่โดนดึง โค้งข้ามตอนเข้ามุม
+  - ตรวจ: Play + อัดคลิปผ่าน MCP 2026-11-05
 - 2026-11-04 20:25 +07:00 · Q-20261104-close-board · files: Context/quests/, Context/archive/quests/, Context/Edit-Log.md
   - แก้: ผู้ใช้สั่งปิด Quest ทั้ง Board 16 ตัว: ย้ายเข้า archive/quests/ พร้อมโฟลเดอร์หลักฐาน 2 ตัว แก้บรรทัด Status เป็น closed พร้อมสถานะเดิม ไม่แก้เนื้อหาอื่น
   - ตรวจ: 2026-11-04 board.py รายงาน Board ว่าง, git mv ครบ 16 quest + 2 โฟลเดอร์; ยังไม่ได้ตรวจว่างานในแต่ละ Quest เสร็จจริง ปิดตามคำสั่งผู้ใช้ ข้อที่ค้างยังอยู่ในไฟล์ archive
@@ -31,6 +34,3 @@
 - 2026-10-27 23:30 +07:00 · Q-20261027-robot-bone-rig · files: Assets/nok/robot/newROBOT/RobotNSC_Rigged.fbx, Context/quests/Q-20261027-robot-bone-rig.md, Assets/nok/scene/Test/TesItem/TestItem.unity, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/IKTest.unity, Assets/nok/BoneLimb/README_BoneLimb.md, Assets/nok/BoneLimb/ (ลบ RobotBoneRig/BoneChainSolver/Editor), ProjectSettings/EditorBuildSettings.asset, Assets/nok/BoneLimb/IKLimb.cs, Assets/nok/BoneLimb/JointLimit.cs, Assets/nok/BoneLimb/OrbitCamera.cs, Assets/nok/BoneLimb/IKInput.cs, Assets/nok/BoneLimb/LimbNetState.cs
   - แก้: ระบบ IK ใหม่บน RobotNSC_Rigged ใน IKTest (IK บานพับ, เคอร์เซอร์, ข้อต่อคน, หน้าเลือกชิ้นส่วนเดิม); จัดโค้ดเป็นคลาส OOP: IKLimb, JointLimit/ShoulderLimit/HipLimit, OrbitCamera, IKInput, LimbNetState; ลบ RobotBoneRig เก่า
   - ตรวจ: 2026-10-27 ก่อนจัด OOP: Play IKTest ศอก/เข่าพับตรงแกน ไม่ทะลุ มือตรงเคอร์เซอร์; หลังจัด OOP ยังไม่ได้คอมไพล์/Play เพราะ UnityMCP ต่อไม่ได้
-- 2026-10-27 13:10 +00:00 · Q-20261027-bone-rig-arena · files: Assets/nok/BoneLimb/, Assets/nok/scene/RobotArena.unity, Assets/nok/scene/RobotArena/, Context/quests/Q-20261027-bone-rig-arena.md
-  - แก้: เพิ่มระบบกระดูก RobotBoneRig (แขนขาเป็นกระดูกแข็ง IK ตามมือ/เท้าฟิสิกส์ ไม่แตะโค้ดเดิม; ใช้ mesh เดิมหรือโมเดลมีกระดูก Mixamo ก็ได้) + เมนูเซ็ทอัพ + EditMode tests และแมพ RobotArena ในโฟลเดอร์ซีนของ nok
-  - ตรวจ: 2026-10-27 compile+test ด้วย dotnet กับ stub ผ่าน (4 EditMode + 35 ข้อ ทั้งสองโหมด), ซีน YAML ตรวจโครงสร้างผ่าน; ยังไม่ได้เปิด/Play ใน Unity
