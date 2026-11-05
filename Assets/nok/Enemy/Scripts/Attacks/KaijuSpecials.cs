@@ -670,6 +670,7 @@ namespace NscGame.Enemy
         private void StartSpecialClientRpc(Special special, Vector3 origin, Vector3 dir)
         {
             transform.rotation = Quaternion.LookRotation(dir);
+            animator.speed = 1f; // ท่าตีปกติชะลอ animator (EnemyCombat.attackAnimSpeed) — ท่าพิเศษจับเวลาตามคลิปความเร็วปกติ
             string state = special switch { Special.Roll => rollState, Special.Roar => roarState, Special.Rip => ripState, Special.RipLeft => ripStateLeft, _ => poundState };
             animator.CrossFadeInFixedTime(state, 0.15f, attackLayer, 0f);
             // หยุดแค่ภาพของท่าก่อน (host มี Run ของ server วิ่งอยู่ด้วย ห้าม StopAllCoroutines)
@@ -696,6 +697,7 @@ namespace NscGame.Enemy
         private void StartLeapClientRpc(Vector3 dir, Vector3 land)
         {
             transform.rotation = Quaternion.LookRotation(dir);
+            animator.speed = 1f; // เหมือน StartSpecialClientRpc — ท่าตีปกติอาจค้างความเร็วช้าไว้
             if (feel != null) feel.SetSlamOverride(land, leapRadius);
             if (visual != null) StopCoroutine(visual);
             animator.CrossFadeInFixedTime(leapState, 0.15f, attackLayer, 0f);
