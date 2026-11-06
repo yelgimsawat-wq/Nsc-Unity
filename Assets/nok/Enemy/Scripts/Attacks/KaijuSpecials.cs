@@ -23,7 +23,7 @@ namespace NscGame.Enemy
     [RequireComponent(typeof(Animator))]
     public class KaijuSpecials : NetworkBehaviour
     {
-        private enum Special : byte { Roll, Pound, Roar, Rip, RipLeft }
+        private enum Special : byte { Roll, Pound, Roar, Rip, RipLeft, BearHug }
 
         [Header("ทั่วไป")]
         [SerializeField] private int attackLayer = 2;
@@ -175,6 +175,29 @@ namespace NscGame.Enemy
         [SerializeField] private float ripKickSpeed = 22f;
         [SerializeField] private float ripKickLift = 7f;
 
+        [Header("กอดยกทุ่ม (Q-20261105-kaiju-bear-hug): เตือน (เขตแดงหน้าตัว หลบได้) → รวบยก → บีบ → ทีมตีครบเกจ = หลุด / ไม่ทัน = ทุ่ม")]
+        [Range(0f, 1f)] [SerializeField] private float hugChance = 0.3f;
+        [Tooltip("หุ่นอยู่ใกล้กว่านี้ถึงเลือกท่านี้")]
+        [SerializeField] private float hugRange = 14f;
+        [SerializeField] private string hugState = "Attack_BearHug";
+        [SerializeField] private string hugStaggerState = "HugStagger";
+        [Tooltip("เขตแดงหน้าตัว: ยาว/กว้าง — หุ่นอยู่ในเขตตอนรวบ = โดน")]
+        [SerializeField] private float hugZoneLength = 11f;
+        [SerializeField] private float hugZoneWidth = 10f;
+        [Tooltip("เวลาในคลิป Panda_BearHug: รวบ / จังหวะบีบ / ทุ่ม / จบ")]
+        [SerializeField] private float hugGrabTime = 1.85f;
+        [SerializeField] private float[] hugBeats = { 2.75f, 3.4f, 4.1f, 4.8f };
+        [SerializeField] private float hugSlamTime = 5.85f;
+        [SerializeField] private float hugDuration = 7.2f;
+        [Tooltip("ไคจูโดนตีรวมเท่านี้ระหว่างกอด = หุ่นดิ้นหลุด")]
+        [SerializeField] private float hugEscapeDamage = 60f;
+        [SerializeField] private float hugSqueezeDamage = 8f;
+        [SerializeField] private float hugSlamDamage = 60f;
+        [Tooltip("โยน: ความเร็วตอนปล่อยหุ่นจากเหนือหัว (ไปหน้า / ขึ้น) — ดาเมจทุ่มเข้าตอนตกถึงพื้น")]
+        [SerializeField] private Vector2 hugThrowVelocity = new Vector2(23f, 3f);
+        [Tooltip("หุ่นดิ้นหลุด = ไคจูเซ ยืนมึนให้ตีฟรีกี่วินาที")]
+        [SerializeField] private float hugStunTime = 2.5f;
+
         [Header("ถือแขนที่กระชากมาเป็นอาวุธ: ตีไกล/แรงขึ้น | ทิ้งเมื่อโดนตีครบหรือหมดเวลา แล้วหุ่นกด R ดึงกลับได้")]
         [SerializeField] private float ripHoldTime = 20f;
         [SerializeField] private int ripDropHits = 6;
@@ -185,6 +208,8 @@ namespace NscGame.Enemy
         private readonly NetworkVariable<NetworkObjectReference> ripRobot = new NetworkVariable<NetworkObjectReference>();
         private readonly NetworkVariable<sbyte> ripSlot = new NetworkVariable<sbyte>(-1);
         private readonly NetworkVariable<bool> ripLeft = new NetworkVariable<bool>(); // จับด้วยมือซ้าย (ท่าสลับข้าง)
+        private readonly NetworkVariable<NetworkObjectReference> hugRobot = new NetworkVariable<NetworkObjectReference>(); // หุ่นที่กอดยกอยู่ (ทุกเครื่อง)
+        private Robot hugged;
         private RobotLimb gripped;
         private Transform rightHand, leftHand;
         private EnemyCombat combat;
@@ -224,7 +249,9 @@ namespace NscGame.Enemy
             ripRobot.OnValueChanged += OnRipRobotChanged;
             ripSlot.OnValueChanged += OnRipSlotChanged;
             ripLeft.OnValueChanged += OnRipLeftChanged;
-            ApplyGrip(); // เข้าเกมกลางทาง: ไคจูถือแขนอยู่แล้ว
+            hugRobot.OnValueChanged += OnHugRobotChanged;
+            ApplyGrip();
+            ApplyHug(); // เข้าเกมกลางทาง: ไคจูถือแขนอยู่แล้ว
         }
 
         public override void OnNetworkDespawn()
@@ -232,6 +259,9 @@ namespace NscGame.Enemy
             ripRobot.OnValueChanged -= OnRipRobotChanged;
             ripSlot.OnValueChanged -= OnRipSlotChanged;
             ripLeft.OnValueChanged -= OnRipLeftChanged;
+            hugRobot.OnValueChanged -= OnHugRobotChanged;
+            if (hugged) hugged.HuggedBy = null;
+            hugged = null;
             if (gripped) gripped.HeldBy = null;
             gripped = null;
             base.OnNetworkDespawn();
@@ -269,6 +299,16 @@ namespace NscGame.Enemy
                 Debug.Log($"[KaijuSpecials] ทุบพื้น {ringCount} ครั้ง วงหนามขยาย — หุ่นห่าง {dist:F1}");
                 StartCoroutine(Perform(RingSlam()));
                 return;
+            }
+            if (dist <= hugRange && !ripHolding && Random.value < hugChance)
+            {
+                Robot hugTarget = Robot.FromTransform(target);
+                if (hugTarget != null && !hugTarget.IsDown)
+                {
+                    Debug.Log($"[KaijuSpecials] กอดยกทุ่ม — หุ่นห่าง {dist:F1}");
+                    StartCoroutine(Perform(BearHug(hugTarget, to.normalized)));
+                    return;
+                }
             }
             if (dist >= rollRange.x)
             {
@@ -399,6 +439,122 @@ namespace NscGame.Enemy
             ripSlot.Value = -1;
             ripRobot.Value = default;
             if (combat != null) { combat.WeaponReach = 0f; combat.WeaponDamageScale = 1f; }
+        }
+
+        // ================================================================ Server: กอดยกทุ่ม
+
+        // เตือน (กางแขน + เขตแดงหน้าตัว) → ก้าวพุ่งสั้นๆ แล้วรวบ: หุ่นยังอยู่ในเขต = โดน ไม่งั้นวืด
+        // โดน: ตัวหุ่นลอยตามมือ (Robot.HuggedBy ทุกเครื่อง) บีบตามจังหวะ — ไคจูโดนตีครบ hugEscapeDamage = หุ่นหลุด ไคจูเซ | ไม่ทัน = ทุ่มลงพื้น
+        private IEnumerator BearHug(Robot robot, Vector3 dir)
+        {
+            StartSpecialClientRpc(Special.BearHug, transform.position, dir);
+            float t0 = Time.time;
+            Vector3 from = transform.position;
+            while (Time.time - t0 < hugGrabTime && !Dead())
+            {
+                float k = Mathf.InverseLerp(hugGrabTime - 0.35f, hugGrabTime, Time.time - t0); // ก้าวพุ่งสั้นๆ ตอนโอบเข้า
+                agent.Move(from + dir * (2.5f * Mathf.SmoothStep(0f, 1f, k)) - transform.position);
+                yield return null;
+            }
+            if (Dead()) yield break;
+            Vector3 rel = robot.transform.position - transform.position;
+            float along = Vector3.Dot(rel, transform.forward), side = Mathf.Abs(Vector3.Dot(rel, transform.right));
+            if (!Alive(robot) || robot.IsDown || along < 0f || along > hugZoneLength || side > hugZoneWidth * 0.5f)
+            {
+                Debug.Log("[KaijuSpecials] กอดวืด — หุ่นหลบพ้นเขต");
+                HugEndClientRpc(false);
+                yield break;
+            }
+
+            hugRobot.Value = robot.NetworkObject; // ทุกเครื่อง: ตัวหุ่นลอยตามมือไคจู
+            float hp0 = health.CurrentHp.Value;
+            int beat = 0;
+            bool escaped = false;
+            while (Time.time - t0 < hugSlamTime && !Dead() && Alive(robot) && !robot.IsDown) // ขาหลุดจากแรงบีบแล้วล้มกลางอ้อมกอด = ปล่อย ไม่งั้นลุกแล้วถูกดูดกลับเข้ามือ
+            {
+                if (hp0 - health.CurrentHp.Value >= hugEscapeDamage) { escaped = true; break; }
+                if (beat < hugBeats.Length && Time.time - t0 >= hugBeats[beat])
+                {
+                    beat++;
+                    foreach (RobotLimb limb in robot.AttachedLimbs())
+                        if (limb.Health != null) DamageRouter.TryApply(limb.Health, new DamageInfo(hugSqueezeDamage, limb.Health.transform.position, transform.forward, DamageSource.EnemyMelee, Team.Enemy));
+                    HugSqueezeClientRpc();
+                }
+                yield return null;
+            }
+            hugRobot.Value = default;
+            if (Dead() || !Alive(robot)) yield break;
+            if (escaped)
+            {
+                Debug.Log("[KaijuSpecials] หุ่นดิ้นหลุด — ไคจูเซ");
+                HugEndClientRpc(true);
+                for (float t = 0f; t < hugStunTime && !Dead(); t += Time.deltaTime) yield return null; // ยืนมึน (AI ยังพักอยู่ใน Perform)
+                yield break;
+            }
+            // โยน: ปล่อยหุ่นที่นอนแนวนอนเหนือหัวพุ่งไปข้างหน้า → ตกถึงพื้น = ทุกชิ้นโดนหนัก + แรงกระแทก ณ จุดตก
+            Vector3 toss = transform.forward * hugThrowVelocity.x + Vector3.up * hugThrowVelocity.y;
+            Rigidbody hips = null;
+            if (robot.TryGetComponent(out Nsc.BoneLimb.RobotIKControl ik)) { ik.ServerKickAway(toss); hips = ik.RagdollHips; }
+            else robot.ServerKnockDown(FallReason.KnockedDown);
+            ThrowClientRpc();
+            float tossT = Time.time;
+            bool falling = false;
+            while (hips && Alive(robot) && Time.time - tossT < 3f) // ตกถึงพื้น = เคยร่วงเร็วแล้วหยุดร่วง
+            {
+                float vy = hips.linearVelocity.y;
+                if (Time.time - tossT < 0.25f) { yield return null; continue; } // ช่วงแรกความเร็วยังเป็นของท่าเหวี่ยง ไม่ใช่ตก
+                if (vy < -4f) falling = true;
+                else if (falling && vy > -1.5f) break;
+                yield return null;
+            }
+            if (!Alive(robot)) yield break; // หุ่นหายระหว่างปลิว (ผู้เล่นออก/despawn)
+            foreach (RobotLimb limb in robot.AttachedLimbs())
+                if (limb.Health != null) DamageRouter.TryApply(limb.Health, new DamageInfo(hugSlamDamage, limb.Health.transform.position, Vector3.down, DamageSource.EnemyMelee, Team.Enemy));
+            HugSlamClientRpc(hips ? hips.position : robot.transform.position);
+            while (Time.time - t0 < hugDuration && !Dead()) yield return null;
+        }
+
+        private void OnHugRobotChanged(NetworkObjectReference _, NetworkObjectReference __) => ApplyHug();
+
+        // ทุกเครื่อง: บอกหุ่นว่าโดนกอด — ตัวคุมหุ่นยึดตัวไว้ที่มือไคจูเอง
+        private void ApplyHug()
+        {
+            if (hugged) hugged.HuggedBy = null;
+            hugged = null;
+            if (!hugRobot.Value.TryGet(out NetworkObject no)) return;
+            hugged = no.GetComponentInChildren<Robot>();
+            if (hugged) hugged.HuggedBy = animator;
+        }
+
+        [ClientRpc]
+        private void HugSqueezeClientRpc()
+        {
+            if (hugged && hugged.TryGetComponent(out Nsc.BoneLimb.RobotIKControl ik)) ik.HugSqueeze();
+            CameraShake.Add(transform.position + Vector3.up * 8f, 0.6f, 0.3f);
+        }
+
+        // จบกอดไม่ทุ่ม: escaped = หุ่นหลุด → ไคจูเซหงาย | ไม่งั้นวืด → ตัดท่ากลับ
+        [ClientRpc]
+        private void HugEndClientRpc(bool escaped)
+        {
+            animator.CrossFadeInFixedTime(escaped ? hugStaggerState : "Empty", 0.15f, attackLayer, 0f);
+            if (escaped) ImpactFeel.PlayHit(rightHand.position, transform.forward, ripTearImpact);
+        }
+
+        [ClientRpc]
+        private void ThrowClientRpc() // ปล่อยมือขว้าง: จอกระชาก + FOV ถีบออกนิดให้รู้สึกถึงแรงเหวี่ยง
+        {
+            CameraShake.Add(rightHand.position, 1.2f, 0.4f);
+            CameraShake.KickFov(5f);
+        }
+
+        [ClientRpc]
+        private void HugSlamClientRpc(Vector3 at)
+        {
+            Vector3 ground = new Vector3(at.x, transform.position.y, at.z);
+            ImpactFeel.PlayHit(ground, Vector3.up, 90f);
+            CameraShake.Add(ground, 2f, 1f);
+            CameraShake.KickFov(10f);
         }
 
         private void OnRipRobotChanged(NetworkObjectReference _, NetworkObjectReference __) => ApplyGrip();
@@ -671,7 +827,7 @@ namespace NscGame.Enemy
         {
             transform.rotation = Quaternion.LookRotation(dir);
             animator.speed = 1f; // ท่าตีปกติชะลอ animator (EnemyCombat.attackAnimSpeed) — ท่าพิเศษจับเวลาตามคลิปความเร็วปกติ
-            string state = special switch { Special.Roll => rollState, Special.Roar => roarState, Special.Rip => ripState, Special.RipLeft => ripStateLeft, _ => poundState };
+            string state = special switch { Special.Roll => rollState, Special.Roar => roarState, Special.Rip => ripState, Special.RipLeft => ripStateLeft, Special.BearHug => hugState, _ => poundState };
             animator.CrossFadeInFixedTime(state, 0.15f, attackLayer, 0f);
             // หยุดแค่ภาพของท่าก่อน (host มี Run ของ server วิ่งอยู่ด้วย ห้าม StopAllCoroutines)
             if (visual != null) StopCoroutine(visual);
@@ -681,6 +837,7 @@ namespace NscGame.Enemy
                 Special.Roll => RollVisual(origin, dir),
                 Special.Roar => RoarVisual(origin),
                 Special.Rip or Special.RipLeft => RipVisual(special == Special.RipLeft ? leftHand : rightHand),
+                Special.BearHug => HugVisual(origin, dir),
                 _ => PoundVisual(origin, dir),
             });
         }
@@ -711,6 +868,19 @@ namespace NscGame.Enemy
         }
 
         // จังหวะกระชากหลุด: หนัก + ประกายไฟที่มือ + หยุดภาพ + ซูม + จอสั่นแรง (หุ่นเองเล่นประกายที่ไหล่ตอนแขนหลุดอยู่แล้ว)
+        // เตือนกอด: เขตแดงหน้าตัวไล่เติมจนถึงจังหวะรวบ + คำราม
+        private IEnumerator HugVisual(Vector3 origin, Vector3 dir)
+        {
+            if (roarSfx != null && TryGetComponent(out AudioSource source)) source.PlayOneShot(roarSfx);
+            BeginWarning(origin, dir, hugZoneLength, hugZoneWidth);
+            for (float t = 0f; t < hugGrabTime; t += Time.deltaTime)
+            {
+                UpdateWarning(origin, dir, hugZoneLength, hugZoneWidth, Mathf.Clamp01(t / hugGrabTime));
+                yield return null;
+            }
+            EndWarning();
+        }
+
         private IEnumerator RipVisual(Transform hand)
         {
             yield return new WaitForSeconds(ripTearTime);

@@ -66,6 +66,8 @@ namespace Nsc.BoneLimb
         [Header("ดาเมจหมัด (แบบ LimbStrike เดิม: ดาเมจ = ความเร็วพีคของกำปั้น × speedToDamage)")]
         [Tooltip("กำปั้นเร็วกว่านี้ (m/s) = กำลังต่อย — ช้ากว่านี้ชนอะไรก็ไม่มีดาเมจ")]
         [SerializeField] private float strikeMinSpeed = 8f;
+        [Tooltip("โดนไคจูกอด: หมัด/ถีบต้องเร็วกว่านี้ (เทียบไหล่/สะโพก) ถึงนับ — กันแขนที่สั่นตามตัวดิ้นนับเป็นหมัด (หมัดจริง ~17–35)")]
+        [SerializeField] private float hugStrikeMinSpeed = 15f;
         [Tooltip("ความเร็วพีค (m/s) × ค่านี้ = ดาเมจ — หุ่น IK กำปั้นช้ากว่า (หมัดแตะ ~18 m/s) ตั้ง 1.6 ให้ได้ ~30 ใกล้หมัดหุ่นเดิม (พีค 55 × 0.6 = 33)")]
         [SerializeField] private float strikeSpeedToDamage = 1.6f;
         [SerializeField] private float strikeMaxDamage = 60f;
@@ -234,6 +236,13 @@ namespace Nsc.BoneLimb
         [Tooltip("ดันกล้องเข้าเต็มที่ภายในกี่วิ / ดันเข้าเหลือกี่ส่วนของระยะ")]
         [SerializeField] private float grabCamPushTime = 3f;
         [SerializeField] private float grabCamPush = 0.3f;
+        [SerializeField] private float hugCamDistance = 15f; // โดนกอด: กล้องข้างตัวห่างกี่เมตร
+        private bool hugCamWas;
+        private Vector3 hugCamHead;
+        [Tooltip("โดนไคจูกอด: แอ่นหลังหนีกี่องศา / บิดตัวดิ้นกี่องศา")]
+        [SerializeField] private float hugArch = 18f;
+        [SerializeField] private float hugSway = 7f;
+        [SerializeField] private float hugPushBack = 0.5f; // มือดันโดนคอไคจูจริง แล้วตัวหุ่นถอยห่างกี่เมตร
         private float heldBlend, grabCamW, grabCamT, grabCamAfter, grabCamSide;
         private bool tugHit;
         private Transform grabCamEnemy;
@@ -410,6 +419,8 @@ namespace Nsc.BoneLimb
             swingT = new float[limbs.Length];
             swingLift = new float[limbs.Length];
             kickCharge = new float[limbs.Length];
+            hugKickT = new float[limbs.Length];
+            lastRel = new Vector3[limbs.Length];
             for (int i = 0; i < limbs.Length; i++) kickCharge[i] = -1f;
             kickDir = new Vector3[limbs.Length];
             kickFrom = new Vector3[limbs.Length];
@@ -706,6 +717,14 @@ namespace Nsc.BoneLimb
                 }
                 // กำลังลุก: GetUpPose คุมเท้าคนเดียว — ระบบวางเท้า/ค่าที่ซิงก์มาแตะด้วย = เท้าถูกกดลงพื้นทุกเฟรมสลับกับยกขึ้น (ติด) เสียงก้าว+ฝุ่นรัวทุกเฟรม
                 if (getUp >= 0f && !limb.isArm) continue;
+                // โดนไคจูกอดยก: ขาห้อยกลางอากาศ — คนคุมค้างคลิกยกเข่า ปล่อยถีบอกไคจู | ไม่มีคนคุม = ห้อยแกว่ง
+                if (Hugged && !limb.isArm)
+                {
+                    if (IsMine(i) && canAct) { DriveHugLeg(i, input); if (Online) SendLimbRpc(i, LimbNetState.Capture(limb)); }
+                    else if (Online && HasController(i)) states[i].ApplyTo(limb, remoteT);
+                    else { limb.Kick = false; limb.target.position = Vector3.MoveTowards(limb.target.position, DanglePos(i), 15f * Time.deltaTime); }
+                    continue;
+                }
                 // ไม่ได้คุมชิ้นนี้ = ไม่จับ (สลับไปคุมชิ้นอื่นแล้วกลับมาไม่จับต่อเอง) — ออนไลน์ชิ้นที่คนอื่นคุมได้ค่าจริงจาก ApplyTo ด้านล่าง
                 if (limb.isArm && !(IsMine(i) && canAct)) CancelGrab(i);
                 if (!(IsMine(i) && canAct)) limb.Brace = false; // ปล่อยชิ้น/สลับชิ้นตอนค้างปุ่ม — ไม่ค้างท่า (ชิ้นที่คนอื่นคุม ApplyTo ข้างล่างใส่ค่าจริงทับ)
@@ -742,6 +761,8 @@ namespace Nsc.BoneLimb
                     else if (limb.isArm && combat.pointAndClick && cam) DriveCombatArm(i, input); // หมัดต้องจบท่าแม้กำลังหันกล้อง
                     else if (!limb.isArm) DriveLeg(i, input); // ก้าวต้องจบแม้กำลังหันกล้อง
                     else if (!input.looking && cam) DriveArm(limb, input.ray, push, input.held);
+                    if (limb.isArm) limb.Kick = Hugged && Punching(i); // แขน: Kick = "กำลังต่อยตอนโดนกอด" ซิงก์ให้ Server นับเฉพาะหมัดจริง ไม่นับท่าดัน
+                    if (limb.isArm && Hugged && hugWas && !Punching(i)) limb.target.position = hugHand[i] + hugTremor[i]; // โดนกอด: ไม่ได้ต่อย = ดัน/ยันหน้าไคจู (ต่อยเมื่อไรหมัดทับท่านี้)
                     if (!limb.isArm) WindSlide(i);
                     if (Online) SendLimbRpc(i, LimbNetState.Capture(limb));
                 }
@@ -780,7 +801,8 @@ namespace Nsc.BoneLimb
             UpdateGrabGlow();
             if (getUp >= 0f) getUp = Mathf.Min(1f, getUp + Time.deltaTime / ragdoll.getUpTime); // จบใน LateUpdate หลังไล่ท่าเฟรมสุดท้าย
 
-            if (!down)
+            UpdateHug();
+            if (!down && !Hugged)
             {
                 DetectLandings(); // นอนอยู่: เป้าเท้าขึ้นลงไม่ใช่ก้าวเท้า (ไม่เล่นเสียงกระทืบ)
                 if (DrivesBody) UpdateBody();
@@ -803,7 +825,7 @@ namespace Nsc.BoneLimb
                     if (limb.Pull) ragdoll.Pull(limb, limb.target.position);
                 FixedDown();
             }
-            else if (DrivesBody && getUp < 0f && (!Online || MatchSession.Current == null || MatchSession.Current.IsPlaying)) EvaluateFall();
+            else if (DrivesBody && getUp < 0f && !Hugged && (!Online || MatchSession.Current == null || MatchSession.Current.IsPlaying)) EvaluateFall(); // ลอยในอ้อมกอดไคจู = เท้าไม่แตะพื้นแต่ไม่ล้ม
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
@@ -867,6 +889,7 @@ namespace Nsc.BoneLimb
                                * Quaternion.AngleAxis(lean.y, transform.forward) * spine.rotation;
             }
             if (getUp >= 0f) GetUpPose(getUp);
+            if (Hugged) UpdateHugArms(Time.deltaTime);
             Transform enemyGrip = null; // มือไคจูที่จับแขนที่ยังต่ออยู่ (ช่วงคว้าก่อนกระชาก)
             for (int i = 0; i < limbs.Length; i++) if (limbs[i].isArm && Attached(i) && HeldBy(i)) enemyGrip = HeldBy(i);
             for (int i = 0; i < limbs.Length; i++)
@@ -878,6 +901,8 @@ namespace Nsc.BoneLimb
                 if (HeldBy(i) is Transform grip) limb.target.position = grip.position; // ไคจูคว้าแขนไว้ = มือถูกลากไปตามมือมัน (ทับค่าที่คนคุมสั่ง)
                 else if (limb.isArm && enemyGrip && enemyGrip.parent) // แขนอีกข้างงัดแขนไคจู: มือรูดไปมาระหว่างข้อมือกับปลายแขนมัน
                     limb.target.position = Vector3.Lerp(enemyGrip.position, enemyGrip.parent.position, 0.45f + 0.35f * Mathf.Sin(Time.time * 9f));
+                else if (limb.isArm && Hugged && hugHand != null && !HasController(i)) limb.target.position = hugHand[i] + hugTremor[i]; // แขนว่าง: ดัน-ค้าง-คลาย ใต้คางไคจู
+                if (limb.isArm && Hugged && hugPole != null && !Punching(i)) limb.PoleOverride = hugPole[i]; // ศอกชี้ลง-ออก (UpdateHugArms)
                 Vector3 footWas = limb.target.position;
                 if (!limb.isArm && heldBlend > 0f) // ยื้อ: เท้าหน้ายันไปหาไคจู เท้าหลังถอยค้ำ + โดนลาก/ครูดพื้น — แค่ตอนแก้ IK แล้วคืนที่เดิม (ไม่ย้ายเท้าจริง)
                 {
@@ -1122,6 +1147,17 @@ namespace Nsc.BoneLimb
             goal.x += stoop * toward.y;  // ก้มไปหน้า
             goal.y -= stoop * toward.x;  // ของอยู่ขวา = เอียงขวา (lean.y บวก = เอียงซ้าย)
             // ไคจูคว้าแขนอยู่: มือมันยังอยู่ในระยะแขน = เอนหนีต้านแรง | ดึงเกินแขน = โดนกระชากเอนเข้าหา + ตัวสั่นดิ้น (สุ่มต่อเครื่อง แค่ภาพ)
+            if (Hugged) // ดิ้นในอ้อมกอด: แอ่นหลังหนีไคจู + ดันแล้วลำตัวรับแรงสะท้อน (lean.x บวก = ก้ม, lean.y บวก = เอียงซ้าย)
+            {
+                goal.x += -hugArch + (Mathf.PerlinNoise(Time.time * 1.3f, 0.37f) - 0.5f) * 2f * hugSway; // ดิ้นไม่สม่ำเสมอ
+                for (int i = 0; i < limbs.Length; i++)
+                {
+                    if (!limbs[i].isArm || !Attached(i)) continue;
+                    float p = HugPushAmount(i);
+                    goal.x -= 5f * p;                  // ดันโดนจริง = แอ่นเพิ่ม (รวมทั้งตัวไม่เกิน ~35°)
+                    goal.y += limbs[i].Side * 8f * p;  // ไหล่ข้างที่ดันถอยไปหลัง/ตัวเอียงหนี
+                }
+            }
             if (HeldStrain(out Vector3 to, out float over, out _))
             {
                 float pull = over > 0f ? Mathf.Min(over * 60f, 25f) : -heldResistLean;
@@ -1698,6 +1734,9 @@ namespace Nsc.BoneLimb
         {
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
+            // โดนไคจูกอด: ตัวลอย/ถูกยก/แอ่น/บิดดิ้นตลอด — วัดความเร็วปลายแขนขาเทียบโคน (ไหล่/สะโพก) แทนเทียบโลก
+            // ไม่งั้นแขนที่ไหลตามตัวถูกนับเป็นหมัดโดนไคจู (เคยได้ 39 m/s) เกจหลุดเต็มเอง
+            bool pulledIn = Hugged && hugBlend < 1f;
             for (int i = 0; i < limbs.Length; i++)
             {
                 IKLimb limb = limbs[i];
@@ -1707,8 +1746,12 @@ namespace Nsc.BoneLimb
                 Collider weaponCol = weapon ? weapon.GetComponentInChildren<Collider>() : null;
                 Vector3 grip = limb.GripCenter;
                 Vector3 tip = weaponCol ? Closest(weaponCol, weaponCol.bounds.center + (weaponCol.bounds.center - grip).normalized * 100f) : limb.tip.position;
-                Vector3 move = tip - lastTip[i];
+                Vector3 rel = tip - limb.root.position;
+                Vector3 move = Hugged ? rel - lastRel[i] : tip - lastTip[i];
                 lastTip[i] = tip;
+                lastRel[i] = rel;
+                // กำลังถูกดึงเข้ามือไคจู = ไม่นับ | ลอยอยู่: แขนขาที่ไม่มีคนคุมกระตุกตามตัวตอนไคจูยก/เขย่า ไม่ใช่การตี — นับเฉพาะชิ้นที่มีผู้เล่น
+                if (pulledIn || (Hugged && (!HasController(i) || (limb.isArm && !limb.Kick)))) { tracked[i] = false; continue; } // ท่าดัน/งัดตอนโดนกอดไม่ใช่หมัด
                 bool wasTracked = tracked[i] && strikeWeapon[i] == weapon;
                 strikeWeapon[i] = weapon;
                 tracked[i] = Attached(i) && !down && getUp < 0f && (weaponCol || !limb.Grab); // จับมือเปล่า (ยังไม่ได้ของ) ไม่ต่อย
@@ -1717,7 +1760,8 @@ namespace Nsc.BoneLimb
                 bool striking = weaponCol || ((limb.isArm || limb.Kick) && Vector3.Dot(move, tip - limb.root.position) > 0f);
                 if (!limb.isArm && limb.Kick && tracked[i] && striking && speed >= strikeMinSpeed) KickProps(i, tip, move);
                 else if (!limb.isArm && !limb.Kick) kickedProps[i].Clear();
-                if (!wasTracked || !tracked[i] || speed < strikeMinSpeed || !striking)
+                // โดนกอด: ตัวดิ้น/โดนบีบ แขนการ์ดสั่นตามได้ ~10–12 m/s เทียบไหล่ — นับเฉพาะหมัด/ถีบจริงที่เร็วกว่า hugStrikeMinSpeed
+                if (!wasTracked || !tracked[i] || speed < (Hugged ? hugStrikeMinSpeed : strikeMinSpeed) || !striking)
                 {
                     strikePeak[i] = 0f;
                     struck[i] = false;
@@ -2204,6 +2248,250 @@ namespace Nsc.BoneLimb
             if (limb.hit) limb.hit.detectCollisions = false;   // มือ/เท้าที่หลุดไม่ดันของ
         }
 
+        // ================================================================ โดนไคจูกอดยก (Q-20261105-kaiju-bear-hug)
+
+        private Animator Hugger => robot ? robot.HuggedBy : null;
+        private bool Hugged => Hugger && !down;
+        private bool hugWas;
+        private Vector3 hugTorso;   // อก (จุดที่มือไคจูรวบ) เทียบตัวหุ่น ในแกนตัวหุ่น — จับตอนเริ่มโดนกอด
+        private float hugBlend;
+        private float[] hugKickT;   // ถีบตอนลอย: เวลาตั้งแต่ปล่อยคลิก (-1 = ไม่ได้ถีบ)
+        private Vector3[] lastRel;  // ปลายแขนขาเทียบโคน เฟรมก่อน — ใช้วัดการตีตอนโดนกอด
+
+        // จุดที่มือไคจูรวบ = กลางสองมือ (ท่ากอดเล่นเหมือนกันทุกเครื่อง)
+        private Vector3 HugAnchor() => (Hugger.GetBoneTransform(HumanBodyBones.LeftHand).position + Hugger.GetBoneTransform(HumanBodyBones.RightHand).position) * 0.5f;
+
+        // ทุกเครื่อง ทุกเฟรม: เริ่ม/เลิกโดนกอด | Server ยึดตัวหุ่นไว้ที่มือไคจู หันหน้าเข้าหามัน (client ได้ตำแหน่งจาก NetworkTransform)
+        private void UpdateHug()
+        {
+            bool hugged = Hugged;
+            if (hugged != hugWas)
+            {
+                hugWas = hugged;
+                if (hugged)
+                {
+                    hugTorso = Quaternion.Inverse(transform.rotation) * ((spine ? spine.position : transform.position + Vector3.up * 8f) - transform.position);
+                    hugBlend = 0f;
+                    for (int i = 0; i < limbs.Length; i++)
+                        if (!limbs[i].isArm) { CancelKick(i); limbs[i].Lifted = false; hugKickT[i] = -1f; }
+                    ResetHugArms();
+                }
+                else if (!down) // ดิ้นหลุด: เท้าทุกข้างกลับไปปักพื้นใต้ตัว ตัวตกลงตามเท้า (UpdateBody)
+                {
+                    for (int i = 0; i < limbs.Length; i++)
+                    {
+                        IKLimb leg = limbs[i];
+                        if (leg.isArm) continue;
+                        leg.Kick = leg.Lifted = false;
+                        leg.target.position = planted[i] = OnGround(leg, leg.target.position);
+                        airborne[i] = false;
+                        if (feel.footstepFeel) ImpactFeel.PlayFootstep(new Vector3(planted[i].x, GroundY(planted[i]), planted[i].z), 1f);
+                    }
+                }
+            }
+            if (!hugged || !DrivesBody) return;
+            Vector3 anchor = HugAnchor();
+            Vector3 face = Vector3.ProjectOnPlane(-Hugger.transform.forward, Vector3.up); // หันเข้าหาไคจู (ตอนยกเหนือหัวมือมันอยู่เหนือตัวมันพอดี ทิศจากมือไปตัวมันใช้ไม่ได้)
+            Quaternion rot = face.sqrMagnitude > 0.01f ? Quaternion.LookRotation(face.normalized) : bodyRot;
+            hugBlend = Mathf.Min(1f, hugBlend + Time.deltaTime / 0.25f); // รวบแล้วตัวถูกดึงเข้าหามือใน 0.25 วิ ไม่วาร์ป
+            // ถูกยกเหนือหัว = เอนหงายลงนอนแนวนอนบนสองมือไคจู หัวชี้ทางที่มันจะโยน มือรับกลางตัวแทนอก
+            hugFlat = Mathf.MoveTowards(hugFlat, hugOverhead ? 1f : 0f, Time.deltaTime / 0.45f);
+            float flat = Mathf.SmoothStep(0f, 1f, hugFlat);
+            rot *= Quaternion.Euler(-90f * flat, 0f, 0f);
+            Vector3 hold = hugTorso;
+            hold.y *= 1f - 0.4f * flat;
+            float push = 0f; // แขนดันหน้าไคจู = ตัวหุ่นถอยห่างออกมา (ยังอยู่ในมือมัน)
+            if (!hugOverhead) for (int i = 0; i < limbs.Length; i++) if (limbs[i].isArm && Attached(i)) push = Mathf.Max(push, HugPushAmount(i));
+            hugGap = Mathf.MoveTowards(hugGap, push * hugPushBack, Time.deltaTime * 2.5f);
+            bodyPos = Vector3.Lerp(bodyPos, anchor - rot * (hold + Vector3.forward * hugGap), hugBlend);
+            bodyRot = Quaternion.Slerp(bodyRot, rot, hugBlend);
+            bodyVel = Vector3.zero;
+        }
+
+        // ขาห้อยจากสะโพกตรงลง + แกว่งช้าๆ
+        private Vector3 DanglePos(int i)
+        {
+            IKLimb leg = limbs[i];
+            // ถีบสลับสองขาแบบปั่นจักรยานกลางอากาศ เข่างอ (เป้าใกล้กว่าความยาวขา)
+            float ph = Time.time * 4f + (i % 2) * Mathf.PI;
+            return leg.root.position - transform.up * (leg.Reach * (0.78f + 0.12f * Mathf.Sin(ph))) + transform.forward * (leg.Reach * 0.3f * Mathf.Cos(ph));
+        }
+
+        // คนคุมขาตอนโดนกอด: ค้างคลิก = ยกเข่าเก็บ | ปล่อย = ถีบเข้าอกไคจู (Kick = Server นับดาเมจแบบถีบปกติ) แล้วกลับมาห้อย
+        private void DriveHugLeg(int i, IKInput input)
+        {
+            IKLimb leg = limbs[i];
+            float dt = Time.deltaTime;
+            Vector3 hip = leg.root.position;
+            Transform chest = Hugger.GetBoneTransform(HumanBodyBones.Chest);
+            Vector3 toward = ((chest ? chest.position : Hugger.transform.position + Vector3.up * 7f) - hip).normalized;
+            if (input.held)
+            {
+                hugKickT[i] = -1f;
+                leg.Lifted = true;
+                leg.Kick = false;
+                Vector3 chamber = hip + toward * (leg.Reach * 0.25f) - Vector3.up * (leg.Reach * 0.35f);
+                leg.target.position = Vector3.MoveTowards(leg.target.position, chamber, leg.Reach * 4f * dt);
+                return;
+            }
+            if (leg.Lifted) { leg.Lifted = false; hugKickT[i] = 0f; } // เพิ่งปล่อย = ถีบ
+            if (hugKickT[i] >= 0f)
+            {
+                hugKickT[i] += dt;
+                leg.Kick = hugKickT[i] < 0.25f;
+                Vector3 end = leg.Kick ? hip + toward * (leg.Reach * 0.95f) : DanglePos(i);
+                leg.target.position = Vector3.MoveTowards(leg.target.position, end, (leg.Kick ? kickThrustSpeed : leg.Reach * 3f) * dt);
+                if (hugKickT[i] > 0.7f) hugKickT[i] = -1f;
+                return;
+            }
+            leg.Kick = false;
+            leg.target.position = Vector3.MoveTowards(leg.target.position, DanglePos(i), leg.Reach * 3f * dt);
+        }
+
+        /// <summary>ทุกเครื่อง: ไคจูบีบ (จังหวะในท่ากอด) — ประกายไฟ/เสียงเหล็กที่อก ตัวสะท้าน</summary>
+        // ================= แขนตอนโดนกอด (ทีมตรวจแอนิเมชัน 2026-11-06): รอบ ง้าง 0.5 → ดัน 0.2 → ค้างเกร็ง 0.9 → คลาย 0.4 วิ
+        // (ยาวรอบสุ่ม ±20%, สองแขนเหลื่อม 0.6 รอบ) เป้า = ใต้คางไคจู งัดหัวมันให้หงาย | ถูกยกเหนือหัว = คว้าปลายแขนไคจูที่ยกอยู่
+        // มือผ่านสปริง 1.5 Hz หน่วง 0.9 (ข้อมือตามหลังศอก) | โดนบีบ = แขนหุบเข้าแป๊บหนึ่งแล้วคืน | ทุกเครื่องคิดเองจากท่าไคจู
+        private float[] hugArmT, hugArmLen;
+        private int[] hugArmCycle;
+        private Vector3[] hugHand, hugHandVel, hugTremor; // มือหลังสปริง + สั่นเกร็ง (บวกทีหลัง ไม่ให้สปริงกรองทิ้ง)
+        private float hugFlinch = -1f;
+        private bool hugOverhead;
+        private float hugFlat; // 0 ตั้งตรง → 1 นอนแนวนอนเหนือหัวไคจู (Server)
+        private float hugGap;
+        private Vector3[] hugPole;
+        private float[] hugContact; // มือแตะเป้าจริงไหม 0..1 (ไม่แตะ = ลำตัวไม่รับแรงสะท้อน)
+
+        private float HugCycle(int i) => 2f * hugArmLen[i];
+
+        // ช่วงในรอบ (วินาทีเทียบรอบมาตรฐาน 2 วิ)
+        private float HugSeg(int i) => hugArmT[i] / hugArmLen[i];
+
+        // แรงที่แขนนี้ดันอยู่ 0..1 — ลำตัวรับแรงสะท้อนตามนี้
+        private float HugPushAmount(int i)
+        {
+            if (hugArmT == null || !Hugged) return 0f;
+            return HugPushAmountRaw(i) * hugContact[i]; // มือไม่โดนอะไร = ไม่มีแรงสะท้อน
+        }
+
+        private float HugPushAmountRaw(int i)
+        {
+            float t = HugSeg(i), p;
+            if (t < 0.5f) p = 0f;
+            else if (t < 0.7f) p = Mathf.SmoothStep(0f, 1f, (t - 0.5f) / 0.2f);
+            else if (t < 1.6f) p = 1f;
+            else p = 1f - Mathf.SmoothStep(0f, 1f, (t - 1.6f) / 0.4f);
+            return p;
+        }
+
+        // ระยะมือจากไหล่ เทียบระยะถึงจุดสัมผัส: ง้าง 0.85→0.6 (ease-in), ดัน →1 (ease-out cubic) = โดนจริง, ค้าง 1, คลาย →0.85
+        private float HugReachFrac(int i)
+        {
+            float t = HugSeg(i);
+            if (t < 0.5f) { float k = t / 0.5f; return Mathf.Lerp(0.85f, 0.6f, k * k); }
+            if (t < 0.7f) { float k = 1f - (t - 0.5f) / 0.2f; return Mathf.Lerp(0.6f, 1f, 1f - k * k * k); }
+            if (t < 1.6f) return 1f;
+            return Mathf.Lerp(1f, 0.85f, Mathf.SmoothStep(0f, 1f, (t - 1.6f) / 0.4f));
+        }
+
+        // จุดบนปลายแขนไคจู (ศอก→มือ) ที่ใกล้ p ที่สุด — เลือกแขนข้างที่ใกล้กว่า
+        private Vector3 KaijuForearmPoint(Vector3 p)
+        {
+            Vector3 best = Hugger.transform.position + Vector3.up * 8f;
+            float bd = float.MaxValue;
+            for (int s = 0; s < 2; s++)
+            {
+                Transform a = Hugger.GetBoneTransform(s == 0 ? HumanBodyBones.LeftLowerArm : HumanBodyBones.RightLowerArm);
+                Transform b = Hugger.GetBoneTransform(s == 0 ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand);
+                if (!a || !b) continue;
+                Vector3 ab = b.position - a.position;
+                Vector3 q = a.position + ab * Mathf.Clamp01(Vector3.Dot(p - a.position, ab) / Mathf.Max(ab.sqrMagnitude, 1e-4f));
+                float dd = (q - p).sqrMagnitude;
+                if (dd < bd) { bd = dd; best = q; }
+            }
+            return best;
+        }
+
+        // เพิ่งโดนกอด (ทุกเครื่อง): เริ่มรอบใหม่ มือเริ่มจากที่อยู่ตอนนี้ แขนสองข้างเหลื่อมกัน 0.6 รอบ
+        private void ResetHugArms()
+        {
+            int n = limbs.Length;
+            hugArmT = new float[n]; hugArmLen = new float[n]; hugArmCycle = new int[n];
+            hugHand = new Vector3[n]; hugHandVel = new Vector3[n]; hugTremor = new Vector3[n]; hugPole = new Vector3[n]; hugContact = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                hugArmLen[i] = 1f;
+                hugArmT[i] = (i % 2) * 0.6f * 2f;
+                hugHand[i] = limbs[i].target.position;
+                hugPole[i] = new Vector3(0.4f * limbs[i].Side, -1f, -0.2f);
+            }
+            hugFlinch = -1f; hugGap = 0f; hugFlat = 0f; hugOverhead = false;
+        }
+
+        private void UpdateHugArms(float dt)
+        {
+            if (hugHand == null) return;
+            Transform head = Hugger.GetBoneTransform(HumanBodyBones.Head);
+            Vector3 headPos = head ? head.position : Hugger.transform.position + Vector3.up * 11f;
+            bool overhead = hugOverhead = spine && spine.position.y > headPos.y + (hugOverhead ? 0.8f : 1.5f); // ถูกยกเหนือหัว: หัวไคจูอยู่ใต้ตัว (เข้า 1.5 ม. ออก 0.8 ม. กันกระพือ)
+            for (int i = 0; i < limbs.Length; i++)
+            {
+                IKLimb arm = limbs[i];
+                if (!arm.isArm) continue;
+                hugArmT[i] += dt;
+                if (hugArmT[i] >= HugCycle(i))
+                {
+                    hugArmT[i] -= HugCycle(i);
+                    hugArmCycle[i]++;
+                    hugArmLen[i] = 0.8f + 0.4f * Mathf.PerlinNoise(i * 7.31f, hugArmCycle[i] * 0.53f); // ยาวรอบ ±20% (ทุกเครื่องได้ค่าเดียวกัน)
+                }
+                Vector3 shoulder = arm.root.position;
+                bool grip = arm.Side < 0f; // สองแขนทำคนละอย่าง ไม่เป็นกระจก: แขนหนึ่งจัดการแขนไคจู อีกแขนดันคอ/หัวมัน
+                Vector3 chest = spine ? spine.position : transform.position + Vector3.up * 8f;
+                Vector3 aim, pole;
+                float frac = 1f;
+                if (grip || overhead) // กำปลายแขนไคจูที่รัดตัวอยู่/ที่ยกอยู่ แล้วงัดออกนอกตัวตามจังหวะดัน (เหนือหัว = สองมือเกาะแขนมัน)
+                {
+                    aim = KaijuForearmPoint(shoulder);
+                    Vector3 outward = Vector3.ProjectOnPlane(aim - chest, Vector3.up);
+                    if (!overhead && outward.sqrMagnitude > 1e-4f) aim += outward.normalized * (1.0f * HugPushAmountRaw(i));
+                    pole = new Vector3(0.6f * arm.Side, -1f, 0f);
+                }
+                else // ไหล่หุ่นอยู่สูงกว่าหัวไคจู: ฝ่ามือดันขมับ/ข้างกรามมันออก ศอกกางพ้นเงาหัว (กล้องเห็น)
+                {
+                    float toArm = Mathf.Sign(Vector3.Dot(shoulder - headPos, Hugger.transform.right));
+                    aim = headPos + Hugger.transform.right * (1.2f * toArm) + Hugger.transform.forward * 0.6f + Vector3.up * 0.3f;
+                    pole = new Vector3(arm.Side, -0.3f, 0f);
+                    frac = HugReachFrac(i);
+                }
+                float dist = (aim - shoulder).magnitude, maxR = arm.Reach * 0.93f; // เอื้อมสุดศอกยังงอนิด ไม่ล็อกตรงแบบไม้
+                hugContact[i] = Mathf.Clamp01(1f - (dist - maxR) / 0.5f); // ถึง = 1, ขาดเกินครึ่งเมตร = 0
+                float d = Mathf.Min(dist, maxR) * frac;
+                hugPole[i] = Vector3.Lerp(hugPole[i], pole, dt * 4f); // ศอกเปลี่ยนทิศช้าๆ ไม่พลิกในเฟรมเดียว
+                Vector3 desired = shoulder + (aim - shoulder).normalized * d;
+                float seg = HugSeg(i);
+                float shake = Mathf.Clamp01((seg - 0.7f) / 0.1f) * Mathf.Clamp01((1.6f - seg) / 0.1f) * hugContact[i]; // ค้างเกร็งตอนมือโดนเป้า: เฟดเข้าออก 0.1 วิ
+                hugTremor[i] = transform.rotation * new Vector3(Mathf.PerlinNoise(Time.time * 2.2f, i * 3.1f) - 0.5f, Mathf.PerlinNoise(i * 5.7f, Time.time * 2.2f) - 0.5f, 0f) * (arm.Reach * 0.08f * shake); // สั่นเกร็งแบบ noise ~2 Hz ช้าและกว้าง สมขนาดตึก
+                if (hugFlinch >= 0f) // โดนบีบ: หุบเข้า 0.08 วิ ค้าง 0.25 คืน 0.5
+                {
+                    float k = hugFlinch < 0.08f ? hugFlinch / 0.08f : hugFlinch < 0.33f ? 1f : 1f - Mathf.SmoothStep(0f, 1f, (hugFlinch - 0.33f) / 0.5f);
+                    Vector3 tucked = shoulder + (desired - shoulder) * 0.88f;
+                    tucked += (chest - tucked) * 0.1f;
+                    desired = Vector3.Lerp(desired, tucked, k);
+                }
+                IKFeel.Spring(ref hugHand[i], ref hugHandVel[i], desired, seg >= 0.5f && seg < 0.7f ? 3.5f : 1.5f, 0.9f, dt); // ช่วงดันกระแทกไว (3.5 Hz) นอกนั้นหนัก | หน่วงสูง: หยุดนิ่ง ไม่เด้งแบบยาง
+            }
+            if (hugFlinch >= 0f) { hugFlinch += dt; if (hugFlinch > 0.83f) hugFlinch = -1f; }
+        }
+
+        public void HugSqueeze()
+        {
+            Vector3 at = Hugger ? HugAnchor() : spine ? spine.position : transform.position + Vector3.up * 8f; // ประกายตรงที่มือไคจูรัด
+            ImpactFeel.PlayHit(at, transform.forward, heldTugImpact * 1.5f);
+            leanVel += new Vector3(35f, Random.Range(-1f, 1f) * 20f, 0f); // โดนบีบ = ตัวยุบงอเข้าหาอกไคจู แล้วสปริงกลับไปแอ่น
+            hugFlinch = 0f; // แขนหุบเข้าแป๊บหนึ่ง (UpdateHugArms)
+        }
+
         // ================================================================ กล้องฉากยื้อกับไคจู
 
         // ไคจูคว้าแขนหุ่นเครื่องนี้: กล้องไปอยู่หลังไหล่ไคจู มองข้ามหลังมันไปที่หุ่น ค่อยๆ ดันเข้า
@@ -2213,33 +2501,56 @@ namespace Nsc.BoneLimb
             if (CameraShake.IsFrozen) return; // หยุดภาพตอนกระชาก — กล้องค้างพร้อมโลก
             float dt = Time.deltaTime;
             bool strained = HeldStrain(out _, out _, out int arm);
-            if (strained)
+            bool hugged = Hugged;
+            if (strained || hugged)
             {
-                Animator owner = HeldBy(arm).GetComponentInParent<Animator>();
+                Animator owner = hugged ? Hugger : HeldBy(arm).GetComponentInParent<Animator>();
                 if (owner) grabCamEnemy = owner.transform;
                 grabCamT += dt;
                 grabCamAfter = grabCamHold;
             }
             else grabCamAfter -= dt;
-            bool on = (strained || grabCamAfter > 0f) && grabCamEnemy;
+            bool on = (strained || hugged || grabCamAfter > 0f) && grabCamEnemy;
             grabCamW = Mathf.MoveTowards(grabCamW, on ? 1f : 0f, dt / (on ? 0.4f : 0.8f));
             if (grabCamW <= 0f) { grabCamT = 0f; grabCamSide = 0f; grabCamLook = Vector3.zero; return; }
             if (!grabCamEnemy) return;
 
             Vector3 me = down ? ragdoll.Hips.position : transform.position + Vector3.up * 7f;
             Vector3 enemy = grabCamEnemy.position + Vector3.up * 8f;
-            Vector3 line = Vector3.ProjectOnPlane(enemy - me, Vector3.up);
+            Vector3 line = Vector3.ProjectOnPlane(hugged ? -Hugger.transform.forward : enemy - me, Vector3.up); // ถูกยกเหนือหัว ตัวหุ่นอยู่บนหัวมันพอดี เส้นหุ่น-ไคจูใช้ไม่ได้
             if (line.sqrMagnitude < 0.01f) line = transform.forward;
             Vector3 along = line.normalized, mid = (me + enemy) * 0.5f;
             Vector3 side = Vector3.Cross(Vector3.up, along);
             if (grabCamSide == 0f && strained) grabCamSide = Vector3.Dot(limbs[arm].root.position - mid, side) >= 0f ? -1f : 1f; // ฝั่งตรงข้ามแขนที่ถูกจับ = ด้านที่ไคจูบิดตัวเปิดออก เห็นหุ่นข้างตัวมัน ไม่โดนหลังบัง | จำไว้ ไม่พลิกข้าง
+            if (grabCamSide == 0f && hugged) // โดนกอด: กล้องข้างตัว ฝั่งแขนที่ดันหัวไคจู (แขนนั้นอยู่ใกล้กล้อง ไม่โดนลำตัวบัง)
+                for (int i = 0; i < limbs.Length; i++)
+                    if (limbs[i].isArm && limbs[i].Side > 0f) grabCamSide = Vector3.Dot(limbs[i].root.position - mid, side) >= 0f ? 1f : -1f;
             if (grabCamSide == 0f) grabCamSide = 1f;
-            float push = 1f - grabCamPush * Mathf.SmoothStep(0f, 1f, grabCamT / grabCamPushTime);
-            // หลังไคจูค่อนไปทางข้าง: เห็นแนวดึง (ไหล่หุ่น → มือไคจู) ตามขวาง + หลังแพนด้า | เล็งกลางแขนที่โดนดึง กระชากแล้วเล็งตามตัวหุ่นที่ปลิว
-            float back = Mathf.Max(16f, line.magnitude * 0.8f + 10f) * push;
-            Vector3 pos = enemy + along * (back * 0.5f) + side * (grabCamSide * back * 1.1f) + Vector3.up * 4f;
+            Vector3 pos, focus;
+            if (hugged || (grabCamAfter > 0f && !strained && hugCamWas))
+            {
+                // มุมข้างของคู่ที่กอดกัน: เห็นแขนหุ่นทั้งท่อนดันหน้าไคจูตัดฉากหลัง + หน้าไคจู | ถูกยกสูง = ถอยกล้องออกตามความสูง ไม่ดันเข้า
+                hugCamWas = true;
+                Vector3 chest = spine ? spine.position : me;
+                Transform head = Hugger ? Hugger.GetBoneTransform(HumanBodyBones.Head) : null;
+                if (head) hugCamHead = head.position; // หลังโยนยังเล็งหัวไคจูจุดเดิม กล้องไม่กระตุก
+                Vector3 kHead = hugCamHead;
+                focus = Vector3.Lerp(chest, kHead, 0.45f);
+                float lift = Mathf.Max(0f, chest.y - kHead.y);
+                float spread = Mathf.Max(0f, Vector3.ProjectOnPlane(chest - kHead, Vector3.up).magnitude - 6f); // ถูกโยนไปไกล = ถอยกล้องให้เห็นทั้งคู่
+                float dist = hugCamDistance + lift * 0.8f + spread * 0.7f;
+                pos = focus + along * (dist * 0.1f) + side * (grabCamSide * dist) + Vector3.up * (5f + lift * 0.5f); // ข้างตรงๆ ค่อนมาทางหน้าหุ่นนิด: เห็นอก/แขนหุ่นกับหน้าไคจูเป็นเงาข้าง
+            }
+            else
+            {
+                hugCamWas = false;
+                float push = 1f - grabCamPush * Mathf.SmoothStep(0f, 1f, grabCamT / grabCamPushTime);
+                // หลังไคจูค่อนไปทางข้าง: เห็นแนวดึง (ไหล่หุ่น → มือไคจู) ตามขวาง + หลังแพนด้า | เล็งกลางแขนที่โดนดึง กระชากแล้วเล็งตามตัวหุ่นที่ปลิว
+                float back = Mathf.Max(16f, line.magnitude * 0.8f + 10f) * push;
+                pos = enemy + along * (back * 0.5f) + side * (grabCamSide * back * 1.1f) + Vector3.up * 4f;
+                focus = strained ? Vector3.Lerp(limbs[arm].root.position, HeldBy(arm).position, 0.5f) : Vector3.Lerp(me, enemy, 0.3f);
+            }
             pos.y = Mathf.Max(pos.y, transform.position.y + 1.5f);
-            Vector3 focus = strained ? Vector3.Lerp(limbs[arm].root.position, HeldBy(arm).position, 0.5f) : Vector3.Lerp(me, enemy, 0.3f);
             grabCamLook = grabCamLook == Vector3.zero ? focus : Vector3.Lerp(grabCamLook, focus, 1f - Mathf.Exp(-6f * dt));
             Quaternion rot = Quaternion.LookRotation(grabCamLook - pos);
             float w = Mathf.SmoothStep(0f, 1f, grabCamW);
@@ -2288,6 +2599,9 @@ namespace Nsc.BoneLimb
         }
 
         private Vector3 kickVel;
+
+        /// <summary>[SERVER] สะโพก ragdoll — ไคจูรอดูหุ่นที่โยนไปตกถึงพื้น</summary>
+        public Rigidbody RagdollHips => ragdoll.Hips;
 
         /// <summary>[SERVER / เล่นคนเดียว] ล้ม — จากกฎล้ม, บอส (Robot.ServerKnockDown), ปุ่มทดสอบ B | ระหว่างลุกล้มซ้ำไม่ได้</summary>
         public void ServerKnockDown(FallReason reason)

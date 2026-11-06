@@ -182,6 +182,12 @@ namespace Nsc.Robots
 
         public void SetDownExternally(bool down) => externallyDown = down;
 
+        /// <summary>
+        /// ทุกเครื่อง: ศัตรูที่กอดยกหุ่นทั้งตัวอยู่ (null = ไม่มี) — ไคจูตั้ง (KaijuSpecials กอดยกทุ่ม) ตัวคุมหุ่นอ่าน:
+        /// ตัวลอยตามมือศัตรู ขาห้อย ไม่เช็กล้ม จนกว่าจะปล่อย
+        /// </summary>
+        public Animator HuggedBy { get; set; }
+
         private void LateUpdate() => TrackDown();
 
         private void TrackDown()
