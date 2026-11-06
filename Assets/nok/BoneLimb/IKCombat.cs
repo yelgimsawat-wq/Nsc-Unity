@@ -23,7 +23,7 @@ namespace Nsc.BoneLimb
         [Tooltip("เปิด = หมัดพุ่งตรงไปหน้าจากท่าการ์ด (แนวลึกอย่างเดียว) | ปิด = พุ่งไปทางที่เคอร์เซอร์เล็ง")]
         public bool straightPunch;
         [Tooltip("หมัดตรงเบี่ยงไปทางที่เคอร์เซอร์เล็งได้ไม่เกินกี่องศา (ซ้าย-ขวา/บน-ล่าง) | 0 = ตรงไปหน้าอย่างเดียว")]
-        public float aimCone = 25f;
+        public float aimCone = 45f;
 
         [Header("หมัด")]
         public float chargeTime = 0.8f;

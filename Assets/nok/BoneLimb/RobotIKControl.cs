@@ -74,6 +74,16 @@ namespace Nsc.BoneLimb
         [Tooltip("รัศมีกำปั้นที่นับว่าโดน")]
         [SerializeField] private float strikeRadius = 1.2f;
 
+        [Header("ช่วยหัน/ช่วยเล็ง (ผู้ใช้ 2026-11-06: เดินแล้วหันไปตีไคจูยาก ไม่เอาปุ่มเพิ่ม)")]
+        [Tooltip("ลำตัวหันเข้าหาบอสที่อยู่ใกล้เองได้ไม่เกินกี่องศา จากทิศเท้า (เท้ายังปักที่เดิม ก้าวต่อไปเท้าลงตามตัว) | 0 = ปิด")]
+        [SerializeField] private float faceEnemyMax = 35f;
+        [Tooltip("บอสอยู่ใกล้กว่านี้ (ม.) ถึงหันเข้าหา")]
+        [SerializeField] private float faceEnemyRange = 40f;
+        [Tooltip("หมัดดูดเข้าเป้า: ศัตรูอยู่ในกรวยกี่องศารอบทิศที่เล็ง | 0 = ปิด")]
+        [SerializeField] private float punchAssistCone = 35f;
+        [Tooltip("หมัดดูดเข้าเป้า: ศัตรูต้องอยู่ใกล้ไหล่ไม่เกินกี่เท่าของความยาวแขน")]
+        [SerializeField] private float punchAssistRange = 1.4f;
+
         [Header("ถีบแบบบาทาลูบพักตร์ (กด Shift = ยกเข่าแล้วถีบฝ่าเท้าไปทาง ◈ — ดาเมจคิดแบบหมัด)")]
         [Tooltip("เวลายกเข่าก่อนถีบ (วินาที) — สั้น = กดแล้วออกเท้าไว")]
         [SerializeField] private float kickChamberTime = 0.25f;
@@ -1031,6 +1041,7 @@ namespace Nsc.BoneLimb
                 else if (plane.Raycast(input.ray, out float enter)) aimPoint = input.ray.GetPoint(enter);
                 aimOnTarget = near && hit.rigidbody && !hit.rigidbody.isKinematic;
                 aimInReach = !near || Vector3.Distance(hit.point, arm.root.position) <= arm.Reach;
+                aimPoint = PunchMagnet(arm, aimPoint);
             }
             aimArm = index;
             IKCombat.Arm a = arms[index];
@@ -1634,15 +1645,15 @@ namespace Nsc.BoneLimb
         private Vector3 OnGround(IKLimb leg, Vector3 p) => new Vector3(p.x, GroundY(p) + leg.RestHeight, p.z);
 
         // หุ่นเดิม (LegController.LandingYaw): เท้าลงหันตามทิศลำตัว + ครึ่งหนึ่งของมุมก้าว (ไม่เกิน maxTurnPerStep)
-        // ก้าวสั้นกว่า 20% ของขา หรือถอยหลัง/เฉียงเกิน 110° = ทิศลำตัว | ตัวหันตามเท้าที่ปัก (UpdateBody) = เลี้ยว
+        // ก้าวสั้นกว่า 20% ของขา หรือถอยหลัง/เฉียงเกิน 135° = ทิศลำตัว (ก้าวข้าง-เฉียงหลังเลี้ยวได้ — ผู้ใช้บอกหันยาก 2026-11-06) | ตัวหันตามเท้าที่ปัก (UpdateBody) = เลี้ยว
         private float LandingYaw(int i, IKLimb leg) => transform.eulerAngles.y + StepTurn(leg, liftFrom[i], stepAim[i]);
 
-        // ครึ่งหนึ่งของมุมก้าว (from → to) เทียบทิศหน้าหุ่นตอนนี้ ไม่เกิน maxTurnPerStep | ก้าวสั้น/ถอยหลัง/เฉียงเกิน 110° = 0
+        // ครึ่งหนึ่งของมุมก้าว (from → to) เทียบทิศหน้าหุ่นตอนนี้ ไม่เกิน maxTurnPerStep | ก้าวสั้น/ถอยหลัง/เฉียงเกิน 135° = 0
         private float StepTurn(IKLimb leg, Vector3 from, Vector3 to)
         {
             Vector3 step = Vector3.ProjectOnPlane(to - from, Vector3.up);
             float angle = Vector3.SignedAngle(transform.forward, step, Vector3.up);
-            if (step.magnitude <= leg.Reach * 0.2f || Mathf.Abs(angle) > 110f) return 0f;
+            if (step.magnitude <= leg.Reach * 0.2f || Mathf.Abs(angle) > 135f) return 0f;
             return Mathf.Clamp(angle * 0.5f, -feel.maxTurnPerStep, feel.maxTurnPerStep);
         }
 
@@ -1718,15 +1729,69 @@ namespace Nsc.BoneLimb
                 else twist += StepTurn(limbs[i], planted[i], limbs[i].target.position);
             }
             if (facing.sqrMagnitude < 1e-2f) return;
-            float yaw = bodyRot.eulerAngles.y;
+            float yaw = bodyRot.eulerAngles.y, feetYaw = Quaternion.LookRotation(facing).eulerAngles.y;
+            twist += FaceEnemyTwist(feetYaw);
             Vector3 x = new Vector3(yaw, 0f, 0f), v = new Vector3(yawVel, 0f, 0f);
-            Vector3 face = new Vector3(yaw + Mathf.DeltaAngle(yaw, Quaternion.LookRotation(facing).eulerAngles.y) + twist, 0f, 0f);
+            Vector3 face = new Vector3(yaw + Mathf.DeltaAngle(yaw, feetYaw) + twist, 0f, 0f);
             IKFeel.Spring(ref x, ref v, face, feel.headingFrequency, feel.headingDamping, Time.deltaTime);
             yawVel = v.x;
             bodyRot = Quaternion.Euler(0f, x.x, 0f);
         }
 
         // ================================================================ ดาเมจ
+
+        // ================================================================ ช่วยหัน / ช่วยเล็ง (ไม่มีปุ่มเพิ่ม)
+
+        private readonly Collider[] assistHits = new Collider[32];
+        private EnemyHealth faceEnemy;
+        private float nextEnemyScan;
+
+        // หมัดดูดเข้าเป้า (เครื่องที่คุมแขน): ศัตรูอยู่ในกรวย punchAssistCone รอบทิศที่เล็ง + ใกล้ไหล่ไม่เกิน punchAssistRange เท่าแขน
+        // = เล็งจุดบนตัวมันที่ใกล้ไหล่ที่สุดแทน (หมัดตรงยังเบี่ยงได้ไม่เกิน aimCone ของ IKCombat)
+        private Vector3 PunchMagnet(IKLimb arm, Vector3 aim)
+        {
+            if (punchAssistCone <= 0f) return aim;
+            Vector3 sh = arm.root.position, want = aim - sh;
+            float best = punchAssistCone;
+            Team team = robot ? robot.GetTeam() : Team.None;
+            int n = Physics.OverlapSphereNonAlloc(sh, arm.Reach * punchAssistRange, assistHits, ~0, QueryTriggerInteraction.Ignore);
+            for (int k = 0; k < n; k++)
+            {
+                Collider c = assistHits[k];
+                if (robot && Robot.FromCollider(c) == robot) continue;
+                IDamageable d = c.GetComponentInParent<IDamageable>();
+                if (d == null || d.GetTeam() == Team.None || !team.IsHostileTo(d.GetTeam())) continue; // ไม่ดูดเข้าตึก/พร็อพ (ทีม None) — เฉพาะศัตรูจริง
+                Vector3 p = c.ClosestPoint(sh);
+                float angle = Vector3.Angle(want, p - sh);
+                if (angle < best) { best = angle; aim = p; }
+            }
+            return aim;
+        }
+
+        // [ตัวคุมตัวหุ่น] ลำตัวหันเข้าหาบอสใกล้ๆ เองได้ไม่เกิน ±faceEnemyMax จากทิศเท้า — แขนต่อยถึงไคจูที่อยู่เฉียงข้างโดยไม่ต้องก้าว
+        // เกินนั้นขาต้องก้าวเลี้ยวเอง | ก้าวต่อไปเท้าลงตามตัวที่บิดแล้ว (LandingYaw) = ค่อยๆ หันเข้าหามันระหว่างเดิน | PVP ไม่มี EnemyHealth = ไม่ทำงาน
+        private float FaceEnemyTwist(float feetYaw)
+        {
+            if (faceEnemyMax <= 0f || Hugged) return 0f;
+            if (Time.time >= nextEnemyScan) { nextEnemyScan = Time.time + 0.5f; faceEnemy = NearestEnemy(); }
+            if (!faceEnemy) return 0f;
+            Vector3 to = Vector3.ProjectOnPlane(faceEnemy.transform.position - transform.position, Vector3.up);
+            if (to.sqrMagnitude > faceEnemyRange * faceEnemyRange || to.sqrMagnitude < 1f) return 0f;
+            return Mathf.Clamp(Mathf.DeltaAngle(feetYaw, Quaternion.LookRotation(to).eulerAngles.y), -faceEnemyMax, faceEnemyMax);
+        }
+
+        private EnemyHealth NearestEnemy()
+        {
+            EnemyHealth best = null;
+            float bestSq = float.MaxValue;
+            foreach (EnemyHealth e in FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None))
+            {
+                if (e.CurrentHp.Value <= 0f) continue;
+                float sq = (e.transform.position - transform.position).sqrMagnitude;
+                if (sq < bestSq) { bestSq = sq; best = e; }
+            }
+            return best;
+        }
 
         // หุ่นเดิม (LimbStrike): กำปั้นเร็วเกิน strikeMinSpeed = กำลังต่อย → แตะของที่รับดาเมจได้ = ดาเมจตามความเร็วพีคของท่า
         // หนึ่งท่าหนึ่งครั้ง (ช้าลงต่ำกว่าเกณฑ์ = จบท่า) | Server ดูกำปั้นที่แก้ IK แล้ว — แขนของ client มาจาก state ที่ซิงก์
