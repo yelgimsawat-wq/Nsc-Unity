@@ -20,6 +20,9 @@ namespace Nsc.Robots
         private const float RegenDelay = 7.5f;
         private const float KnockbackPerDamage = 2f;
 
+        /// <summary>[SERVER] ปิดได้ทั้งเกม — โหมดบอสปิด (ฮีลด้วยเซลล์พลังงานแทน, BossModeRules)</summary>
+        public static bool RegenEnabled = true;
+
         [Header("Health Settings")]
         [FormerlySerializedAs("MaxHp")]
         [SerializeField] private float startingMaxHp = 500f;
@@ -95,7 +98,7 @@ namespace Nsc.Robots
             // server คำนวณเลือดคนเดียว client รอรับค่าไปโชว์
             if (!IsServer) return;
 
-            if (regenerating)
+            if (regenerating && RegenEnabled)
             {
                 if (hp.Value < maxHp.Value)
                     hp.Value = Mathf.Min(maxHp.Value, hp.Value + RegenPerSecond * Time.deltaTime);
@@ -174,6 +177,13 @@ namespace Nsc.Robots
             hp.Value = maxHp.Value;
             regenerating = true;
             timeSinceHit = 0f;
+        }
+
+        /// <summary>[SERVER] ฮีล (เซลล์พลังงาน) ไม่เกินเพดานปัจจุบัน — ชิ้นที่หลุดอยู่ไม่รับ</summary>
+        public void ServerHeal(float amount)
+        {
+            if (!IsServer || !CanTakeDamage) return;
+            hp.Value = Mathf.Min(maxHp.Value, hp.Value + amount);
         }
 
         private void Break()

@@ -29,6 +29,16 @@ namespace NscGame.Enemy
         [SerializeField] private int attackLayer = 2;
         [Tooltip("พักระหว่างท่าพิเศษ (วิ) สุ่มในช่วงนี้")]
         [SerializeField] private Vector2 cooldown = new Vector2(8f, 12f);
+        [Tooltip("คูณคูลดาวน์ตามเลือด: >66% / 33–66% / <33% — ยิ่งใกล้ตายยิ่งถี่")]
+        [SerializeField] private Vector3 phaseCooldownScale = new Vector3(0.8f, 0.6f, 0.45f);
+        [Tooltip("คูณดาเมจท่าพิเศษที่มีเตือน (กลิ้ง/คลื่น/วงหนาม/กระโดด) — หลบได้จึงแรงได้")]
+        [SerializeField] private float specialDamageScale = 1.2f;
+        [Tooltip("ท่าพิเศษที่มีเตือนเข้าเป้า = หักแกนพลังงานหุ่นเท่านี้ (โหมดบอส)")]
+        [SerializeField] private float specialCoreDamage = 4f;
+        [Tooltip("ทุ่มลงพื้นจากท่ากอด = กระแทกแกนพลังงานหุ่นเท่านี้ (โหมดบอส)")]
+        [SerializeField] private float hugSlamCoreDamage = 12f;
+        [Tooltip("หุ่นดิ้นหลุดจากกอด = ไคจูเซ หล่นเซลล์พลังงานเท่านี้")]
+        [SerializeField] private int hugEscapeCells = 2;
         [Tooltip("รอหลังเริ่มเกมก่อนใช้ท่าพิเศษครั้งแรก")]
         [SerializeField] private float firstDelay = 6f;
         [SerializeField] private Material warningMaterial;
@@ -336,7 +346,9 @@ namespace NscGame.Enemy
             yield return new WaitForSeconds(recoverTime);
             controller.ServerRotationLocked = false;
             controller.ServerEndKnockback();
-            nextSpecial = Time.time + Random.Range(cooldown.x, cooldown.y);
+            float hp = health != null ? health.GetHpPercent() : 1f;
+            float phase = hp > 0.66f ? phaseCooldownScale.x : hp > 0.33f ? phaseCooldownScale.y : phaseCooldownScale.z;
+            nextSpecial = Time.time + Random.Range(cooldown.x, cooldown.y) * phase;
             running = false;
         }
 
@@ -488,6 +500,7 @@ namespace NscGame.Enemy
             {
                 Debug.Log("[KaijuSpecials] หุ่นดิ้นหลุด — ไคจูเซ");
                 HugEndClientRpc(true);
+                if (Nsc.Match.BossModeRules.Current) Nsc.Match.BossModeRules.Current.ServerDropCells(hugEscapeCells); // รางวัลที่ทั้งทีมช่วยกันตีให้หลุด
                 for (float t = 0f; t < hugStunTime && !Dead(); t += Time.deltaTime) yield return null; // ยืนมึน (AI ยังพักอยู่ใน Perform)
                 yield break;
             }
@@ -508,6 +521,7 @@ namespace NscGame.Enemy
                 yield return null;
             }
             if (!Alive(robot)) yield break; // หุ่นหายระหว่างปลิว (ผู้เล่นออก/despawn)
+            if (Nsc.Match.BossModeRules.Current) Nsc.Match.BossModeRules.Current.ServerDamageCore(hugSlamCoreDamage);
             foreach (RobotLimb limb in robot.AttachedLimbs())
                 if (limb.Health != null) DamageRouter.TryApply(limb.Health, new DamageInfo(hugSlamDamage, limb.Health.transform.position, Vector3.down, DamageSource.EnemyMelee, Team.Enemy));
             HugSlamClientRpc(hips ? hips.position : robot.transform.position);
@@ -797,6 +811,7 @@ namespace NscGame.Enemy
         // ปกติลงชิ้นที่ใกล้สุดชิ้นเดียว | ท่ากระแทกพื้น (ground) ใส่หุ่นที่นอนอยู่ = ทั้งตัวแนบพื้น โดนทุกชิ้นที่ต่ออยู่
         private void HitRobot(Robot robot, float damage, Vector3 dir, bool ground = false)
         {
+            damage *= specialDamageScale;
             if (ground && robot.DownFor > 0.2f) // นอนอยู่ก่อนแล้ว (ไม่ใช่วงก่อนหน้าเพิ่งทำล้มเฟรมนี้)
             {
                 int count = 0;
@@ -804,6 +819,7 @@ namespace NscGame.Enemy
                     if (limb.Health != null && DamageRouter.TryApply(limb.Health, new DamageInfo(damage * downGroundDamageScale, limb.Health.transform.position, dir, DamageSource.EnemyMelee, Team.Enemy)))
                         count++;
                 Debug.Log($"[KaijuSpecials] 💥 กระแทกพื้นใส่ {robot.name} ที่นอนอยู่ — โดน {count} ชิ้น ชิ้นละ {damage * downGroundDamageScale:F0}");
+                if (count > 0) HitCore();
                 return;
             }
 
@@ -817,7 +833,14 @@ namespace NscGame.Enemy
             }
             bool applied = target != null && DamageRouter.TryApply(target, new DamageInfo(damage, target.transform.position, dir, DamageSource.EnemyMelee, Team.Enemy));
             Debug.Log($"[KaijuSpecials] 💥 โดน {robot.name} ({(target ? target.name : "ไม่มีชิ้น")}) dmg {damage} ลงจริง={applied}");
+            if (applied) HitCore();
             if (Nsc.Match.GameplayGate.CanDamage) robot.ServerKnockDown(FallReason.KnockedDown);
+        }
+
+        // ท่าพิเศษเข้าเป้า = แรงกระแทกถึงแกนพลังงานหุ่นด้วย (โหมดบอส) — โดนบ่อย แกนลดแม้ต่อชิ้นทัน
+        private void HitCore()
+        {
+            if (Nsc.Match.BossModeRules.Current) Nsc.Match.BossModeRules.Current.ServerDamageCore(specialCoreDamage);
         }
 
         // ================================================================ ทุกเครื่อง: ท่า + แนวเตือน + คลื่น

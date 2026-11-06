@@ -90,6 +90,19 @@ namespace Nsc.BoneLimb
         private float myHit, downWeight, fallFlash, alarmTimer, nextNames;
         private bool wasDown;
 
+        // โหมดบอส: แถบเลือดหุ่นใหญ่แถบเดียวกลางล่าง (แกนพลังงาน BossModeRules) + แถบสถานะแขนขา 4 ท่อน ไม่มีตัวเลข — การ์ด 4 ใบซ่อน
+        private const float CoreBarWidth = 900f, CoreBarHeight = 44f;
+        private RectTransform coreRect;
+        private HudShape coreFill, coreLag, coreFlash;
+        private TMP_Text corePct, coreHit;
+        private readonly HudShape[] coreSeg = new HudShape[4];
+        private readonly TMP_Text[] coreSegTag = new TMP_Text[4];
+        private float coreShown = 1f, coreLagValue = 1f, coreLagHold, coreLast = -1f, coreFlashT, coreHitSum, coreHitT;
+        private int corePctShown = -1;
+        private Color coreFlashColor;
+        private Tween coreShake;
+        private bool coreMode;
+
         // หลอดเลือดบอส (บนกลางจอ)
         private const float BossBarWidth = 860f;
         private EnemyHealth boss;
@@ -145,6 +158,7 @@ namespace Nsc.BoneLimb
                 if (c != null && c.shake != null && c.shake.IsActive()) c.shake.Kill(false);
             if (warnPop != null && warnPop.IsActive()) warnPop.Kill(false);
             if (bossShake != null && bossShake.IsActive()) bossShake.Kill(false);
+            if (coreShake != null && coreShake.IsActive()) coreShake.Kill(false);
             if (resultSeq != null && resultSeq.IsActive()) resultSeq.Kill(false);
             if (resultShown) UiFocus.Pop(this);
             if (vignette && vignette.texture) Destroy(vignette.texture);
@@ -167,8 +181,85 @@ namespace Nsc.BoneLimb
             TickBoss(dt);
 
             if (Time.unscaledTime >= nextNames) { nextNames = Time.unscaledTime + 0.5f; RefreshNames(); }
-            for (int i = 0; i < cards.Length && i < control.LimbCount; i++) TickCard(i, dt);
+            for (int i = 0; i < cards.Length && i < control.LimbCount; i++) TickCard(i, dt); // โหมดบอสก็ยังคำนวณ (ขอบจอแดงตอนชิ้นเราโดนมาจากตรงนี้) แค่ไม่แสดง
+            TickCore(dt);
             TickDown(dt);
+        }
+
+        // โหมดบอส (มี BossModeRules ในฉาก) = แถบใหญ่แทนการ์ด | ไม่มี (PVP ฯลฯ) = การ์ดเดิม
+        private void TickCore(float dt)
+        {
+            BossModeRules rules = BossModeRules.Current;
+            bool on = rules != null;
+            if (on != coreMode)
+            {
+                coreMode = on;
+                foreach (Card c in cards) c.rect.gameObject.SetActive(!on);
+                coreRect.gameObject.SetActive(on);
+            }
+            if (!on) return;
+
+            float core = rules.Core01;
+            if (coreLast >= 0f)
+            {
+                float d = core - coreLast;
+                if (d < -0.015f) OnCoreHit(-d); // ครั้งละก้อน (ท่าบอส) ไม่ใช่รั่วทีละนิดจากชิ้นหลุด
+                else if (d > 0.01f) { coreFlashT = 1f; coreFlashColor = accent; } // ฮีล (เซลล์/ต่อชิ้น)
+            }
+            coreLast = core;
+
+            coreShown = Mathf.Lerp(coreShown, core, 1f - Mathf.Exp(-18f * dt));
+            if (core >= coreLagValue) coreLagValue = core;
+            else if (Time.unscaledTime > coreLagHold) coreLagValue = Mathf.MoveTowards(coreLagValue, core, 0.5f * dt);
+            bool low = core <= 0.25f;
+            float blink = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 12f);
+            Color bar = core > 0.5f ? accent : core > 0.25f ? warning : danger;
+            if (low) bar.a = Mathf.Lerp(0.55f, 1f, blink);
+            coreFill.color = bar;
+            coreFill.Fill = coreShown;
+            coreLag.Fill = coreLagValue;
+
+            int pct = Mathf.CeilToInt(core * 100f);
+            if (pct != corePctShown) { corePctShown = pct; corePct.text = pct + "%"; }
+            corePct.color = low ? Color.Lerp(danger, Color.white, 1f - blink) : Color.white;
+
+            coreFlashT = Mathf.MoveTowards(coreFlashT, 0f, dt * 3.5f);
+            coreFlash.color = new Color(coreFlashColor.r, coreFlashColor.g, coreFlashColor.b, coreFlashT * 0.5f);
+            coreHitT = Mathf.MoveTowards(coreHitT, 0f, dt);
+            coreHit.alpha = Mathf.Clamp01(coreHitT * 2f);
+            coreHit.rectTransform.anchoredPosition = new Vector2(CoreBarWidth - 40f, 142f + (1f - coreHitT) * 26f);
+            if (coreHitT <= 0f) coreHitSum = 0f;
+
+            for (int i = 0; i < coreSeg.Length && i < control.LimbCount; i++) TickCoreSeg(i, blink);
+        }
+
+        private void OnCoreHit(float amount)
+        {
+            coreFlashT = 1f;
+            coreFlashColor = danger;
+            coreLagHold = Time.unscaledTime + 0.45f;
+            coreHitSum += amount * 100f;
+            coreHitT = 1f;
+            coreHit.text = "-" + Mathf.CeilToInt(coreHitSum);
+            if (coreShake != null && coreShake.IsActive()) coreShake.Kill(false);
+            coreRect.anchoredPosition = new Vector2(0f, 34f);
+            coreShake = coreRect.DOShakeAnchorPos(0.32f, new Vector2(14f, 8f) * Mathf.Clamp(amount * 12f, 0.4f, 1.6f), 40, 90f, false, true)
+                .SetUpdate(true)
+                .OnComplete(() => coreRect.anchoredPosition = new Vector2(0f, 34f));
+            myHit = Mathf.Clamp01(myHit + 0.3f + amount * 2f); // ขอบจอแดงวาบ
+        }
+
+        // ท่อนสถานะแขนขา: ดี / ใกล้พัง / หลุด (กะพริบ + บอกปุ่มดึงกลับเฉพาะชิ้นของเรา) — ไม่มีตัวเลข
+        private void TickCoreSeg(int i, float blink)
+        {
+            Card c = cards[i];
+            bool attached = control.IsLimbAttached(i), mine = control.IsLimbMine(i);
+            float pct = c.health ? c.health.HpPercent : 1f;
+            Color col = pct > 0.6f ? accent : pct > lowHp ? warning : danger;
+            coreSeg[i].color = attached ? col : new Color(danger.r, danger.g, danger.b, Mathf.Lerp(0.18f, 0.5f, blink));
+            string tag = SlotTags[i] + (!attached ? (mine ? "  OFF — HOLD [R]" : "  OFF") : "");
+            if (coreSegTag[i].text != tag) coreSegTag[i].text = tag;
+            coreSegTag[i].color = !attached ? danger : mine ? accent : new Color(0.75f, 0.82f, 0.88f);
         }
 
         /// <summary>หุ่นของผู้เล่นเครื่องนี้ — ฉาก PVP มีหุ่นสองตัว HUD ต้องโชว์ฝั่งเราเท่านั้น (ยังไม่เลือกทีม = ตัวแรกที่เจอ)</summary>
@@ -383,8 +474,55 @@ namespace Nsc.BoneLimb
                 x += CardWidth + (i == 1 ? MidGap : CardGap);
             }
 
+            BuildCore(c);
             BuildWarning(c);
             BuildBoss(c);
+        }
+
+        private void BuildCore(Transform parent)
+        {
+            var go = new GameObject("CoreBar", typeof(RectTransform));
+            coreRect = (RectTransform)go.transform;
+            coreRect.SetParent(parent, false);
+            coreRect.anchorMin = coreRect.anchorMax = new Vector2(0.5f, 0f);
+            coreRect.pivot = new Vector2(0.5f, 0f);
+            coreRect.sizeDelta = new Vector2(CoreBarWidth + 40f, 160f);
+            coreRect.anchoredPosition = new Vector2(0f, 34f);
+            Transform t = coreRect;
+            const float x = 20f, segY = 6f, segH = 12f, barY = 58f;
+
+            Shape(t, "Back", new Vector2(0f, 0f), new Vector2(CoreBarWidth + 40f, 132f), panel);
+            var name = Tmp(t, "Name", headFont, 26f, TextAlignmentOptions.BottomLeft, new Vector2(24f, 100f), new Vector2(300f, 34f));
+            name.text = "ROBOT";
+            name.characterSpacing = 10f;
+            name.color = accent;
+            corePct = Tmp(t, "Pct", headFont, 64f, TextAlignmentOptions.BottomRight, new Vector2(CoreBarWidth - 260f, 84f), new Vector2(300f, 72f));
+
+            Shape(t, "BarBack", new Vector2(x, barY), new Vector2(CoreBarWidth, CoreBarHeight), new Color(1f, 1f, 1f, 0.07f));
+            coreLag = Shape(t, "BarLag", new Vector2(x, barY), new Vector2(CoreBarWidth, CoreBarHeight), new Color(1f, 0.92f, 0.85f, 0.85f));
+            coreFill = Shape(t, "BarFill", new Vector2(x, barY), new Vector2(CoreBarWidth, CoreBarHeight), accent);
+            const int seg = 20;
+            float span = CoreBarWidth - CoreBarHeight * 0.25f;
+            for (int s = 1; s < seg; s++)
+                Shape(t, "Gap", new Vector2(x + span * s / seg - 1.5f, barY), new Vector2(3f + CoreBarHeight * 0.25f, CoreBarHeight), new Color(0.03f, 0.06f, 0.09f, 0.9f));
+            coreFlash = Shape(t, "Flash", new Vector2(x, barY), new Vector2(CoreBarWidth, CoreBarHeight), Color.clear);
+
+            // 4 ท่อน: แขนซ้าย-ขวา | ขาซ้าย-ขวา
+            const float gap = 10f, mid = 30f;
+            float segW = (CoreBarWidth - gap * 2f - mid) / 4f, sx = x;
+            for (int i = 0; i < coreSeg.Length; i++)
+            {
+                coreSeg[i] = Shape(t, $"Seg_{SlotTags[i]}", new Vector2(sx, segY + 30f), new Vector2(segW, segH), accent);
+                coreSegTag[i] = Tmp(t, $"SegTag_{SlotTags[i]}", bodyFont, 20f, TextAlignmentOptions.BottomLeft, new Vector2(sx, segY), new Vector2(segW + 60f, 28f));
+                coreSegTag[i].characterSpacing = 3f;
+                sx += segW + (i == 1 ? mid : gap);
+            }
+
+            coreHit = Tmp(t, "Hit", headFont, 34f, TextAlignmentOptions.Center, new Vector2(CoreBarWidth - 40f, 142f), new Vector2(120f, 44f));
+            coreHit.rectTransform.pivot = new Vector2(0.5f, 0f);
+            coreHit.color = danger;
+            coreHit.alpha = 0f;
+            coreRect.gameObject.SetActive(false);
         }
 
         private Card BuildCard(Transform parent, int index, Vector2 pos)
@@ -587,7 +725,7 @@ namespace Nsc.BoneLimb
             resultTitle.text = r.victory ? "VICTORY" : "DEFEAT";
             resultTitle.color = tone;
             resultBand.color = new Color(tone.r * 0.25f, tone.g * 0.25f, tone.b * 0.25f, 0.85f);
-            resultSub.text = r.victory ? "KAIJU NEUTRALIZED" : "ALL LIMBS LOST — ROBOT DESTROYED";
+            resultSub.text = r.victory ? "KAIJU NEUTRALIZED" : Nsc.Match.BossModeRules.Current ? "CORE DEPLETED — ROBOT DESTROYED" : "ALL LIMBS LOST — ROBOT DESTROYED"; // โหมดบอสแพ้ = แกนพลังงานหมด | PVP ใช้ HUD นี้ด้วย คงข้อความเดิม
             int sec = Mathf.Max(0, Mathf.FloorToInt(r.time));
             resultTime.text = $"TIME  {sec / 60:00}:{sec % 60:00}";
             if (audioSource) audioSource.PlayOneShot(r.victory ? winClip : loseClip, alarmVolume * 1.6f);
