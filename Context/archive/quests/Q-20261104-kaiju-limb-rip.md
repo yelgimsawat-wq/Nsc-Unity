@@ -1,5 +1,5 @@
 ### 2026-11-04 — Q-20261104-kaiju-limb-rip — ไคจูกระชากแขนหุ่น แล้วถือเป็นอาวุธ
-- Status: active
+- Status: closed (ผู้ใช้สั่งปิดใน chat 2026-11-06; สถานะเดิม: active; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session ca241c49-0560-4e6d-9269-6adb0fbd5b6e
 - Goal: เลือดไคจูถึงเกณฑ์ (66% / 33%) = event โดนแน่ 100%: คำราม → พุ่งเข้าระยะ → คว้าแขนหุ่น → กระชากหลุด → ถือแขนนั้นฟาด (ระยะ/ดาเมจเพิ่ม) → โดนตีครบหรือหมดเวลาแล้วทิ้ง → ผู้เล่นกด R ดึงกลับแบบเดิม
 - Files: Assets/nok/Enemy/Scripts/Attacks/KaijuSpecials.cs, Assets/_Game/Scripts/Enemy/EnemyCombat.cs, Assets/_Game/Scripts/Enemy/EnemyController.cs (ServerSetMoveAnim), Assets/_Game/Scripts/Robot/RobotLimb.cs, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/BoneLimb/IKDetach.cs, Context/quests/Q-20261104-kaiju-limb-rip/rip_clip.mp4 (คลิปหลักฐาน), Assets/nok/Enemy/Animations/Clips/Panda_LimbRip.anim + Panda_LimbRipL.anim (ใหม่), Assets/nok/Enemy/Animations/Controller/PandaKaiju.controller, Assets/_Game/Prefabs/Enemy/PandaKaiju.prefab (ถ้าต้องตั้งค่า)

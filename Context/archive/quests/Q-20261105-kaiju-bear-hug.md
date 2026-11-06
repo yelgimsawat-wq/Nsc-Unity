@@ -1,5 +1,5 @@
 ### 2026-11-05 — Q-20261105-kaiju-bear-hug — ไคจูกอดยกทุ่ม (ทั้งทีมดิ้นให้หลุด)
-- Status: active
+- Status: closed (ผู้ใช้สั่งปิดใน chat 2026-11-06; สถานะเดิม: active; ที่ยังไม่ได้ตรวจหรือยังค้างตาม Validation/Next action ด้านล่างไม่ได้ทำต่อ — ถ้าจะทำต่อให้เปิด Quest ใหม่แล้วอ้างไฟล์นี้)
 - Owner: Claude Code (Opus 5.5) / session ca241c49-0560-4e6d-9269-6adb0fbd5b6e
 - Goal: ท่าพิเศษไคจู: เตือน (กางแขน + เขตแดงหน้าตัว หลบได้) → รวบหุ่นยกลอย → บีบเป็นจังหวะ (ประกายไฟ/ดาเมจเบา) → ทีมต่อย/ถีบไคจูครบเกจ = หลุด ไคจูเซ | ไม่ทัน = ยกเหนือหัวทุ่มพื้น ดาเมจหนักทุกชิ้น หุ่นล้ม. ฝั่งหุ่น: ลอยติดมือไคจู ขาห้อยแกว่ง คนคุมขาค้าง/ปล่อยเมาส์ = ยกเข่า/ถีบอกไคจู แขนต่อยได้ตามปกติ ตัวสั่นตอนโดนบีบ กล้องมุมเห็นทั้งสองตัว
 - Files: Assets/nok/Enemy/Scripts/Attacks/KaijuSpecials.cs, Assets/_Game/Scripts/Robot/Robot.cs, Assets/nok/BoneLimb/RobotIKControl.cs, Assets/nok/Enemy/Animations/Clips/Panda_BearHug.anim + Panda_HugStagger.anim (ใหม่), Assets/nok/Enemy/Animations/Controller/PandaKaiju.controller, Assets/_Game/Prefabs/Enemy/PandaKaiju.prefab
