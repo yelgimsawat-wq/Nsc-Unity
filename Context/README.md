@@ -13,6 +13,7 @@
 | การแก้ไขล่าสุด | [Edit-Log.md](Edit-Log.md) | เมื่องานต้องรู้ว่าใครเพิ่งแก้อะไร ไม่อ่านอัตโนมัติ |
 | งานปิดแล้ว, Log เก่า, snapshot | [archive/](archive/) | เมื่อค้นประวัติเท่านั้น |
 | ทิศทางเกม: ฟีล Pacific Rim, ไอเดียความสนุก, ทางไปขาย (แยกตัดสินใจแล้ว/ยังเป็นไอเดีย) | [Game-Design.md](Game-Design.md) | งานที่เพิ่มหรือเปลี่ยน gameplay, ฉาก, บอส, UI |
+| ไอเดียจากสมุด 2026-11-13: ท่าร่วม, Spark, ร้าน waifu, ล็อบบี้ + ภาพสเก็ตช์ | [Design.md](Design.md) | งานเควส Q-20261113-* |
 | ภาพรวมโปรเจกต์, สถาปัตยกรรมโค้ด, conventions, คำสั่ง dev, pitfalls, MCP | [../CLAUDE.md](../CLAUDE.md) | ก่อนแก้โค้ดหรือ scene |
 | class diagram ปัจจุบัน (โค้ดใน `Assets/_Game/Scripts` ยึดตามนี้) | [../ArchitectureDiagram/uml/class-packages.drawio](../ArchitectureDiagram/uml/class-packages.drawio) | งานที่กระทบโครงสร้าง class |
 | ระบบ PVP | [../Assets/nok/PVP/README_PVP.md](../Assets/nok/PVP/README_PVP.md) | งาน PVP |
